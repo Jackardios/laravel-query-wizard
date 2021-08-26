@@ -17,26 +17,24 @@ use Jackardios\QueryWizard\Handlers\Eloquent\Includes\AbstractEloquentInclude;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
 use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\AbstractEloquentSort;
 use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortsByField;
-use Jackardios\QueryWizard\QueryWizard;
+use Jackardios\QueryWizard\EloquentQueryWizard;
 use Jackardios\QueryWizard\Values\Sort;
 
 class EloquentQueryHandler extends AbstractQueryHandler
 {
-    protected ?Collection $appends = null;
-
     protected static string $baseFilterHandlerClass = AbstractEloquentFilter::class;
     protected static string $baseIncludeHandlerClass = AbstractEloquentInclude::class;
     protected static string $baseSortHandlerClass = AbstractEloquentSort::class;
 
-    /** @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation */
+    /** @var Builder|Relation */
     protected $subject;
 
     /**
-     * @param \Jackardios\QueryWizard\QueryWizard $wizard
-     * @param \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation $subject
+     * @param EloquentQueryWizard $wizard
+     * @param Builder|Relation $subject
      * @throws \Throwable
      */
-    public function __construct(QueryWizard $wizard, $subject)
+    public function __construct(EloquentQueryWizard $wizard, $subject)
     {
         if (is_subclass_of($subject, Model::class)) {
             $subject = $subject::query();
@@ -145,9 +143,11 @@ class EloquentQueryHandler extends AbstractQueryHandler
 
     protected function addAppendsToResults(Collection $results): void
     {
-        if ($this->appends) {
-            $results->each(function (Model $result) {
-                return $result->append($this->appends->toArray());
+        $requestedAppends = $this->wizard->getAppends();
+
+        if ($requestedAppends->isNotEmpty()) {
+            $results->each(function (Model $result) use ($requestedAppends) {
+                return $result->append($requestedAppends->toArray());
             });
         }
     }

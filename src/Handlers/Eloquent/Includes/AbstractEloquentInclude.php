@@ -2,13 +2,15 @@
 
 namespace Jackardios\QueryWizard\Handlers\Eloquent\Includes;
 
+use Illuminate\Database\Eloquent\Builder;
 use Jackardios\QueryWizard\Abstracts\Handlers\Includes\AbstractInclude;
+use Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler;
 
 abstract class AbstractEloquentInclude extends AbstractInclude
 {
     /**
-     * @param \Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param EloquentQueryHandler $queryHandler
+     * @param Builder $query
      */
     abstract public function handle($queryHandler, $query): void;
 }

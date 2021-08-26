@@ -1,6 +1,6 @@
 <?php
 
-namespace Jackardios\QueryWizard;
+namespace Jackardios\QueryWizard\Abstracts;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Traits\ForwardsCalls;
@@ -10,10 +10,10 @@ use Jackardios\QueryWizard\Concerns\HandlesFilters;
 use Jackardios\QueryWizard\Concerns\HandlesIncludes;
 use Jackardios\QueryWizard\Concerns\HandlesSorts;
 use Jackardios\QueryWizard\Exceptions\InvalidQueryHandler;
-use Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
+use Jackardios\QueryWizard\QueryWizardRequest;
 
-class QueryWizard
+abstract class AbstractQueryWizard
 {
     use ForwardsCalls;
     use HandlesAppends;
@@ -24,7 +24,7 @@ class QueryWizard
 
     protected QueryWizardRequest $request;
     protected AbstractQueryHandler $queryHandler;
-    protected string $queryHandlerClass = EloquentQueryHandler::class;
+    protected string $queryHandlerClass;
 
     public function __construct($subject, ?Request $request = null)
     {
@@ -32,23 +32,21 @@ class QueryWizard
             ->initializeQueryHandler($subject);
     }
 
-    public static function for($subject, ?Request $request = null): self
+    /**
+     * @param $subject
+     * @param Request|null $request
+     * @return static
+     */
+    public static function for($subject, ?Request $request = null)
     {
         return new static($subject, $request);
     }
 
-    protected function initializeQueryHandler($subject): self
-    {
-        if (is_a($this->queryHandlerClass, AbstractQueryHandler::class)) {
-            throw new InvalidQueryHandler();
-        }
-
-        $this->queryHandler = new $this->queryHandlerClass($subject);
-
-        return $this;
-    }
-
-    protected function initializeRequest(?Request $request = null): self
+    /**
+     * @param Request|null $request
+     * @return static
+     */
+    protected function initializeRequest(?Request $request = null)
     {
         $this->request = $request
             ? QueryWizardRequest::fromRequest($request)
@@ -57,7 +55,24 @@ class QueryWizard
         return $this;
     }
 
-    public function build(): self
+    /**
+     * @return static
+     */
+    protected function initializeQueryHandler($subject): self
+    {
+        if (is_a($this->queryHandlerClass, AbstractQueryHandler::class)) {
+            throw new InvalidQueryHandler();
+        }
+
+        $this->queryHandler = new $this->queryHandlerClass($this, $subject);
+
+        return $this;
+    }
+
+    /**
+     * @return static
+     */
+    public function build()
     {
         $this->queryHandler->handle();
         return $this;

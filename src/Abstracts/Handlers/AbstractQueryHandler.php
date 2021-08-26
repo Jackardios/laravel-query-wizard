@@ -2,15 +2,16 @@
 
 namespace Jackardios\QueryWizard\Abstracts\Handlers;
 
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Abstracts\Handlers\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Abstracts\Handlers\Includes\AbstractInclude;
 use Jackardios\QueryWizard\Abstracts\Handlers\Sorts\AbstractSort;
-use Jackardios\QueryWizard\QueryWizard;
+use Jackardios\QueryWizard\EloquentQueryWizard;
 
 abstract class AbstractQueryHandler
 {
-    protected QueryWizard $wizard;
+    protected EloquentQueryWizard $wizard;
 
     /** @var mixed */
     protected $subject;
@@ -35,10 +36,10 @@ abstract class AbstractQueryHandler
     }
 
     /**
-     * @param \Jackardios\QueryWizard\QueryWizard $wizard
-     * @param \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Eloquent\Relations\Relation $subject
+     * @param EloquentQueryWizard $wizard
+     * @param Builder|Relation $subject
      */
-    public function __construct(QueryWizard $wizard, $subject)
+    public function __construct(EloquentQueryWizard $wizard, $subject)
     {
         $this->wizard = $wizard;
         $this->subject = $subject;
@@ -49,7 +50,7 @@ abstract class AbstractQueryHandler
         return $this->subject;
     }
 
-    public function getWizard(): QueryWizard
+    public function getWizard(): EloquentQueryWizard
     {
         return $this->wizard;
     }
