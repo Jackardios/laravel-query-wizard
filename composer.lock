@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "53aca0d5371bb5b50891904da919b090",
+    "content-hash": "11701f6cb7c4791a7704605e870ba9b4",
     "packages": [
         {
             "name": "brick/math",
@@ -513,16 +513,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v8.55.0",
+            "version": "v8.56.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "997e2aa23e9103137715018ae926c52f8a1703f2"
+                "reference": "d700f336dc672dcbfe46db05d4e5fe9347b3a5b6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/997e2aa23e9103137715018ae926c52f8a1703f2",
-                "reference": "997e2aa23e9103137715018ae926c52f8a1703f2",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/d700f336dc672dcbfe46db05d4e5fe9347b3a5b6",
+                "reference": "d700f336dc672dcbfe46db05d4e5fe9347b3a5b6",
                 "shasum": ""
             },
             "require": {
@@ -677,20 +677,20 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2021-08-17T14:13:34+00:00"
+            "time": "2021-08-24T13:46:30+00:00"
         },
         {
             "name": "laravel/scout",
-            "version": "v9.2.6",
+            "version": "v9.2.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "35db193a88f150e64951ebd29b4a294a91d87dbd"
+                "reference": "0c2e25a431113cc0510ddc9680cdec6ef115be4e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/35db193a88f150e64951ebd29b4a294a91d87dbd",
-                "reference": "35db193a88f150e64951ebd29b4a294a91d87dbd",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/0c2e25a431113cc0510ddc9680cdec6ef115be4e",
+                "reference": "0c2e25a431113cc0510ddc9680cdec6ef115be4e",
                 "shasum": ""
             },
             "require": {
@@ -749,7 +749,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2021-08-17T16:06:22+00:00"
+            "time": "2021-08-24T12:57:33+00:00"
         },
         {
             "name": "league/commonmark",
@@ -4803,6 +4803,62 @@
             "time": "2020-07-09T08:09:16+00:00"
         },
         {
+            "name": "laravel/legacy-factories",
+            "version": "v1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel/legacy-factories.git",
+                "reference": "5e3fe2fd5fda64e20ea5c74c831a7346294e902a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel/legacy-factories/zipball/5e3fe2fd5fda64e20ea5c74c831a7346294e902a",
+                "reference": "5e3fe2fd5fda64e20ea5c74c831a7346294e902a",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/macroable": "^8.0",
+                "php": "^7.3|^8.0",
+                "symfony/finder": "^3.4|^4.0|^5.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.x-dev"
+                },
+                "laravel": {
+                    "providers": [
+                        "Illuminate\\Database\\Eloquent\\LegacyFactoryServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "helpers.php"
+                ],
+                "psr-4": {
+                    "Illuminate\\Database\\Eloquent\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taylor Otwell",
+                    "email": "taylor@laravel.com"
+                }
+            ],
+            "description": "The legacy version of the Laravel Eloquent factories.",
+            "homepage": "http://laravel.com",
+            "support": {
+                "issues": "https://github.com/laravel/framework/issues",
+                "source": "https://github.com/laravel/framework"
+            },
+            "time": "2020-10-27T14:25:32+00:00"
+        },
+        {
             "name": "mockery/mockery",
             "version": "1.4.3",
             "source": {
@@ -4990,22 +5046,22 @@
         },
         {
             "name": "orchestra/testbench",
-            "version": "v6.20.0",
+            "version": "v6.20.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/orchestral/testbench.git",
-                "reference": "b9f7b932a5533739effa7c0da8a54d9217476c24"
+                "reference": "986ff30846bca4547cf11ed422511673450dcb02"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/orchestral/testbench/zipball/b9f7b932a5533739effa7c0da8a54d9217476c24",
-                "reference": "b9f7b932a5533739effa7c0da8a54d9217476c24",
+                "url": "https://api.github.com/repos/orchestral/testbench/zipball/986ff30846bca4547cf11ed422511673450dcb02",
+                "reference": "986ff30846bca4547cf11ed422511673450dcb02",
                 "shasum": ""
             },
             "require": {
                 "laravel/framework": "^8.54",
                 "mockery/mockery": "^1.4.2",
-                "orchestra/testbench-core": "^6.24",
+                "orchestra/testbench-core": "^6.24.1",
                 "php": "^7.3 || ^8.0",
                 "phpunit/phpunit": "^8.4 || ^9.3.3",
                 "spatie/laravel-ray": "^1.18"
@@ -5039,7 +5095,7 @@
             ],
             "support": {
                 "issues": "https://github.com/orchestral/testbench/issues",
-                "source": "https://github.com/orchestral/testbench/tree/v6.20.0"
+                "source": "https://github.com/orchestral/testbench/tree/v6.20.1"
             },
             "funding": [
                 {
@@ -5051,20 +5107,20 @@
                     "type": "liberapay"
                 }
             ],
-            "time": "2021-08-12T00:53:59+00:00"
+            "time": "2021-08-25T05:23:48+00:00"
         },
         {
             "name": "orchestra/testbench-core",
-            "version": "v6.24.0",
+            "version": "v6.24.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/orchestral/testbench-core.git",
-                "reference": "fdd33d553480ff2192755806fca641bcd79ab04b"
+                "reference": "0e77a2e62cf9be1e541cb44f65d3ac4774015c87"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/orchestral/testbench-core/zipball/fdd33d553480ff2192755806fca641bcd79ab04b",
-                "reference": "fdd33d553480ff2192755806fca641bcd79ab04b",
+                "url": "https://api.github.com/repos/orchestral/testbench-core/zipball/0e77a2e62cf9be1e541cb44f65d3ac4774015c87",
+                "reference": "0e77a2e62cf9be1e541cb44f65d3ac4774015c87",
                 "shasum": ""
             },
             "require": {
@@ -5138,7 +5194,7 @@
                     "type": "liberapay"
                 }
             ],
-            "time": "2021-08-12T00:45:07+00:00"
+            "time": "2021-08-25T05:01:24+00:00"
         },
         {
             "name": "phar-io/manifest",
@@ -6055,12 +6111,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Roave/SecurityAdvisories.git",
-                "reference": "cd0a994884c7323cdc591f02b6027e00c1d88e74"
+                "reference": "295e62200d6e91c0bd5b3d78715b00c3bdc8f28f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/cd0a994884c7323cdc591f02b6027e00c1d88e74",
-                "reference": "cd0a994884c7323cdc591f02b6027e00c1d88e74",
+                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/295e62200d6e91c0bd5b3d78715b00c3bdc8f28f",
+                "reference": "295e62200d6e91c0bd5b3d78715b00c3bdc8f28f",
                 "shasum": ""
             },
             "conflict": {
@@ -6157,7 +6213,7 @@
                 "gos/web-socket-bundle": "<1.10.4|>=2,<2.6.1|>=3,<3.3",
                 "gree/jose": "<=2.2",
                 "gregwar/rst": "<1.0.3",
-                "grumpydictator/firefly-iii": "<5.5.13",
+                "grumpydictator/firefly-iii": "<5.6",
                 "guzzlehttp/guzzle": ">=4-rc.2,<4.2.4|>=5,<5.3.1|>=6,<6.2.1",
                 "illuminate/auth": ">=4,<4.0.99|>=4.1,<=4.1.31|>=4.2,<=4.2.22|>=5,<=5.0.35|>=5.1,<=5.1.46|>=5.2,<=5.2.45|>=5.3,<=5.3.31|>=5.4,<=5.4.36|>=5.5,<5.5.10",
                 "illuminate/cookie": ">=4,<=4.0.11|>=4.1,<=4.1.99999|>=4.2,<=4.2.99999|>=5,<=5.0.99999|>=5.1,<=5.1.99999|>=5.2,<=5.2.99999|>=5.3,<=5.3.99999|>=5.4,<=5.4.99999|>=5.5,<=5.5.49|>=5.6,<=5.6.99999|>=5.7,<=5.7.99999|>=5.8,<=5.8.99999|>=6,<6.18.31|>=7,<7.22.4",
@@ -6351,6 +6407,7 @@
                 "typo3fluid/fluid": ">=2,<2.0.8|>=2.1,<2.1.7|>=2.2,<2.2.4|>=2.3,<2.3.7|>=2.4,<2.4.4|>=2.5,<2.5.11|>=2.6,<2.6.10",
                 "ua-parser/uap-php": "<3.8",
                 "usmanhalalit/pixie": "<1.0.3|>=2,<2.0.2",
+                "vanilla/safecurl": "<0.9.2",
                 "verot/class.upload.php": "<=1.0.3|>=2,<=2.0.4",
                 "vrana/adminer": "<4.7.9",
                 "wallabag/tcpdf": "<6.2.22",
@@ -6430,7 +6487,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2021-08-23T20:03:09+00:00"
+            "time": "2021-08-25T15:03:05+00:00"
         },
         {
             "name": "sebastian/cli-parser",
