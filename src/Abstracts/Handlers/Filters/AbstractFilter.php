@@ -12,7 +12,7 @@ abstract class AbstractFilter
     /** @var mixed */
     protected $default;
 
-    abstract public function handle($query, $value, AbstractQueryHandler $queryHandler): void;
+    abstract public function handle(AbstractQueryHandler $queryHandler, $query, $value): void;
 
     public function __construct(string $name, ?string $propertyName = null, $default = null)
     {

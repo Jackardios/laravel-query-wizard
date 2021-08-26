@@ -12,7 +12,7 @@ abstract class AbstractInclude
     /** @var mixed */
     protected $default;
 
-    abstract public function handle($query, AbstractQueryHandler $queryHandler): void;
+    abstract public function handle(AbstractQueryHandler $queryHandler, $query): void;
 
     public function __construct(string $name, ?string $relationship = null, $default = null)
     {

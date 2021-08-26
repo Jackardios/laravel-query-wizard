@@ -53,12 +53,10 @@ trait HandlesSorts
         return $this;
     }
 
-    public function handleSorts(): self
+    public function getSorts(): Collection
     {
-        $sorts = $this->request->sorts();
-        $handlers = $this->getAllowedSorts();
-        $this->queryHandler->sort($sorts, $handlers);
-        return $this;
+        $this->getAllowedSorts();
+        return $this->request->sorts();
     }
 
     protected function ensureAllSortsAllowed(): self

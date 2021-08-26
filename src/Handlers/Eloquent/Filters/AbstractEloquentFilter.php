@@ -7,9 +7,9 @@ use Jackardios\QueryWizard\Abstracts\Handlers\Filters\AbstractFilter;
 abstract class AbstractEloquentFilter extends AbstractFilter
 {
     /**
+     * @param \Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param mixed $value
-     * @param \Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler
      */
-    abstract public function handle($query, $value, $queryHandler): void;
+    abstract public function handle($queryHandler, $query, $value): void;
 }

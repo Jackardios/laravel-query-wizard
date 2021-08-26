@@ -52,12 +52,10 @@ trait HandlesIncludes
         return $this;
     }
 
-    public function handleIncludes(): self
+    public function getIncludes(): Collection
     {
-        $includes = $this->request->includes();
-        $handlers = $this->getAllowedIncludes();
-        $this->queryHandler->include($includes, $handlers);
-        return $this;
+        $this->getAllowedIncludes();
+        return $this->request->includes();
     }
 
     protected function ensureAllIncludesAllowed(): self

@@ -54,24 +54,16 @@ abstract class AbstractQueryHandler
         return $this->wizard;
     }
 
-    public function processResult($result)
+    public function handleResult($result)
     {
         return $result;
     }
+
+    abstract public function handle(): self;
 
     abstract public function makeDefaultFilterHandler(string $filterName): AbstractFilter;
 
     abstract public function makeDefaultIncludeHandler(string $includeName): AbstractInclude;
 
     abstract public function makeDefaultSortHandler(string $sortName): AbstractSort;
-
-    abstract public function select(Collection $fields): self;
-
-    abstract public function append(Collection $appends): self;
-
-    abstract public function include(Collection $includes, Collection $handlers): self;
-
-    abstract public function filter(Collection $filters, Collection $handlers): self;
-
-    abstract public function sort(Collection $sorts, Collection $handlers): self;
 }

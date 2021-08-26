@@ -7,9 +7,9 @@ use Jackardios\QueryWizard\Abstracts\Handlers\Sorts\AbstractSort;
 abstract class AbstractEloquentSort extends AbstractSort
 {
     /**
+     * @param \Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param string $direction
-     * @param \Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler
      */
-    abstract public function handle($query, string $direction, $queryHandler): void;
+    abstract public function handle($queryHandler, $query, string $direction): void;
 }

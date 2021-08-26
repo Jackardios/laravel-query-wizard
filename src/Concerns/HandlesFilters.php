@@ -52,12 +52,10 @@ trait HandlesFilters
         return $this;
     }
 
-    public function handleFilters(): self
+    public function getFilters(): Collection
     {
-        $filters = $this->request->filters();
-        $handlers = $this->getAllowedFilters();
-        $this->queryHandler->filter($filters, $handlers);
-        return $this;
+        $this->getAllowedFilters();
+        return $this->request->filters();
     }
 
     protected function ensureAllFiltersAllowed(): self

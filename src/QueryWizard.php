@@ -59,10 +59,7 @@ class QueryWizard
 
     public function build(): self
     {
-        $this->handleFields()
-            ->handleIncludes()
-            ->handleFilters()
-            ->handleSorts();
+        $this->queryHandler->handle();
         return $this;
     }
 
@@ -79,6 +76,6 @@ class QueryWizard
             return $this;
         }
 
-        return $this->queryHandler->processResult($result);
+        return $this->queryHandler->handleResult($result);
     }
 }

@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Exceptions\InvalidSubject;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Handlers\Eloquent\Filters\AbstractEloquentFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersExact;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersPartial;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\AbstractEloquentInclude;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
 use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\AbstractEloquentSort;
@@ -50,66 +50,30 @@ class EloquentQueryHandler extends AbstractQueryHandler
         parent::__construct($wizard, $subject);
     }
 
-    public function append(Collection $appends): self
+    public function makeDefaultFilterHandler(string $filterName): FiltersPartial
     {
-        $this->appends = $appends;
-        return $this;
+        return new FiltersPartial($filterName);
     }
 
-    public function select(Collection $fields): self
+    public function makeDefaultIncludeHandler(string $includeName): IncludedRelationship
     {
-        $modelFields = $fields->get($this->wizard->getDefaultFieldKey());
-
-        if (!empty($modelFields)) {
-            $this->subject->select($modelFields);
-        }
-
-        return $this;
+        return new IncludedRelationship($includeName);
     }
 
-    public function include(Collection $includes, Collection $handlers): self
+    public function makeDefaultSortHandler(string $sortName): SortsByField
     {
-        $includes->each(function($include) use ($handlers) {
-            $handler = $handlers->get($include);
-            if ($handler) {
-                $handler->handle($this->subject, $this);
-            }
-        });
-        return $this;
+        return new SortsByField($sortName);
     }
 
-    public function filter(Collection $filters, Collection $handlers): self
+    public function handle(): EloquentQueryHandler
     {
-        $filters->each(function($value, $name) use ($handlers) {
-            $handler = $handlers->get($name);
-            if ($handler) {
-                $handler->handle($this->subject, $value, $this);
-            }
-        });
-        return $this;
+        return $this->handleFields()
+            ->handleIncludes()
+            ->handleFilters()
+            ->handleSorts();
     }
 
-    public function sort(Collection $sorts, Collection $handlers): self
-    {
-        $sorts->each(function(Sort $sort) use ($handlers) {
-            $handler = $handlers->get($sort->getField());
-            if ($handler) {
-                $handler->handle($this->subject, $sort->getDirection(), $this);
-            }
-        });
-        return $this;
-    }
-
-    protected function addAppendsToResults(Collection $results): void
-    {
-        if ($this->appends) {
-            $results->each(function (Model $result) {
-                return $result->append($this->appends->toArray());
-            });
-        }
-    }
-
-    public function processResult($result)
+    public function handleResult($result)
     {
         if ($result instanceof Model) {
             $this->addAppendsToResults(collect([$result]));
@@ -126,18 +90,65 @@ class EloquentQueryHandler extends AbstractQueryHandler
         return $result;
     }
 
-    public function makeDefaultFilterHandler(string $filterName): FiltersExact
+    protected function handleFields(): self
     {
-        return new FiltersExact($filterName);
+        $requestedFields = $this->wizard->getFields();
+        $defaultFieldKey = $this->wizard->getDefaultFieldKey();
+        $modelFields = $requestedFields->get($defaultFieldKey);
+
+        if (!empty($modelFields)) {
+            $this->subject->select($modelFields);
+        }
+
+        return $this;
     }
 
-    public function makeDefaultIncludeHandler(string $includeName): IncludedRelationship
+    protected function handleIncludes(): self
     {
-        return new IncludedRelationship($includeName);
+        $requestedIncludes = $this->wizard->getIncludes();
+        $handlers = $this->wizard->getAllowedIncludes();
+        $requestedIncludes->each(function($include) use ($handlers) {
+            $handler = $handlers->get($include);
+            if ($handler) {
+                $handler->handle($this->subject, $this);
+            }
+        });
+        return $this;
     }
 
-    public function makeDefaultSortHandler(string $sortName): SortsByField
+    protected function handleFilters(): self
     {
-        return new SortsByField($sortName);
+        $requestedFilters = $this->wizard->getFilters();
+        $handlers = $this->wizard->getAllowedFilters();
+        $requestedFilters->each(function($value, $name) use ($handlers) {
+            $handler = $handlers->get($name);
+            if ($handler) {
+                $handler->handle($this, $this->subject, $value);
+            }
+        });
+        return $this;
+    }
+
+    protected function handleSorts(): self
+    {
+        $requestedSorts = $this->wizard->getSorts();
+        $handlers = $this->wizard->getAllowedSorts();
+
+        $requestedSorts->each(function(Sort $sort) use ($handlers) {
+            $handler = $handlers->get($sort->getField());
+            if ($handler) {
+                $handler->handle($this, $this->subject, $sort->getDirection());
+            }
+        });
+        return $this;
+    }
+
+    protected function addAppendsToResults(Collection $results): void
+    {
+        if ($this->appends) {
+            $results->each(function (Model $result) {
+                return $result->append($this->appends->toArray());
+            });
+        }
     }
 }

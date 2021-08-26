@@ -1,0 +1,109 @@
+<?php
+
+namespace Jackardios\QueryWizard\Handlers\Eloquent\Filters;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
+use ReflectionClass;
+use ReflectionException;
+use ReflectionObject;
+use ReflectionParameter;
+use ReflectionUnionType;
+
+class FiltersScope extends AbstractEloquentFilter
+{
+    /**
+     * @throws ReflectionException
+     * @throws InvalidFilterValue
+     */
+    public function handle($queryHandler, $query, $value): void
+    {
+        $propertyName = $this->getPropertyName();
+        $propertyParts = collect(explode('.', $propertyName));
+
+        $scope = Str::camel($propertyParts->pop());
+        $values = array_values(Arr::wrap($value));
+        $values = $this->resolveParameters($query, $values, $scope);
+
+        $relation = $propertyParts->implode('.');
+
+        if ($relation) {
+            $query->whereHas($relation, function (Builder $query) use (
+                $scope,
+                $values
+            ) {
+                return $query->$scope(...$values);
+            });
+        }
+
+        $query->$scope(...$values);
+    }
+
+    /**
+     * @throws ReflectionException
+     * @throws InvalidFilterValue
+     */
+    protected function resolveParameters(Builder $query, $values, string $scope): array
+    {
+        try {
+            $parameters = (new ReflectionObject($query->getModel()))
+                ->getMethod('scope' . ucfirst($scope))
+                ->getParameters();
+        } catch (ReflectionException $e) {
+            return $values;
+        }
+
+        foreach ($parameters as $parameter) {
+            if (! optional($this->getClass($parameter))->isSubclassOf(Model::class)) {
+                continue;
+            }
+
+            $index = $parameter->getPosition() - 1;
+            $value = $values[$index];
+
+            $class = $this->getClass($parameter);
+            $result = $class ? $class->newInstance()->resolveRouteBinding($value) : null;
+
+            if ($result === null) {
+                throw InvalidFilterValue::make($value);
+            }
+
+            $values[$index] = $result;
+        }
+
+        return $values;
+    }
+
+    /**
+     * @throws ReflectionException
+     */
+    protected function getClass(ReflectionParameter $parameter): ?ReflectionClass
+    {
+        if (PHP_VERSION_ID < 80000) {
+            return $parameter->getClass();
+        }
+
+        $type = $parameter->getType();
+
+        if (is_null($type)) {
+            return null;
+        }
+
+        if ($type instanceof ReflectionUnionType) {
+            return null;
+        }
+
+        if ($type->isBuiltin()) {
+            return null;
+        }
+
+        if ($type->getName() === 'self') {
+            return $parameter->getDeclaringClass();
+        }
+
+        return new ReflectionClass($type->getName());
+    }
+}

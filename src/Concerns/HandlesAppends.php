@@ -43,11 +43,10 @@ trait HandlesAppends
         return $this;
     }
 
-    public function handleAppends(): self
+    public function getAppends(): Collection
     {
         $this->getAllowedAppends();
-        $this->queryHandler->append($this->request->appends());
-        return $this;
+        return $this->request->appends();
     }
 
     protected function ensureAllAppendsAllowed(): self

@@ -7,8 +7,8 @@ use Jackardios\QueryWizard\Abstracts\Handlers\Includes\AbstractInclude;
 abstract class AbstractEloquentInclude extends AbstractInclude
 {
     /**
-     * @param \Illuminate\Database\Eloquent\Builder $query
      * @param \Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler
+     * @param \Illuminate\Database\Eloquent\Builder $query
      */
-    abstract public function handle($query, $queryHandler): void;
+    abstract public function handle($queryHandler, $query): void;
 }

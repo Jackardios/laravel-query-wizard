@@ -74,16 +74,15 @@ trait HandlesFields
         return $this;
     }
 
-    public function handleFields(): self
+    public function getFields(): Collection
     {
         $this->getAllowedFields();
-        $this->queryHandler->select($this->request->fields());
-        return $this;
+        return $this->request->fields();
     }
 
     public function getFieldsByKey(string $key): Collection
     {
-        return $this->request->fields()->get($key, collect());
+        return $this->getFields()->get($key, collect());
     }
 
     protected function ensureAllFieldsAllowed(): self
