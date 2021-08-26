@@ -1,0 +1,69 @@
+{
+    "name": "jackardios/laravel-query-wizard",
+    "description": "Laravel Query Wizard",
+    "keywords": [
+        "jackardios",
+        "laravel-query-builder",
+        "laravel-query-wizard",
+        "laravel",
+        "query",
+        "wizard",
+        "builder",
+        "json",
+        "api",
+        "json api",
+        "query builder"
+    ],
+    "homepage": "https://github.com/jackardios/laravel-query-wizard",
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/jackardios/laravel-query-wizard/issues",
+        "source": "https://github.com/jackardios/laravel-query-wizard"
+    },
+    "authors": [
+        {
+            "name": "Salavat Salakhutdinov",
+            "email": "salavat.salahutdinov@gmail.com",
+            "homepage": "https://github.com/jackardios"
+        }
+    ],
+    "require": {
+        "php": "^7.4|^8.0",
+        "laravel/scout": "^8.6.1|^9.2.6",
+        "illuminate/database": "^6.20.13|^7.30.4|^8.22.2",
+        "illuminate/support": "^6.20.13|7.30.4|^8.22.2"
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-latest",
+        "ext-json": "*",
+        "mockery/mockery": "^1.4",
+        "orchestra/testbench": "^6.19",
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Jackardios\\QueryWizard\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Jackardios\\QueryWizard\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "phpunit --coverage-html coverage"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Jackardios\\QueryWizard\\QueryWizardServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
