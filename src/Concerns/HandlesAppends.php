@@ -8,6 +8,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 trait HandlesAppends
 {
     protected ?Collection $allowedAppends = null;
+    protected ?Collection $defaultAppends = null;
 
     protected function allowedAppends(): array
     {
@@ -43,10 +44,46 @@ trait HandlesAppends
         return $this;
     }
 
+    protected function defaultAppends(): array
+    {
+        return [];
+    }
+
+    public function getDefaultAppends(): Collection
+    {
+        if (!($this->defaultAppends instanceof Collection)) {
+            $defaultAppendsFromCallback = $this->defaultAppends();
+
+            if ($defaultAppendsFromCallback) {
+                $this->setDefaultAppends($defaultAppendsFromCallback);
+            } else {
+                return collect();
+            }
+        }
+
+        return $this->defaultAppends;
+    }
+
+    public function setDefaultAppends($appends): self
+    {
+        $appends = is_array($appends) ? $appends : func_get_args();
+
+        $this->defaultAppends = collect($appends)
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $this;
+    }
+
     public function getAppends(): Collection
     {
-        $this->getAllowedAppends();
-        return $this->request->appends();
+        if ($this->getAllowedAppends()->isEmpty()) {
+            return collect();
+        }
+
+        $appends = $this->request->appends();
+        return $appends->isNotEmpty() ? $appends : $this->getDefaultAppends();
     }
 
     protected function ensureAllAppendsAllowed(): self

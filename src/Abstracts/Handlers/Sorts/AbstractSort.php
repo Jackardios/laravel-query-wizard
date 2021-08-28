@@ -11,10 +11,10 @@ abstract class AbstractSort
 
     abstract public function handle(AbstractQueryHandler $queryHandler, $query, string $direction): void;
 
-    public function __construct(string $name, ?string $propertyName = null)
+    public function __construct(string $propertyName, ?string $alias = null)
     {
-        $this->name = $name;
-        $this->propertyName = $propertyName ?? $name;
+        $this->propertyName = $propertyName;
+        $this->name = !empty($alias) ? $alias : $propertyName;
     }
 
     public function getName(): string
@@ -25,5 +25,13 @@ abstract class AbstractSort
     public function getPropertyName(): string
     {
         return $this->propertyName;
+    }
+
+    /**
+     * @return AbstractSort[]
+     */
+    public function createOther(): array
+    {
+        return [];
     }
 }

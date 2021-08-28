@@ -3,12 +3,14 @@
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Abstracts\Handlers\Includes\AbstractInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeHandler;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 
 trait HandlesIncludes
 {
     protected ?Collection $allowedIncludes = null;
+    protected ?Collection $defaultIncludes = null;
 
     protected function allowedIncludes(): array
     {
@@ -34,28 +36,75 @@ trait HandlesIncludes
     {
         $includes = is_array($includes) ? $includes : func_get_args();
 
+        // auto-created handlers should only merge after user-defined handlers,
+        // otherwise the user-defined handlers will be overwritten
+        $autoCreatedHandlers = [];
         $this->allowedIncludes = collect($includes)
-            ->mapWithKeys(function($handler) {
-                $baseHandlerClass = $this->queryHandler::getBaseIncludeHandlerClass();
-
-                if (is_string($handler)) {
-                    $handler = $this->queryHandler->makeDefaultIncludeHandler($handler);
-                } else if (! $handler instanceof $baseHandlerClass) {
-                    throw new InvalidIncludeHandler($baseHandlerClass);
+            ->filter()
+            ->map(function($include) use (&$autoCreatedHandlers) {
+                if (is_string($include)) {
+                    $include = $this->queryHandler->makeDefaultIncludeHandler($include);
                 }
 
-                return [$handler->getName() => $handler];
-            });
+                $baseHandlerClass = $this->queryHandler::getBaseIncludeHandlerClass();
+                if (! ($include instanceof $baseHandlerClass)) {
+                    new InvalidIncludeHandler($baseHandlerClass);
+                }
+
+                $autoCreatedHandlers[] = $include->createOther();
+
+                return $include;
+            })
+            ->merge($autoCreatedHandlers)
+            ->flatten()
+            ->unique(fn (AbstractInclude $handler) => $handler->getName())
+            ->mapWithKeys(fn (AbstractInclude $handler) => [$handler->getName() => $handler]);
 
         $this->ensureAllIncludesAllowed();
 
         return $this;
     }
 
+    protected function defaultIncludes(): array
+    {
+        return [];
+    }
+
+    public function getDefaultIncludes(): Collection
+    {
+        if (!($this->defaultIncludes instanceof Collection)) {
+            $defaultIncludesFromCallback = $this->defaultIncludes();
+
+            if ($defaultIncludesFromCallback) {
+                $this->setDefaultIncludes($defaultIncludesFromCallback);
+            } else {
+                return collect();
+            }
+        }
+
+        return $this->defaultIncludes;
+    }
+
+    public function setDefaultIncludes($includes): self
+    {
+        $includes = is_array($includes) ? $includes : func_get_args();
+
+        $this->defaultIncludes = collect($includes)
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $this;
+    }
+
     public function getIncludes(): Collection
     {
-        $this->getAllowedIncludes();
-        return $this->request->includes();
+        if($this->getAllowedIncludes()->isEmpty()) {
+            return collect();
+        }
+
+        $includes = $this->request->includes();
+        return $includes->isNotEmpty() ? $includes : $this->getDefaultIncludes();
     }
 
     protected function ensureAllIncludesAllowed(): self

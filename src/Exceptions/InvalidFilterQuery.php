@@ -5,7 +5,7 @@ namespace Jackardios\QueryWizard\Exceptions;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
 
-class InvalidFilterQuery extends InvalidQueryHandler
+class InvalidFilterQuery extends InvalidQuery
 {
     public Collection $unknownFilters;
     public Collection $allowedFilters;

@@ -13,13 +13,13 @@ class FiltersExact extends AbstractEloquentFilter
     protected bool $withRelationConstraint = true;
 
     public function __construct(
-        string $name,
-        ?string $propertyName = null,
+        string $propertyName,
+        ?string $alias = null,
         $default = null,
         $withRelationConstraint = true
     )
     {
-        parent::__construct($name, $propertyName, $default);
+        parent::__construct($propertyName, $alias, $default);
         $this->withRelationConstraint = $withRelationConstraint;
     }
 

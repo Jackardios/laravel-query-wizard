@@ -67,4 +67,9 @@ abstract class AbstractQueryHandler
     abstract public function makeDefaultIncludeHandler(string $includeName): AbstractInclude;
 
     abstract public function makeDefaultSortHandler(string $sortName): AbstractSort;
+
+    public function __clone()
+    {
+        $this->subject = clone $this->subject;
+    }
 }

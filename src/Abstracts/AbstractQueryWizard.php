@@ -2,6 +2,7 @@
 
 namespace Jackardios\QueryWizard\Abstracts;
 
+use ArrayAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Traits\ForwardsCalls;
 use Jackardios\QueryWizard\Concerns\HandlesAppends;
@@ -13,7 +14,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidQueryHandler;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\QueryWizardRequest;
 
-abstract class AbstractQueryWizard
+abstract class AbstractQueryWizard implements ArrayAccess
 {
     use ForwardsCalls;
     use HandlesAppends;
@@ -92,5 +93,53 @@ abstract class AbstractQueryWizard
         }
 
         return $this->queryHandler->handleResult($result);
+    }
+
+    /**
+     * @return static
+     */
+    public function clone()
+    {
+        return clone $this;
+    }
+
+    public function __clone()
+    {
+        $this->queryHandler = clone $this->queryHandler;
+    }
+
+    public function __get($name)
+    {
+        return $this->queryHandler->getSubject()->{$name};
+    }
+
+    public function __set($name, $value)
+    {
+        $this->queryHandler->getSubject()->{$name} = $value;
+    }
+
+    public function __isset($name): bool
+    {
+        return isset($this->queryHandler->getSubject()->{$name});
+    }
+
+    public function offsetExists($offset): bool
+    {
+        return isset($this->queryHandler->getSubject()[$offset]);
+    }
+
+    public function offsetGet($offset)
+    {
+        return $this->queryHandler->getSubject()[$offset];
+    }
+
+    public function offsetSet($offset, $value): void
+    {
+        $this->queryHandler->getSubject()[$offset] = $value;
+    }
+
+    public function offsetUnset($offset): void
+    {
+        unset($this->queryHandler->getSubject()[$offset]);
     }
 }

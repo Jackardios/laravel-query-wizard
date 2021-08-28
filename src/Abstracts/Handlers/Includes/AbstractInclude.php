@@ -7,17 +7,17 @@ use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 abstract class AbstractInclude
 {
     protected string $name;
-    protected string $relationship;
+    protected string $include;
 
     /** @var mixed */
     protected $default;
 
     abstract public function handle(AbstractQueryHandler $queryHandler, $query): void;
 
-    public function __construct(string $name, ?string $relationship = null, $default = null)
+    public function __construct(string $include, ?string $alias = null, $default = null)
     {
-        $this->name = $name;
-        $this->relationship = $relationship ?? $name;
+        $this->include = $include;
+        $this->name = !empty($alias) ? $alias : $include;
         $this->default = $default;
     }
 
@@ -26,25 +26,16 @@ abstract class AbstractInclude
         return $this->name;
     }
 
-    public function getRelationship(): string
+    public function getInclude(): string
     {
-        return $this->relationship;
+        return $this->include;
     }
 
-    public function default($value): self
+    /**
+     * @return AbstractInclude[]
+     */
+    public function createOther(): array
     {
-        $this->default = $value;
-
-        return $this;
-    }
-
-    public function hasDefault(): bool
-    {
-        return isset($this->default);
-    }
-
-    public function getDefault()
-    {
-        return $this->default;
+        return [];
     }
 }

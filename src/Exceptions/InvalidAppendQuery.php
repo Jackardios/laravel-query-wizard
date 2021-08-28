@@ -5,7 +5,7 @@ namespace Jackardios\QueryWizard\Exceptions;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
 
-class InvalidAppendQuery extends InvalidQueryHandler
+class InvalidAppendQuery extends InvalidQuery
 {
     public Collection $unknownAppends;
     public Collection $allowedAppends;

@@ -7478,7 +7478,7 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Spatie\\Backtrace\\": "src"
+                    "Jackardios\\Backtrace\\": "src"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -7553,13 +7553,13 @@
             "extra": {
                 "laravel": {
                     "providers": [
-                        "Spatie\\LaravelRay\\RayServiceProvider"
+                        "Jackardios\\LaravelRay\\RayServiceProvider"
                     ]
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "Spatie\\LaravelRay\\": "src"
+                    "Jackardios\\LaravelRay\\": "src"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -7619,7 +7619,7 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Spatie\\Macroable\\": "src"
+                    "Jackardios\\Macroable\\": "src"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -7681,7 +7681,7 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Spatie\\Ray\\": "src"
+                    "Jackardios\\Ray\\": "src"
                 },
                 "files": [
                     "src/helpers.php"

@@ -151,13 +151,9 @@ class QueryWizardRequest extends Request
 
         return $this->sorts = collect($sortParts)
             ->filter()
-            ->unique(function($sort) {
-                return ltrim((string)$sort, '-');
-            })
-            ->values()
-            ->map(function($field) {
-                return new Sort((string)$field);
-            });
+            ->map(fn($field) => new Sort((string)$field))
+            ->unique(fn(Sort $sort) => $sort->getField())
+            ->values();
     }
 
     /**

@@ -17,31 +17,6 @@ trait HandlesFields
         return [];
     }
 
-    protected function defaultFieldKey(): string
-    {
-        return "";
-    }
-
-    public function getDefaultFieldKey(): string
-    {
-        if (!($this->defaultFieldKey instanceof Collection)) {
-            $defaultFieldKeyFromCallback = $this->defaultFieldKey();
-            if (!$defaultFieldKeyFromCallback) {
-                throw new DefaultFieldKeyIsNotDefined();
-            }
-            $this->setDefaultFieldKey($defaultFieldKeyFromCallback);
-        }
-
-        return $this->defaultFieldKey;
-    }
-
-    public function setDefaultFieldKey(string $key): self
-    {
-        $this->defaultFieldKey = $key;
-
-        return $this;
-    }
-
     public function getAllowedFields(): Collection
     {
         if (!($this->allowedFields instanceof Collection)) {
@@ -74,15 +49,43 @@ trait HandlesFields
         return $this;
     }
 
+    protected function defaultFieldKey(): string
+    {
+        return "";
+    }
+
+    public function getDefaultFieldKey(): string
+    {
+        if (!($this->defaultFieldKey instanceof Collection)) {
+            $defaultFieldKeyFromCallback = $this->defaultFieldKey();
+            if (!$defaultFieldKeyFromCallback) {
+                throw new DefaultFieldKeyIsNotDefined();
+            }
+            $this->setDefaultFieldKey($defaultFieldKeyFromCallback);
+        }
+
+        return $this->defaultFieldKey;
+    }
+
+    public function setDefaultFieldKey(string $key): self
+    {
+        $this->defaultFieldKey = $key;
+
+        return $this;
+    }
+
     public function getFields(): Collection
     {
-        $this->getAllowedFields();
+        if ($this->getAllowedFields()->isEmpty()) {
+            return collect();
+        }
+
         return $this->request->fields();
     }
 
-    public function getFieldsByKey(string $key): Collection
+    public function getFieldsByKey(string $key): array
     {
-        return $this->getFields()->get($key, collect());
+        return $this->getFields()->get($key, []);
     }
 
     protected function ensureAllFieldsAllowed(): self
@@ -102,12 +105,12 @@ trait HandlesFields
         return $this;
     }
 
-    protected function prependFieldsWithKey(array $fields, ?string $key = null): array
+    public function prependFieldsWithKey(array $fields, ?string $key = null): array
     {
-        return array_map(static fn ($field) => $this->prependFieldWithKey($field, $key), $fields);
+        return array_map(fn ($field) => $this->prependFieldWithKey($field, $key), $fields);
     }
 
-    protected function prependFieldWithKey(string $field, ?string $key = null): string
+    public function prependFieldWithKey(string $field, ?string $key = null): string
     {
         if (Str::contains($field, '.')) {
             // Already prepended

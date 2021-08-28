@@ -3,6 +3,7 @@
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Abstracts\Handlers\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterHandler;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 
@@ -34,18 +35,29 @@ trait HandlesFilters
     {
         $filters = is_array($filters) ? $filters : func_get_args();
 
+        // auto-created handlers should only merge after user-defined handlers,
+        // otherwise the user-defined handlers will be overwritten
+        $autoCreatedHandlers = [];
         $this->allowedFilters = collect($filters)
-            ->mapWithKeys(function($handler) {
-                $baseHandlerClass = $this->queryHandler::getBaseFilterHandlerClass();
-
-                if (is_string($handler)) {
-                    $handler = $this->queryHandler->makeDefaultFilterHandler($handler);
-                } else if (! $handler instanceof $baseHandlerClass) {
-                    throw new InvalidFilterHandler($baseHandlerClass);
+            ->filter()
+            ->map(function($filter) use (&$autoCreatedHandlers) {
+                if (is_string($filter)) {
+                    $filter = $this->queryHandler->makeDefaultFilterHandler($filter);
                 }
 
-                return [$handler->getName() => $handler];
-            });
+                $baseHandlerClass = $this->queryHandler::getBaseFilterHandlerClass();
+                if (! ($filter instanceof $baseHandlerClass)) {
+                    new InvalidFilterHandler($baseHandlerClass);
+                }
+
+                $autoCreatedHandlers[] = $filter->createOther();
+
+                return $filter;
+            })
+            ->merge($autoCreatedHandlers)
+            ->flatten()
+            ->unique(fn (AbstractFilter $handler) => $handler->getName())
+            ->mapWithKeys(fn (AbstractFilter $handler) => [$handler->getName() => $handler]);
 
         $this->ensureAllFiltersAllowed();
 
@@ -54,8 +66,19 @@ trait HandlesFilters
 
     public function getFilters(): Collection
     {
-        $this->getAllowedFilters();
-        return $this->request->filters();
+        $allowedFilters = $this->getAllowedFilters();
+        if ($allowedFilters->isEmpty()) {
+            return collect();
+        }
+
+        $requestedFilters = $this->request->filters();
+        $allowedFilters->each(function(AbstractFilter $filter) use ($requestedFilters) {
+            $filterName = $filter->getName();
+            if ($filter->hasDefault() && !$requestedFilters->has($filterName)) {
+                $requestedFilters[$filterName] = $filter->getDefault();
+            }
+        });
+        return $requestedFilters;
     }
 
     protected function ensureAllFiltersAllowed(): self

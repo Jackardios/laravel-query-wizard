@@ -37,6 +37,8 @@ class FiltersScope extends AbstractEloquentFilter
             ) {
                 return $query->$scope(...$values);
             });
+
+            return;
         }
 
         $query->$scope(...$values);

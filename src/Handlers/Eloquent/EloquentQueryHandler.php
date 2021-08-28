@@ -9,11 +9,13 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Exceptions\InvalidSubject;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Handlers\Eloquent\Filters\AbstractEloquentFilter;
 use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersPartial;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\AbstractEloquentInclude;
+use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedCount;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
 use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\AbstractEloquentSort;
 use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortsByField;
@@ -53,8 +55,17 @@ class EloquentQueryHandler extends AbstractQueryHandler
         return new FiltersPartial($filterName);
     }
 
-    public function makeDefaultIncludeHandler(string $includeName): IncludedRelationship
+    /**
+     * @param string $includeName
+     * @return IncludedRelationship|IncludedCount
+     */
+    public function makeDefaultIncludeHandler(string $includeName): AbstractEloquentInclude
     {
+        $countSuffix = config('query-wizard.count_suffix');
+        if (Str::endsWith($includeName, $countSuffix)) {
+            $relation = Str::before($includeName, $countSuffix);
+            return new IncludedCount($relation, $includeName);
+        }
         return new IncludedRelationship($includeName);
     }
 
@@ -95,6 +106,7 @@ class EloquentQueryHandler extends AbstractQueryHandler
         $modelFields = $requestedFields->get($defaultFieldKey);
 
         if (!empty($modelFields)) {
+            $modelFields = $this->wizard->prependFieldsWithKey($modelFields);
             $this->subject->select($modelFields);
         }
 
@@ -108,7 +120,7 @@ class EloquentQueryHandler extends AbstractQueryHandler
         $requestedIncludes->each(function($include) use ($handlers) {
             $handler = $handlers->get($include);
             if ($handler) {
-                $handler->handle($this->subject, $this);
+                $handler->handle($this, $this->subject);
             }
         });
         return $this;

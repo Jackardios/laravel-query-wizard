@@ -5,7 +5,7 @@ namespace Jackardios\QueryWizard\Exceptions;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
 
-class InvalidSortQuery extends InvalidQueryHandler
+class InvalidSortQuery extends InvalidQuery
 {
     public Collection $unknownSorts;
     public Collection $allowedSorts;

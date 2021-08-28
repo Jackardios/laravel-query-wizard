@@ -14,10 +14,10 @@ abstract class AbstractFilter
 
     abstract public function handle(AbstractQueryHandler $queryHandler, $query, $value): void;
 
-    public function __construct(string $name, ?string $propertyName = null, $default = null)
+    public function __construct(string $propertyName, ?string $alias = null, $default = null)
     {
-        $this->name = $name;
-        $this->propertyName = $propertyName ?? $name;
+        $this->propertyName = $propertyName;
+        $this->name = !empty($alias) ? $alias : $propertyName;
         $this->default = $default;
     }
 
@@ -46,5 +46,13 @@ abstract class AbstractFilter
     public function getDefault()
     {
         return $this->default;
+    }
+
+    /**
+     * @return AbstractFilter[]
+     */
+    public function createOther(): array
+    {
+        return [];
     }
 }
