@@ -22,14 +22,16 @@ use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortsByField;
 use Jackardios\QueryWizard\EloquentQueryWizard;
 use Jackardios\QueryWizard\Values\Sort;
 
+/**
+ * @property  Builder|Relation $subject
+ * @method Builder|Relation getSubject()
+ * @method EloquentQueryWizard getWizard()
+ */
 class EloquentQueryHandler extends AbstractQueryHandler
 {
     protected static string $baseFilterHandlerClass = AbstractEloquentFilter::class;
     protected static string $baseIncludeHandlerClass = AbstractEloquentInclude::class;
     protected static string $baseSortHandlerClass = AbstractEloquentSort::class;
-
-    /** @var Builder|Relation */
-    protected $subject;
 
     /**
      * @param EloquentQueryWizard $wizard

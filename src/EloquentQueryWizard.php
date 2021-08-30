@@ -8,6 +8,7 @@ use Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler;
 
 /**
  * @mixin Builder
+ * @property EloquentQueryHandler $queryHandler
  */
 class EloquentQueryWizard extends AbstractQueryWizard
 {

@@ -24,7 +24,10 @@ abstract class AbstractQueryWizard implements ArrayAccess
     use HandlesSorts;
 
     protected QueryWizardRequest $request;
-    protected AbstractQueryHandler $queryHandler;
+
+    /** @var AbstractQueryHandler */
+    protected $queryHandler;
+    
     protected string $queryHandlerClass;
 
     public function __construct($subject, ?Request $request = null)
