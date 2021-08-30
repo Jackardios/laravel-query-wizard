@@ -23,9 +23,10 @@ use Jackardios\QueryWizard\EloquentQueryWizard;
 use Jackardios\QueryWizard\Values\Sort;
 
 /**
- * @property  Builder|Relation $subject
- * @method Builder|Relation getSubject()
+ * @property EloquentQueryWizard $wizard
+ * @property Builder|Relation $subject
  * @method EloquentQueryWizard getWizard()
+ * @method Builder|Relation getSubject()
  */
 class EloquentQueryHandler extends AbstractQueryHandler
 {
