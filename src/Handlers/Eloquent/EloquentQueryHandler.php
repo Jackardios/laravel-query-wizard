@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Exceptions\InvalidSubject;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Handlers\Eloquent\Filters\AbstractEloquentFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersPartial;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersExact;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\AbstractEloquentInclude;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedCount;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
@@ -50,9 +50,9 @@ class EloquentQueryHandler extends AbstractQueryHandler
         parent::__construct($wizard, $subject);
     }
 
-    public function makeDefaultFilterHandler(string $filterName): FiltersPartial
+    public function makeDefaultFilterHandler(string $filterName): FiltersExact
     {
-        return new FiltersPartial($filterName);
+        return new FiltersExact($filterName);
     }
 
     /**
@@ -92,7 +92,9 @@ class EloquentQueryHandler extends AbstractQueryHandler
             $this->addAppendsToResults($result);
         }
 
-        if ($result instanceof LengthAwarePaginator || $result instanceof Paginator || $result instanceof CursorPaginator) {
+        if ($result instanceof LengthAwarePaginator
+            || $result instanceof Paginator
+            || $result instanceof CursorPaginator) {
             $this->addAppendsToResults(collect($result->items()));
         }
 
