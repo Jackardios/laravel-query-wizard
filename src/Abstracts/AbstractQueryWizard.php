@@ -79,6 +79,7 @@ abstract class AbstractQueryWizard implements ArrayAccess
     public function build()
     {
         $this->queryHandler->handle();
+
         return $this;
     }
 

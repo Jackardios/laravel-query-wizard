@@ -35,7 +35,7 @@ class FiltersExact extends AbstractEloquentFilter
         $this->handleForQuery($query, $value, $propertyName);
     }
 
-    protected function handleForQuery($query, $value, string $propertyName): void
+    protected function handleForQuery(Builder $query, $value, string $propertyName): void
     {
         if ($this->withRelationConstraint && $this->isRelationProperty($query, $propertyName)) {
             $this->addRelationConstraint($query, $value, $propertyName);
