@@ -35,7 +35,7 @@ trait HandlesFilters
     {
         $filters = is_array($filters) ? $filters : func_get_args();
 
-        // auto-created handlers should only merge after user-defined handlers,
+        // auto-created handlers should only be merged after user-defined handlers,
         // otherwise the user-defined handlers will be overwritten
         $autoCreatedHandlers = [];
         $this->allowedFilters = collect($filters)

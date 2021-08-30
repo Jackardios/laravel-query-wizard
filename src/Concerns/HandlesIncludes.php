@@ -36,7 +36,7 @@ trait HandlesIncludes
     {
         $includes = is_array($includes) ? $includes : func_get_args();
 
-        // auto-created handlers should only merge after user-defined handlers,
+        // auto-created handlers should only be merged after user-defined handlers,
         // otherwise the user-defined handlers will be overwritten
         $autoCreatedHandlers = [];
         $this->allowedIncludes = collect($includes)
