@@ -52,7 +52,7 @@ class RelationFilterTest extends TestCase
             ->createQueryFromFilterRequest([
                 'relatedModels.nestedRelatedModels.name' => 'est0,est1',
             ])
-            ->setAllowedFilters('relatedModels.nestedRelatedModels.name')
+            ->setAllowedFilters(new FiltersPartial('relatedModels.nestedRelatedModels.name'))
             ->build()
             ->get();
 
@@ -81,7 +81,7 @@ class RelationFilterTest extends TestCase
             ->createQueryFromFilterRequest([
                 'relatedModels.nestedRelatedModels.name' => 'test',
             ])
-            ->setAllowedFilters('relatedModels.nestedRelatedModels.name')
+            ->setAllowedFilters(new FiltersPartial('relatedModels.nestedRelatedModels.name'))
             ->build()
             ->get();
 
@@ -96,7 +96,10 @@ class RelationFilterTest extends TestCase
                 'relatedModels.name' => $this->models->first()->name,
                 'relatedModels.nestedRelatedModels.name' => 'test',
             ])
-            ->setAllowedFilters('relatedModels.name', 'relatedModels.nestedRelatedModels.name')
+            ->setAllowedFilters(
+                new FiltersPartial('relatedModels.name'),
+                new FiltersPartial('relatedModels.nestedRelatedModels.name')
+            )
             ->build()
             ->get();
 

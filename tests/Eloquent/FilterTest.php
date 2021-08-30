@@ -83,7 +83,7 @@ class FilterTest extends TestCase
             ->createQueryFromFilterRequest([
                 'name' => 'abc,xyz',
             ])
-            ->setAllowedFilters('name')
+            ->setAllowedFilters(new FiltersPartial('name'))
             ->build()
             ->get();
 
@@ -118,7 +118,7 @@ class FilterTest extends TestCase
             ->toSql();
 
         $expectedSql = TestModel::select('id', 'name')
-            ->where(DB::raw('LOWER(`test_models`.`name`)'), 'LIKE', 'john')
+            ->where(DB::raw('`test_models`.`name`'), '=', 'john')
             ->toSql();
 
         $this->assertEquals($expectedSql, $queryWizardSql);
@@ -341,7 +341,7 @@ class FilterTest extends TestCase
             ->createQueryFromFilterRequest([
                 'name' => 'abc',
             ])
-            ->setAllowedFilters('name', new FiltersExact('id'))
+            ->setAllowedFilters(new FiltersPartial('name'), 'id')
             ->build()
             ->get();
 
@@ -359,7 +359,7 @@ class FilterTest extends TestCase
             ->createQueryFromFilterRequest([
                 'name' => 'abc',
             ])
-            ->setAllowedFilters(['name', new FiltersExact('id')])
+            ->setAllowedFilters([new FiltersPartial('name'), 'id'])
             ->build()
             ->get();
 
@@ -378,7 +378,7 @@ class FilterTest extends TestCase
                 'name' => 'abc',
                 'id' => "1,{$model1->id}",
             ])
-            ->setAllowedFilters('name', new FiltersExact('id'))
+            ->setAllowedFilters(new FiltersPartial('name'), 'id')
             ->build()
             ->get();
 
