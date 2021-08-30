@@ -27,7 +27,7 @@ abstract class AbstractQueryWizard implements ArrayAccess
 
     /** @var AbstractQueryHandler */
     protected $queryHandler;
-    
+
     protected string $queryHandlerClass;
 
     public function __construct($subject, ?Request $request = null)
@@ -48,7 +48,7 @@ abstract class AbstractQueryWizard implements ArrayAccess
 
     /**
      * @param Request|null $request
-     * @return static
+     * @return $this
      */
     protected function initializeRequest(?Request $request = null)
     {
@@ -60,7 +60,7 @@ abstract class AbstractQueryWizard implements ArrayAccess
     }
 
     /**
-     * @return static
+     * @return $this
      */
     protected function initializeQueryHandler($subject): self
     {
@@ -74,7 +74,7 @@ abstract class AbstractQueryWizard implements ArrayAccess
     }
 
     /**
-     * @return static
+     * @return $this
      */
     public function build()
     {
@@ -99,7 +99,7 @@ abstract class AbstractQueryWizard implements ArrayAccess
     }
 
     /**
-     * @return static
+     * @return $this
      */
     public function clone()
     {
