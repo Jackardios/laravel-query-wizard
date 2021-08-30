@@ -18,7 +18,7 @@ use Jackardios\QueryWizard\Tests\TestClasses\Models\TestModel;
 
 /**
  * @group eloquent
- * @group wizzard
+ * @group wizard
  */
 class EloquentQueryWizardTest extends TestCase
 {
