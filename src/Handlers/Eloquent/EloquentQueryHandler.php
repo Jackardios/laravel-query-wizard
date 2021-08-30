@@ -107,8 +107,8 @@ class EloquentQueryHandler extends AbstractQueryHandler
     protected function handleFields(): self
     {
         $requestedFields = $this->wizard->getFields();
-        $defaultFieldKey = $this->wizard->getDefaultFieldKey();
-        $modelFields = $requestedFields->get($defaultFieldKey);
+        $defaultFieldsKey = $this->wizard->getDefaultFieldsKey();
+        $modelFields = $requestedFields->get($defaultFieldsKey);
 
         if (!empty($modelFields)) {
             $modelFields = $this->wizard->prependFieldsWithKey($modelFields);

@@ -4,13 +4,13 @@ namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Jackardios\QueryWizard\Exceptions\DefaultFieldKeyIsNotDefined;
+use Jackardios\QueryWizard\Exceptions\DefaultFieldsKeyIsNotDefined;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 
 trait HandlesFields
 {
     protected ?Collection $allowedFields = null;
-    protected ?string $defaultFieldKey = null;
+    protected ?string $defaultFieldsKey = null;
 
     protected function allowedFields(): array
     {
@@ -49,27 +49,27 @@ trait HandlesFields
         return $this;
     }
 
-    protected function defaultFieldKey(): string
+    protected function defaultFieldsKey(): string
     {
         return "";
     }
 
-    public function getDefaultFieldKey(): string
+    public function getDefaultFieldsKey(): string
     {
-        if (!($this->defaultFieldKey instanceof Collection)) {
-            $defaultFieldKeyFromCallback = $this->defaultFieldKey();
-            if (!$defaultFieldKeyFromCallback) {
-                throw new DefaultFieldKeyIsNotDefined();
+        if (!($this->defaultFieldsKey instanceof Collection)) {
+            $defaultFieldsKeyFromCallback = $this->defaultFieldsKey();
+            if (!$defaultFieldsKeyFromCallback) {
+                throw new DefaultFieldsKeyIsNotDefined();
             }
-            $this->setDefaultFieldKey($defaultFieldKeyFromCallback);
+            $this->setDefaultFieldsKey($defaultFieldsKeyFromCallback);
         }
 
-        return $this->defaultFieldKey;
+        return $this->defaultFieldsKey;
     }
 
-    public function setDefaultFieldKey(string $key): self
+    public function setDefaultFieldsKey(string $key): self
     {
-        $this->defaultFieldKey = $key;
+        $this->defaultFieldsKey = $key;
 
         return $this;
     }
@@ -118,7 +118,7 @@ trait HandlesFields
             return $field;
         }
 
-        $key = $key ?? $this->getDefaultFieldKey();
+        $key = $key ?? $this->getDefaultFieldsKey();
 
         return "{$key}.{$field}";
     }
