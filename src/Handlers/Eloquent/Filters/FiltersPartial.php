@@ -6,15 +6,12 @@ use Illuminate\Database\Eloquent\Builder;
 
 class FiltersPartial extends FiltersExact
 {
-    protected function handleForQuery($query, $value, string $propertyName): void
+    protected function applyOnQuery($query, $value, string $propertyName): void
     {
-        if ($this->withRelationConstraint && $this->isRelationProperty($query, $propertyName)) {
-            $this->addRelationConstraint($query, $value, $propertyName);
-
-            return;
-        }
-
-        $wrappedPropertyName = $query->getQuery()->getGrammar()->wrap($query->qualifyColumn($propertyName));
+        $wrappedPropertyName = $query
+            ->getQuery()
+            ->getGrammar()
+            ->wrap($query->qualifyColumn($propertyName));
 
         $sql = "LOWER({$wrappedPropertyName}) LIKE ?";
 

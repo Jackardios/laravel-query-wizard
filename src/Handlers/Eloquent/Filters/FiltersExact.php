@@ -4,12 +4,10 @@ namespace Jackardios\QueryWizard\Handlers\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class FiltersExact extends AbstractEloquentFilter
 {
-    protected array $relationConstraints = [];
     protected bool $withRelationConstraint = true;
 
     public function __construct(
@@ -32,17 +30,17 @@ class FiltersExact extends AbstractEloquentFilter
     {
         $propertyName = $this->getPropertyName();
 
-        $this->handleForQuery($query, $value, $propertyName);
-    }
-
-    protected function handleForQuery(Builder $query, $value, string $propertyName): void
-    {
         if ($this->withRelationConstraint && $this->isRelationProperty($query, $propertyName)) {
             $this->addRelationConstraint($query, $value, $propertyName);
 
             return;
         }
 
+        $this->applyOnQuery($query, $value, $propertyName);
+    }
+
+    protected function applyOnQuery(Builder $query, $value, string $propertyName): void
+    {
         if (is_array($value)) {
             $query->whereIn($query->qualifyColumn($propertyName), $value);
 
@@ -58,10 +56,6 @@ class FiltersExact extends AbstractEloquentFilter
             return false;
         }
 
-        if (in_array($propertyName, $this->relationConstraints, true)) {
-            return false;
-        }
-
         $firstRelationship = explode('.', $propertyName)[0];
 
         if (! method_exists($query->getModel(), $firstRelationship)) {
@@ -73,18 +67,11 @@ class FiltersExact extends AbstractEloquentFilter
 
     protected function addRelationConstraint(Builder $query, $value, string $propertyName): void
     {
-        [$relation, $propertyName] = collect(explode('.', $propertyName))
-            ->pipe(function (Collection $parts) {
-                return [
-                    $parts->except(count($parts) - 1)->implode('.'),
-                    $parts->last(),
-                ];
-            });
+        $relation = Str::beforeLast($propertyName, '.');
+        $propertyName = Str::afterLast($propertyName, '.');
 
         $query->whereHas($relation, function (Builder $query) use ($value, $propertyName) {
-            $this->relationConstraints[] = $propertyName = $query->qualifyColumn($propertyName);
-
-            $this->handleForQuery($query, $value, $propertyName);
+            $this->applyOnQuery($query, $value, $propertyName);
         });
     }
 }
