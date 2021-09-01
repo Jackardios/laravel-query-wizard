@@ -14,7 +14,7 @@ class ScoutQueryWizard extends AbstractQueryWizard
 {
     protected string $queryHandlerClass = ScoutQueryHandler::class;
 
-    public function defaultFieldsKey(): string
+    protected function defaultFieldsKey(): string
     {
         return $this->queryHandler->getSubject()->model->getTable();
     }

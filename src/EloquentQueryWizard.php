@@ -14,7 +14,7 @@ class EloquentQueryWizard extends AbstractQueryWizard
 {
     protected string $queryHandlerClass = EloquentQueryHandler::class;
 
-    public function defaultFieldsKey(): string
+    protected function defaultFieldsKey(): string
     {
         return $this->queryHandler->getSubject()->getModel()->getTable();
     }
