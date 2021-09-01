@@ -4,10 +4,11 @@ namespace Jackardios\QueryWizard\Handlers\Eloquent\Includes;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 
 class IncludedRelationship extends AbstractEloquentInclude
 {
-    public function handle($queryHandler, $query): void
+    public function handle(AbstractQueryHandler $queryHandler, $query): void
     {
         $relatedTables = collect(explode('.', $this->getInclude()));
 

@@ -36,7 +36,7 @@ class EloquentQueryHandler extends AbstractQueryHandler
 
     /**
      * @param EloquentQueryWizard $wizard
-     * @param Builder|Relation $subject
+     * @param Model|Builder|Relation $subject
      * @throws \Throwable
      */
     public function __construct(EloquentQueryWizard $wizard, $subject)

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use ReflectionClass;
 use ReflectionException;
@@ -16,6 +17,8 @@ use ReflectionUnionType;
 class FiltersScope extends AbstractEloquentFilter
 {
     /**
+     * @param AbstractQueryHandler $queryHandler
+     *
      * @throws ReflectionException
      * @throws InvalidFilterValue
      */

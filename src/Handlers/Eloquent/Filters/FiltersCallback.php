@@ -15,7 +15,7 @@ class FiltersCallback extends AbstractEloquentFilter
      * @param callable $callback a PHP callback of the following signature:
      * `function (\Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler, \Illuminate\Database\Eloquent\Builder $builder, mixed $value)`
      * @param string|null $alias
-     * @param null $default
+     * @param mixed $default
      */
     public function __construct(string $propertyName, callable $callback, ?string $alias = null, $default = null)
     {

@@ -2,6 +2,8 @@
 
 namespace Jackardios\QueryWizard\Handlers\Eloquent\Includes;
 
+use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
+
 class IncludedCount extends AbstractEloquentInclude
 {
     public function __construct(string $include, ?string $alias = null, $default = null)
@@ -12,7 +14,7 @@ class IncludedCount extends AbstractEloquentInclude
         parent::__construct($include, $alias, $default);
     }
 
-    public function handle($queryHandler, $query): void
+    public function handle(AbstractQueryHandler $queryHandler, $query): void
     {
         $query->withCount($this->getInclude());
     }
