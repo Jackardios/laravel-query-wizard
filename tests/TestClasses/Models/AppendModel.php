@@ -3,9 +3,12 @@
 namespace Jackardios\QueryWizard\Tests\TestClasses\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Scout\Searchable;
 
 class AppendModel extends Model
 {
+    use Searchable;
+
     protected $guarded = [];
 
     public $timestamps = false;
