@@ -13,8 +13,8 @@
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd"
 >
     <testsuites>
-        <testsuite name="Jackardios Test Suite">
-            <directory>tests</directory>
+        <testsuite name="Tests">
+            <directory suffix="Test.php">tests</directory>
         </testsuite>
     </testsuites>
     <php>
@@ -23,5 +23,6 @@
         <env name="DB_DATABASE" value="laravel_query_wizard"/>
         <env name="DB_HOST" value="127.0.0.1"/>
         <env name="DB_PORT" value="3306"/>
+        <env name="SCOUT_DRIVER" value="collection"/>
     </php>
 </phpunit>

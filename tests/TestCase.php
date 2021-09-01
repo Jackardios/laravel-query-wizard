@@ -2,13 +2,15 @@
 
 namespace Jackardios\QueryWizard\Tests;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Orchestra\Testbench\TestCase as Orchestra;
 use Jackardios\QueryWizard\QueryWizardServiceProvider;
+use Laravel\Scout\ScoutServiceProvider;
+use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
 {
@@ -21,6 +23,19 @@ abstract class TestCase extends Orchestra
         $this->setUpDatabase($this->app);
 
         $this->withFactories(__DIR__.'/factories');
+    }
+
+    /**
+     * @param \Illuminate\Foundation\Application $app
+     *
+     * @return array
+     */
+    protected function getPackageProviders($app): array
+    {
+        return [
+            QueryWizardServiceProvider::class,
+            ScoutServiceProvider::class
+        ];
     }
 
     protected function setUpDatabase(Application $app): void
@@ -80,11 +95,6 @@ abstract class TestCase extends Orchestra
         });
     }
 
-    protected function getPackageProviders($app): array
-    {
-        return [QueryWizardServiceProvider::class];
-    }
-
     protected function assertQueryLogContains(string $partialSql): void
     {
         $queryLog = collect(DB::getQueryLog())->pluck('query')->implode('|');
@@ -99,5 +109,10 @@ abstract class TestCase extends Orchestra
 
         // Could've used `assertStringContainsString` but we want to support L5.5 with PHPUnit 6.0
         $this->assertFalse(Str::contains($queryLog, $partialSql), "Query log contained partial SQL: `{$partialSql}`");
+    }
+
+    protected function assertModelsAttributesEqual(Model $firstModel, Model $secondModel): void
+    {
+        $this->assertEquals($firstModel->getAttributes(), $secondModel->getAttributes());
     }
 }

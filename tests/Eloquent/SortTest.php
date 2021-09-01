@@ -18,6 +18,7 @@ use Jackardios\QueryWizard\Values\Sort;
 /**
  * @group eloquent
  * @group sort
+ * @group eloquent-sort
  */
 class SortTest extends TestCase
 {
@@ -75,7 +76,7 @@ class SortTest extends TestCase
     }
 
     /** @test */
-    public function it_wont_sort_by_columns_that_werent_allowed_first(): void
+    public function it_wont_sort_by_columns_that_arent_allowed_first(): void
     {
         $this->createQueryFromSortRequest('name')->build()->get();
 

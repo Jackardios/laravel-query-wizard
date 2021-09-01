@@ -19,6 +19,7 @@ use Jackardios\QueryWizard\Tests\TestClasses\Models\TestModel;
 /**
  * @group eloquent
  * @group wizard
+ * @group eloquent-wizard
  */
 class EloquentQueryWizardTest extends TestCase
 {

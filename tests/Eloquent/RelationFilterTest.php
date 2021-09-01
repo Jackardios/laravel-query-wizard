@@ -12,6 +12,7 @@ use Jackardios\QueryWizard\Tests\TestClasses\Models\TestModel;
 /**
  * @group eloquent
  * @group filter
+ * @group eloquent-filter
  */
 class RelationFilterTest extends TestCase
 {

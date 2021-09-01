@@ -18,6 +18,7 @@ use Jackardios\QueryWizard\Tests\TestClasses\Models\TestModel;
 /**
  * @group eloquent
  * @group filter
+ * @group eloquent-filter
  */
 class FilterTest extends TestCase
 {
@@ -32,7 +33,7 @@ class FilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_models_by_partial_property_by_default(): void
+    public function it_can_filter_models_by_exact_property_by_default(): void
     {
         $models = $this
             ->createQueryFromFilterRequest([

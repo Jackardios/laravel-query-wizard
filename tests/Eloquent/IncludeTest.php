@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\AbstractEloquentInclude;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedCount;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
@@ -19,6 +20,7 @@ use Jackardios\QueryWizard\Tests\TestClasses\Models\TestModel;
 /**
  * @group eloquent
  * @group include
+ * @group eloquent-include
  */
 class IncludeTest extends TestCase
 {
@@ -375,7 +377,7 @@ class IncludeTest extends TestCase
     public function it_can_include_custom_include_class(): void
     {
         $includeClass = new class('relatedModels') extends AbstractEloquentInclude {
-            public function handle($queryHandler, $query): void
+            public function handle(AbstractQueryHandler $queryHandler, $query): void
             {
                 $query->withCount($this->getInclude());
             }
@@ -394,7 +396,7 @@ class IncludeTest extends TestCase
     public function it_can_include_custom_include_class_by_alias(): void
     {
         $includeClass = new class('relatedModels', 'relatedModelsCount') extends AbstractEloquentInclude {
-            public function handle($queryHandler, $query): void
+            public function handle(AbstractQueryHandler $queryHandler, $query): void
             {
                 $query->withCount($this->getInclude());
             }

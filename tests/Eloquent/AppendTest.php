@@ -16,6 +16,7 @@ use Jackardios\QueryWizard\Tests\TestClasses\Models\AppendModel;
 /**
  * @group eloquent
  * @group append
+ * @group eloquent-append
  */
 class AppendTest extends TestCase
 {

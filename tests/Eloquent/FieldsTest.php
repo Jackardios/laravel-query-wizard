@@ -13,6 +13,7 @@ use Jackardios\QueryWizard\Tests\TestClasses\Models\TestModel;
 /**
  * @group eloquent
  * @group fields
+ * @group eloquent-fields
  */
 class FieldsTest extends TestCase
 {

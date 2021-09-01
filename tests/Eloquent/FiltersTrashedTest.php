@@ -12,6 +12,7 @@ use Jackardios\QueryWizard\Tests\TestClasses\Models\SoftDeleteModel;
 /**
  * @group eloquent
  * @group filter
+ * @group eloquent-filter
  */
 class FiltersTrashedTest extends TestCase
 {
