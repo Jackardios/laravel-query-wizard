@@ -13,6 +13,9 @@ trait HandlesSorts
     protected ?Collection $allowedSorts = null;
     protected ?Collection $defaultSorts = null;
 
+    /**
+     * @return AbstractSort[]|string[]
+     */
     protected function allowedSorts(): array
     {
         return [];
@@ -66,6 +69,9 @@ trait HandlesSorts
         return $this;
     }
 
+    /**
+     * @return AbstractSort[]|string[]
+     */
     protected function defaultSorts(): array
     {
         return [];

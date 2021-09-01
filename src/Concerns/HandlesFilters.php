@@ -11,6 +11,9 @@ trait HandlesFilters
 {
     protected ?Collection $allowedFilters = null;
 
+    /**
+     * @return AbstractFilter[]|string[]
+     */
     protected function allowedFilters(): array
     {
         return [];

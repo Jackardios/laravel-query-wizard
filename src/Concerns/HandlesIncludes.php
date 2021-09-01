@@ -12,6 +12,9 @@ trait HandlesIncludes
     protected ?Collection $allowedIncludes = null;
     protected ?Collection $defaultIncludes = null;
 
+    /**
+     * @return AbstractInclude[]|string[]
+     */
     protected function allowedIncludes(): array
     {
         return [];
@@ -65,6 +68,9 @@ trait HandlesIncludes
         return $this;
     }
 
+    /**
+     * @return AbstractInclude[]|string[]
+     */
     protected function defaultIncludes(): array
     {
         return [];

@@ -12,6 +12,9 @@ trait HandlesFields
     protected ?Collection $allowedFields = null;
     protected ?string $defaultFieldsKey = null;
 
+    /**
+     * @return string[]
+     */
     protected function allowedFields(): array
     {
         return [];

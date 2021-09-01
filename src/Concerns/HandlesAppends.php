@@ -10,6 +10,9 @@ trait HandlesAppends
     protected ?Collection $allowedAppends = null;
     protected ?Collection $defaultAppends = null;
 
+    /**
+     * @return string[]
+     */
     protected function allowedAppends(): array
     {
         return [];
@@ -44,6 +47,9 @@ trait HandlesAppends
         return $this;
     }
 
+    /**
+     * @return string[]
+     */
     protected function defaultAppends(): array
     {
         return [];
