@@ -21,6 +21,12 @@ abstract class AbstractFilter
         $this->default = $default;
     }
 
+    /** @return static */
+    public static function makeFromOther(AbstractFilter $filter)
+    {
+        return new static($filter->getPropertyName(), $filter->getName(), $filter->getDefault());
+    }
+
     public function getName(): string
     {
         return $this->name;

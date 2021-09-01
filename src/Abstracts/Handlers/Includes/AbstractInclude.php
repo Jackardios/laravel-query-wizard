@@ -9,16 +9,18 @@ abstract class AbstractInclude
     protected string $name;
     protected string $include;
 
-    /** @var mixed */
-    protected $default;
-
     abstract public function handle(AbstractQueryHandler $queryHandler, $query): void;
 
-    public function __construct(string $include, ?string $alias = null, $default = null)
+    public function __construct(string $include, ?string $alias = null)
     {
         $this->include = $include;
         $this->name = !empty($alias) ? $alias : $include;
-        $this->default = $default;
+    }
+
+    /** @return static */
+    public static function makeFromOther(AbstractInclude $include)
+    {
+        return new static($include->getInclude(), $include->getName());
     }
 
     public function getName(): string
