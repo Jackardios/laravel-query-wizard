@@ -9,11 +9,9 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
 {
     public function boot(): void
     {
-        if (function_exists('config_path')) {
-            $this->publishes([
-                __DIR__.'/../config/query-wizard.php' => config_path('query-wizard.php'),
-            ], 'config');
-        }
+        $this->publishes([
+            __DIR__.'/../config/query-wizard.php' => config_path('query-wizard.php'),
+        ], 'config');
     }
 
     public function register(): void
