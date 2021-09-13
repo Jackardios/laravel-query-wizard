@@ -43,6 +43,11 @@ abstract class AbstractQueryHandler
         $this->subject = $subject;
     }
 
+    /**
+     * @return $this
+     */
+    abstract public function handle();
+
     public function getSubject()
     {
         return $this->subject;
@@ -58,13 +63,20 @@ abstract class AbstractQueryHandler
         return $result;
     }
 
-    abstract public function handle(): self;
+    public function makeDefaultFilterHandler(string $filterName): ?AbstractFilter
+    {
+        return null;
+    }
 
-    abstract public function makeDefaultFilterHandler(string $filterName): AbstractFilter;
+    public function makeDefaultIncludeHandler(string $includeName): ?AbstractInclude
+    {
+        return null;
+    }
 
-    abstract public function makeDefaultIncludeHandler(string $includeName): AbstractInclude;
-
-    abstract public function makeDefaultSortHandler(string $sortName): AbstractSort;
+    public function makeDefaultSortHandler(string $sortName): ?AbstractSort
+    {
+        return null;
+    }
 
     public function __clone()
     {

@@ -100,7 +100,7 @@ abstract class AbstractQueryWizard implements ArrayAccess
     }
 
     /**
-     * @return $this
+     * @return static
      */
     public function clone()
     {
