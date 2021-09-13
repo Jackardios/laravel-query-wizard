@@ -122,12 +122,14 @@ class EloquentQueryHandler extends AbstractQueryHandler
     {
         $requestedIncludes = $this->wizard->getIncludes();
         $handlers = $this->wizard->getAllowedIncludes();
+
         $requestedIncludes->each(function($include) use ($handlers) {
             $handler = $handlers->get($include);
             if ($handler) {
                 $handler->handle($this, $this->subject);
             }
         });
+
         return $this;
     }
 
@@ -135,12 +137,14 @@ class EloquentQueryHandler extends AbstractQueryHandler
     {
         $requestedFilters = $this->wizard->getFilters();
         $handlers = $this->wizard->getAllowedFilters();
+
         $requestedFilters->each(function($value, $name) use ($handlers) {
             $handler = $handlers->get($name);
             if ($handler) {
                 $handler->handle($this, $this->subject, $value);
             }
         });
+
         return $this;
     }
 
@@ -155,6 +159,7 @@ class EloquentQueryHandler extends AbstractQueryHandler
                 $handler->handle($this, $this->subject, $sort->getDirection());
             }
         });
+
         return $this;
     }
 

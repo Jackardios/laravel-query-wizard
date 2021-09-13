@@ -161,6 +161,7 @@ class ScoutQueryHandler extends AbstractQueryHandler
     {
         $requestedFilters = $this->wizard->getFilters();
         $handlers = $this->wizard->getAllowedFilters();
+
         $requestedFilters->each(function($value, $name) use ($handlers) {
             $handler = $handlers->get($name);
             if ($handler) {
