@@ -111,7 +111,11 @@ abstract class TestCase extends Orchestra
         $this->assertFalse(Str::contains($queryLog, $partialSql), "Query log contained partial SQL: `{$partialSql}`");
     }
 
-    protected function assertModelsAttributesEqual(Model $firstModel, Model $secondModel): void
+    /**
+     * @param Model $firstModel
+     * @param Model $secondModel
+     */
+    protected function assertModelsAttributesEqual($firstModel, $secondModel): void
     {
         $this->assertEquals($firstModel->getAttributes(), $secondModel->getAttributes());
     }
