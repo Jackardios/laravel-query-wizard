@@ -43,9 +43,9 @@ class EloquentModelHandler extends AbstractQueryHandler
         $modelFields = $requestedFields->get($defaultFieldsKey);
 
         if (!empty($modelFields)) {
-            $this->subject = $this->subject->newInstance(
-                $this->subject->only($modelFields)
-            );
+            $this->subject = $this->subject
+                ->newInstance([], true)
+                ->setRawAttributes($this->subject->only($modelFields));
         }
 
         return $this;
