@@ -48,6 +48,19 @@ class EloquentQueryHandler extends AbstractQueryHandler
         parent::__construct($wizard, $subject);
     }
 
+    public function getEloquentBuilder(): Builder
+    {
+        if ($this->subject instanceof Builder) {
+            return $this->subject;
+        }
+
+        if ($this->subject instanceof Relation) {
+            return $this->subject->getQuery();
+        }
+
+        throw InvalidSubject::make($this->subject);
+    }
+
     public function handle(): EloquentQueryHandler
     {
         return $this->handleFields()
@@ -97,7 +110,7 @@ class EloquentQueryHandler extends AbstractQueryHandler
         $requestedIncludes->each(function($include) use ($handlers) {
             $handler = $handlers->get($include);
             if ($handler) {
-                $handler->handle($this, $this->subject);
+                $handler->handle($this, $this->getEloquentBuilder());
             }
         });
 
@@ -112,7 +125,7 @@ class EloquentQueryHandler extends AbstractQueryHandler
         $requestedFilters->each(function($value, $name) use ($handlers) {
             $handler = $handlers->get($name);
             if ($handler) {
-                $handler->handle($this, $this->subject, $value);
+                $handler->handle($this, $this->getEloquentBuilder(), $value);
             }
         });
 
@@ -127,7 +140,7 @@ class EloquentQueryHandler extends AbstractQueryHandler
         $requestedSorts->each(function(Sort $sort) use ($handlers) {
             $handler = $handlers->get($sort->getField());
             if ($handler) {
-                $handler->handle($this, $this->subject, $sort->getDirection());
+                $handler->handle($this, $this->getEloquentBuilder(), $sort->getDirection());
             }
         });
 
