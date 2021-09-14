@@ -5,11 +5,6 @@ namespace Jackardios\QueryWizard\Abstracts;
 use ArrayAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Traits\ForwardsCalls;
-use Jackardios\QueryWizard\Concerns\HandlesAppends;
-use Jackardios\QueryWizard\Concerns\HandlesFields;
-use Jackardios\QueryWizard\Concerns\HandlesFilters;
-use Jackardios\QueryWizard\Concerns\HandlesIncludes;
-use Jackardios\QueryWizard\Concerns\HandlesSorts;
 use Jackardios\QueryWizard\Exceptions\InvalidQueryHandler;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\QueryWizardRequest;
@@ -17,11 +12,6 @@ use Jackardios\QueryWizard\QueryWizardRequest;
 abstract class AbstractQueryWizard implements ArrayAccess
 {
     use ForwardsCalls;
-    use HandlesAppends;
-    use HandlesFields;
-    use HandlesFilters;
-    use HandlesIncludes;
-    use HandlesSorts;
 
     protected QueryWizardRequest $request;
 

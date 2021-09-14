@@ -63,21 +63,6 @@ abstract class AbstractQueryHandler
         return $result;
     }
 
-    public function makeDefaultFilterHandler(string $filterName): ?AbstractFilter
-    {
-        return null;
-    }
-
-    public function makeDefaultIncludeHandler(string $includeName): ?AbstractInclude
-    {
-        return null;
-    }
-
-    public function makeDefaultSortHandler(string $sortName): ?AbstractSort
-    {
-        return null;
-    }
-
     public function __clone()
     {
         $this->subject = clone $this->subject;

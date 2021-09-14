@@ -10,6 +10,12 @@ use Jackardios\QueryWizard\Values\Sort;
 
 trait HandlesSorts
 {
+    /**
+     * @param string $sortName
+     * @return AbstractSort
+     */
+    abstract public function makeDefaultSortHandler(string $sortName);
+
     protected ?Collection $allowedSorts = null;
     protected ?Collection $defaultSorts = null;
 
@@ -47,7 +53,7 @@ trait HandlesSorts
             ->filter()
             ->map(function($sort) use (&$autoCreatedHandlers) {
                 if (is_string($sort)) {
-                    $sort = $this->queryHandler->makeDefaultSortHandler(ltrim($sort, '-'));
+                    $sort = $this->makeDefaultSortHandler(ltrim($sort, '-'));
                 }
 
                 $baseHandlerClass = $this->queryHandler::getBaseSortHandlerClass();

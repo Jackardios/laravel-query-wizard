@@ -9,6 +9,12 @@ use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 
 trait HandlesFilters
 {
+    /**
+     * @param string $filterName
+     * @return AbstractFilter
+     */
+    abstract public function makeDefaultFilterHandler(string $filterName);
+
     protected ?Collection $allowedFilters = null;
 
     /**
@@ -45,7 +51,7 @@ trait HandlesFilters
             ->filter()
             ->map(function($filter) use (&$autoCreatedHandlers) {
                 if (is_string($filter)) {
-                    $filter = $this->queryHandler->makeDefaultFilterHandler($filter);
+                    $filter = $this->makeDefaultFilterHandler($filter);
                 }
 
                 $baseHandlerClass = $this->queryHandler::getBaseFilterHandlerClass();

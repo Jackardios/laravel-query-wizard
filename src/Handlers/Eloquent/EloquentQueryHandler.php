@@ -9,16 +9,11 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Exceptions\InvalidSubject;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Handlers\Eloquent\Filters\AbstractEloquentFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersExact;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\AbstractEloquentInclude;
-use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedCount;
-use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
 use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\AbstractEloquentSort;
-use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortsByField;
 use Jackardios\QueryWizard\EloquentQueryWizard;
 use Jackardios\QueryWizard\Values\Sort;
 
@@ -51,30 +46,6 @@ class EloquentQueryHandler extends AbstractQueryHandler
         );
 
         parent::__construct($wizard, $subject);
-    }
-
-    public function makeDefaultFilterHandler(string $filterName): FiltersExact
-    {
-        return new FiltersExact($filterName);
-    }
-
-    /**
-     * @param string $includeName
-     * @return IncludedRelationship|IncludedCount
-     */
-    public function makeDefaultIncludeHandler(string $includeName): AbstractEloquentInclude
-    {
-        $countSuffix = config('query-wizard.count_suffix');
-        if (Str::endsWith($includeName, $countSuffix)) {
-            $relation = Str::before($includeName, $countSuffix);
-            return new IncludedCount($relation, $includeName);
-        }
-        return new IncludedRelationship($includeName);
-    }
-
-    public function makeDefaultSortHandler(string $sortName): SortsByField
-    {
-        return new SortsByField($sortName);
     }
 
     public function handle(): EloquentQueryHandler

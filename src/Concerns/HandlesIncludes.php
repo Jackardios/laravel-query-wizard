@@ -9,6 +9,12 @@ use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 
 trait HandlesIncludes
 {
+    /**
+     * @param string $includeName
+     * @return AbstractInclude
+     */
+    abstract public function makeDefaultIncludeHandler(string $includeName);
+
     protected ?Collection $allowedIncludes = null;
     protected ?Collection $defaultIncludes = null;
 
@@ -46,7 +52,7 @@ trait HandlesIncludes
             ->filter()
             ->map(function($include) use (&$autoCreatedHandlers) {
                 if (is_string($include)) {
-                    $include = $this->queryHandler->makeDefaultIncludeHandler($include);
+                    $include = $this->makeDefaultIncludeHandler($include);
                 }
 
                 $baseHandlerClass = $this->queryHandler::getBaseIncludeHandlerClass();
