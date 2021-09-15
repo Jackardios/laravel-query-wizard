@@ -6,12 +6,11 @@ use Jackardios\QueryWizard\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Handlers\Model\Includes\AbstractModelInclude;
 use Jackardios\QueryWizard\Handlers\Model\Includes\IncludedCount;
 use Jackardios\QueryWizard\Handlers\Model\Includes\IncludedRelationship;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
-use Jackardios\QueryWizard\EloquentModelWizard;
+use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\TestClasses\Models\MorphModel;
 use Jackardios\QueryWizard\Tests\TestClasses\Models\TestModel;
 
@@ -46,7 +45,7 @@ class IncludeTest extends TestCase
     public function it_can_handle_empty_includes(): void
     {
         $model = TestModel::find($this->model->getKey());
-        $modelWizard = EloquentModelWizard::for($model, new Request())
+        $modelWizard = ModelQueryWizard::for($model, new Request())
             ->setAllowedIncludes([
                 null,
                 [],
@@ -179,7 +178,7 @@ class IncludeTest extends TestCase
             'include' => 'parent',
         ]);
 
-        $model = EloquentModelWizard::for(MorphModel::query()->first(), $request)
+        $model = ModelQueryWizard::for(MorphModel::query()->first(), $request)
             ->setAllowedIncludes('parent')
             ->build();
 
@@ -287,7 +286,7 @@ class IncludeTest extends TestCase
             'include' => 'relatedModelsCount,relationShipAlias',
         ]);
 
-        $model = EloquentModelWizard::for($this->model, $request)
+        $model = ModelQueryWizard::for($this->model, $request)
             ->setAllowedIncludes([
                 new IncludedCount('relatedModels', 'relatedModelsCount'),
                 new IncludedRelationship('otherRelatedModels', 'relationShipAlias'),
@@ -334,17 +333,17 @@ class IncludeTest extends TestCase
         $this->assertNotNull($modelResult->related_models_count);
     }
 
-    protected function createQueryFromIncludeRequest(string $includes): EloquentModelWizard
+    protected function createQueryFromIncludeRequest(string $includes): ModelQueryWizard
     {
         $request = new Request([
             'include' => $includes,
         ]);
 
-        return EloquentModelWizard::for($this->model, $request);
+        return ModelQueryWizard::for($this->model, $request);
     }
 
     /**
-     * @param Model|EloquentModelWizard $model
+     * @param Model|ModelQueryWizard $model
      * @param string $relation
      */
     protected function assertRelationLoaded($model, string $relation): void

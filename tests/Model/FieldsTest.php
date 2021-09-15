@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
-use Jackardios\QueryWizard\EloquentModelWizard;
+use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\TestClasses\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\TestClasses\Models\TestModel;
 
@@ -159,17 +159,17 @@ class FieldsTest extends TestCase
         $this->assertEqualsCanonicalizing($attributes, array_keys($model->getAttributes()));
     }
 
-    protected function createQueryFromFieldRequest(array $fields = []): EloquentModelWizard
+    protected function createQueryFromFieldRequest(array $fields = []): ModelQueryWizard
     {
         $request = new Request([
             'fields' => $fields,
         ]);
 
-        return EloquentModelWizard::for($this->model, $request);
+        return ModelQueryWizard::for($this->model, $request);
     }
 
-    protected function createQueryFromRequest(Request $request): EloquentModelWizard
+    protected function createQueryFromRequest(Request $request): ModelQueryWizard
     {
-        return EloquentModelWizard::for($this->model, $request);
+        return ModelQueryWizard::for($this->model, $request);
     }
 }

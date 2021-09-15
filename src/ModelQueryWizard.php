@@ -11,20 +11,20 @@ use Jackardios\QueryWizard\Concerns\HandlesIncludes;
 use Jackardios\QueryWizard\Handlers\Model\Includes\AbstractModelInclude;
 use Jackardios\QueryWizard\Handlers\Model\Includes\IncludedCount;
 use Jackardios\QueryWizard\Handlers\Model\Includes\IncludedRelationship;
-use Jackardios\QueryWizard\Handlers\Model\EloquentModelHandler;
+use Jackardios\QueryWizard\Handlers\Model\ModelQueryHandler;
 
 /**
  * @mixin Model
- * @property EloquentModelHandler $queryHandler
- * @method static EloquentModelWizard for(Model $subject, \Illuminate\Http\Request|null $request = null)
+ * @property ModelQueryHandler $queryHandler
+ * @method static ModelQueryWizard for(Model $subject, \Illuminate\Http\Request|null $request = null)
  */
-class EloquentModelWizard extends AbstractQueryWizard
+class ModelQueryWizard extends AbstractQueryWizard
 {
     use HandlesAppends;
     use HandlesFields;
     use HandlesIncludes;
 
-    protected string $queryHandlerClass = EloquentModelHandler::class;
+    protected string $queryHandlerClass = ModelQueryHandler::class;
 
     protected function defaultFieldsKey(): string
     {

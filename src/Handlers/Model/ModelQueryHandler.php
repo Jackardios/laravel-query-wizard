@@ -4,32 +4,32 @@ namespace Jackardios\QueryWizard\Handlers\Model;
 
 use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
-use Jackardios\QueryWizard\EloquentModelWizard;
+use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\Handlers\Model\Includes\AbstractModelInclude;
 
 /**
- * @property EloquentModelWizard $wizard
+ * @property ModelQueryWizard $wizard
  * @property Model $subject
- * @method EloquentModelWizard getWizard()
+ * @method ModelQueryWizard getWizard()
  * @method Model getSubject()
  */
-class EloquentModelHandler extends AbstractQueryHandler
+class ModelQueryHandler extends AbstractQueryHandler
 {
     protected static string $baseIncludeHandlerClass = AbstractModelInclude::class;
 
     /**
-     * @param EloquentModelWizard $wizard
+     * @param ModelQueryWizard $wizard
      * @param Model $subject
      */
-    public function __construct(EloquentModelWizard $wizard, Model $subject)
+    public function __construct(ModelQueryWizard $wizard, Model $subject)
     {
         parent::__construct($wizard, $subject);
     }
 
     /**
-     * @return EloquentModelHandler
+     * @return ModelQueryHandler
      */
-    public function handle(): EloquentModelHandler
+    public function handle(): ModelQueryHandler
     {
         return $this->handleFields()
             ->handleIncludes()

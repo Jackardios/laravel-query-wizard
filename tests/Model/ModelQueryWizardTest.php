@@ -3,7 +3,7 @@
 namespace Jackardios\QueryWizard\Tests\Model;
 
 use Jackardios\QueryWizard\Tests\TestCase;
-use Jackardios\QueryWizard\EloquentModelWizard;
+use Jackardios\QueryWizard\ModelQueryWizard;
 use TypeError;
 
 /**
@@ -11,13 +11,13 @@ use TypeError;
  * @group wizard
  * @group model-wizard
  */
-class EloquentModelWizardTest extends TestCase
+class ModelQueryWizardTest extends TestCase
 {
     /** @test */
     public function it_can_not_be_given_not_a_model(): void
     {
         $this->expectException(TypeError::class);
 
-        EloquentModelWizard::for('not a model');
+        ModelQueryWizard::for('not a model');
     }
 }

@@ -6,7 +6,7 @@ use Jackardios\QueryWizard\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
-use Jackardios\QueryWizard\EloquentModelWizard;
+use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\TestClasses\Models\AppendModel;
 
 /**
@@ -90,17 +90,17 @@ class AppendTest extends TestCase
         $this->assertAttributeLoaded($model, 'reversename');
     }
 
-    protected function createQueryFromAppendRequest(string $appends): EloquentModelWizard
+    protected function createQueryFromAppendRequest(string $appends): ModelQueryWizard
     {
         $request = new Request([
             'append' => $appends,
         ]);
 
-        return EloquentModelWizard::for(AppendModel::query()->first(), $request);
+        return ModelQueryWizard::for(AppendModel::query()->first(), $request);
     }
 
     /**
-     * @param Model|EloquentModelWizard $model
+     * @param Model|ModelQueryWizard $model
      * @param string $attribute
      */
     protected function assertAttributeLoaded($model, string $attribute): void
