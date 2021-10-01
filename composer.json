@@ -29,7 +29,6 @@
     ],
     "require": {
         "php": "^7.4|^8.0",
-        "laravel/scout": "^8.6.1|^9.2.6",
         "illuminate/database": "^6.20.13|^7.30.4|^8.22.2",
         "illuminate/support": "^6.20.13|7.30.4|^8.22.2"
     },

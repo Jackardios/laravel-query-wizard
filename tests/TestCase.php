@@ -9,7 +9,6 @@ use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\QueryWizardServiceProvider;
-use Laravel\Scout\ScoutServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
@@ -33,8 +32,7 @@ abstract class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
-            QueryWizardServiceProvider::class,
-            ScoutServiceProvider::class
+            QueryWizardServiceProvider::class
         ];
     }
 

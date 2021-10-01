@@ -9,12 +9,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
-use Laravel\Scout\Searchable;
 
 class TestModel extends Model
 {
-    use Searchable;
-
     protected $guarded = [];
 
     public function relatedModels(): HasMany
