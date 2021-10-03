@@ -112,8 +112,8 @@ class EloquentQueryWizardTest extends TestCase
     /** @test */
     public function it_will_determine_the_request_when_its_not_given(): void
     {
-        $builderReflection = new ReflectionClass(EloquentQueryWizard::class);
-        $requestProperty = $builderReflection->getProperty('request');
+        $wizardReflection = new ReflectionClass(EloquentQueryWizard::class);
+        $requestProperty = $wizardReflection->getProperty('request');
         $requestProperty->setAccessible(true);
 
         $this->getJson('/test-model?sort=name');

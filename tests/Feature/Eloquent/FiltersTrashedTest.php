@@ -31,7 +31,7 @@ class FiltersTrashedTest extends TestCase
     public function it_should_filter_not_trashed_by_default()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'trashed' => '',
             ])
             ->setAllowedFilters(new FiltersTrashed())
@@ -45,7 +45,7 @@ class FiltersTrashedTest extends TestCase
     public function it_can_filter_only_trashed()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'trashed' => 'only',
             ])
             ->setAllowedFilters(new FiltersTrashed())
@@ -59,7 +59,7 @@ class FiltersTrashedTest extends TestCase
     public function it_can_filter_only_trashed_by_scope_directly()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'only_trashed' => true,
             ])
             ->setAllowedFilters(new FiltersScope('only_trashed'))
@@ -73,7 +73,7 @@ class FiltersTrashedTest extends TestCase
     public function it_can_filter_with_trashed()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'trashed' => 'with',
             ])
             ->setAllowedFilters(new FiltersTrashed())
@@ -83,7 +83,7 @@ class FiltersTrashedTest extends TestCase
         $this->assertCount(3, $models);
     }
 
-    protected function createQueryFromFilterRequest(array $filters): EloquentQueryWizard
+    protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard
     {
         $request = new Request([
             'filter' => $filters,

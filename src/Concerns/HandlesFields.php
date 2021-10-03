@@ -10,6 +10,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 trait HandlesFields
 {
     protected ?Collection $allowedFields = null;
+    protected ?Collection $preparedFields = null;
     protected ?string $defaultFieldsKey = null;
 
     /**
@@ -47,8 +48,6 @@ trait HandlesFields
             ->unique()
             ->values();
 
-        $this->ensureAllFieldsAllowed();
-
         return $this;
     }
 
@@ -79,11 +78,18 @@ trait HandlesFields
 
     public function getFields(): Collection
     {
-        if ($this->getAllowedFields()->isEmpty()) {
-            return collect();
+        if ($this->preparedFields instanceof Collection) {
+            return $this->preparedFields;
         }
 
-        return $this->request->fields();
+        if ($this->getAllowedFields()->isEmpty()) {
+            return $this->preparedFields = collect();
+        }
+
+        $formattedFields = $this->getFormattedFields();
+        $this->ensureAllFieldsAllowed($formattedFields);
+
+        return $this->preparedFields = $formattedFields;
     }
 
     public function getFieldsByKey(string $key): array
@@ -91,9 +97,45 @@ trait HandlesFields
         return $this->getFields()->get($key, []);
     }
 
-    protected function ensureAllFieldsAllowed(): self
+    protected function getFormattedFields(): Collection
     {
-        $requestedFields = $this->request->fields()
+        $requestedFields = $this->request->fields();
+        $formattedFields = collect();
+
+        /**
+         * @var mixed $key
+         * @var array $fields
+         */
+        foreach ($requestedFields as $key => $fields) {
+            if (is_string($key)) {
+                $formattedFields[$key] = $fields;
+                continue;
+            }
+
+            foreach($fields as $rawField) {
+                [$key,$field] = $this->splitField($rawField);
+
+                $newFields = $formattedFields[$key] ?? [];
+                $newFields[] = $field;
+
+                $formattedFields[$key] = $newFields;
+            }
+        }
+
+        return $formattedFields;
+    }
+
+    protected function splitField(string $rawField): array {
+        $parts = explode('.', $rawField);
+        $field = array_pop($parts);
+        $key = empty($parts) ? $this->getDefaultFieldsKey() : implode('.', $parts);
+
+        return [$key, $field];
+    }
+
+    protected function ensureAllFieldsAllowed(Collection $fields): self
+    {
+        $requestedFields = $fields
             ->map(fn ($fields, $key) => $this->prependFieldsWithKey($fields, $key))
             ->flatten()
             ->unique()

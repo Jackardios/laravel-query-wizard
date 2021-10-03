@@ -41,8 +41,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_attributes(): void
     {
-        $model = $this
-            ->createQueryFromAppendRequest('fullname')
+        $model = $this->createWizardFromAppendRequest('fullname')
             ->setAllowedAppends('fullname')
             ->build()
             ->first();
@@ -55,8 +54,7 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $this
-            ->createQueryFromAppendRequest('FullName')
+        $this->createWizardFromAppendRequest('FullName')
             ->setAllowedAppends('fullname')
             ->build()
             ->first();
@@ -65,8 +63,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_collections(): void
     {
-        $models = $this
-            ->createQueryFromAppendRequest('FullName')
+        $models = $this->createWizardFromAppendRequest('FullName')
             ->setAllowedAppends('FullName')
             ->build()
             ->get();
@@ -77,8 +74,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_paginates(): void
     {
-        $models = $this
-            ->createQueryFromAppendRequest('FullName')
+        $models = $this->createWizardFromAppendRequest('FullName')
             ->setAllowedAppends('FullName')
             ->build()
             ->paginate();
@@ -89,8 +85,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_simple_paginates(): void
     {
-        $models = $this
-            ->createQueryFromAppendRequest('FullName')
+        $models = $this->createWizardFromAppendRequest('FullName')
             ->setAllowedAppends('FullName')
             ->build()
             ->simplePaginate();
@@ -101,8 +96,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_cursor_paginates(): void
     {
-        $models = $this
-            ->createQueryFromAppendRequest('FullName')
+        $models = $this->createWizardFromAppendRequest('FullName')
             ->setAllowedAppends('FullName')
             ->build()
             ->cursorPaginate();
@@ -115,8 +109,7 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $this
-            ->createQueryFromAppendRequest('random-attribute-to-append')
+        $this->createWizardFromAppendRequest('random-attribute-to-append')
             ->setAllowedAppends('attribute-to-append')
             ->build();
     }
@@ -124,8 +117,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_allow_multiple_appends(): void
     {
-        $model = $this
-            ->createQueryFromAppendRequest('fullname')
+        $model = $this->createWizardFromAppendRequest('fullname')
             ->setAllowedAppends('fullname', 'randomAttribute')
             ->build()
             ->first();
@@ -136,8 +128,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_allow_multiple_appends_as_an_array(): void
     {
-        $model = $this
-            ->createQueryFromAppendRequest('fullname')
+        $model = $this->createWizardFromAppendRequest('fullname')
             ->setAllowedAppends(['fullname', 'randomAttribute'])
             ->build()
             ->first();
@@ -148,8 +139,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_multiple_attributes(): void
     {
-        $model = $this
-            ->createQueryFromAppendRequest('fullname,reversename')
+        $model = $this->createWizardFromAppendRequest('fullname,reversename')
             ->setAllowedAppends(['fullname', 'reversename'])
             ->build()
             ->first();
@@ -167,7 +157,7 @@ class AppendTest extends TestCase
         $this->assertEquals(['allowed append'], $exception->allowedAppends->all());
     }
 
-    protected function createQueryFromAppendRequest(string $appends): EloquentQueryWizard
+    protected function createWizardFromAppendRequest(string $appends): EloquentQueryWizard
     {
         $request = new Request([
             'append' => $appends,

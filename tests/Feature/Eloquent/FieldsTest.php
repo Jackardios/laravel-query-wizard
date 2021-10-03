@@ -32,9 +32,60 @@ class FieldsTest extends TestCase
     }
 
     /** @test */
+    public function it_can_accept_fields_as_string(): void
+    {
+        $fields = 'some.related.model.id,id,,,related.created_at,name,some.related.model.title,content,related.id';
+        $wizard = EloquentQueryWizard::for(TestModel::class, new Request(['fields' => $fields]))
+            ->setAllowedFields([
+                'some.related.model.id',
+                'id',
+                'related.created_at',
+                'name',
+                'some.related.model.title',
+                'content',
+                'related.id'
+            ]);
+
+        $wizardFields = $wizard->getFields()->toArray();
+
+        $this->assertEqualsCanonicalizing(['test_models', 'some.related.model', 'related'], array_keys($wizardFields));
+        $this->assertEqualsCanonicalizing(['id', 'name', 'content'], $wizardFields['test_models']);
+        $this->assertEqualsCanonicalizing(['id', 'title'], $wizardFields['some.related.model']);
+        $this->assertEqualsCanonicalizing(['created_at', 'id'], $wizardFields['related']);
+    }
+
+    /** @test */
+    public function it_can_accept_fields_as_associative_array(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class, new Request(['fields' => [
+            'test_models' => ['id', 'name', 'content'],
+            'some.related.model' => ['id', 'title'],
+            'related' => ['created_at', 'id']
+        ]]))
+            ->setAllowedFields([
+                'some.related.model.id',
+                'id',
+                'related.created_at',
+                'name',
+                'some.related.model.title',
+                'content',
+                'related.id'
+            ]);
+
+        $wizardFields = $wizard->getFields()->toArray();
+
+        $this->assertEqualsCanonicalizing(['test_models', 'some.related.model', 'related'], array_keys($wizardFields));
+        $this->assertEqualsCanonicalizing(['id', 'name', 'content'], $wizardFields['test_models']);
+        $this->assertEqualsCanonicalizing(['id', 'title'], $wizardFields['some.related.model']);
+        $this->assertEqualsCanonicalizing(['created_at', 'id'], $wizardFields['related']);
+    }
+
+    /** @test */
     public function it_fetches_all_columns_if_no_field_was_requested(): void
     {
-        $query = EloquentQueryWizard::for(TestModel::class)->build()->toSql();
+        $query = EloquentQueryWizard::for(TestModel::class)
+            ->build()
+            ->toSql();
 
         $expected = TestModel::query()->toSql();
 
@@ -44,7 +95,10 @@ class FieldsTest extends TestCase
     /** @test */
     public function it_fetches_all_columns_if_no_field_was_requested_but_allowed_fields_were_specified(): void
     {
-        $query = EloquentQueryWizard::for(TestModel::class)->setAllowedFields('id', 'name')->build()->toSql();
+        $query = EloquentQueryWizard::for(TestModel::class)
+            ->setAllowedFields('id', 'name')
+            ->build()
+            ->toSql();
 
         $expected = TestModel::query()->toSql();
 
@@ -52,10 +106,24 @@ class FieldsTest extends TestCase
     }
 
     /** @test */
+    public function it_can_fetch_specific_columns(): void
+    {
+        $query = $this->createWizardFromFieldRequest(['test_models' => 'name,id'])
+            ->setAllowedFields(['name', 'id'])
+            ->build()
+            ->toSql();
+
+        $expected = TestModel::query()
+            ->select("{$this->modelTableName}.name", "{$this->modelTableName}.id")
+            ->toSql();
+
+        $this->assertEquals($expected, $query);
+    }
+
+    /** @test */
     public function it_replaces_selected_columns_on_the_query(): void
     {
-        $query = $this
-            ->createQueryFromFieldRequest(['test_models' => 'name,id'])
+        $query = $this->createWizardFromFieldRequest(['test_models' => 'name,id'])
             ->select(['id', 'is_visible'])
             ->setAllowedFields(['name', 'id'])
             ->build()
@@ -70,25 +138,9 @@ class FieldsTest extends TestCase
     }
 
     /** @test */
-    public function it_can_fetch_specific_columns(): void
-    {
-        $query = $this
-            ->createQueryFromFieldRequest(['test_models' => 'name,id'])
-            ->setAllowedFields(['name', 'id'])
-            ->build()
-            ->toSql();
-
-        $expected = TestModel::query()
-            ->select("{$this->modelTableName}.name", "{$this->modelTableName}.id")
-            ->toSql();
-
-        $this->assertEquals($expected, $query);
-    }
-
-    /** @test */
     public function it_wont_fetch_a_specific_column_if_its_not_allowed(): void
     {
-        $query = $this->createQueryFromFieldRequest(['test_models' => 'random-column'])
+        $query = $this->createWizardFromFieldRequest(['test_models' => 'random-column'])
             ->build()
             ->toSql();
 
@@ -100,8 +152,7 @@ class FieldsTest extends TestCase
     /** @test */
     public function it_can_fetch_sketchy_columns_if_they_are_allowed_fields(): void
     {
-        $query = $this
-            ->createQueryFromFieldRequest(['test_models' => 'name->first,id'])
+        $query = $this->createWizardFromFieldRequest(['test_models' => 'name->first,id'])
             ->setAllowedFields(['name->first', 'id'])
             ->build()
             ->toSql();
@@ -118,8 +169,7 @@ class FieldsTest extends TestCase
     {
         $this->expectException(InvalidFieldQuery::class);
 
-        $this
-            ->createQueryFromFieldRequest(['test_models' => 'random-column'])
+        $this->createWizardFromFieldRequest(['test_models' => 'random-column'])
             ->setAllowedFields('name')
             ->build();
     }
@@ -129,8 +179,7 @@ class FieldsTest extends TestCase
     {
         $this->expectException(InvalidFieldQuery::class);
 
-        $this
-            ->createQueryFromFieldRequest(['related_models' => 'random_column'])
+        $this->createWizardFromFieldRequest(['related_models' => 'random_column'])
             ->setAllowedFields('related_models.name')
             ->build();
     }
@@ -228,7 +277,7 @@ class FieldsTest extends TestCase
         $this->assertQueryLogDoesntContain('--injection');
     }
 
-    protected function createQueryFromFieldRequest(array $fields = []): EloquentQueryWizard
+    protected function createWizardFromFieldRequest(array $fields = []): EloquentQueryWizard
     {
         $request = new Request([
             'fields' => $fields,

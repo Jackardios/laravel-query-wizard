@@ -2,7 +2,6 @@
 
 namespace Jackardios\QueryWizard;
 
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -63,10 +62,7 @@ class QueryWizardRequest extends Request
             $appendParts = explode(static::getAppendsArrayValueDelimiter(), $appendParts);
         }
 
-        return $this->appends = collect($appendParts)
-            ->filter()
-            ->unique()
-            ->values();
+        return $this->appends = $this->prepareList($appendParts);
     }
 
     public function fields(): Collection
@@ -77,22 +73,23 @@ class QueryWizardRequest extends Request
 
         $fieldsParameterName = config('query-wizard.parameters.fields');
 
-        $fieldsPerTable = collect($this->getRequestData($fieldsParameterName));
+        $rawFields = $this->getRequestData($fieldsParameterName);
 
-        if ($fieldsPerTable->isEmpty()) {
-            return collect();
+        if (is_string($rawFields)) {
+            $rawFields = [
+                explode(static::getAppendsArrayValueDelimiter(), $rawFields)
+            ];
         }
 
-        return $this->fields = $fieldsPerTable->map(function ($fields) {
-            if (is_string($fields)) {
-                $fields = explode(static::getFieldsArrayValueDelimiter(), $fields);
-            }
-            return collect($fields)
-                ->filter()
-                ->unique()
-                ->values()
-                ->toArray();
-        })->filter();
+        return $this->fields = collect($rawFields)
+            ->map(function ($fields) {
+                if (is_string($fields)) {
+                    $fields = explode(static::getFieldsArrayValueDelimiter(), $fields);
+                }
+
+                return $this->prepareList($fields)->toArray();
+            })
+            ->filter();
     }
 
     public function filters(): Collection
@@ -103,13 +100,13 @@ class QueryWizardRequest extends Request
 
         $filterParameterName = config('query-wizard.parameters.filter');
 
-        $filterParts = $this->getRequestData($filterParameterName, []);
+        $rawFilters = $this->getRequestData($filterParameterName, []);
 
-        if (is_string($filterParts)) {
-            return collect();
+        if (is_string($rawFilters)) {
+            return $this->filters = collect();
         }
 
-        $filters = collect($filterParts);
+        $filters = collect($rawFilters);
 
         return $this->filters = $filters->map(function ($value) {
             return $this->getFilterValue($value);
@@ -124,15 +121,13 @@ class QueryWizardRequest extends Request
 
         $includeParameterName = config('query-wizard.parameters.include');
 
-        $includeParts = $this->getRequestData($includeParameterName);
+        $rawIncludes = $this->getRequestData($includeParameterName);
 
-        if (is_string($includeParts)) {
-            $includeParts = explode(static::getIncludesArrayValueDelimiter(), $this->getRequestData($includeParameterName));
+        if (is_string($rawIncludes)) {
+            $rawIncludes = explode(static::getIncludesArrayValueDelimiter(), $rawIncludes);
         }
 
-        return $this->includes = collect($includeParts)
-            ->filter()
-            ->unique();
+        return $this->includes = $this->prepareList($rawIncludes);
     }
 
     public function sorts(): Collection
@@ -143,45 +138,17 @@ class QueryWizardRequest extends Request
 
         $sortParameterName = config('query-wizard.parameters.sort');
 
-        $sortParts = $this->getRequestData($sortParameterName);
+        $rawSorts = $this->getRequestData($sortParameterName);
 
-        if (is_string($sortParts)) {
-            $sortParts = explode(static::getSortsArrayValueDelimiter(), $sortParts);
+        if (is_string($rawSorts)) {
+            $rawSorts = explode(static::getSortsArrayValueDelimiter(), $rawSorts);
         }
 
-        return $this->sorts = collect($sortParts)
+        return $this->sorts = collect($rawSorts)
             ->filter()
             ->map(fn($field) => new Sort((string)$field))
             ->unique(fn(Sort $sort) => $sort->getField())
             ->values();
-    }
-
-    /**
-     * @param $value
-     *
-     * @return array|bool
-     */
-    protected function getFilterValue($value)
-    {
-        if (is_array($value)) {
-            return collect($value)->map(function ($valueValue) {
-                return $this->getFilterValue($valueValue);
-            })->all();
-        }
-
-        if (Str::contains($value, static::getFilterArrayValueDelimiter())) {
-            return explode(static::getFilterArrayValueDelimiter(), $value);
-        }
-
-        if ($value === 'true') {
-            return true;
-        }
-
-        if ($value === 'false') {
-            return false;
-        }
-
-        return $value;
     }
 
     public static function setIncludesArrayValueDelimiter(string $includesArrayValueDelimiter): void
@@ -232,5 +199,48 @@ class QueryWizardRequest extends Request
     public static function getFilterArrayValueDelimiter(): string
     {
         return static::$filterArrayValueDelimiter;
+    }
+
+    /**
+     * Convert to collection remove empty and duplicate values
+     *
+     * @param array|null $list
+     *
+     * @return Collection
+     */
+    protected function prepareList(?array $list): Collection
+    {
+        return collect($list)
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * @param $value
+     *
+     * @return array|bool
+     */
+    protected function getFilterValue($value)
+    {
+        if (is_array($value)) {
+            return collect($value)->map(function ($valueValue) {
+                return $this->getFilterValue($valueValue);
+            })->all();
+        }
+
+        if (Str::contains($value, static::getFilterArrayValueDelimiter())) {
+            return explode(static::getFilterArrayValueDelimiter(), $value);
+        }
+
+        if ($value === 'true') {
+            return true;
+        }
+
+        if ($value === 'false') {
+            return false;
+        }
+
+        return $value;
     }
 }

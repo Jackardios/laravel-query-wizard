@@ -26,8 +26,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_attributes(): void
     {
-        $model = $this
-            ->createQueryFromAppendRequest('fullname')
+        $model = $this->createWizardFromAppendRequest('fullname')
             ->setAllowedAppends('fullname')
             ->build();
 
@@ -39,8 +38,7 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $this
-            ->createQueryFromAppendRequest('FullName')
+        $this->createWizardFromAppendRequest('FullName')
             ->setAllowedAppends('fullname')
             ->build();
     }
@@ -50,8 +48,7 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $this
-            ->createQueryFromAppendRequest('random-attribute-to-append')
+        $this->createWizardFromAppendRequest('random-attribute-to-append')
             ->setAllowedAppends('attribute-to-append')
             ->build();
     }
@@ -59,8 +56,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_allow_multiple_appends(): void
     {
-        $model = $this
-            ->createQueryFromAppendRequest('fullname')
+        $model = $this->createWizardFromAppendRequest('fullname')
             ->setAllowedAppends('fullname', 'randomAttribute')
             ->build();
 
@@ -70,8 +66,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_allow_multiple_appends_as_an_array(): void
     {
-        $model = $this
-            ->createQueryFromAppendRequest('fullname')
+        $model = $this->createWizardFromAppendRequest('fullname')
             ->setAllowedAppends(['fullname', 'randomAttribute'])
             ->build();
 
@@ -81,8 +76,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_multiple_attributes(): void
     {
-        $model = $this
-            ->createQueryFromAppendRequest('fullname,reversename')
+        $model = $this->createWizardFromAppendRequest('fullname,reversename')
             ->setAllowedAppends(['fullname', 'reversename'])
             ->build();
 
@@ -90,7 +84,7 @@ class AppendTest extends TestCase
         $this->assertAttributeLoaded($model, 'reversename');
     }
 
-    protected function createQueryFromAppendRequest(string $appends): ModelQueryWizard
+    protected function createWizardFromAppendRequest(string $appends): ModelQueryWizard
     {
         $request = new Request([
             'append' => $appends,

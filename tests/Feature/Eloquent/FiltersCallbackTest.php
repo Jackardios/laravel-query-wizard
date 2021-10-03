@@ -31,7 +31,7 @@ class FiltersCallbackTest extends TestCase
     public function it_should_filter_by_closure()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'callback' => $this->models->first()->name,
             ])
             ->setAllowedFilters(
@@ -49,7 +49,7 @@ class FiltersCallbackTest extends TestCase
     public function it_should_filter_by_array_callback()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'callback' => $this->models->first()->name,
             ])
             ->setAllowedFilters(new FiltersCallback('callback', [$this, 'filterCallback']))
@@ -64,7 +64,7 @@ class FiltersCallbackTest extends TestCase
         $query->where('name', $value);
     }
 
-    protected function createQueryFromFilterRequest(array $filters): EloquentQueryWizard
+    protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard
     {
         $request = new Request([
             'filter' => $filters,

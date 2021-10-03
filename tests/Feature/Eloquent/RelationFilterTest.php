@@ -36,7 +36,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_related_model_property()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.name' => $this->models->first()->name,
             ])
             ->setAllowedFilters('relatedModels.name')
@@ -50,7 +50,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_results_based_on_the_partial_existence_of_a_property_in_an_array()
     {
         $results = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.nestedRelatedModels.name' => 'est0,est1',
             ])
             ->setAllowedFilters(new FiltersPartial('relatedModels.nestedRelatedModels.name'))
@@ -65,7 +65,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_models_and_return_an_empty_collection()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.name' => 'None existing first name',
             ])
             ->setAllowedFilters('relatedModels.name')
@@ -79,7 +79,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_related_nested_model_property()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.nestedRelatedModels.name' => 'test',
             ])
             ->setAllowedFilters(new FiltersPartial('relatedModels.nestedRelatedModels.name'))
@@ -93,7 +93,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_related_model_and_related_nested_model_property()
     {
         $models = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.name' => $this->models->first()->name,
                 'relatedModels.nestedRelatedModels.name' => 'test',
             ])
@@ -113,7 +113,7 @@ class RelationFilterTest extends TestCase
         $testModels = TestModel::whereIn('id', [1, 2])->get();
 
         $results = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.id' => $testModels->map(function ($model) {
                     return $model->relatedModels->pluck('id');
                 })->flatten()->all(),
@@ -132,7 +132,7 @@ class RelationFilterTest extends TestCase
         $testModel = TestModel::create(['name' => 'John Testing Doe']);
 
         $modelsResult = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.nestedRelatedModels.name' => ' test ',
             ])
             ->setAllowedFilters(new FiltersExact('relatedModels.nestedRelatedModels.name'))
@@ -148,7 +148,7 @@ class RelationFilterTest extends TestCase
         $addRelationConstraint = false;
 
         $sql = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.name' => $this->models->first()->name,
             ])
             ->setAllowedFilters(new FiltersExact('relatedModels.name', null, null, $addRelationConstraint))
@@ -164,7 +164,7 @@ class RelationFilterTest extends TestCase
         $addRelationConstraint = false;
 
         $sql = $this
-            ->createQueryFromFilterRequest([
+            ->createWizardFromFilterRequest([
                 'relatedModels.name' => $this->models->first()->name,
             ])
             ->setAllowedFilters(new FiltersPartial('relatedModels.name', null, null, $addRelationConstraint))
@@ -174,7 +174,7 @@ class RelationFilterTest extends TestCase
         $this->assertStringContainsString('LOWER(`relatedModels`.`name`) LIKE ?', $sql);
     }
 
-    protected function createQueryFromFilterRequest(array $filters): EloquentQueryWizard
+    protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard
     {
         $request = new Request([
             'filter' => $filters,
