@@ -10,7 +10,7 @@ abstract class AbstractEloquentInclude extends AbstractInclude
 {
     /**
      * @param AbstractQueryHandler $queryHandler
-     * @param Builder $query
+     * @param Builder $queryBuilder
      */
-    abstract public function handle(AbstractQueryHandler $queryHandler, $query): void;
+    abstract public function handle(AbstractQueryHandler $queryHandler, $queryBuilder): void;
 }

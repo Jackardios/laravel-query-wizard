@@ -24,8 +24,8 @@ class FiltersCallback extends AbstractEloquentFilter
         $this->callback = $callback;
     }
 
-    public function handle($queryHandler, $query, $value): void
+    public function handle($queryHandler, $queryBuilder, $value): void
     {
-        call_user_func($this->callback, $queryHandler, $query, $value);
+        call_user_func($this->callback, $queryHandler, $queryBuilder, $value);
     }
 }

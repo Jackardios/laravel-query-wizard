@@ -6,12 +6,12 @@ use Illuminate\Database\Eloquent\Builder;
 
 class FiltersPartial extends FiltersExact
 {
-    protected function applyOnQuery($query, $value, string $propertyName): void
+    protected function applyOnQuery($queryBuilder, $value, string $propertyName): void
     {
-        $wrappedPropertyName = $query
+        $wrappedPropertyName = $queryBuilder
             ->getQuery()
             ->getGrammar()
-            ->wrap($query->qualifyColumn($propertyName));
+            ->wrap($queryBuilder->qualifyColumn($propertyName));
 
         $sql = "LOWER({$wrappedPropertyName}) LIKE ?";
 
@@ -20,7 +20,7 @@ class FiltersPartial extends FiltersExact
                 return;
             }
 
-            $query->where(function (Builder $query) use ($value, $sql) {
+            $queryBuilder->where(function (Builder $query) use ($value, $sql) {
                 foreach (array_filter($value, 'strlen') as $partialValue) {
                     $partialValue = mb_strtolower($partialValue, 'UTF8');
 
@@ -33,6 +33,6 @@ class FiltersPartial extends FiltersExact
 
         $value = mb_strtolower($value, 'UTF8');
 
-        $query->whereRaw($sql, ["%{$value}%"]);
+        $queryBuilder->whereRaw($sql, ["%{$value}%"]);
     }
 }

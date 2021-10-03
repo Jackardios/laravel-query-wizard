@@ -8,7 +8,7 @@ use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 
 class IncludedRelationship extends AbstractEloquentInclude
 {
-    public function handle(AbstractQueryHandler $queryHandler, $query): void
+    public function handle(AbstractQueryHandler $queryHandler, $queryBuilder): void
     {
         $relatedTables = collect(explode('.', $this->getInclude()));
 
@@ -29,7 +29,7 @@ class IncludedRelationship extends AbstractEloquentInclude
             })
             ->toArray();
 
-        $query->with($withs);
+        $queryBuilder->with($withs);
     }
 
     protected function getIndividualRelationshipPathsFromInclude(string $include): Collection

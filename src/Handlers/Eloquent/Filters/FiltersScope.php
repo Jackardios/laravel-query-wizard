@@ -22,19 +22,19 @@ class FiltersScope extends AbstractEloquentFilter
      * @throws ReflectionException
      * @throws InvalidFilterValue
      */
-    public function handle($queryHandler, $query, $value): void
+    public function handle($queryHandler, $queryBuilder, $value): void
     {
         $propertyName = $this->getPropertyName();
         $propertyParts = collect(explode('.', $propertyName));
 
         $scope = Str::camel($propertyParts->pop());
         $values = array_values(Arr::wrap($value));
-        $values = $this->resolveParameters($query, $values, $scope);
+        $values = $this->resolveParameters($queryBuilder, $values, $scope);
 
         $relation = $propertyParts->implode('.');
 
         if ($relation) {
-            $query->whereHas($relation, function (Builder $query) use (
+            $queryBuilder->whereHas($relation, function (Builder $query) use (
                 $scope,
                 $values
             ) {
@@ -44,17 +44,17 @@ class FiltersScope extends AbstractEloquentFilter
             return;
         }
 
-        $query->$scope(...$values);
+        $queryBuilder->$scope(...$values);
     }
 
     /**
      * @throws ReflectionException
      * @throws InvalidFilterValue
      */
-    protected function resolveParameters(Builder $query, $values, string $scope): array
+    protected function resolveParameters(Builder $queryBuilder, $values, string $scope): array
     {
         try {
-            $parameters = (new ReflectionObject($query->getModel()))
+            $parameters = (new ReflectionObject($queryBuilder->getModel()))
                 ->getMethod('scope' . ucfirst($scope))
                 ->getParameters();
         } catch (ReflectionException $e) {

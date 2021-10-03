@@ -26,31 +26,31 @@ class FiltersExact extends AbstractEloquentFilter
         $this->withRelationConstraint = $value;
     }
 
-    public function handle($queryHandler, $query, $value): void
+    public function handle($queryHandler, $queryBuilder, $value): void
     {
         $propertyName = $this->getPropertyName();
 
-        if ($this->withRelationConstraint && $this->isRelationProperty($query, $propertyName)) {
-            $this->addRelationConstraint($query, $value, $propertyName);
+        if ($this->withRelationConstraint && $this->isRelationProperty($queryBuilder, $propertyName)) {
+            $this->addRelationConstraint($queryBuilder, $value, $propertyName);
 
             return;
         }
 
-        $this->applyOnQuery($query, $value, $propertyName);
+        $this->applyOnQuery($queryBuilder, $value, $propertyName);
     }
 
-    protected function applyOnQuery(Builder $query, $value, string $propertyName): void
+    protected function applyOnQuery(Builder $queryBuilder, $value, string $propertyName): void
     {
         if (is_array($value)) {
-            $query->whereIn($query->qualifyColumn($propertyName), $value);
+            $queryBuilder->whereIn($queryBuilder->qualifyColumn($propertyName), $value);
 
             return;
         }
 
-        $query->where($query->qualifyColumn($propertyName), '=', $value);
+        $queryBuilder->where($queryBuilder->qualifyColumn($propertyName), '=', $value);
     }
 
-    protected function isRelationProperty(Builder $query, string $propertyName): bool
+    protected function isRelationProperty(Builder $queryBuilder, string $propertyName): bool
     {
         if (! Str::contains($propertyName, '.')) {
             return false;
@@ -58,19 +58,19 @@ class FiltersExact extends AbstractEloquentFilter
 
         $firstRelationship = explode('.', $propertyName)[0];
 
-        if (! method_exists($query->getModel(), $firstRelationship)) {
+        if (! method_exists($queryBuilder->getModel(), $firstRelationship)) {
             return false;
         }
 
-        return is_a($query->getModel()->{$firstRelationship}(), Relation::class);
+        return is_a($queryBuilder->getModel()->{$firstRelationship}(), Relation::class);
     }
 
-    protected function addRelationConstraint(Builder $query, $value, string $propertyName): void
+    protected function addRelationConstraint(Builder $queryBuilder, $value, string $propertyName): void
     {
         $relation = Str::beforeLast($propertyName, '.');
         $propertyName = Str::afterLast($propertyName, '.');
 
-        $query->whereHas($relation, function (Builder $query) use ($value, $propertyName) {
+        $queryBuilder->whereHas($relation, function (Builder $query) use ($value, $propertyName) {
             $this->applyOnQuery($query, $value, $propertyName);
         });
     }

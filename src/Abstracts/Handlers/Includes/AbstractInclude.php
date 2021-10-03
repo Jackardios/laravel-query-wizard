@@ -9,7 +9,7 @@ abstract class AbstractInclude
     protected string $name;
     protected string $include;
 
-    abstract public function handle(AbstractQueryHandler $queryHandler, $query): void;
+    abstract public function handle(AbstractQueryHandler $queryHandler, $queryBuilder): void;
 
     public function __construct(string $include, ?string $alias = null)
     {

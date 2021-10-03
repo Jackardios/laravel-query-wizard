@@ -218,9 +218,9 @@ class EloquentQueryWizardTest extends TestCase
     public function it_executes_the_same_query_regardless_of_the_order_of_applied_filters_or_sorts(): void
     {
         $customSort = new class('name') extends AbstractEloquentSort {
-            public function handle($queryHandler, $query, string $direction): void
+            public function handle($queryHandler, $queryBuilder, string $direction): void
             {
-                $query->join(
+                $queryBuilder->join(
                     'related_models',
                     'test_models.id',
                     '=',
@@ -253,9 +253,9 @@ class EloquentQueryWizardTest extends TestCase
     public function it_can_filter_when_sorting_by_joining_a_related_model_which_contains_the_same_field_name(): void
     {
         $customSort = new class('name') extends AbstractEloquentSort {
-            public function handle($queryHandler, $query, string $direction): void
+            public function handle($queryHandler, $queryBuilder, string $direction): void
             {
-                $query->join(
+                $queryBuilder->join(
                     'related_models',
                     'nested_related_models.related_model_id',
                     '=',

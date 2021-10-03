@@ -315,9 +315,9 @@ class FilterTest extends TestCase
         $testModel = $this->models->first();
 
         $filterClass = new class('custom_name') extends AbstractEloquentFilter {
-            public function handle($queryHandler, $query, $value): void
+            public function handle($queryHandler, $queryBuilder, $value): void
             {
-                $query->where('name', $value);
+                $queryBuilder->where('name', $value);
             }
         };
 
@@ -402,7 +402,7 @@ class FilterTest extends TestCase
     public function it_can_create_a_custom_filter_with_an_instantiated_filter(): void
     {
         $customFilter = new class('*') extends AbstractEloquentFilter {
-            public function handle($queryHandler, $query, $value): void
+            public function handle($queryHandler, $queryBuilder, $value): void
             {
                 //
             }

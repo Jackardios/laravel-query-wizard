@@ -10,8 +10,8 @@ abstract class AbstractEloquentSort extends AbstractSort
 {
     /**
      * @param EloquentQueryHandler $queryHandler
-     * @param Builder $query
+     * @param Builder $queryBuilder
      * @param string $direction
      */
-    abstract public function handle($queryHandler, $query, string $direction): void;
+    abstract public function handle($queryHandler, $queryBuilder, string $direction): void;
 }

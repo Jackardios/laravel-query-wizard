@@ -10,8 +10,8 @@ abstract class AbstractEloquentFilter extends AbstractFilter
 {
     /**
      * @param EloquentQueryHandler $queryHandler
-     * @param Builder $query
+     * @param Builder $queryBuilder
      * @param mixed $value
      */
-    abstract public function handle($queryHandler, $query, $value): void;
+    abstract public function handle($queryHandler, $queryBuilder, $value): void;
 }

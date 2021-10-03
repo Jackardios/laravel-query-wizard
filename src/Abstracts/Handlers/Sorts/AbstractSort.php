@@ -9,7 +9,7 @@ abstract class AbstractSort
     protected string $name;
     protected string $propertyName;
 
-    abstract public function handle(AbstractQueryHandler $queryHandler, $query, string $direction): void;
+    abstract public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, string $direction): void;
 
     public function __construct(string $propertyName, ?string $alias = null)
     {
