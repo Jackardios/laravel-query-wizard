@@ -3,7 +3,11 @@
 namespace Jackardios\QueryWizard\Tests\Concerns;
 
 use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Tests\TestCase;
 
+/**
+ * @mixin TestCase
+ */
 trait AssertsCollectionSorting
 {
     /**

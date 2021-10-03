@@ -2,27 +2,17 @@
 
 namespace Jackardios\QueryWizard\Tests;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Tests\Concerns\AssertsModels;
+use Jackardios\QueryWizard\Tests\Concerns\AssertsQueryLog;
 use Jackardios\QueryWizard\QueryWizardServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
 {
     use DatabaseMigrations;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->setUpDatabase($this->app);
-
-        $this->withFactories(__DIR__.'/factories');
-    }
+    use AssertsQueryLog;
+    use AssertsModels;
 
     /**
      * @param \Illuminate\Foundation\Application $app
@@ -32,89 +22,24 @@ abstract class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
-            QueryWizardServiceProvider::class
+            QueryWizardServiceProvider::class,
         ];
     }
 
-    protected function setUpDatabase(Application $app): void
+    protected function getEnvironmentSetUp($app): void
     {
-        $app['db']->connection()->getSchemaBuilder()->create('test_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->timestamps();
-            $table->string('name');
-            $table->boolean('is_visible')->default(true);
-        });
+        parent::getEnvironmentSetUp($app);
 
-        $app['db']->connection()->getSchemaBuilder()->create('append_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('firstname');
-            $table->string('lastname');
-        });
-
-        $app['db']->connection()->getSchemaBuilder()->create('soft_delete_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->softDeletes();
-            $table->string('name');
-        });
-
-        $app['db']->connection()->getSchemaBuilder()->create('scope_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('name');
-        });
-
-        $app['db']->connection()->getSchemaBuilder()->create('related_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->integer('test_model_id');
-            $table->string('name');
-        });
-
-        $app['db']->connection()->getSchemaBuilder()->create('nested_related_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->integer('related_model_id');
-            $table->string('name');
-        });
-
-        $app['db']->connection()->getSchemaBuilder()->create('pivot_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('test_model_id');
-            $table->integer('related_through_pivot_model_id');
-            $table->string('location')->nullable();
-        });
-
-        $app['db']->connection()->getSchemaBuilder()->create('related_through_pivot_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->string('name');
-        });
-
-        $app['db']->connection()->getSchemaBuilder()->create('morph_models', function (Blueprint $table) {
-            $table->increments('id');
-            $table->morphs('parent');
-            $table->string('name');
-        });
+        $app['config']->set('scout.driver', 'elastic');
+        $app['config']->set('elastic.migrations.storage_directory', __DIR__ . '/App/data/elastic/migrations');
+        $app['config']->set('elastic.scout_driver.refresh_documents', true);
     }
 
-    protected function assertQueryLogContains(string $partialSql): void
+    protected function setUp(): void
     {
-        $queryLog = collect(DB::getQueryLog())->pluck('query')->implode('|');
+        parent::setUp();
 
-        // Could've used `assertStringContainsString` but we want to support L5.5 with PHPUnit 6.0
-        $this->assertTrue(Str::contains($queryLog, $partialSql));
-    }
-
-    protected function assertQueryLogDoesntContain(string $partialSql): void
-    {
-        $queryLog = collect(DB::getQueryLog())->pluck('query')->implode('|');
-
-        // Could've used `assertStringContainsString` but we want to support L5.5 with PHPUnit 6.0
-        $this->assertFalse(Str::contains($queryLog, $partialSql), "Query log contained partial SQL: `{$partialSql}`");
-    }
-
-    /**
-     * @param Model $firstModel
-     * @param Model $secondModel
-     */
-    protected function assertModelsAttributesEqual($firstModel, $secondModel): void
-    {
-        $this->assertEquals($firstModel->getAttributes(), $secondModel->getAttributes());
+        $this->loadMigrationsFrom(__DIR__ . '/App/data/migrations');
+        $this->withFactories(__DIR__ . '/App/data/factories');
     }
 }
