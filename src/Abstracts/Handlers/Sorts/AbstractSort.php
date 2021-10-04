@@ -17,7 +17,11 @@ abstract class AbstractSort
         $this->name = !empty($alias) ? $alias : $propertyName;
     }
 
-    /** @return static */
+    /**
+     * @param AbstractSort $sort
+     *
+     * @return static
+     */
     public static function makeFromOther(AbstractSort $sort)
     {
         return new static($sort->getPropertyName(), $sort->getName());

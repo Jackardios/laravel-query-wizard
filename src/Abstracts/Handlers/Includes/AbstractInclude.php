@@ -17,7 +17,11 @@ abstract class AbstractInclude
         $this->name = !empty($alias) ? $alias : $include;
     }
 
-    /** @return static */
+    /**
+     * @param AbstractInclude $include
+     *
+     * @return static
+     */
     public static function makeFromOther(AbstractInclude $include)
     {
         return new static($include->getInclude(), $include->getName());

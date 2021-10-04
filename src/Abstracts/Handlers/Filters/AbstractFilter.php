@@ -9,7 +9,9 @@ abstract class AbstractFilter
     protected string $name;
     protected string $propertyName;
 
-    /** @var mixed */
+    /**
+     * @var mixed|null
+     */
     protected $default;
 
     abstract public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void;
@@ -21,7 +23,11 @@ abstract class AbstractFilter
         $this->default = $default;
     }
 
-    /** @return static */
+    /**
+     * @param AbstractFilter $filter
+     *
+     * @return static
+     */
     public static function makeFromOther(AbstractFilter $filter)
     {
         return new static($filter->getPropertyName(), $filter->getName(), $filter->getDefault());

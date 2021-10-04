@@ -15,7 +15,9 @@ abstract class AbstractQueryWizard implements ArrayAccess
 
     protected QueryWizardRequest $request;
 
-    /** @var AbstractQueryHandler */
+    /**
+     * @var AbstractQueryHandler
+     */
     protected $queryHandler;
 
     protected string $queryHandlerClass;

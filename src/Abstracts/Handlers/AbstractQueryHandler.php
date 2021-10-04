@@ -11,7 +11,9 @@ abstract class AbstractQueryHandler
 {
     protected AbstractQueryWizard $wizard;
 
-    /** @var mixed */
+    /**
+     * @var mixed
+     */
     protected $subject;
 
     protected static string $baseFilterHandlerClass = AbstractFilter::class;
