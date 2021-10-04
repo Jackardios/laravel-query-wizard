@@ -73,6 +73,14 @@ abstract class AbstractQueryWizard implements ArrayAccess
         return $this;
     }
 
+    /**
+     * @return AbstractQueryHandler
+     */
+    public function getHandler()
+    {
+        return $this->queryHandler;
+    }
+
     public function __call($name, $arguments)
     {
         $subject = $this->queryHandler->getSubject();
