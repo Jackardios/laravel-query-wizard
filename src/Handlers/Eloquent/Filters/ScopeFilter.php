@@ -18,9 +18,11 @@ class ScopeFilter extends AbstractEloquentFilter
 {
     /**
      * @param AbstractQueryHandler $queryHandler
+     * @param Builder $queryBuilder
+     * @param mixed $value
      *
-     * @throws ReflectionException
      * @throws InvalidFilterValue
+     * @throws ReflectionException
      */
     public function handle($queryHandler, $queryBuilder, $value): void
     {

@@ -6,14 +6,14 @@ class CallbackFilter extends AbstractEloquentFilter
 {
     /**
      * @var callable a PHP callback of the following signature:
-     * `function (\Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler, \Illuminate\Database\Eloquent\Builder $builder, mixed $value)`
+     * `function (\Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler $queryHandler, \Illuminate\Database\Eloquent\Builder $builder, mixed $value)`
      */
     private $callback;
 
     /**
      * @param string $propertyName
      * @param callable $callback a PHP callback of the following signature:
-     * `function (\Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler $queryHandler, \Illuminate\Database\Eloquent\Builder $builder, mixed $value)`
+     * `function (\Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler $queryHandler, \Illuminate\Database\Eloquent\Builder $builder, mixed $value)`
      * @param string|null $alias
      * @param mixed $default
      */
