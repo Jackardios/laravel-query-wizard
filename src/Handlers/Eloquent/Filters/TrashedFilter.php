@@ -2,7 +2,7 @@
 
 namespace Jackardios\QueryWizard\Handlers\Eloquent\Filters;
 
-class FiltersTrashed extends AbstractEloquentFilter
+class TrashedFilter extends AbstractEloquentFilter
 {
     public function __construct(string $propertyName = "trashed", ?string $alias = null, $default = null)
     {

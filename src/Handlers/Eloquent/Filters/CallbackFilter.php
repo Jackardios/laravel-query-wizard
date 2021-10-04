@@ -2,7 +2,7 @@
 
 namespace Jackardios\QueryWizard\Handlers\Eloquent\Filters;
 
-class FiltersCallback extends AbstractEloquentFilter
+class CallbackFilter extends AbstractEloquentFilter
 {
     /**
      * @var callable a PHP callback of the following signature:

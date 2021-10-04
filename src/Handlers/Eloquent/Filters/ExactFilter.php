@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
 
-class FiltersExact extends AbstractEloquentFilter
+class ExactFilter extends AbstractEloquentFilter
 {
     protected bool $withRelationConstraint = true;
 

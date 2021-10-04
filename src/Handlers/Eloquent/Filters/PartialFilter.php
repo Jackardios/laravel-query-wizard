@@ -4,7 +4,7 @@ namespace Jackardios\QueryWizard\Handlers\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 
-class FiltersPartial extends FiltersExact
+class PartialFilter extends ExactFilter
 {
     protected function applyOnQuery($queryBuilder, $value, string $propertyName): void
     {

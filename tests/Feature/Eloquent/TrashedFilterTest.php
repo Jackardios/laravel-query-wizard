@@ -4,8 +4,8 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\EloquentQueryWizard;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersScope;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersTrashed;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ScopeFilter;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\TrashedFilter;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
 
@@ -14,7 +14,7 @@ use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
  * @group filter
  * @group eloquent-filter
  */
-class FiltersTrashedTest extends TestCase
+class TrashedFilterTest extends TestCase
 {
     /** @var \Illuminate\Support\Collection */
     protected $models;
@@ -34,7 +34,7 @@ class FiltersTrashedTest extends TestCase
             ->createWizardFromFilterRequest([
                 'trashed' => '',
             ])
-            ->setAllowedFilters(new FiltersTrashed())
+            ->setAllowedFilters(new TrashedFilter())
             ->build()
             ->get();
 
@@ -48,7 +48,7 @@ class FiltersTrashedTest extends TestCase
             ->createWizardFromFilterRequest([
                 'trashed' => 'only',
             ])
-            ->setAllowedFilters(new FiltersTrashed())
+            ->setAllowedFilters(new TrashedFilter())
             ->build()
             ->get();
 
@@ -62,7 +62,7 @@ class FiltersTrashedTest extends TestCase
             ->createWizardFromFilterRequest([
                 'only_trashed' => true,
             ])
-            ->setAllowedFilters(new FiltersScope('only_trashed'))
+            ->setAllowedFilters(new ScopeFilter('only_trashed'))
             ->build()
             ->get();
 
@@ -76,7 +76,7 @@ class FiltersTrashedTest extends TestCase
             ->createWizardFromFilterRequest([
                 'trashed' => 'with',
             ])
-            ->setAllowedFilters(new FiltersTrashed())
+            ->setAllowedFilters(new TrashedFilter())
             ->build()
             ->get();
 

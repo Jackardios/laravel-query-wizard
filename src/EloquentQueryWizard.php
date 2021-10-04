@@ -13,10 +13,10 @@ use Jackardios\QueryWizard\Concerns\HandlesFilters;
 use Jackardios\QueryWizard\Concerns\HandlesIncludes;
 use Jackardios\QueryWizard\Concerns\HandlesSorts;
 use Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersExact;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ExactFilter;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedCount;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
-use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortsByField;
+use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortByField;
 
 /**
  * @mixin Builder
@@ -39,9 +39,9 @@ class EloquentQueryWizard extends AbstractQueryWizard
         return $this->queryHandler->getSubject()->getModel()->getTable();
     }
 
-    public function makeDefaultFilterHandler(string $filterName): FiltersExact
+    public function makeDefaultFilterHandler(string $filterName): ExactFilter
     {
-        return new FiltersExact($filterName);
+        return new ExactFilter($filterName);
     }
 
     /**
@@ -58,8 +58,8 @@ class EloquentQueryWizard extends AbstractQueryWizard
         return new IncludedRelationship($includeName);
     }
 
-    public function makeDefaultSortHandler(string $sortName): SortsByField
+    public function makeDefaultSortHandler(string $sortName): SortByField
     {
-        return new SortsByField($sortName);
+        return new SortByField($sortName);
     }
 }

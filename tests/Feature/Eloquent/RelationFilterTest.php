@@ -4,8 +4,8 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\EloquentQueryWizard;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersExact;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersPartial;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ExactFilter;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\PartialFilter;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 
@@ -53,7 +53,7 @@ class RelationFilterTest extends TestCase
             ->createWizardFromFilterRequest([
                 'relatedModels.nestedRelatedModels.name' => 'est0,est1',
             ])
-            ->setAllowedFilters(new FiltersPartial('relatedModels.nestedRelatedModels.name'))
+            ->setAllowedFilters(new PartialFilter('relatedModels.nestedRelatedModels.name'))
             ->build()
             ->get();
 
@@ -82,7 +82,7 @@ class RelationFilterTest extends TestCase
             ->createWizardFromFilterRequest([
                 'relatedModels.nestedRelatedModels.name' => 'test',
             ])
-            ->setAllowedFilters(new FiltersPartial('relatedModels.nestedRelatedModels.name'))
+            ->setAllowedFilters(new PartialFilter('relatedModels.nestedRelatedModels.name'))
             ->build()
             ->get();
 
@@ -98,8 +98,8 @@ class RelationFilterTest extends TestCase
                 'relatedModels.nestedRelatedModels.name' => 'test',
             ])
             ->setAllowedFilters(
-                new FiltersPartial('relatedModels.name'),
-                new FiltersPartial('relatedModels.nestedRelatedModels.name')
+                new PartialFilter('relatedModels.name'),
+                new PartialFilter('relatedModels.nestedRelatedModels.name')
             )
             ->build()
             ->get();
@@ -118,7 +118,7 @@ class RelationFilterTest extends TestCase
                     return $model->relatedModels->pluck('id');
                 })->flatten()->all(),
             ])
-            ->setAllowedFilters(new FiltersExact('relatedModels.id'))
+            ->setAllowedFilters(new ExactFilter('relatedModels.id'))
             ->build()
             ->get();
 
@@ -135,7 +135,7 @@ class RelationFilterTest extends TestCase
             ->createWizardFromFilterRequest([
                 'relatedModels.nestedRelatedModels.name' => ' test ',
             ])
-            ->setAllowedFilters(new FiltersExact('relatedModels.nestedRelatedModels.name'))
+            ->setAllowedFilters(new ExactFilter('relatedModels.nestedRelatedModels.name'))
             ->build()
             ->get();
 
@@ -151,7 +151,7 @@ class RelationFilterTest extends TestCase
             ->createWizardFromFilterRequest([
                 'relatedModels.name' => $this->models->first()->name,
             ])
-            ->setAllowedFilters(new FiltersExact('relatedModels.name', null, null, $addRelationConstraint))
+            ->setAllowedFilters(new ExactFilter('relatedModels.name', null, null, $addRelationConstraint))
             ->build()
             ->toSql();
 
@@ -167,7 +167,7 @@ class RelationFilterTest extends TestCase
             ->createWizardFromFilterRequest([
                 'relatedModels.name' => $this->models->first()->name,
             ])
-            ->setAllowedFilters(new FiltersPartial('relatedModels.name', null, null, $addRelationConstraint))
+            ->setAllowedFilters(new PartialFilter('relatedModels.name', null, null, $addRelationConstraint))
             ->build()
             ->toSql();
 

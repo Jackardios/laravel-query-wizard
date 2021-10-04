@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\EloquentQueryWizard;
 use Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersCallback;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\CallbackFilter;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 
@@ -15,7 +15,7 @@ use Jackardios\QueryWizard\Tests\App\Models\TestModel;
  * @group filter
  * @group eloquent-filter
  */
-class FiltersCallbackTest extends TestCase
+class CallbackFilterTest extends TestCase
 {
     /** @var \Illuminate\Support\Collection */
     protected $models;
@@ -35,7 +35,7 @@ class FiltersCallbackTest extends TestCase
                 'callback' => $this->models->first()->name,
             ])
             ->setAllowedFilters(
-                new FiltersCallback('callback', function (EloquentQueryHandler $queryHandler, Builder $query, $value) {
+                new CallbackFilter('callback', function (EloquentQueryHandler $queryHandler, Builder $query, $value) {
                     $query->where('name', $value);
                 })
             )
@@ -52,7 +52,7 @@ class FiltersCallbackTest extends TestCase
             ->createWizardFromFilterRequest([
                 'callback' => $this->models->first()->name,
             ])
-            ->setAllowedFilters(new FiltersCallback('callback', [$this, 'filterCallback']))
+            ->setAllowedFilters(new CallbackFilter('callback', [$this, 'filterCallback']))
             ->build()
             ->get();
 

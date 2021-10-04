@@ -4,9 +4,9 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\FiltersScope;
+use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ScopeFilter;
 use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\AbstractEloquentSort;
-use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortsByField;
+use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortByField;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
@@ -67,7 +67,7 @@ class SortTest extends TestCase
     {
         $sortedModels = $this
             ->createWizardFromSortRequest('name-alias')
-            ->setAllowedSorts([new SortsByField('name', 'name-alias')])
+            ->setAllowedSorts([new SortByField('name', 'name-alias')])
             ->build()
             ->get();
 
@@ -134,7 +134,7 @@ class SortTest extends TestCase
     {
         $sortedModels = $this
             ->createWizardFromSortRequest('-sketchy<>sort')
-            ->setAllowedSorts(new SortsByField('name', 'sketchy<>sort'))
+            ->setAllowedSorts(new SortByField('name', 'sketchy<>sort'))
             ->build()
             ->get();
 
@@ -362,7 +362,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_resolves_queries_using_property_column_name(): void
     {
-        $sort = new SortsByField('name', 'nickname');
+        $sort = new SortByField('name', 'nickname');
 
         $testModel = TestModel::create(['name' => 'zzzzzzzz']);
 
@@ -380,7 +380,7 @@ class SortTest extends TestCase
     public function it_can_sort_descending_with_an_alias(): void
     {
         $this->createWizardFromSortRequest('-exposed_property_name')
-            ->setAllowedSorts(new SortsByField('name', 'exposed_property_name'))
+            ->setAllowedSorts(new SortByField('name', 'exposed_property_name'))
             ->build()
             ->get();
 
@@ -404,7 +404,7 @@ class SortTest extends TestCase
     {
         $sql = $this->createWizardFromSortRequest('-joined')
             ->setDefaultSorts('name')
-            ->setAllowedSorts(new SortsByField('created_at', 'joined'))
+            ->setAllowedSorts(new SortByField('created_at', 'joined'))
             ->build()
             ->toSql();
 
@@ -429,8 +429,8 @@ class SortTest extends TestCase
             'sort' => '-custom',
         ]))
             ->setAllowedFilters([
-                new FiltersScope('named', 'name'),
-                new FiltersScope('createdBetween', 'between'),
+                new ScopeFilter('named', 'name'),
+                new ScopeFilter('createdBetween', 'between'),
             ])
             ->setAllowedSorts([$sortClass])
             ->setDefaultSorts('foo')

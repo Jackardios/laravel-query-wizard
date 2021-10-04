@@ -14,7 +14,7 @@ use ReflectionObject;
 use ReflectionParameter;
 use ReflectionUnionType;
 
-class FiltersScope extends AbstractEloquentFilter
+class ScopeFilter extends AbstractEloquentFilter
 {
     /**
      * @param AbstractQueryHandler $queryHandler
