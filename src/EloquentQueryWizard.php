@@ -21,6 +21,7 @@ use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortsByField;
 /**
  * @mixin Builder
  * @property EloquentQueryHandler $queryHandler
+ * @method EloquentQueryHandler getHandler()
  * @method static EloquentQueryWizard for(Model|Builder|Relation|string $subject, \Illuminate\Http\Request|null $request = null)
  */
 class EloquentQueryWizard extends AbstractQueryWizard

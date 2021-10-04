@@ -16,6 +16,7 @@ use Jackardios\QueryWizard\Handlers\Model\ModelQueryHandler;
 /**
  * @mixin Model
  * @property ModelQueryHandler $queryHandler
+ * @method ModelQueryHandler getHandler()
  * @method static ModelQueryWizard for(Model $subject, \Illuminate\Http\Request|null $request = null)
  */
 class ModelQueryWizard extends AbstractQueryWizard
