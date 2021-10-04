@@ -7,8 +7,12 @@ use LogicException;
 
 class InvalidIncludeHandler extends LogicException
 {
-    public function __construct(string $baseIncludeHandlerClass = AbstractInclude::class)
+    /**
+     * @param string[] $baseIncludeHandlerClasses
+     */
+    public function __construct(array $baseIncludeHandlerClasses = [AbstractInclude::class])
     {
-        parent::__construct("Invalid IncludeHandler class. IncludeHandler must extend `$baseIncludeHandlerClass`");
+        $baseIncludeHandlerClassesImploded = implode('` or `', $baseIncludeHandlerClasses);
+        parent::__construct("Invalid IncludeHandler class. IncludeHandler must extend `$baseIncludeHandlerClassesImploded`");
     }
 }

@@ -55,9 +55,9 @@ trait HandlesIncludes
                     $include = $this->makeDefaultIncludeHandler($include);
                 }
 
-                $baseHandlerClass = $this->queryHandler::getBaseIncludeHandlerClass();
-                if (! ($include instanceof $baseHandlerClass)) {
-                    new InvalidIncludeHandler($baseHandlerClass);
+                $baseHandlerClasses = $this->queryHandler::getBaseIncludeHandlerClasses();
+                if (! instance_of_one_of($include, $baseHandlerClasses)) {
+                    new InvalidIncludeHandler($baseHandlerClasses);
                 }
 
                 $autoCreatedHandlers[] = $include->createOther();

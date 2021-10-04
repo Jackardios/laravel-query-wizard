@@ -7,8 +7,8 @@ use LogicException;
 
 class InvalidQueryHandler extends LogicException
 {
-    public function __construct(string $baseQueryHandlerClass = AbstractQueryHandler::class)
+    public function __construct(string $baseQueryHandlerClasses = AbstractQueryHandler::class)
     {
-        parent::__construct("Invalid QueryHandler class. QueryHandler must extend `$baseQueryHandlerClass`");
+        parent::__construct("Invalid QueryHandler class. QueryHandler must extend `$baseQueryHandlerClasses`");
     }
 }

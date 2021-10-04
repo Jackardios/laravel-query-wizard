@@ -46,7 +46,10 @@
     "autoload-dev": {
         "psr-4": {
             "Jackardios\\QueryWizard\\Tests\\": "tests"
-        }
+        },
+        "files": [
+            "./src/helpers.php"
+        ]
     },
     "scripts": {
         "test": "vendor/bin/phpunit",

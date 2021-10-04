@@ -7,8 +7,12 @@ use LogicException;
 
 class InvalidFilterHandler extends LogicException
 {
-    public function __construct(string $baseFilterHandlerClass = AbstractFilter::class)
+    /**
+     * @param string[] $baseFilterHandlerClasses
+     */
+    public function __construct(array $baseFilterHandlerClasses = [AbstractFilter::class])
     {
-        parent::__construct("Invalid FilterHandler class. FilterHandler must extend `$baseFilterHandlerClass`");
+        $baseFilterHandlerClassesImploded = implode('` or `', $baseFilterHandlerClasses);
+        parent::__construct("Invalid FilterHandler class. FilterHandler must extend `$baseFilterHandlerClassesImploded`");
     }
 }

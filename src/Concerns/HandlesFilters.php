@@ -54,9 +54,9 @@ trait HandlesFilters
                     $filter = $this->makeDefaultFilterHandler($filter);
                 }
 
-                $baseHandlerClass = $this->queryHandler::getBaseFilterHandlerClass();
-                if (! ($filter instanceof $baseHandlerClass)) {
-                    new InvalidFilterHandler($baseHandlerClass);
+                $baseHandlerClasses = $this->queryHandler::getBaseFilterHandlerClasses();
+                if (! instance_of_one_of($filter, $baseHandlerClasses)) {
+                    new InvalidFilterHandler($baseHandlerClasses);
                 }
 
                 $autoCreatedHandlers[] = $filter->createOther();

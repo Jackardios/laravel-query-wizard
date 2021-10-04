@@ -56,9 +56,9 @@ trait HandlesSorts
                     $sort = $this->makeDefaultSortHandler(ltrim($sort, '-'));
                 }
 
-                $baseHandlerClass = $this->queryHandler::getBaseSortHandlerClass();
-                if (! ($sort instanceof $baseHandlerClass)) {
-                    new InvalidSortHandler($baseHandlerClass);
+                $baseHandlerClasses = $this->queryHandler::getBaseSortHandlerClasses();
+                if (! instance_of_one_of($sort, $baseHandlerClasses)) {
+                    new InvalidSortHandler($baseHandlerClasses);
                 }
 
                 $autoCreatedHandlers[] = $sort->createOther();

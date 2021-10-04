@@ -25,9 +25,9 @@ use Jackardios\QueryWizard\Values\Sort;
  */
 class EloquentQueryHandler extends AbstractQueryHandler
 {
-    protected static string $baseFilterHandlerClass = AbstractEloquentFilter::class;
-    protected static string $baseIncludeHandlerClass = AbstractEloquentInclude::class;
-    protected static string $baseSortHandlerClass = AbstractEloquentSort::class;
+    protected static array $baseFilterHandlerClasses = [AbstractEloquentFilter::class];
+    protected static array $baseIncludeHandlerClasses = [AbstractEloquentInclude::class];
+    protected static array $baseSortHandlerClasses = [AbstractEloquentSort::class];
 
     /**
      * @param EloquentQueryWizard $wizard

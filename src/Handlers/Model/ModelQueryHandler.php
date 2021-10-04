@@ -15,7 +15,7 @@ use Jackardios\QueryWizard\Handlers\Model\Includes\AbstractModelInclude;
  */
 class ModelQueryHandler extends AbstractQueryHandler
 {
-    protected static string $baseIncludeHandlerClass = AbstractModelInclude::class;
+    protected static array $baseIncludeHandlerClasses = [AbstractModelInclude::class];
 
     /**
      * @param ModelQueryWizard $wizard

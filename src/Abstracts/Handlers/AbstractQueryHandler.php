@@ -11,28 +11,45 @@ abstract class AbstractQueryHandler
 {
     protected AbstractQueryWizard $wizard;
 
-    /**
-     * @var mixed
-     */
     protected $subject;
 
-    protected static string $baseFilterHandlerClass = AbstractFilter::class;
-    protected static string $baseIncludeHandlerClass = AbstractInclude::class;
-    protected static string $baseSortHandlerClass = AbstractSort::class;
+    /**
+     * @var string[]
+     */
+    protected static array $baseFilterHandlerClasses = [AbstractFilter::class];
 
-    public static function getBaseFilterHandlerClass(): string
+    /**
+     * @var string[]
+     */
+    protected static array $baseIncludeHandlerClasses = [AbstractInclude::class];
+
+    /**
+     * @var string[]
+     */
+    protected static array $baseSortHandlerClasses = [AbstractSort::class];
+
+    /**
+     * @return string[]
+     */
+    public static function getBaseFilterHandlerClasses(): array
     {
-        return self::$baseFilterHandlerClass;
+        return self::$baseFilterHandlerClasses;
     }
 
-    public static function getBaseIncludeHandlerClass(): string
+    /**
+     * @return string[]
+     */
+    public static function getBaseIncludeHandlerClasses(): array
     {
-        return self::$baseIncludeHandlerClass;
+        return self::$baseIncludeHandlerClasses;
     }
 
-    public static function getBaseSortHandlerClass(): string
+    /**
+     * @return string[]
+     */
+    public static function getBaseSortHandlerClasses(): array
     {
-        return self::$baseSortHandlerClass;
+        return self::$baseSortHandlerClasses;
     }
 
     /**
@@ -45,9 +62,6 @@ abstract class AbstractQueryHandler
         $this->subject = $subject;
     }
 
-    /**
-     * @return $this
-     */
     abstract public function handle();
 
     public function getSubject()

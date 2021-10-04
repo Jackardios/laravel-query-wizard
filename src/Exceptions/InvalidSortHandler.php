@@ -7,8 +7,12 @@ use LogicException;
 
 class InvalidSortHandler extends LogicException
 {
-    public function __construct(string $baseSortHandlerClass = AbstractSort::class)
+    /**
+     * @param string[] $baseSortHandlerClasses
+     */
+    public function __construct(array $baseSortHandlerClasses = [AbstractSort::class])
     {
-        parent::__construct("Invalid SortHandler class. SortHandler must extend `$baseSortHandlerClass`");
+        $baseSortHandlerClassesImploded = implode('` or `', $baseSortHandlerClasses);
+        parent::__construct("Invalid SortHandler class. SortHandler must extend `$baseSortHandlerClassesImploded`");
     }
 }
