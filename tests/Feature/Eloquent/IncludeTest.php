@@ -4,11 +4,11 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\AbstractEloquentInclude;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\CountInclude;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\RelationshipInclude;
+use Jackardios\QueryWizard\Tests\Concerns\AssertsRelations;
 use Jackardios\QueryWizard\Tests\TestCase;
 use ReflectionClass;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
@@ -23,6 +23,8 @@ use Jackardios\QueryWizard\Tests\App\Models\TestModel;
  */
 class IncludeTest extends TestCase
 {
+    use AssertsRelations;
+
     /** @var \Illuminate\Support\Collection */
     protected $models;
 
@@ -432,15 +434,5 @@ class IncludeTest extends TestCase
         ]);
 
         return EloquentQueryWizard::for(TestModel::class, $request);
-    }
-
-    protected function assertRelationLoaded(Collection $collection, string $relation): void
-    {
-        $hasModelWithoutRelationLoaded = $collection
-            ->contains(function (Model $model) use ($relation) {
-                return ! $model->relationLoaded($relation);
-            });
-
-        $this->assertFalse($hasModelWithoutRelationLoaded, "The `{$relation}` relation was expected but not loaded.");
     }
 }

@@ -480,13 +480,4 @@ class SortTest extends TestCase
 
         return EloquentQueryWizard::for(TestModel::class, $request);
     }
-
-    protected function assertQueryExecuted(string $query): void
-    {
-        $queries = array_map(static function ($queryLogItem) {
-            return $queryLogItem['query'];
-        }, DB::getQueryLog());
-
-        $this->assertContains($query, $queries);
-    }
 }

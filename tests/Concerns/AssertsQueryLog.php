@@ -26,4 +26,13 @@ trait AssertsQueryLog
         // Could've used `assertStringContainsString` but we want to support L5.5 with PHPUnit 6.0
         $this->assertFalse(Str::contains($queryLog, $partialSql), "Query log contained partial SQL: `{$partialSql}`");
     }
+
+    protected function assertQueryExecuted(string $query): void
+    {
+        $queries = array_map(static function ($queryLogItem) {
+            return $queryLogItem['query'];
+        }, DB::getQueryLog());
+
+        $this->assertContains($query, $queries);
+    }
 }
