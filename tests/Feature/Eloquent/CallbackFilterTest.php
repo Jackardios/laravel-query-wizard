@@ -35,8 +35,8 @@ class CallbackFilterTest extends TestCase
                 'callback' => $this->models->first()->name,
             ])
             ->setAllowedFilters(
-                new CallbackFilter('callback', function (EloquentQueryHandler $queryHandler, Builder $query, $value) {
-                    $query->where('name', $value);
+                new CallbackFilter('callback', function (EloquentQueryHandler $queryHandler, Builder $queryBuilder, $value) {
+                    $queryBuilder->where('name', $value);
                 })
             )
             ->build()
@@ -59,9 +59,9 @@ class CallbackFilterTest extends TestCase
         $this->assertCount(1, $models);
     }
 
-    public function filterCallback(EloquentQueryHandler $queryHandler, Builder $query, $value): void
+    public function filterCallback(EloquentQueryHandler $queryHandler, Builder $queryBuilder, $value): void
     {
-        $query->where('name', $value);
+        $queryBuilder->where('name', $value);
     }
 
     protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard

@@ -39,8 +39,8 @@ class CallbackSortTest extends TestCase
         $sortedModels = $this
             ->createWizardFromSortRequest('-callbackSort')
             ->setAllowedSorts(
-                new CallbackSort('callbackSort', function (EloquentQueryHandler $queryHandler, Builder $query, string $direction) {
-                    $query->orderBy('name', $direction);
+                new CallbackSort('callbackSort', function (EloquentQueryHandler $queryHandler, Builder $queryBuilder, string $direction) {
+                    $queryBuilder->orderBy('name', $direction);
                 })
             )
             ->build()
@@ -63,9 +63,9 @@ class CallbackSortTest extends TestCase
         $this->assertSortedAscending($sortedModels, 'name');
     }
 
-    public function sortCallback(EloquentQueryHandler $queryHandler, Builder $query, string $direction): void
+    public function sortCallback(EloquentQueryHandler $queryHandler, Builder $queryBuilder, string $direction): void
     {
-        $query->orderBy('name', $direction);
+        $queryBuilder->orderBy('name', $direction);
     }
 
     protected function createWizardFromSortRequest(string $sort): EloquentQueryWizard

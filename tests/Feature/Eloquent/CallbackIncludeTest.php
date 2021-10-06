@@ -49,8 +49,8 @@ class CallbackIncludeTest extends TestCase
         $models = $this
             ->createWizardFromIncludeRequest('callbackRelation')
             ->setAllowedIncludes(
-                new CallbackInclude('callbackRelation', function (EloquentQueryHandler $queryHandler, Builder $query) {
-                    $query->with('relatedModels');
+                new CallbackInclude('callbackRelation', function (EloquentQueryHandler $queryHandler, Builder $queryBuilder) {
+                    $queryBuilder->with('relatedModels');
                 })
             )
             ->build()
@@ -71,9 +71,9 @@ class CallbackIncludeTest extends TestCase
         $this->assertRelationLoaded($models, 'relatedModels');
     }
 
-    public function includeCallback(EloquentQueryHandler $queryHandler, Builder $query): void
+    public function includeCallback(EloquentQueryHandler $queryHandler, Builder $queryBuilder): void
     {
-        $query->with('relatedModels');
+        $queryBuilder->with('relatedModels');
     }
 
     protected function createWizardFromIncludeRequest(string $includes): EloquentQueryWizard
