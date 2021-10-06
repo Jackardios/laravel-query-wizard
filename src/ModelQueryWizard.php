@@ -9,8 +9,8 @@ use Jackardios\QueryWizard\Concerns\HandlesAppends;
 use Jackardios\QueryWizard\Concerns\HandlesFields;
 use Jackardios\QueryWizard\Concerns\HandlesIncludes;
 use Jackardios\QueryWizard\Handlers\Model\Includes\AbstractModelInclude;
-use Jackardios\QueryWizard\Handlers\Model\Includes\IncludedCount;
-use Jackardios\QueryWizard\Handlers\Model\Includes\IncludedRelationship;
+use Jackardios\QueryWizard\Handlers\Model\Includes\CountInclude;
+use Jackardios\QueryWizard\Handlers\Model\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Handlers\Model\ModelQueryHandler;
 
 /**
@@ -44,15 +44,15 @@ class ModelQueryWizard extends AbstractQueryWizard
 
     /**
      * @param string $includeName
-     * @return IncludedRelationship|IncludedCount
+     * @return RelationshipInclude|CountInclude
      */
     public function makeDefaultIncludeHandler(string $includeName): AbstractModelInclude
     {
         $countSuffix = config('query-wizard.count_suffix');
         if (Str::endsWith($includeName, $countSuffix)) {
             $relation = Str::before($includeName, $countSuffix);
-            return new IncludedCount($relation, $includeName);
+            return new CountInclude($relation, $includeName);
         }
-        return new IncludedRelationship($includeName);
+        return new RelationshipInclude($includeName);
     }
 }

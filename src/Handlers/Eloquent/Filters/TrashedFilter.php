@@ -2,6 +2,8 @@
 
 namespace Jackardios\QueryWizard\Handlers\Eloquent\Filters;
 
+use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
+
 class TrashedFilter extends AbstractEloquentFilter
 {
     public function __construct(string $propertyName = "trashed", ?string $alias = null, $default = null)
@@ -10,7 +12,7 @@ class TrashedFilter extends AbstractEloquentFilter
     }
 
     /** {@inheritdoc} */
-    public function handle($queryHandler, $queryBuilder, $value): void
+    public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void
     {
         if ($value === 'with') {
             $queryBuilder->withTrashed();

@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Handlers\Model\Includes\AbstractModelInclude;
-use Jackardios\QueryWizard\Handlers\Model\Includes\IncludedCount;
-use Jackardios\QueryWizard\Handlers\Model\Includes\IncludedRelationship;
+use Jackardios\QueryWizard\Handlers\Model\Includes\CountInclude;
+use Jackardios\QueryWizard\Handlers\Model\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\App\Models\MorphModel;
@@ -72,7 +72,7 @@ class IncludeTest extends TestCase
     {
         $model = $this
             ->createWizardFromIncludeRequest('include-alias')
-            ->setAllowedIncludes(new IncludedRelationship('relatedModels', 'include-alias'))
+            ->setAllowedIncludes(new RelationshipInclude('relatedModels', 'include-alias'))
             ->build();
 
         $this->assertRelationLoaded($model, 'relatedModels');
@@ -117,7 +117,7 @@ class IncludeTest extends TestCase
         $model = $this
             ->createWizardFromIncludeRequest('nested-alias')
             ->setAllowedIncludes(
-                new IncludedRelationship('relatedModels.nestedRelatedModels', 'nested-alias')
+                new RelationshipInclude('relatedModels.nestedRelatedModels', 'nested-alias')
             )
             ->build();
 
@@ -288,8 +288,8 @@ class IncludeTest extends TestCase
 
         $model = ModelQueryWizard::for($this->model, $request)
             ->setAllowedIncludes([
-                new IncludedCount('relatedModels', 'relatedModelsCount'),
-                new IncludedRelationship('otherRelatedModels', 'relationShipAlias'),
+                new CountInclude('relatedModels', 'relatedModelsCount'),
+                new RelationshipInclude('otherRelatedModels', 'relationShipAlias'),
             ])
             ->build();
 

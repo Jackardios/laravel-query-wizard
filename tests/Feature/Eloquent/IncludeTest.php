@@ -6,10 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Handlers\Eloquent\Includes\AbstractEloquentInclude;
-use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedCount;
-use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
+use Jackardios\QueryWizard\Handlers\Eloquent\Includes\CountInclude;
+use Jackardios\QueryWizard\Handlers\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Tests\TestCase;
 use ReflectionClass;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
@@ -90,7 +89,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createWizardFromIncludeRequest('include-alias')
-            ->setAllowedIncludes(new IncludedRelationship('relatedModels', 'include-alias'))
+            ->setAllowedIncludes(new RelationshipInclude('relatedModels', 'include-alias'))
             ->build()
             ->get();
 
@@ -141,7 +140,7 @@ class IncludeTest extends TestCase
         $models = $this
             ->createWizardFromIncludeRequest('nested-alias')
             ->setAllowedIncludes(
-                new IncludedRelationship('relatedModels.nestedRelatedModels', 'nested-alias')
+                new RelationshipInclude('relatedModels.nestedRelatedModels', 'nested-alias')
             )
             ->build()
             ->get();
@@ -361,8 +360,8 @@ class IncludeTest extends TestCase
 
         $models = EloquentQueryWizard::for(TestModel::class, $request)
             ->setAllowedIncludes([
-                new IncludedCount('relatedModels', 'relatedModelsCount'),
-                new IncludedRelationship('otherRelatedModels', 'relationShipAlias'),
+                new CountInclude('relatedModels', 'relatedModelsCount'),
+                new RelationshipInclude('otherRelatedModels', 'relationShipAlias'),
             ])
             ->build()
             ->get();
@@ -377,9 +376,9 @@ class IncludeTest extends TestCase
     public function it_can_include_custom_include_class(): void
     {
         $includeClass = new class('relatedModels') extends AbstractEloquentInclude {
-            public function handle(AbstractQueryHandler $queryHandler, $query): void
+            public function handle($queryHandler, $queryBuilder): void
             {
-                $query->withCount($this->getInclude());
+                $queryBuilder->withCount($this->getInclude());
             }
         };
 
@@ -396,9 +395,9 @@ class IncludeTest extends TestCase
     public function it_can_include_custom_include_class_by_alias(): void
     {
         $includeClass = new class('relatedModels', 'relatedModelsCount') extends AbstractEloquentInclude {
-            public function handle(AbstractQueryHandler $queryHandler, $query): void
+            public function handle($queryHandler, $queryBuilder): void
             {
-                $query->withCount($this->getInclude());
+                $queryBuilder->withCount($this->getInclude());
             }
         };
 
@@ -419,7 +418,7 @@ class IncludeTest extends TestCase
         ]);
 
         $modelResult = EloquentQueryWizard::for(TestModel::select('id', 'name'), $request)
-            ->setAllowedIncludes(new IncludedCount('relatedModels', 'relatedModelsCount'))
+            ->setAllowedIncludes(new CountInclude('relatedModels', 'relatedModelsCount'))
             ->build()
             ->first();
 

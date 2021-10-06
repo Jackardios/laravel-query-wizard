@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ScopeFilter;
 use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\AbstractEloquentSort;
-use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortByField;
+use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
@@ -67,7 +67,7 @@ class SortTest extends TestCase
     {
         $sortedModels = $this
             ->createWizardFromSortRequest('name-alias')
-            ->setAllowedSorts([new SortByField('name', 'name-alias')])
+            ->setAllowedSorts([new FieldSort('name', 'name-alias')])
             ->build()
             ->get();
 
@@ -134,7 +134,7 @@ class SortTest extends TestCase
     {
         $sortedModels = $this
             ->createWizardFromSortRequest('-sketchy<>sort')
-            ->setAllowedSorts(new SortByField('name', 'sketchy<>sort'))
+            ->setAllowedSorts(new FieldSort('name', 'sketchy<>sort'))
             ->build()
             ->get();
 
@@ -165,7 +165,7 @@ class SortTest extends TestCase
             ->createWizardFromSortRequest('-name')
             ->setAllowedSorts('name')
             ->build()
-            ->chunk(100, function ($models) {
+            ->chunk(100, static function ($models) {
                 //
             });
 
@@ -362,7 +362,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_resolves_queries_using_property_column_name(): void
     {
-        $sort = new SortByField('name', 'nickname');
+        $sort = new FieldSort('name', 'nickname');
 
         $testModel = TestModel::create(['name' => 'zzzzzzzz']);
 
@@ -380,7 +380,7 @@ class SortTest extends TestCase
     public function it_can_sort_descending_with_an_alias(): void
     {
         $this->createWizardFromSortRequest('-exposed_property_name')
-            ->setAllowedSorts(new SortByField('name', 'exposed_property_name'))
+            ->setAllowedSorts(new FieldSort('name', 'exposed_property_name'))
             ->build()
             ->get();
 
@@ -404,7 +404,7 @@ class SortTest extends TestCase
     {
         $sql = $this->createWizardFromSortRequest('-joined')
             ->setDefaultSorts('name')
-            ->setAllowedSorts(new SortByField('created_at', 'joined'))
+            ->setAllowedSorts(new FieldSort('created_at', 'joined'))
             ->build()
             ->toSql();
 
@@ -483,7 +483,7 @@ class SortTest extends TestCase
 
     protected function assertQueryExecuted(string $query): void
     {
-        $queries = array_map(function ($queryLogItem) {
+        $queries = array_map(static function ($queryLogItem) {
             return $queryLogItem['query'];
         }, DB::getQueryLog());
 

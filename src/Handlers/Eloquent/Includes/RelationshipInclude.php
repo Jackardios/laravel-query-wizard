@@ -6,7 +6,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 
-class IncludedRelationship extends AbstractEloquentInclude
+class RelationshipInclude extends AbstractEloquentInclude
 {
     /** {@inheritdoc} */
     public function handle(AbstractQueryHandler $queryHandler, $queryBuilder): void
@@ -60,7 +60,7 @@ class IncludedRelationship extends AbstractEloquentInclude
                 }
 
                 if (! Str::contains($include, '.')) {
-                    $includes[] = new IncludedCount($include);
+                    $includes[] = new CountInclude($include);
                 }
 
                 return $includes;

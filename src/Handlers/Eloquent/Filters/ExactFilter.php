@@ -5,6 +5,7 @@ namespace Jackardios\QueryWizard\Handlers\Eloquent\Filters;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 
 class ExactFilter extends AbstractEloquentFilter
 {
@@ -27,7 +28,7 @@ class ExactFilter extends AbstractEloquentFilter
     }
 
     /** {@inheritdoc} */
-    public function handle($queryHandler, $queryBuilder, $value): void
+    public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void
     {
         $propertyName = $this->getPropertyName();
 

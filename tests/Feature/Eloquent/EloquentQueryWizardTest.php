@@ -136,11 +136,11 @@ class EloquentQueryWizardTest extends TestCase
     {
         $queryWizard = EloquentQueryWizard::for(SoftDeleteModel::class);
 
-        $this->models = factory(SoftDeleteModel::class, 5)->create();
+        $models = factory(SoftDeleteModel::class, 5)->create();
 
         $this->assertCount(5, $queryWizard->get());
 
-        $this->models[0]->delete();
+        $models[0]->delete();
 
         $this->assertCount(4, $queryWizard->get());
         $this->assertCount(5, $queryWizard->withTrashed()->get());

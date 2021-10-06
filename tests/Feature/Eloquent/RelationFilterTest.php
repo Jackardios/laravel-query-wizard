@@ -33,7 +33,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_related_model_property()
+    public function it_can_filter_related_model_property(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([
@@ -47,7 +47,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_results_based_on_the_partial_existence_of_a_property_in_an_array()
+    public function it_can_filter_results_based_on_the_partial_existence_of_a_property_in_an_array(): void
     {
         $results = $this
             ->createWizardFromFilterRequest([
@@ -62,7 +62,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_models_and_return_an_empty_collection()
+    public function it_can_filter_models_and_return_an_empty_collection(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([
@@ -76,7 +76,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_related_nested_model_property()
+    public function it_can_filter_related_nested_model_property(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([
@@ -90,7 +90,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_related_model_and_related_nested_model_property()
+    public function it_can_filter_related_model_and_related_nested_model_property(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([
@@ -108,7 +108,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_results_based_on_the_existence_of_a_property_in_an_array()
+    public function it_can_filter_results_based_on_the_existence_of_a_property_in_an_array(): void
     {
         $testModels = TestModel::whereIn('id', [1, 2])->get();
 
@@ -127,7 +127,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_and_reject_results_by_exact_property()
+    public function it_can_filter_and_reject_results_by_exact_property(): void
     {
         $testModel = TestModel::create(['name' => 'John Testing Doe']);
 
@@ -143,7 +143,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_disable_exact_filtering_based_on_related_model_properties()
+    public function it_can_disable_exact_filtering_based_on_related_model_properties(): void
     {
         $addRelationConstraint = false;
 
@@ -159,7 +159,7 @@ class RelationFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_disable_partial_filtering_based_on_related_model_properties()
+    public function it_can_disable_partial_filtering_based_on_related_model_properties(): void
     {
         $addRelationConstraint = false;
 

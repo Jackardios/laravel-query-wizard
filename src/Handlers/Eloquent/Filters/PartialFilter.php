@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 class PartialFilter extends ExactFilter
 {
-    protected function applyOnQuery($queryBuilder, $value, string $propertyName): void
+    protected function applyOnQuery(Builder $queryBuilder, $value, string $propertyName): void
     {
         $wrappedPropertyName = $queryBuilder
             ->getQuery()

@@ -5,7 +5,7 @@ namespace Jackardios\QueryWizard\Handlers\Model\Includes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-class IncludedRelationship extends AbstractModelInclude
+class RelationshipInclude extends AbstractModelInclude
 {
     /** {@inheritdoc} */
     public function handle($queryHandler, $model): void
@@ -59,7 +59,7 @@ class IncludedRelationship extends AbstractModelInclude
                 }
 
                 if (! Str::contains($include, '.')) {
-                    $includes[] = new IncludedCount($include);
+                    $includes[] = new CountInclude($include);
                 }
 
                 return $includes;

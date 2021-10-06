@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Handlers\Eloquent\Filters\AbstractEloquentFilter;
 use Jackardios\QueryWizard\EloquentQueryWizard;
@@ -315,7 +316,7 @@ class FilterTest extends TestCase
         $testModel = $this->models->first();
 
         $filterClass = new class('custom_name') extends AbstractEloquentFilter {
-            public function handle($queryHandler, $queryBuilder, $value): void
+            public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void
             {
                 $queryBuilder->where('name', $value);
             }
@@ -402,7 +403,7 @@ class FilterTest extends TestCase
     public function it_can_create_a_custom_filter_with_an_instantiated_filter(): void
     {
         $customFilter = new class('*') extends AbstractEloquentFilter {
-            public function handle($queryHandler, $queryBuilder, $value): void
+            public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void
             {
                 //
             }

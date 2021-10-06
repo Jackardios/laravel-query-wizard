@@ -28,7 +28,7 @@ class CallbackFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_should_filter_by_closure()
+    public function it_should_filter_by_closure(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([
@@ -46,7 +46,7 @@ class CallbackFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_should_filter_by_array_callback()
+    public function it_should_filter_by_array_callback(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([

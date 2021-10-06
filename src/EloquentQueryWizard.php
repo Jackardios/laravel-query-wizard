@@ -14,9 +14,9 @@ use Jackardios\QueryWizard\Concerns\HandlesIncludes;
 use Jackardios\QueryWizard\Concerns\HandlesSorts;
 use Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler;
 use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ExactFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedCount;
-use Jackardios\QueryWizard\Handlers\Eloquent\Includes\IncludedRelationship;
-use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\SortByField;
+use Jackardios\QueryWizard\Handlers\Eloquent\Includes\CountInclude;
+use Jackardios\QueryWizard\Handlers\Eloquent\Includes\RelationshipInclude;
+use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\FieldSort;
 
 /**
  * @mixin Builder
@@ -46,20 +46,20 @@ class EloquentQueryWizard extends AbstractQueryWizard
 
     /**
      * @param string $includeName
-     * @return IncludedRelationship|IncludedCount
+     * @return RelationshipInclude|CountInclude
      */
     public function makeDefaultIncludeHandler(string $includeName)
     {
         $countSuffix = config('query-wizard.count_suffix');
         if (Str::endsWith($includeName, $countSuffix)) {
             $relation = Str::before($includeName, $countSuffix);
-            return new IncludedCount($relation, $includeName);
+            return new CountInclude($relation, $includeName);
         }
-        return new IncludedRelationship($includeName);
+        return new RelationshipInclude($includeName);
     }
 
-    public function makeDefaultSortHandler(string $sortName): SortByField
+    public function makeDefaultSortHandler(string $sortName): FieldSort
     {
-        return new SortByField($sortName);
+        return new FieldSort($sortName);
     }
 }

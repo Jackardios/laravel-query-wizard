@@ -24,7 +24,7 @@ class ScopeFilter extends AbstractEloquentFilter
      * @throws InvalidFilterValue
      * @throws ReflectionException
      */
-    public function handle($queryHandler, $queryBuilder, $value): void
+    public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void
     {
         $propertyName = $this->getPropertyName();
         $propertyParts = collect(explode('.', $propertyName));

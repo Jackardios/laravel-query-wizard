@@ -2,7 +2,7 @@
 
 namespace Jackardios\QueryWizard\Handlers\Model\Includes;
 
-class IncludedCount extends AbstractModelInclude
+class CountInclude extends AbstractModelInclude
 {
     public function __construct(string $include, ?string $alias = null)
     {

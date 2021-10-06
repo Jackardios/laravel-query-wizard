@@ -28,7 +28,7 @@ class TrashedFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_should_filter_not_trashed_by_default()
+    public function it_should_filter_not_trashed_by_default(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([
@@ -42,7 +42,7 @@ class TrashedFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_only_trashed()
+    public function it_can_filter_only_trashed(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([
@@ -56,7 +56,7 @@ class TrashedFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_only_trashed_by_scope_directly()
+    public function it_can_filter_only_trashed_by_scope_directly(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([
@@ -70,7 +70,7 @@ class TrashedFilterTest extends TestCase
     }
 
     /** @test */
-    public function it_can_filter_with_trashed()
+    public function it_can_filter_with_trashed(): void
     {
         $models = $this
             ->createWizardFromFilterRequest([

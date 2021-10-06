@@ -13,5 +13,5 @@ abstract class AbstractEloquentSort extends AbstractSort
      * @param Builder $queryBuilder
      * @param string $direction
      */
-    abstract public function handle($queryHandler, $queryBuilder, string $direction): void;
+    abstract public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, string $direction): void;
 }

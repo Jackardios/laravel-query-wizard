@@ -4,7 +4,7 @@ namespace Jackardios\QueryWizard\Handlers\Eloquent\Includes;
 
 use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 
-class IncludedCount extends AbstractEloquentInclude
+class CountInclude extends AbstractEloquentInclude
 {
     public function __construct(string $include, ?string $alias = null)
     {

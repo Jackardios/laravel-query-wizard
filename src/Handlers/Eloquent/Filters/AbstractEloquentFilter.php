@@ -13,5 +13,5 @@ abstract class AbstractEloquentFilter extends AbstractFilter
      * @param Builder $queryBuilder
      * @param mixed $value
      */
-    abstract public function handle($queryHandler, $queryBuilder, $value): void;
+    abstract public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void;
 }
