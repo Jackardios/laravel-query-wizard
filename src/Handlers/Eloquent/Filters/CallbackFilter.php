@@ -24,6 +24,7 @@ class CallbackFilter extends AbstractEloquentFilter
         $this->callback = $callback;
     }
 
+    /** {@inheritdoc} */
     public function handle($queryHandler, $queryBuilder, $value): void
     {
         call_user_func($this->callback, $queryHandler, $queryBuilder, $value);

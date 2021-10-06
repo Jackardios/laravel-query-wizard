@@ -26,6 +26,7 @@ class ExactFilter extends AbstractEloquentFilter
         $this->withRelationConstraint = $value;
     }
 
+    /** {@inheritdoc} */
     public function handle($queryHandler, $queryBuilder, $value): void
     {
         $propertyName = $this->getPropertyName();

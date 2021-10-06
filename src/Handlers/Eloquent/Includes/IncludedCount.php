@@ -14,6 +14,7 @@ class IncludedCount extends AbstractEloquentInclude
         parent::__construct($include, $alias);
     }
 
+    /** {@inheritdoc} */
     public function handle(AbstractQueryHandler $queryHandler, $queryBuilder): void
     {
         $queryBuilder->withCount($this->getInclude());

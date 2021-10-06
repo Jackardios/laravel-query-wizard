@@ -9,6 +9,7 @@ class TrashedFilter extends AbstractEloquentFilter
         parent::__construct($propertyName, $alias, $default);
     }
 
+    /** {@inheritdoc} */
     public function handle($queryHandler, $queryBuilder, $value): void
     {
         if ($value === 'with') {

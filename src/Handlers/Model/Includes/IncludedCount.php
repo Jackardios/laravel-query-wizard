@@ -12,6 +12,7 @@ class IncludedCount extends AbstractModelInclude
         parent::__construct($include, $alias);
     }
 
+    /** {@inheritdoc} */
     public function handle($queryHandler, $model): void
     {
         $model->loadCount($this->getInclude());

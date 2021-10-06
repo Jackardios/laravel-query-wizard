@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 
 class IncludedRelationship extends AbstractModelInclude
 {
+    /** {@inheritdoc} */
     public function handle($queryHandler, $model): void
     {
         $relatedTables = collect(explode('.', $this->getInclude()));

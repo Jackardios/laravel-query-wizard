@@ -8,6 +8,7 @@ use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
 
 class IncludedRelationship extends AbstractEloquentInclude
 {
+    /** {@inheritdoc} */
     public function handle(AbstractQueryHandler $queryHandler, $queryBuilder): void
     {
         $relatedTables = collect(explode('.', $this->getInclude()));
