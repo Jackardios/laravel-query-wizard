@@ -14,6 +14,11 @@ abstract class AbstractFilter
      */
     protected $default;
 
+    /**
+     * @var callable|null
+     */
+    protected $prepareValueCallback;
+
     abstract public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void;
 
     public function __construct(string $propertyName, ?string $alias = null, $default = null)
@@ -43,7 +48,12 @@ abstract class AbstractFilter
         return $this->propertyName;
     }
 
-    public function default($value): self
+    /**
+     * @param mixed $value
+     *
+     * @return $this
+     */
+    public function default($value)
     {
         $this->default = $value;
 
@@ -58,6 +68,28 @@ abstract class AbstractFilter
     public function getDefault()
     {
         return $this->default;
+    }
+
+    /**
+     * @param callable $callback
+     *
+     * @return $this
+     */
+    public function prepareValueWith(callable $callback)
+    {
+        $this->prepareValueCallback = $callback;
+
+        return $this;
+    }
+
+    public function hasPrepareValueCallback(): bool
+    {
+        return isset($this->prepareValueCallback);
+    }
+
+    public function getPrepareValueCallback(): callable
+    {
+        return $this->prepareValueCallback;
     }
 
     /**

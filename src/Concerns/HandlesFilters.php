@@ -81,12 +81,18 @@ trait HandlesFilters
         }
 
         $requestedFilters = $this->request->filters();
+
         $allowedFilters->each(function(AbstractFilter $filter) use ($requestedFilters) {
             $filterName = $filter->getName();
             if ($filter->hasDefault() && !$requestedFilters->has($filterName)) {
                 $requestedFilters[$filterName] = $filter->getDefault();
             }
+
+            if ($filter->hasPrepareValueCallback() && $requestedFilters->has($filterName)) {
+                $requestedFilters[$filterName] = $filter->getPrepareValueCallback()($requestedFilters[$filterName]);
+            }
         });
+
         return $requestedFilters;
     }
 

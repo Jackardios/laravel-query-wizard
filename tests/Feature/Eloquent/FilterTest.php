@@ -509,6 +509,34 @@ class FilterTest extends TestCase
         $this->assertEquals(1, $models->count());
     }
 
+    /** @test */
+    public function it_should_prepare_filter_value_using_callback(): void
+    {
+        $filter = (new PartialFilter('is_active'))
+            ->prepareValueWith(static function($value) {
+                return (bool) $value;
+            });
+        $nestedFilter = (new PartialFilter('some.status'))
+            ->prepareValueWith(static function($value) {
+                return (bool) $value;
+            });
+
+        $wizard = $this
+            ->createWizardFromFilterRequest([
+                'is_active' => '1',
+                'some.status' => '0'
+            ])
+            ->setAllowedFilters([
+                $filter,
+                $nestedFilter,
+            ]);
+
+        $this->assertEquals([
+            'is_active' => true,
+            'some.status' => false
+        ], $wizard->getFilters()->toArray());
+    }
+
     protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard
     {
         $request = new Request([
