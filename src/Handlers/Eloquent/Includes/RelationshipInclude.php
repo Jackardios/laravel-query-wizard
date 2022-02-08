@@ -13,24 +13,30 @@ class RelationshipInclude extends AbstractEloquentInclude
     {
         $relatedTables = collect(explode('.', $this->getInclude()));
 
+        $eagerLoads = $queryBuilder->getEagerLoads();
         $withs = $relatedTables
-            ->mapWithKeys(function ($table, $key) use ($queryHandler, $relatedTables) {
+            ->mapWithKeys(function ($table, $key) use ($queryHandler, $relatedTables, $eagerLoads) {
                 $fullRelationName = $relatedTables->slice(0, $key + 1)->implode('.');
+
+                if (array_key_exists($fullRelationName, $eagerLoads)) {
+                    return [];
+                }
 
                 $key = Str::plural(Str::snake($fullRelationName));
                 $fields = $queryHandler->getWizard()->getFieldsByKey($key);
 
                 if (empty($fields)) {
-                    return [$fullRelationName];
+                    return [$fullRelationName => static function() {}];
                 }
 
                 return [$fullRelationName => function ($query) use ($fields) {
                     $query->select($fields);
                 }];
             })
+            ->filter()
             ->toArray();
 
-        $queryBuilder->with($withs);
+        $queryBuilder->setEagerLoads(array_merge($eagerLoads, $withs));
     }
 
     protected function getIndividualRelationshipPathsFromInclude(string $include): Collection
