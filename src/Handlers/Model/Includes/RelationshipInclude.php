@@ -29,7 +29,7 @@ class RelationshipInclude extends AbstractModelInclude
             })
             ->toArray();
 
-        $model->load($loads);
+        $model->loadMissing($loads);
     }
 
     protected function getIndividualRelationshipPathsFromInclude(string $include): Collection
