@@ -47,10 +47,10 @@ trait HandlesIncludes
 
         // auto-created handlers should only be merged after user-defined handlers,
         // otherwise the user-defined handlers will be overwritten
-        $autoCreatedHandlers = [];
-        $this->allowedIncludes = collect($includes)
+        $autoCreatedHandlers = collect([]);
+        $userDefinedHandlers = collect($includes)
             ->filter()
-            ->map(function($include) use (&$autoCreatedHandlers) {
+            ->mapWithKeys(function($include) use (&$autoCreatedHandlers) {
                 if (is_string($include)) {
                     $include = $this->makeDefaultIncludeHandler($include);
                 }
@@ -60,14 +60,16 @@ trait HandlesIncludes
                     new InvalidIncludeHandler($baseHandlerClasses);
                 }
 
-                $autoCreatedHandlers[] = $include->createOther();
+                $autoCreatedHandlers->push($include->createOther());
 
-                return $include;
-            })
-            ->merge($autoCreatedHandlers)
+                return [$include->getName() => $include];
+            });
+
+        $autoCreatedHandlers = $autoCreatedHandlers
             ->flatten()
-            ->unique(fn (AbstractInclude $handler) => $handler->getName())
             ->mapWithKeys(fn (AbstractInclude $handler) => [$handler->getName() => $handler]);
+
+        $this->allowedIncludes = $autoCreatedHandlers->merge($userDefinedHandlers);
 
         $this->ensureAllIncludesAllowed();
 

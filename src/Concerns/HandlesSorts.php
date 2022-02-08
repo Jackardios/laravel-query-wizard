@@ -48,10 +48,10 @@ trait HandlesSorts
 
         // auto-created handlers should only be merged after user-defined handlers,
         // otherwise the user-defined handlers will be overwritten
-        $autoCreatedHandlers = [];
-        $this->allowedSorts = collect($sorts)
+        $autoCreatedHandlers = collect([]);
+        $userDefinedHandlers = collect($sorts)
             ->filter()
-            ->map(function($sort) use (&$autoCreatedHandlers) {
+            ->mapWithKeys(function($sort) use (&$autoCreatedHandlers) {
                 if (is_string($sort)) {
                     $sort = $this->makeDefaultSortHandler(ltrim($sort, '-'));
                 }
@@ -61,14 +61,16 @@ trait HandlesSorts
                     new InvalidSortHandler($baseHandlerClasses);
                 }
 
-                $autoCreatedHandlers[] = $sort->createOther();
+                $autoCreatedHandlers->push($sort->createOther());
 
-                return $sort;
-            })
-            ->merge($autoCreatedHandlers)
+                return [$sort->getName() => $sort];
+            });
+
+        $autoCreatedHandlers = $autoCreatedHandlers
             ->flatten()
-            ->unique(fn (AbstractSort $handler) => $handler->getName())
             ->mapWithKeys(fn (AbstractSort $handler) => [$handler->getName() => $handler]);
+
+        $this->allowedSorts = $autoCreatedHandlers->merge($userDefinedHandlers);
 
         $this->ensureAllSortsAllowed();
 

@@ -46,10 +46,10 @@ trait HandlesFilters
 
         // auto-created handlers should only be merged after user-defined handlers,
         // otherwise the user-defined handlers will be overwritten
-        $autoCreatedHandlers = [];
-        $this->allowedFilters = collect($filters)
+        $autoCreatedHandlers = collect([]);
+        $userDefinedHandlers = collect($filters)
             ->filter()
-            ->map(function($filter) use (&$autoCreatedHandlers) {
+            ->mapWithKeys(function($filter) use (&$autoCreatedHandlers) {
                 if (is_string($filter)) {
                     $filter = $this->makeDefaultFilterHandler($filter);
                 }
@@ -59,14 +59,16 @@ trait HandlesFilters
                     new InvalidFilterHandler($baseHandlerClasses);
                 }
 
-                $autoCreatedHandlers[] = $filter->createOther();
+                $autoCreatedHandlers->push($filter->createOther());
 
-                return $filter;
-            })
-            ->merge($autoCreatedHandlers)
+                return [$filter->getName() => $filter];
+            });
+
+        $autoCreatedHandlers = $autoCreatedHandlers
             ->flatten()
-            ->unique(fn (AbstractFilter $handler) => $handler->getName())
             ->mapWithKeys(fn (AbstractFilter $handler) => [$handler->getName() => $handler]);
+
+        $this->allowedFilters = $autoCreatedHandlers->merge($userDefinedHandlers);
 
         $this->ensureAllFiltersAllowed();
 
