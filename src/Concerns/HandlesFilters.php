@@ -92,7 +92,10 @@ trait HandlesFilters
         if (is_null($this->preparedFilters)) {
             $this->preparedFilters = $allowedFilters
                 ->filter(fn (AbstractFilter $filter) => $filter->hasDefault())
-                ->map(fn (AbstractFilter $filter) => $filter->getDefault());
+                ->map(fn (AbstractFilter $filter) => $filter->hasPrepareValueCallback()
+                    ? $filter->getPrepareValueCallback()($filter->getDefault())
+                    : $filter->getDefault()
+                );
         }
         $unknownFilterKeys = collect();
         $this->prepareFiltersAndGetUnknownKeys($requestedFilters, $allowedFilters, $unknownFilterKeys);
