@@ -537,4 +537,162 @@ class FilterTest extends TestCase
             'some.status' => false
         ], $wizard->getFilters()->toArray());
     }
+
+    /** @test */
+    public function it_can_handle_arrays_for_nested_filter_values(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithFilters([
+                'is_active' => '1',
+                'some' => [
+                    'status' => '0',
+                    'foo' => [
+                        'bar' => [
+                            'testing' => 'hello',
+                        ],
+                        'baz' => 'fee',
+                    ],
+                ],
+                'nested.plain.yan' => 'yaa',
+                'nested.filtering.names' => [
+                    'alex' => 23,
+                    'jeena' => 'five'
+                ],
+                'another' => [
+                    'hello' => 'world',
+                    'qwerty' => [
+                        'hoo' => 'jee'
+                    ]
+                ],
+            ])
+            ->setAllowedFilters([
+                'is_active',
+                (new ExactFilter('some.status'))
+                    ->prepareValueWith(function($value) {
+                        $this->assertEquals('0', $value);
+                        return (bool) $value;
+                    }),
+                (new ExactFilter('some.foo.bar'))
+                    ->prepareValueWith(function($value) {
+                        $this->assertEquals([
+                            'testing' => 'hello',
+                        ], $value);
+                        return [
+                            'new' => 'thing'
+                        ];
+                    }),
+                (new PartialFilter('make.love'))
+                    ->default('not war'),
+                (new PartialFilter('some.foo.nothing'))
+                    ->default('yes')
+                    ->prepareValueWith(function($value) {
+                        $this->assertEquals('yes', $value);
+                        return 'no';
+                    }),
+                'some.foo.baz',
+                'nested.plain.yan',
+                'nested.filtering.names.alex',
+                'nested.filtering.names.jeena',
+                'another',
+            ]);
+
+        $this->assertEquals([
+            'is_active' => '1',
+            'some.status' => false,
+            'make.love' => 'not war',
+            'some.foo.nothing' => 'no',
+            'some.foo.bar' => [
+                'new' => 'thing'
+            ],
+            'some.foo.baz' => 'fee',
+            'nested.plain.yan' => 'yaa',
+            'nested.filtering.names.alex' => 23,
+            'nested.filtering.names.jeena' => 'five',
+            'another' => [
+                'hello' => 'world',
+                'qwerty' => [
+                    'hoo' => 'jee'
+                ]
+            ],
+        ], $wizard->getFilters()->toArray());
+    }
+
+    /** @test */
+    public function it_throws_an_exception_when_unknown_filter_passed(): void
+    {
+        try {
+            $this
+                ->createEloquentWizardWithFilters([
+                    'is_active' => '1',
+                    'some' => [
+                        'status' => '0',
+                        'foo' => [
+                            'bar' => [
+                                'testing' => 'hello',
+                            ],
+                            'baz' => 'fee',
+                            'not-existing' => [
+                                'work' => 'sleep'
+                            ]
+                        ],
+                    ],
+                    'some-wrong' => ['car', 'moto'],
+                    'nested.plain.yan' => 'yaa',
+                    'nested.filtering.names' => [
+                        'alex' => 23,
+                        'jeena' => 'five'
+                    ],
+                    'another' => [
+                        'hello' => 'world',
+                        'qwerty' => [
+                            'hoo' => 'jee'
+                        ]
+                    ],
+                ])
+                ->setAllowedFilters([
+                    'is_active',
+                    (new ExactFilter('some.status'))
+                        ->prepareValueWith(function($value) {
+                            $this->assertEquals('0', $value);
+                            return (bool) $value;
+                        }),
+                    (new ExactFilter('some.foo.bar'))
+                        ->prepareValueWith(function($value) {
+                            $this->assertEquals([
+                                'testing' => 'hello',
+                            ], $value);
+                            return [
+                                'new' => 'thing'
+                            ];
+                        }),
+                    (new PartialFilter('make.love'))
+                        ->default('not war'),
+                    (new PartialFilter('some.foo.nothing'))
+                        ->default('yes')
+                        ->prepareValueWith(function($value) {
+                            $this->assertEquals('yes', $value);
+                            return 'no';
+                        }),
+                    'some.foo.baz',
+                    'nested.plain.yan',
+                    'nested.filtering.names.alex',
+                    'nested.filtering.names.jeena',
+                    'another',
+                ]);
+        } catch (InvalidFilterQuery $exception) {
+            $this->assertEquals(['some.foo.not-existing.work', 'some-wrong.0', 'some-wrong.1'], $exception->unknownFilters->toArray());
+            $this->assertEquals([
+                'is_active',
+                'some.status',
+                'some.foo.bar',
+                'make.love',
+                'some.foo.nothing',
+                'some.foo.baz',
+                'nested.plain.yan',
+                'nested.filtering.names.alex',
+                'nested.filtering.names.jeena',
+                'another',
+            ], $exception->allowedFilters->toArray());
+        }
+    }
 }
