@@ -3,10 +3,9 @@
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
-use Jackardios\QueryWizard\EloquentQueryWizard;
-use Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler;
-use Jackardios\QueryWizard\Handlers\Eloquent\Includes\CallbackInclude;
+use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
+use Jackardios\QueryWizard\Eloquent\Includes\CallbackInclude;
 use Jackardios\QueryWizard\Tests\Concerns\AssertsRelations;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -20,8 +19,7 @@ class CallbackIncludeTest extends TestCase
 {
     use AssertsRelations;
 
-    /** @var \Illuminate\Support\Collection */
-    protected $models;
+    protected Collection $models;
 
     public function setUp(): void
     {
@@ -47,11 +45,12 @@ class CallbackIncludeTest extends TestCase
     public function it_should_include_by_closure(): void
     {
         $models = $this
-            ->createWizardFromIncludeRequest('callbackRelation')
+            ->createEloquentWizardWithIncludes('callbackRelation')
             ->setAllowedIncludes(
-                new CallbackInclude('callbackRelation', function (EloquentQueryHandler $queryHandler, Builder $queryBuilder) {
+                new CallbackInclude('relatedModels', function (EloquentQueryWizard $queryWizard, Builder $queryBuilder, $value) {
+                    $this->assertEquals('relatedModels', $value);
                     $queryBuilder->with('relatedModels');
-                })
+                }, 'callbackRelation')
             )
             ->build()
             ->get();
@@ -63,7 +62,7 @@ class CallbackIncludeTest extends TestCase
     public function it_should_include_by_array_callback(): void
     {
         $models = $this
-            ->createWizardFromIncludeRequest('callbackRelation')
+            ->createEloquentWizardWithIncludes('callbackRelation')
             ->setAllowedIncludes(new CallbackInclude('callbackRelation', [$this, 'includeCallback']))
             ->build()
             ->get();
@@ -71,17 +70,9 @@ class CallbackIncludeTest extends TestCase
         $this->assertRelationLoaded($models, 'relatedModels');
     }
 
-    public function includeCallback(EloquentQueryHandler $queryHandler, Builder $queryBuilder): void
+    public function includeCallback(EloquentQueryWizard $queryWizard, Builder $queryBuilder, $value): void
     {
+        $this->assertEquals('callbackRelation', $value);
         $queryBuilder->with('relatedModels');
-    }
-
-    protected function createWizardFromIncludeRequest(string $includes): EloquentQueryWizard
-    {
-        $request = new Request([
-            'include' => $includes,
-        ]);
-
-        return EloquentQueryWizard::for(TestModel::class, $request);
     }
 }

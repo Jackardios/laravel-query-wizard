@@ -6,13 +6,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
+use Jackardios\QueryWizard\Abstracts\AbstractQueryWizard;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\AbstractEloquentFilter;
-use Jackardios\QueryWizard\EloquentQueryWizard;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ExactFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\PartialFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ScopeFilter;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
+use Jackardios\QueryWizard\Eloquent\Filters\ExactFilter;
+use Jackardios\QueryWizard\Eloquent\Filters\PartialFilter;
+use Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter;
+use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 
@@ -37,7 +38,7 @@ class FilterTest extends TestCase
     public function it_can_filter_models_by_exact_property_by_default(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => $this->models->first()->name,
             ])
             ->setAllowedFilters('name')
@@ -51,7 +52,7 @@ class FilterTest extends TestCase
     public function it_can_filter_models_by_an_array_as_filter_value(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => ['first' => $this->models->first()->name],
             ])
             ->setAllowedFilters('name')
@@ -65,7 +66,7 @@ class FilterTest extends TestCase
     public function it_can_filter_partially_and_case_insensitive(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => strtoupper($this->models->first()->name),
             ])
             ->setAllowedFilters('name')
@@ -82,7 +83,7 @@ class FilterTest extends TestCase
         $model2 = TestModel::create(['name' => 'uvwxyz']);
 
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => 'abc,xyz',
             ])
             ->setAllowedFilters(new PartialFilter('name'))
@@ -97,7 +98,7 @@ class FilterTest extends TestCase
     public function it_can_filter_models_and_return_an_empty_collection(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => 'None existing first name',
             ])
             ->setAllowedFilters('name')
@@ -114,7 +115,7 @@ class FilterTest extends TestCase
             'filter' => ['name' => 'john'],
         ]);
 
-        $queryWizardSql = EloquentQueryWizard::for(TestModel::select('id', 'name'), $request)
+        $queryWizardSql = EloquentQueryWizard::for(TestModel::select('id', 'name'), new QueryParametersManager($request))
             ->setAllowedFilters('name', 'id')
             ->build()
             ->toSql();
@@ -130,7 +131,7 @@ class FilterTest extends TestCase
     public function it_can_filter_results_based_on_the_existence_of_a_property_in_an_array(): void
     {
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'id' => '1,2',
             ])
             ->setAllowedFilters('id')
@@ -145,7 +146,7 @@ class FilterTest extends TestCase
     public function it_ignores_empty_values_in_an_array_partial_filter(): void
     {
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'id' => '2,',
             ])
             ->setAllowedFilters(new PartialFilter('id'))
@@ -160,7 +161,7 @@ class FilterTest extends TestCase
     public function it_ignores_an_empty_array_partial_filter(): void
     {
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'id' => ',,',
             ])
             ->setAllowedFilters(new PartialFilter('id'))
@@ -176,7 +177,7 @@ class FilterTest extends TestCase
         DB::enableQueryLog();
 
         $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'id' => [0],
             ])
             ->setAllowedFilters(new PartialFilter('id'))
@@ -195,7 +196,7 @@ class FilterTest extends TestCase
             ->get();
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'id' => $testModel->id,
             ])
             ->setAllowedFilters(new ExactFilter('id'))
@@ -211,7 +212,7 @@ class FilterTest extends TestCase
         $testModel = TestModel::create(['name' => 'John Testing Doe']);
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => ' Testing ',
             ])
             ->setAllowedFilters(new ExactFilter('name'))
@@ -227,7 +228,7 @@ class FilterTest extends TestCase
         $testModel = TestModel::create(['name' => 'John Testing Doe']);
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest(['named' => 'John Testing Doe'])
+            ->createEloquentWizardWithFilters(['named' => 'John Testing Doe'])
             ->setAllowedFilters(new ScopeFilter('named'))
             ->build()
             ->get();
@@ -242,7 +243,7 @@ class FilterTest extends TestCase
         $testModel->relatedModels()->create(['name' => 'John\'s Post']);
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest(['relatedModels.named' => 'John\'s Post'])
+            ->createEloquentWizardWithFilters(['relatedModels.named' => 'John\'s Post'])
             ->setAllowedFilters(new ScopeFilter('relatedModels.named'))
             ->build()
             ->get();
@@ -256,7 +257,7 @@ class FilterTest extends TestCase
         TestModel::create(['name' => 'John Testing Doe']);
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest(['user' => 1])
+            ->createEloquentWizardWithFilters(['user' => 1])
             ->setAllowedFilters(new ScopeFilter('user'))
             ->build()
             ->get();
@@ -270,7 +271,7 @@ class FilterTest extends TestCase
         TestModel::create(['id' => 1000, 'name' => 'John Testing Doe']);
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest(['user_info' => ['id' => '1000', 'name' => 'John Testing Doe']])
+            ->createEloquentWizardWithFilters(['user_info' => ['id' => '1000', 'name' => 'John Testing Doe']])
             ->setAllowedFilters(new ScopeFilter('user_info'))
             ->build()
             ->get();
@@ -286,7 +287,7 @@ class FilterTest extends TestCase
         $testModel = TestModel::create(['name' => 'John Testing Doe']);
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest(['created_between' => '2016-01-01,2017-01-01'])
+            ->createEloquentWizardWithFilters(['created_between' => '2016-01-01,2017-01-01'])
             ->setAllowedFilters(new ScopeFilter('created_between'))
             ->build()
             ->get();
@@ -302,7 +303,7 @@ class FilterTest extends TestCase
         $testModel = TestModel::create(['name' => 'John Testing Doe']);
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest(['created_between' => ['start' => '2016-01-01', 'end' => '2017-01-01']])
+            ->createEloquentWizardWithFilters(['created_between' => ['start' => '2016-01-01', 'end' => '2017-01-01']])
             ->setAllowedFilters(new ScopeFilter('created_between'))
             ->build()
             ->get();
@@ -315,15 +316,15 @@ class FilterTest extends TestCase
     {
         $testModel = $this->models->first();
 
-        $filterClass = new class('custom_name') extends AbstractEloquentFilter {
-            public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void
+        $filterClass = new class('custom_name') extends EloquentFilter {
+            public function handle(AbstractQueryWizard $queryWizard, $queryBuilder, $value): void
             {
                 $queryBuilder->where('name', $value);
             }
         };
 
         $modelResult = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'custom_name' => $testModel->name,
             ])
             ->setAllowedFilters($filterClass)
@@ -340,7 +341,7 @@ class FilterTest extends TestCase
         $model2 = TestModel::create(['name' => 'abcdef']);
 
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => 'abc',
             ])
             ->setAllowedFilters(new PartialFilter('name'), 'id')
@@ -358,7 +359,7 @@ class FilterTest extends TestCase
         $model2 = TestModel::create(['name' => 'abcdef']);
 
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => 'abc',
             ])
             ->setAllowedFilters([new PartialFilter('name'), 'id'])
@@ -376,7 +377,7 @@ class FilterTest extends TestCase
         $model2 = TestModel::create(['name' => 'abcdef']);
 
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => 'abc',
                 'id' => "1,{$model1->id}",
             ])
@@ -394,7 +395,7 @@ class FilterTest extends TestCase
         $this->expectException(InvalidFilterQuery::class);
 
         $this
-            ->createWizardFromFilterRequest(['name' => 'John'])
+            ->createEloquentWizardWithFilters(['name' => 'John'])
             ->setAllowedFilters('id')
             ->build();
     }
@@ -402,8 +403,8 @@ class FilterTest extends TestCase
     /** @test */
     public function it_can_create_a_custom_filter_with_an_instantiated_filter(): void
     {
-        $customFilter = new class('*') extends AbstractEloquentFilter {
-            public function handle(AbstractQueryHandler $queryHandler, $queryBuilder, $value): void
+        $customFilter = new class('*') extends EloquentFilter {
+            public function handle(AbstractQueryWizard $queryWizard, $queryBuilder, $value): void
             {
                 //
             }
@@ -412,7 +413,7 @@ class FilterTest extends TestCase
         TestModel::create(['name' => 'abcdef']);
 
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 '*' => '*',
             ])
             ->setAllowedFilters('name', $customFilter)
@@ -447,7 +448,7 @@ class FilterTest extends TestCase
         TestModel::create(['name' => 'abcdef']);
 
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'nickname' => 'abcdef',
             ])
             ->setAllowedFilters($filter)
@@ -464,7 +465,7 @@ class FilterTest extends TestCase
         $filter = new ExactFilter('is_visible');
 
         $models = $this
-            ->createWizardFromFilterRequest(['is_visible' => 'false'])
+            ->createEloquentWizardWithFilters(['is_visible' => 'false'])
             ->setAllowedFilters($filter)
             ->build()
             ->get();
@@ -482,7 +483,7 @@ class FilterTest extends TestCase
         $filter = (new PartialFilter('name'))->default('UniqueJohn');
 
         $models = $this
-            ->createWizardFromFilterRequest([])
+            ->createEloquentWizardWithFilters([])
             ->setAllowedFilters($filter)
             ->build()
             ->get();
@@ -499,7 +500,7 @@ class FilterTest extends TestCase
         $filter = (new PartialFilter('name'))->default('UniqueJohn');
 
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'name' => 'UniqueDoe',
             ])
             ->setAllowedFilters($filter)
@@ -522,7 +523,7 @@ class FilterTest extends TestCase
             });
 
         $wizard = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'is_active' => '1',
                 'some.status' => '0'
             ])
@@ -535,14 +536,5 @@ class FilterTest extends TestCase
             'is_active' => true,
             'some.status' => false
         ], $wizard->getFilters()->toArray());
-    }
-
-    protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard
-    {
-        $request = new Request([
-            'filter' => $filters,
-        ]);
-
-        return EloquentQueryWizard::for(TestModel::class, $request);
     }
 }

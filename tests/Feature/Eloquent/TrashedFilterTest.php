@@ -2,10 +2,9 @@
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
-use Illuminate\Http\Request;
-use Jackardios\QueryWizard\EloquentQueryWizard;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ScopeFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\TrashedFilter;
+use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter;
+use Jackardios\QueryWizard\Eloquent\Filters\TrashedFilter;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
 
@@ -16,8 +15,7 @@ use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
  */
 class TrashedFilterTest extends TestCase
 {
-    /** @var \Illuminate\Support\Collection */
-    protected $models;
+    protected Collection $models;
 
     public function setUp(): void
     {
@@ -31,9 +29,9 @@ class TrashedFilterTest extends TestCase
     public function it_should_filter_not_trashed_by_default(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'trashed' => '',
-            ])
+            ], SoftDeleteModel::class)
             ->setAllowedFilters(new TrashedFilter())
             ->build()
             ->get();
@@ -45,9 +43,9 @@ class TrashedFilterTest extends TestCase
     public function it_can_filter_only_trashed(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'trashed' => 'only',
-            ])
+            ], SoftDeleteModel::class)
             ->setAllowedFilters(new TrashedFilter())
             ->build()
             ->get();
@@ -59,9 +57,9 @@ class TrashedFilterTest extends TestCase
     public function it_can_filter_only_trashed_by_scope_directly(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'only_trashed' => true,
-            ])
+            ], SoftDeleteModel::class)
             ->setAllowedFilters(new ScopeFilter('only_trashed'))
             ->build()
             ->get();
@@ -73,22 +71,13 @@ class TrashedFilterTest extends TestCase
     public function it_can_filter_with_trashed(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'trashed' => 'with',
-            ])
+            ], SoftDeleteModel::class)
             ->setAllowedFilters(new TrashedFilter())
             ->build()
             ->get();
 
         $this->assertCount(3, $models);
-    }
-
-    protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard
-    {
-        $request = new Request([
-            'filter' => $filters,
-        ]);
-
-        return EloquentQueryWizard::for(SoftDeleteModel::class, $request);
     }
 }

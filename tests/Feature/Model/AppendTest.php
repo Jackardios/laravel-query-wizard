@@ -2,11 +2,10 @@
 
 namespace Jackardios\QueryWizard\Tests\Feature\Model;
 
+use Jackardios\QueryWizard\Model\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
-use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 
 /**
@@ -26,7 +25,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_attributes(): void
     {
-        $model = $this->createWizardFromAppendRequest('fullname')
+        $model = $this->createModelWizardWithAppends('fullname')
             ->setAllowedAppends('fullname')
             ->build();
 
@@ -38,7 +37,7 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $this->createWizardFromAppendRequest('FullName')
+        $this->createModelWizardWithAppends('FullName')
             ->setAllowedAppends('fullname')
             ->build();
     }
@@ -48,7 +47,7 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $this->createWizardFromAppendRequest('random-attribute-to-append')
+        $this->createModelWizardWithAppends('random-attribute-to-append')
             ->setAllowedAppends('attribute-to-append')
             ->build();
     }
@@ -56,7 +55,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_allow_multiple_appends(): void
     {
-        $model = $this->createWizardFromAppendRequest('fullname')
+        $model = $this->createModelWizardWithAppends('fullname')
             ->setAllowedAppends('fullname', 'randomAttribute')
             ->build();
 
@@ -66,7 +65,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_allow_multiple_appends_as_an_array(): void
     {
-        $model = $this->createWizardFromAppendRequest('fullname')
+        $model = $this->createModelWizardWithAppends('fullname')
             ->setAllowedAppends(['fullname', 'randomAttribute'])
             ->build();
 
@@ -76,21 +75,12 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_multiple_attributes(): void
     {
-        $model = $this->createWizardFromAppendRequest('fullname,reversename')
+        $model = $this->createModelWizardWithAppends('fullname,reversename')
             ->setAllowedAppends(['fullname', 'reversename'])
             ->build();
 
         $this->assertAttributeLoaded($model, 'fullname');
         $this->assertAttributeLoaded($model, 'reversename');
-    }
-
-    protected function createWizardFromAppendRequest(string $appends): ModelQueryWizard
-    {
-        $request = new Request([
-            'append' => $appends,
-        ]);
-
-        return ModelQueryWizard::for(AppendModel::query()->first(), $request);
     }
 
     /**

@@ -3,7 +3,7 @@
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Collection;
-use Jackardios\QueryWizard\Abstracts\Handlers\Sorts\AbstractSort;
+use Jackardios\QueryWizard\Abstracts\AbstractSort;
 use Jackardios\QueryWizard\Exceptions\InvalidSortHandler;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Values\Sort;
@@ -16,8 +16,8 @@ trait HandlesSorts
      */
     abstract public function makeDefaultSortHandler(string $sortName);
 
-    protected ?Collection $allowedSorts = null;
-    protected ?Collection $defaultSorts = null;
+    private ?Collection $allowedSorts = null;
+    private ?Collection $defaultSorts = null;
 
     /**
      * @return AbstractSort[]|string[]
@@ -42,7 +42,7 @@ trait HandlesSorts
         return $this->allowedSorts;
     }
 
-    public function setAllowedSorts($sorts): self
+    public function setAllowedSorts($sorts): static
     {
         $sorts = is_array($sorts) ? $sorts : func_get_args();
 
@@ -56,12 +56,11 @@ trait HandlesSorts
                     $sort = $this->makeDefaultSortHandler(ltrim($sort, '-'));
                 }
 
-                $baseHandlerClasses = $this->queryHandler::getBaseSortHandlerClasses();
-                if (! instance_of_one_of($sort, $baseHandlerClasses)) {
-                    new InvalidSortHandler($baseHandlerClasses);
+                if (! instance_of_one_of($sort, $this->baseSortHandlerClasses)) {
+                    new InvalidSortHandler($this->baseSortHandlerClasses);
                 }
 
-                $autoCreatedHandlers->push($sort->createOther());
+                $autoCreatedHandlers->push($sort->createExtra());
 
                 return [$sort->getName() => $sort];
             });
@@ -100,7 +99,7 @@ trait HandlesSorts
         return $this->defaultSorts;
     }
 
-    public function setDefaultSorts($sorts): self
+    public function setDefaultSorts($sorts): static
     {
         $sorts = is_array($sorts) ? $sorts : func_get_args();
 
@@ -119,13 +118,14 @@ trait HandlesSorts
             return collect();
         }
 
-        $sorts = $this->request->sorts();
-        return $sorts->isNotEmpty() ? $sorts : $this->getDefaultSorts();
+        $sorts = $this->parametersManager->getSorts();
+
+        return $sorts->isEmpty() ? $this->getDefaultSorts() : $sorts;
     }
 
-    protected function ensureAllSortsAllowed(): self
+    protected function ensureAllSortsAllowed(): static
     {
-        $requestedSorts = $this->request->sorts()->map(function (Sort $sort) {
+        $requestedSorts = $this->parametersManager->getSorts()->map(function (Sort $sort) {
             return $sort->getField();
         });
         $allowedSorts = $this->getAllowedSorts()->keys();

@@ -2,8 +2,9 @@
 
 namespace Jackardios\QueryWizard\Tests\Feature\Model;
 
+use Jackardios\QueryWizard\Model\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\TestCase;
-use Jackardios\QueryWizard\ModelQueryWizard;
+
 use TypeError;
 
 /**

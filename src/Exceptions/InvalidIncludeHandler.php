@@ -2,7 +2,7 @@
 
 namespace Jackardios\QueryWizard\Exceptions;
 
-use Jackardios\QueryWizard\Abstracts\Handlers\Includes\AbstractInclude;
+use Jackardios\QueryWizard\Abstracts\AbstractInclude;
 use LogicException;
 
 class InvalidIncludeHandler extends LogicException

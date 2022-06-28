@@ -3,13 +3,13 @@
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Http\Request;
-use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\AbstractEloquentSort;
+use Jackardios\QueryWizard\Eloquent\EloquentSort;
+use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Values\Sort;
 use ReflectionClass;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Exceptions\InvalidSubject;
-use Jackardios\QueryWizard\EloquentQueryWizard;
-use Jackardios\QueryWizard\QueryWizardRequest;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedThroughPivotModel;
 use Jackardios\QueryWizard\Tests\App\Models\ScopeModel;
@@ -113,22 +113,32 @@ class EloquentQueryWizardTest extends TestCase
     public function it_will_determine_the_request_when_its_not_given(): void
     {
         $wizardReflection = new ReflectionClass(EloquentQueryWizard::class);
-        $requestProperty = $wizardReflection->getProperty('request');
+        $parametersManagerProperty = $wizardReflection->getProperty('parametersManager');
+        $parametersManagerProperty->setAccessible(true);
+
+
+        $parametersManagerReflection = new ReflectionClass(QueryParametersManager::class);
+        $requestProperty = $parametersManagerReflection->getProperty('request');
         $requestProperty->setAccessible(true);
 
         $this->getJson('/test-model?sort=name');
 
         $wizard = EloquentQueryWizard::for(TestModel::class)->build();
 
-        $this->assertInstanceOf(QueryWizardRequest::class, $requestProperty->getValue($wizard));
+        /** @var QueryParametersManager $parametersManagerPropertyValue */
+        $parametersManagerPropertyValue = $parametersManagerProperty->getValue($wizard);
+        $this->assertInstanceOf(QueryParametersManager::class, $parametersManagerPropertyValue);
         $this->assertEquals(
             ['name'],
-            $requestProperty
-                ->getValue($wizard)
-                ->sorts()
+            $parametersManagerPropertyValue
+                ->getSorts()
                 ->map(fn(Sort $sort) => $sort->getField())
                 ->toArray()
         );
+
+        /** @var Request $requestPropertyValue */
+        $requestPropertyValue = $requestProperty->getValue($parametersManagerPropertyValue);
+        $this->assertInstanceOf(Request::class, $requestPropertyValue);
     }
 
     /** @test */
@@ -217,8 +227,8 @@ class EloquentQueryWizardTest extends TestCase
     /** @test */
     public function it_executes_the_same_query_regardless_of_the_order_of_applied_filters_or_sorts(): void
     {
-        $customSort = new class('name') extends AbstractEloquentSort {
-            public function handle($queryHandler, $queryBuilder, string $direction): void
+        $customSort = new class('name') extends EloquentSort {
+            public function handle($queryWizard, $queryBuilder, string $direction): void
             {
                 $queryBuilder->join(
                     'related_models',
@@ -229,18 +239,18 @@ class EloquentQueryWizardTest extends TestCase
             }
         };
 
-        $req = new Request([
+        $request = new Request([
             'filter' => ['name' => 'test'],
             'sort' => 'name',
         ]);
 
-        $usingSortFirst = EloquentQueryWizard::for(TestModel::class, $req)
+        $usingSortFirst = EloquentQueryWizard::for(TestModel::class, new QueryParametersManager($request))
             ->setAllowedSorts($customSort)
             ->setAllowedFilters('name')
             ->build()
             ->toSql();
 
-        $usingFilterFirst = EloquentQueryWizard::for(TestModel::class, $req)
+        $usingFilterFirst = EloquentQueryWizard::for(TestModel::class, new QueryParametersManager($request))
             ->setAllowedFilters('name')
             ->setAllowedSorts($customSort)
             ->build()
@@ -252,8 +262,8 @@ class EloquentQueryWizardTest extends TestCase
     /** @test */
     public function it_can_filter_when_sorting_by_joining_a_related_model_which_contains_the_same_field_name(): void
     {
-        $customSort = new class('name') extends AbstractEloquentSort {
-            public function handle($queryHandler, $queryBuilder, string $direction): void
+        $customSort = new class('name') extends EloquentSort {
+            public function handle($queryWizard, $queryBuilder, string $direction): void
             {
                 $queryBuilder->join(
                     'related_models',
@@ -264,12 +274,12 @@ class EloquentQueryWizardTest extends TestCase
             }
         };
 
-        $req = new Request([
+        $request = new Request([
             'filter' => ['name' => 'test'],
             'sort' => 'name',
         ]);
 
-        EloquentQueryWizard::for(NestedRelatedModel::class, $req)
+        EloquentQueryWizard::for(NestedRelatedModel::class, new QueryParametersManager($request))
             ->setAllowedSorts($customSort)
             ->setAllowedFilters('name')
             ->build()

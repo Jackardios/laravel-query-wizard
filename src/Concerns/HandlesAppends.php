@@ -7,8 +7,8 @@ use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 
 trait HandlesAppends
 {
-    protected ?Collection $allowedAppends = null;
-    protected ?Collection $defaultAppends = null;
+    private ?Collection $allowedAppends = null;
+    private ?Collection $defaultAppends = null;
 
     /**
      * @return string[]
@@ -33,7 +33,7 @@ trait HandlesAppends
         return $this->allowedAppends;
     }
 
-    public function setAllowedAppends($appends): self
+    public function setAllowedAppends($appends): static
     {
         $appends = is_array($appends) ? $appends : func_get_args();
 
@@ -70,7 +70,7 @@ trait HandlesAppends
         return $this->defaultAppends;
     }
 
-    public function setDefaultAppends($appends): self
+    public function setDefaultAppends($appends): static
     {
         $appends = is_array($appends) ? $appends : func_get_args();
 
@@ -88,13 +88,14 @@ trait HandlesAppends
             return collect();
         }
 
-        $appends = $this->request->appends();
-        return $appends->isNotEmpty() ? $appends : $this->getDefaultAppends();
+        $requestedAppends = $this->parametersManager->getAppends();
+
+        return $requestedAppends->isEmpty() ? $this->getDefaultAppends() : $requestedAppends;
     }
 
-    protected function ensureAllAppendsAllowed(): self
+    protected function ensureAllAppendsAllowed(): static
     {
-        $requestedAppends = $this->request->appends();
+        $requestedAppends = $this->parametersManager->getAppends();
 
         $unknownAppends = $requestedAppends->diff($this->allowedAppends);
 
