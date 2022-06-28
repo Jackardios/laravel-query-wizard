@@ -9,15 +9,15 @@ return [
      * You can customize these query string parameters here.
      */
     'parameters' => [
-        'include' => 'include',
+        'includes' => 'include',
 
-        'filter' => 'filter',
+        'filters' => 'filter',
 
-        'sort' => 'sort',
+        'sorts' => 'sort',
 
         'fields' => 'fields',
 
-        'append' => 'append',
+        'appends' => 'append',
     ],
 
     /*
@@ -40,4 +40,6 @@ return [
      * Possible values: `query_string`, `body`
      */
     'request_data_source' => 'query_string',
+
+    'array_value_separator' => ','
 ];
