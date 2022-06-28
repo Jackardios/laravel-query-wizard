@@ -5,11 +5,10 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
-use Jackardios\QueryWizard\EloquentQueryWizard;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 
@@ -30,7 +29,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_does_not_require_appends(): void
     {
-        $models = EloquentQueryWizard::for(AppendModel::class, new Request())
+        $models = EloquentQueryWizard::for(AppendModel::class)
             ->setAllowedAppends('fullname')
             ->build()
             ->get();
@@ -41,7 +40,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_attributes(): void
     {
-        $model = $this->createWizardFromAppendRequest('fullname')
+        $model = $this->createEloquentWizardWithAppends('fullname')
             ->setAllowedAppends('fullname')
             ->build()
             ->first();
@@ -54,7 +53,7 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $this->createWizardFromAppendRequest('FullName')
+        $this->createEloquentWizardWithAppends('FullName')
             ->setAllowedAppends('fullname')
             ->build()
             ->first();
@@ -63,7 +62,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_collections(): void
     {
-        $models = $this->createWizardFromAppendRequest('FullName')
+        $models = $this->createEloquentWizardWithAppends('FullName')
             ->setAllowedAppends('FullName')
             ->build()
             ->get();
@@ -74,7 +73,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_paginates(): void
     {
-        $models = $this->createWizardFromAppendRequest('FullName')
+        $models = $this->createEloquentWizardWithAppends('FullName')
             ->setAllowedAppends('FullName')
             ->build()
             ->paginate();
@@ -85,7 +84,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_simple_paginates(): void
     {
-        $models = $this->createWizardFromAppendRequest('FullName')
+        $models = $this->createEloquentWizardWithAppends('FullName')
             ->setAllowedAppends('FullName')
             ->build()
             ->simplePaginate();
@@ -96,7 +95,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_cursor_paginates(): void
     {
-        $models = $this->createWizardFromAppendRequest('FullName')
+        $models = $this->createEloquentWizardWithAppends('FullName')
             ->setAllowedAppends('FullName')
             ->build()
             ->cursorPaginate();
@@ -109,7 +108,7 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $this->createWizardFromAppendRequest('random-attribute-to-append')
+        $this->createEloquentWizardWithAppends('random-attribute-to-append')
             ->setAllowedAppends('attribute-to-append')
             ->build();
     }
@@ -117,7 +116,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_allow_multiple_appends(): void
     {
-        $model = $this->createWizardFromAppendRequest('fullname')
+        $model = $this->createEloquentWizardWithAppends('fullname')
             ->setAllowedAppends('fullname', 'randomAttribute')
             ->build()
             ->first();
@@ -128,7 +127,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_allow_multiple_appends_as_an_array(): void
     {
-        $model = $this->createWizardFromAppendRequest('fullname')
+        $model = $this->createEloquentWizardWithAppends('fullname')
             ->setAllowedAppends(['fullname', 'randomAttribute'])
             ->build()
             ->first();
@@ -139,7 +138,7 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_multiple_attributes(): void
     {
-        $model = $this->createWizardFromAppendRequest('fullname,reversename')
+        $model = $this->createEloquentWizardWithAppends('fullname,reversename')
             ->setAllowedAppends(['fullname', 'reversename'])
             ->build()
             ->first();
@@ -155,15 +154,6 @@ class AppendTest extends TestCase
 
         $this->assertEquals(['not allowed append'], $exception->unknownAppends->all());
         $this->assertEquals(['allowed append'], $exception->allowedAppends->all());
-    }
-
-    protected function createWizardFromAppendRequest(string $appends): EloquentQueryWizard
-    {
-        $request = new Request([
-            'append' => $appends,
-        ]);
-
-        return EloquentQueryWizard::for(AppendModel::class, $request);
     }
 
     protected function assertAttributeLoaded(Model $model, string $attribute): void

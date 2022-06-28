@@ -3,7 +3,7 @@
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Collection;
-use Jackardios\QueryWizard\Abstracts\Handlers\Includes\AbstractInclude;
+use Jackardios\QueryWizard\Abstracts\AbstractInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeHandler;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 
@@ -15,8 +15,8 @@ trait HandlesIncludes
      */
     abstract public function makeDefaultIncludeHandler(string $includeName);
 
-    protected ?Collection $allowedIncludes = null;
-    protected ?Collection $defaultIncludes = null;
+    private ?Collection $allowedIncludes = null;
+    private ?Collection $defaultIncludes = null;
 
     /**
      * @return AbstractInclude[]|string[]
@@ -41,12 +41,10 @@ trait HandlesIncludes
         return $this->allowedIncludes;
     }
 
-    public function setAllowedIncludes($includes): self
+    public function setAllowedIncludes($includes): static
     {
         $includes = is_array($includes) ? $includes : func_get_args();
 
-        // auto-created handlers should only be merged after user-defined handlers,
-        // otherwise the user-defined handlers will be overwritten
         $autoCreatedHandlers = collect([]);
         $userDefinedHandlers = collect($includes)
             ->filter()
@@ -55,12 +53,11 @@ trait HandlesIncludes
                     $include = $this->makeDefaultIncludeHandler($include);
                 }
 
-                $baseHandlerClasses = $this->queryHandler::getBaseIncludeHandlerClasses();
-                if (! instance_of_one_of($include, $baseHandlerClasses)) {
-                    new InvalidIncludeHandler($baseHandlerClasses);
+                if (! instance_of_one_of($include, $this->baseIncludeHandlerClasses)) {
+                    new InvalidIncludeHandler($this->baseIncludeHandlerClasses);
                 }
 
-                $autoCreatedHandlers->push($include->createOther());
+                $autoCreatedHandlers->push($include->createExtra());
 
                 return [$include->getName() => $include];
             });
@@ -99,7 +96,7 @@ trait HandlesIncludes
         return $this->defaultIncludes;
     }
 
-    public function setDefaultIncludes($includes): self
+    public function setDefaultIncludes($includes): static
     {
         $includes = is_array($includes) ? $includes : func_get_args();
 
@@ -117,13 +114,14 @@ trait HandlesIncludes
             return collect();
         }
 
-        $includes = $this->request->includes();
-        return $includes->isNotEmpty() ? $includes : $this->getDefaultIncludes();
+        $includes = $this->parametersManager->getIncludes();
+
+        return $includes->isEmpty() ? $this->getDefaultIncludes() : $includes;
     }
 
-    protected function ensureAllIncludesAllowed(): self
+    protected function ensureAllIncludesAllowed(): static
     {
-        $requestedIncludes = $this->request->includes();
+        $requestedIncludes = $this->parametersManager->getIncludes();
         $allowedIncludes = $this->getAllowedIncludes()->keys();
 
         $unknownIncludes = $requestedIncludes->diff($allowedIncludes);

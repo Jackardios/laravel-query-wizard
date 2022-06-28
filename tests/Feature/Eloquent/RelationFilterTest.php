@@ -2,10 +2,9 @@
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
-use Illuminate\Http\Request;
-use Jackardios\QueryWizard\EloquentQueryWizard;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ExactFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\PartialFilter;
+use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Eloquent\Filters\ExactFilter;
+use Jackardios\QueryWizard\Eloquent\Filters\PartialFilter;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 
@@ -16,8 +15,7 @@ use Jackardios\QueryWizard\Tests\App\Models\TestModel;
  */
 class RelationFilterTest extends TestCase
 {
-    /** @var \Illuminate\Support\Collection */
-    protected $models;
+    protected Collection $models;
 
     public function setUp(): void
     {
@@ -36,7 +34,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_related_model_property(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.name' => $this->models->first()->name,
             ])
             ->setAllowedFilters('relatedModels.name')
@@ -50,7 +48,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_results_based_on_the_partial_existence_of_a_property_in_an_array(): void
     {
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.nestedRelatedModels.name' => 'est0,est1',
             ])
             ->setAllowedFilters(new PartialFilter('relatedModels.nestedRelatedModels.name'))
@@ -65,7 +63,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_models_and_return_an_empty_collection(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.name' => 'None existing first name',
             ])
             ->setAllowedFilters('relatedModels.name')
@@ -79,7 +77,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_related_nested_model_property(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.nestedRelatedModels.name' => 'test',
             ])
             ->setAllowedFilters(new PartialFilter('relatedModels.nestedRelatedModels.name'))
@@ -93,7 +91,7 @@ class RelationFilterTest extends TestCase
     public function it_can_filter_related_model_and_related_nested_model_property(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.name' => $this->models->first()->name,
                 'relatedModels.nestedRelatedModels.name' => 'test',
             ])
@@ -113,7 +111,7 @@ class RelationFilterTest extends TestCase
         $testModels = TestModel::whereIn('id', [1, 2])->get();
 
         $results = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.id' => $testModels->map(function ($model) {
                     return $model->relatedModels->pluck('id');
                 })->flatten()->all(),
@@ -132,7 +130,7 @@ class RelationFilterTest extends TestCase
         $testModel = TestModel::create(['name' => 'John Testing Doe']);
 
         $modelsResult = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.nestedRelatedModels.name' => ' test ',
             ])
             ->setAllowedFilters(new ExactFilter('relatedModels.nestedRelatedModels.name'))
@@ -148,7 +146,7 @@ class RelationFilterTest extends TestCase
         $addRelationConstraint = false;
 
         $sql = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.name' => $this->models->first()->name,
             ])
             ->setAllowedFilters(new ExactFilter('relatedModels.name', null, null, $addRelationConstraint))
@@ -164,7 +162,7 @@ class RelationFilterTest extends TestCase
         $addRelationConstraint = false;
 
         $sql = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'relatedModels.name' => $this->models->first()->name,
             ])
             ->setAllowedFilters(new PartialFilter('relatedModels.name', null, null, $addRelationConstraint))
@@ -172,14 +170,5 @@ class RelationFilterTest extends TestCase
             ->toSql();
 
         $this->assertStringContainsString('LOWER(`relatedModels`.`name`) LIKE ?', $sql);
-    }
-
-    protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard
-    {
-        $request = new Request([
-            'filter' => $filters,
-        ]);
-
-        return EloquentQueryWizard::for(TestModel::class, $request);
     }
 }

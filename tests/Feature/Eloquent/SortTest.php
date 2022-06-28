@@ -3,14 +3,15 @@
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\ScopeFilter;
-use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\AbstractEloquentSort;
-use Jackardios\QueryWizard\Handlers\Eloquent\Sorts\FieldSort;
+use Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter;
+use Jackardios\QueryWizard\Eloquent\EloquentSort;
+use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
-use Jackardios\QueryWizard\EloquentQueryWizard;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Tests\Concerns\AssertsCollectionSorting;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Values\Sort;
@@ -24,8 +25,7 @@ class SortTest extends TestCase
 {
     use AssertsCollectionSorting;
 
-    /** @var \Illuminate\Support\Collection */
-    protected $models;
+    protected Collection $models;
 
     public function setUp(): void
     {
@@ -40,7 +40,7 @@ class SortTest extends TestCase
     public function it_can_sort_a_query_ascending(): void
     {
         $sortedModels = $this
-            ->createWizardFromSortRequest('name')
+            ->createEloquentWizardWithSorts('name')
             ->setAllowedSorts('name')
             ->build()
             ->get();
@@ -53,7 +53,7 @@ class SortTest extends TestCase
     public function it_can_sort_a_query_descending(): void
     {
         $sortedModels = $this
-            ->createWizardFromSortRequest('-name')
+            ->createEloquentWizardWithSorts('-name')
             ->setAllowedSorts('name')
             ->build()
             ->get();
@@ -66,7 +66,7 @@ class SortTest extends TestCase
     public function it_can_sort_a_query_by_alias(): void
     {
         $sortedModels = $this
-            ->createWizardFromSortRequest('name-alias')
+            ->createEloquentWizardWithSorts('name-alias')
             ->setAllowedSorts([new FieldSort('name', 'name-alias')])
             ->build()
             ->get();
@@ -78,7 +78,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_wont_sort_by_columns_that_arent_allowed_first(): void
     {
-        $this->createWizardFromSortRequest('name')->build()->get();
+        $this->createEloquentWizardWithSorts('name')->build()->get();
 
         $this->assertQueryLogDoesntContain('order by `name`');
     }
@@ -87,7 +87,7 @@ class SortTest extends TestCase
     public function it_can_allow_a_descending_sort_by_still_sort_ascending(): void
     {
         $sortedModels = $this
-            ->createWizardFromSortRequest('name')
+            ->createEloquentWizardWithSorts('name')
             ->setAllowedSorts('-name')
             ->build()
             ->get();
@@ -99,12 +99,10 @@ class SortTest extends TestCase
     /** @test */
     public function it_can_sort_a_query_by_a_related_property(): void
     {
-        $request = new Request([
+        $sortedQuery = $this->createEloquentWizardFromQuery([
             'sort' => 'related_models.name',
             'includes' => 'relatedModel',
-        ]);
-
-        $sortedQuery = EloquentQueryWizard::for(TestModel::class, $request)
+        ])
             ->setAllowedIncludes('relatedModels')
             ->setAllowedSorts('related_models.name')
             ->build()
@@ -119,7 +117,7 @@ class SortTest extends TestCase
         TestModel::query()->update(['name' => json_encode(['first' => 'abc'])]);
 
         $this
-            ->createWizardFromSortRequest('-name->first')
+            ->createEloquentWizardWithSorts('-name->first')
             ->setAllowedSorts(['name->first'])
             ->build()
             ->get();
@@ -133,7 +131,7 @@ class SortTest extends TestCase
     public function it_can_sort_by_sketchy_alias_if_its_an_allowed_sort(): void
     {
         $sortedModels = $this
-            ->createWizardFromSortRequest('-sketchy<>sort')
+            ->createEloquentWizardWithSorts('-sketchy<>sort')
             ->setAllowedSorts(new FieldSort('name', 'sketchy<>sort'))
             ->build()
             ->get();
@@ -145,11 +143,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_can_sort_a_query_with_custom_select(): void
     {
-        $request = new Request([
-            'sort' => '-id',
-        ]);
-
-        EloquentQueryWizard::for(TestModel::select('id', 'name'), $request)
+        $this->createEloquentWizardWithSorts('-id', TestModel::select('id', 'name'))
             ->setAllowedSorts('id')
             ->setDefaultSorts('id')
             ->build()
@@ -162,7 +156,7 @@ class SortTest extends TestCase
     public function it_can_sort_a_chunk_query(): void
     {
         $this
-            ->createWizardFromSortRequest('-name')
+            ->createEloquentWizardWithSorts('-name')
             ->setAllowedSorts('name')
             ->build()
             ->chunk(100, static function ($models) {
@@ -176,7 +170,7 @@ class SortTest extends TestCase
     public function it_can_guard_against_sorts_that_are_not_allowed(): void
     {
         $sortedModels = $this
-            ->createWizardFromSortRequest('name')
+            ->createEloquentWizardWithSorts('name')
             ->setAllowedSorts('name')
             ->build()
             ->get();
@@ -190,7 +184,7 @@ class SortTest extends TestCase
         $this->expectException(InvalidSortQuery::class);
 
         $this
-            ->createWizardFromSortRequest('name')
+            ->createEloquentWizardWithSorts('name')
             ->setAllowedSorts('id')
             ->build();
     }
@@ -198,7 +192,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_wont_sort_if_no_sort_query_parameter_is_given(): void
     {
-        $builderQuery = EloquentQueryWizard::for(TestModel::class, new Request())
+        $builderQuery = $this->createEloquentWizardFromQuery()
             ->setAllowedSorts('name')
             ->build()
             ->toSql();
@@ -212,7 +206,7 @@ class SortTest extends TestCase
     public function it_wont_sort_sketchy_sort_requests(): void
     {
         $this
-            ->createWizardFromSortRequest('id->"\') asc --injection')
+            ->createEloquentWizardWithSorts('id->"\') asc --injection')
             ->build()
             ->get();
 
@@ -222,7 +216,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_uses_default_sort_parameter_when_no_sort_was_requested(): void
     {
-        $sortedModels = EloquentQueryWizard::for(TestModel::class, new Request())
+        $sortedModels = $this->createEloquentWizardFromQuery()
             ->setAllowedSorts('name')
             ->setDefaultSorts('name')
             ->build()
@@ -235,7 +229,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_doesnt_use_the_default_sort_parameter_when_a_sort_was_requested(): void
     {
-        $this->createWizardFromSortRequest('id')
+        $this->createEloquentWizardWithSorts('id')
             ->setAllowedSorts('id')
             ->setDefaultSorts('name')
             ->build()
@@ -247,14 +241,14 @@ class SortTest extends TestCase
     /** @test */
     public function it_allows_default_custom_sort_class_parameter(): void
     {
-        $sortClass = new class('custom_name') extends AbstractEloquentSort {
-            public function handle($queryHandler, $queryBuilder, string $direction): void
+        $sortClass = new class('custom_name') extends EloquentSort {
+            public function handle($queryWizard, $queryBuilder, string $direction): void
             {
                 $queryBuilder->orderBy('name', $direction);
             }
         };
 
-        $sortedModels = EloquentQueryWizard::for(TestModel::class, new Request())
+        $sortedModels = $this->createEloquentWizardFromQuery()
             ->setAllowedSorts($sortClass)
             ->setDefaultSorts(new Sort('custom_name'))
             ->build()
@@ -267,7 +261,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_uses_default_descending_sort_parameter(): void
     {
-        $sortedModels = EloquentQueryWizard::for(TestModel::class, new Request())
+        $sortedModels = $this->createEloquentWizardFromQuery()
             ->setAllowedSorts('-name')
             ->setDefaultSorts('-name')
             ->build()
@@ -280,14 +274,14 @@ class SortTest extends TestCase
     /** @test */
     public function it_allows_multiple_default_sort_parameters(): void
     {
-        $sortClass = new class('custom_name') extends AbstractEloquentSort {
-            public function handle($queryHandler, $queryBuilder, string $direction): void
+        $sortClass = new class('custom_name') extends EloquentSort {
+            public function handle($queryWizard, $queryBuilder, string $direction): void
             {
                 $queryBuilder->orderBy('name', $direction);
             }
         };
 
-        $sortedModels = EloquentQueryWizard::for(TestModel::class, new Request())
+        $sortedModels = $this->createEloquentWizardFromQuery()
             ->setAllowedSorts($sortClass, 'id')
             ->setDefaultSorts('custom_name', new Sort('id', SortDirection::DESCENDING))
             ->build()
@@ -302,7 +296,7 @@ class SortTest extends TestCase
     {
         DB::enableQueryLog();
         $sortedModels = $this
-            ->createWizardFromSortRequest('name')
+            ->createEloquentWizardWithSorts('name')
             ->setAllowedSorts('id', 'name')
             ->build()
             ->get();
@@ -315,7 +309,7 @@ class SortTest extends TestCase
     public function it_can_allow_multiple_sort_parameters_as_an_array(): void
     {
         $sortedModels = $this
-            ->createWizardFromSortRequest('name')
+            ->createEloquentWizardWithSorts('name')
             ->setAllowedSorts(['id', 'name'])
             ->build()
             ->get();
@@ -329,7 +323,7 @@ class SortTest extends TestCase
         factory(TestModel::class, 3)->create(['name' => 'foo']);
 
         $sortedModels = $this
-            ->createWizardFromSortRequest('name,-id')
+            ->createEloquentWizardWithSorts('name,-id')
             ->setAllowedSorts('name', 'id')
             ->build()
             ->get();
@@ -342,15 +336,15 @@ class SortTest extends TestCase
     /** @test */
     public function it_can_sort_by_a_custom_sort_class(): void
     {
-        $sortClass = new class('custom_name') extends AbstractEloquentSort {
-            public function handle($queryHandler, $queryBuilder, string $direction): void
+        $sortClass = new class('custom_name') extends EloquentSort {
+            public function handle($queryWizard, $queryBuilder, string $direction): void
             {
                 $queryBuilder->orderBy('name', $direction);
             }
         };
 
         $sortedModels = $this
-            ->createWizardFromSortRequest('custom_name')
+            ->createEloquentWizardWithSorts('custom_name')
             ->setAllowedSorts($sortClass)
             ->build()
             ->get();
@@ -367,7 +361,7 @@ class SortTest extends TestCase
         $testModel = TestModel::create(['name' => 'zzzzzzzz']);
 
         $models = $this
-            ->createWizardFromSortRequest('nickname')
+            ->createEloquentWizardWithSorts('nickname')
             ->setAllowedSorts($sort)
             ->build()
             ->get();
@@ -379,7 +373,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_can_sort_descending_with_an_alias(): void
     {
-        $this->createWizardFromSortRequest('-exposed_property_name')
+        $this->createEloquentWizardWithSorts('-exposed_property_name')
             ->setAllowedSorts(new FieldSort('name', 'exposed_property_name'))
             ->build()
             ->get();
@@ -402,7 +396,7 @@ class SortTest extends TestCase
     /** @test */
     public function given_a_default_sort_a_sort_alias_will_still_be_resolved(): void
     {
-        $sql = $this->createWizardFromSortRequest('-joined')
+        $sql = $this->createEloquentWizardWithSorts('-joined')
             ->setDefaultSorts('name')
             ->setAllowedSorts(new FieldSort('created_at', 'joined'))
             ->build()
@@ -414,20 +408,20 @@ class SortTest extends TestCase
     /** @test */
     public function it_can_sort_and_use_scoped_filters_at_the_same_time(): void
     {
-        $sortClass = new class('custom') extends AbstractEloquentSort {
-            public function handle($queryHandler, $queryBuilder, string $direction): void
+        $sortClass = new class('custom') extends EloquentSort {
+            public function handle($queryWizard, $queryBuilder, string $direction): void
             {
                 $queryBuilder->orderBy('name', $direction);
             }
         };
 
-        $sortedModels = EloquentQueryWizard::for(TestModel::class, new Request([
+        $sortedModels = $this->createEloquentWizardFromQuery([
             'filter' => [
                 'name' => 'foo',
                 'between' => '2016-01-01,2017-01-01',
             ],
             'sort' => '-custom',
-        ]))
+        ])
             ->setAllowedFilters([
                 new ScopeFilter('named', 'name'),
                 new ScopeFilter('createdBetween', 'between'),
@@ -444,7 +438,7 @@ class SortTest extends TestCase
     /** @test */
     public function raw_sorts_do_not_get_purged_when_specifying_allowed_sorts(): void
     {
-        $query = $this->createWizardFromSortRequest('-name')
+        $query = $this->createEloquentWizardWithSorts('-name')
             ->orderByRaw('RANDOM()')
             ->setAllowedSorts('name')
             ->build();
@@ -455,14 +449,14 @@ class SortTest extends TestCase
     /** @test */
     public function the_default_direction_of_an_allow_sort_can_be_set(): void
     {
-        $sortClass = new class('custom_name') extends AbstractEloquentSort {
-            public function handle($queryHandler, $queryBuilder, string $direction): void
+        $sortClass = new class('custom_name') extends EloquentSort {
+            public function handle($queryWizard, $queryBuilder, string $direction): void
             {
                 $queryBuilder->orderBy('name', $direction);
             }
         };
 
-        $sortedModels = EloquentQueryWizard::for(TestModel::class, new Request())
+        $sortedModels = $this->createEloquentWizardFromQuery()
             ->setAllowedSorts($sortClass)
             ->setDefaultSorts('-custom_name')
             ->build()
@@ -470,14 +464,5 @@ class SortTest extends TestCase
 
         $this->assertQueryExecuted('select * from `test_models` order by `name` desc');
         $this->assertSortedDescending($sortedModels, 'name');
-    }
-
-    protected function createWizardFromSortRequest(string $sort): EloquentQueryWizard
-    {
-        $request = new Request([
-            'sort' => $sort,
-        ]);
-
-        return EloquentQueryWizard::for(TestModel::class, $request);
     }
 }

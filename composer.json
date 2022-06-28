@@ -28,8 +28,8 @@
         }
     ],
     "require": {
-        "php": "^7.4|^8.0",
-        "laravel/framework": "^6.20.13|^7.30.4|^8.22.2"
+        "php": "^8.0",
+        "laravel/framework": "^8.63.0"
     },
     "require-dev": {
         "ext-json": "*",

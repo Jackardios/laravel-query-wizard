@@ -2,12 +2,12 @@
 
 namespace Jackardios\QueryWizard\Exceptions;
 
-use Jackardios\QueryWizard\Abstracts\Handlers\AbstractQueryHandler;
+use Jackardios\QueryWizard\Abstracts\AbstractQueryWizard;
 use LogicException;
 
 class InvalidQueryHandler extends LogicException
 {
-    public function __construct(string $baseQueryHandlerClasses = AbstractQueryHandler::class)
+    public function __construct(string $baseQueryHandlerClasses = AbstractQueryWizard::class)
     {
         parent::__construct("Invalid QueryHandler class. QueryHandler must extend `$baseQueryHandlerClasses`");
     }

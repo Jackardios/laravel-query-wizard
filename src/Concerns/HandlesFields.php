@@ -9,8 +9,8 @@ use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 
 trait HandlesFields
 {
-    protected ?Collection $allowedFields = null;
-    protected ?Collection $preparedFields = null;
+    private ?Collection $allowedFields = null;
+    private ?Collection $preparedFields = null;
     protected ?string $defaultFieldsKey = null;
 
     /**
@@ -36,7 +36,7 @@ trait HandlesFields
         return $this->allowedFields;
     }
 
-    public function setAllowedFields($fields): self
+    public function setAllowedFields($fields): static
     {
         $fields = is_array($fields) ? $fields : func_get_args();
 
@@ -69,7 +69,7 @@ trait HandlesFields
         return $this->defaultFieldsKey;
     }
 
-    public function setDefaultFieldsKey(string $key): self
+    public function setDefaultFieldsKey(string $key): static
     {
         $this->defaultFieldsKey = $key;
 
@@ -99,7 +99,7 @@ trait HandlesFields
 
     protected function getFormattedFields(): Collection
     {
-        $requestedFields = $this->request->fields();
+        $requestedFields = $this->parametersManager->getFields();
         $formattedFields = collect();
 
         /**
@@ -133,9 +133,9 @@ trait HandlesFields
         return [$key, $field];
     }
 
-    protected function ensureAllFieldsAllowed(Collection $fields): self
+    protected function ensureAllFieldsAllowed(Collection $formattedFields): static
     {
-        $requestedFields = $fields
+        $requestedFields = $formattedFields
             ->map(fn ($fields, $key) => $this->prependFieldsWithKey($fields, $key))
             ->flatten()
             ->unique()

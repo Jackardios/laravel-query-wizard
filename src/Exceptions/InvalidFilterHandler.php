@@ -2,7 +2,7 @@
 
 namespace Jackardios\QueryWizard\Exceptions;
 
-use Jackardios\QueryWizard\Abstracts\Handlers\Filters\AbstractFilter;
+use Jackardios\QueryWizard\Abstracts\AbstractFilter;
 use LogicException;
 
 class InvalidFilterHandler extends LogicException

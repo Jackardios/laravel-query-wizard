@@ -2,15 +2,14 @@
 
 namespace Jackardios\QueryWizard\Tests\Feature\Model;
 
+use Jackardios\QueryWizard\Model\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Handlers\Model\Includes\AbstractModelInclude;
-use Jackardios\QueryWizard\Handlers\Model\Includes\CountInclude;
-use Jackardios\QueryWizard\Handlers\Model\Includes\RelationshipInclude;
+use Jackardios\QueryWizard\Model\ModelInclude;
+use Jackardios\QueryWizard\Model\Includes\CountInclude;
+use Jackardios\QueryWizard\Model\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
-use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\App\Models\MorphModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 
@@ -21,8 +20,7 @@ use Jackardios\QueryWizard\Tests\App\Models\TestModel;
  */
 class IncludeTest extends TestCase
 {
-    /** @var TestModel */
-    protected $model;
+    protected TestModel $model;
 
     public function setUp(): void
     {
@@ -45,7 +43,7 @@ class IncludeTest extends TestCase
     public function it_can_handle_empty_includes(): void
     {
         $model = TestModel::find($this->model->getKey());
-        $modelWizard = ModelQueryWizard::for($model, new Request())
+        $modelWizard = $this->createModelWizardFromQuery([], $model)
             ->setAllowedIncludes([
                 null,
                 [],
@@ -60,7 +58,7 @@ class IncludeTest extends TestCase
     public function it_can_include_model_relations(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModels')
+            ->createModelWizardWithIncludes('relatedModels')
             ->setAllowedIncludes('relatedModels')
             ->build();
 
@@ -71,7 +69,7 @@ class IncludeTest extends TestCase
     public function it_can_include_model_relations_by_alias(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('include-alias')
+            ->createModelWizardWithIncludes('include-alias')
             ->setAllowedIncludes(new RelationshipInclude('relatedModels', 'include-alias'))
             ->build();
 
@@ -82,7 +80,7 @@ class IncludeTest extends TestCase
     public function it_can_include_an_includes_count(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModelsCount')
+            ->createModelWizardWithIncludes('relatedModelsCount')
             ->setAllowedIncludes('relatedModelsCount')
             ->build();
 
@@ -93,7 +91,7 @@ class IncludeTest extends TestCase
     public function allowing_an_include_also_allows_the_include_count(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModelsCount')
+            ->createModelWizardWithIncludes('relatedModelsCount')
             ->setAllowedIncludes('relatedModels')
             ->build();
 
@@ -104,7 +102,7 @@ class IncludeTest extends TestCase
     public function it_can_include_nested_model_relations(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModels.nestedRelatedModels')
+            ->createModelWizardWithIncludes('relatedModels.nestedRelatedModels')
             ->setAllowedIncludes('relatedModels.nestedRelatedModels')
             ->build();
 
@@ -115,7 +113,7 @@ class IncludeTest extends TestCase
     public function it_can_include_nested_model_relations_by_alias(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('nested-alias')
+            ->createModelWizardWithIncludes('nested-alias')
             ->setAllowedIncludes(
                 new RelationshipInclude('relatedModels.nestedRelatedModels', 'nested-alias')
             )
@@ -128,7 +126,7 @@ class IncludeTest extends TestCase
     public function it_can_include_model_relations_from_nested_model_relations(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModels')
+            ->createModelWizardWithIncludes('relatedModels')
             ->setAllowedIncludes('relatedModels.nestedRelatedModels')
             ->build();
 
@@ -139,7 +137,7 @@ class IncludeTest extends TestCase
     public function allowing_a_nested_include_only_allows_the_include_count_for_the_first_level(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModelsCount')
+            ->createModelWizardWithIncludes('relatedModelsCount')
             ->setAllowedIncludes('relatedModels.nestedRelatedModels')
             ->build();
 
@@ -148,14 +146,14 @@ class IncludeTest extends TestCase
         $this->expectException(InvalidIncludeQuery::class);
 
         $this
-            ->createWizardFromIncludeRequest('nestedRelatedModelsCount')
+            ->createModelWizardWithIncludes('nestedRelatedModelsCount')
             ->setAllowedIncludes('relatedModels.nestedRelatedModels')
             ->build();
 
         $this->expectException(InvalidIncludeQuery::class);
 
         $this
-            ->createWizardFromIncludeRequest('related-models.nestedRelatedModelsCount')
+            ->createModelWizardWithIncludes('related-models.nestedRelatedModelsCount')
             ->setAllowedIncludes('relatedModels.nestedRelatedModels')
             ->build();
     }
@@ -164,7 +162,7 @@ class IncludeTest extends TestCase
     public function it_can_include_morph_model_relations(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('morphModels')
+            ->createModelWizardWithIncludes('morphModels')
             ->setAllowedIncludes('morphModels')
             ->build();
 
@@ -174,11 +172,7 @@ class IncludeTest extends TestCase
     /** @test */
     public function it_can_include_reverse_morph_model_relations(): void
     {
-        $request = new Request([
-            'include' => 'parent',
-        ]);
-
-        $model = ModelQueryWizard::for(MorphModel::query()->first(), $request)
+        $model = $this->createModelWizardWithIncludes('parent', MorphModel::query()->first())
             ->setAllowedIncludes('parent')
             ->build();
 
@@ -189,7 +183,7 @@ class IncludeTest extends TestCase
     public function it_can_include_camel_case_includes(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModels')
+            ->createModelWizardWithIncludes('relatedModels')
             ->setAllowedIncludes('relatedModels')
             ->build();
 
@@ -202,7 +196,7 @@ class IncludeTest extends TestCase
         $this->expectException(InvalidIncludeQuery::class);
 
         $this
-            ->createWizardFromIncludeRequest('random-model')
+            ->createModelWizardWithIncludes('random-model')
             ->setAllowedIncludes('relatedModels')
             ->build();
     }
@@ -211,7 +205,7 @@ class IncludeTest extends TestCase
     public function it_can_allow_multiple_includes(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModels')
+            ->createModelWizardWithIncludes('relatedModels')
             ->setAllowedIncludes('relatedModels', 'otherRelatedModels')
             ->build();
 
@@ -222,7 +216,7 @@ class IncludeTest extends TestCase
     public function it_can_allow_multiple_includes_as_an_array(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModels')
+            ->createModelWizardWithIncludes('relatedModels')
             ->setAllowedIncludes(['relatedModels', 'otherRelatedModels'])
             ->build();
 
@@ -233,7 +227,7 @@ class IncludeTest extends TestCase
     public function it_can_include_multiple_model_relations(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedModels,otherRelatedModels')
+            ->createModelWizardWithIncludes('relatedModels,otherRelatedModels')
             ->setAllowedIncludes(['relatedModels', 'otherRelatedModels'])
             ->build();
 
@@ -247,7 +241,7 @@ class IncludeTest extends TestCase
         DB::enableQueryLog();
 
         $this
-            ->createWizardFromIncludeRequest('relatedThroughPivotModels')
+            ->createModelWizardWithIncludes('relatedThroughPivotModels')
             ->setAllowedIncludes('relatedThroughPivotModels')
             ->build();
 
@@ -261,7 +255,7 @@ class IncludeTest extends TestCase
     public function it_returns_correct_id_when_including_many_to_many_relationship(): void
     {
         $model = $this
-            ->createWizardFromIncludeRequest('relatedThroughPivotModels')
+            ->createModelWizardWithIncludes('relatedThroughPivotModels')
             ->setAllowedIncludes('relatedThroughPivotModels')
             ->build();
 
@@ -282,11 +276,7 @@ class IncludeTest extends TestCase
     /** @test */
     public function it_can_alias_multiple_allowed_includes(): void
     {
-        $request = new Request([
-            'include' => 'relatedModelsCount,relationShipAlias',
-        ]);
-
-        $model = ModelQueryWizard::for($this->model, $request)
+        $model = $this->createModelWizardWithIncludes('relatedModelsCount,relationShipAlias')
             ->setAllowedIncludes([
                 new CountInclude('relatedModels', 'relatedModelsCount'),
                 new RelationshipInclude('otherRelatedModels', 'relationShipAlias'),
@@ -300,15 +290,15 @@ class IncludeTest extends TestCase
     /** @test */
     public function it_can_include_custom_include_class(): void
     {
-        $includeClass = new class('relatedModels') extends AbstractModelInclude {
-            public function handle($queryHandler, $model): void
+        $includeClass = new class('relatedModels') extends ModelInclude {
+            public function handle($queryWizard, $model): void
             {
                 $model->loadCount($this->getInclude());
             }
         };
 
         $modelResult = $this
-            ->createWizardFromIncludeRequest('relatedModels')
+            ->createModelWizardWithIncludes('relatedModels')
             ->setAllowedIncludes($includeClass)
             ->build();
 
@@ -318,28 +308,19 @@ class IncludeTest extends TestCase
     /** @test */
     public function it_can_include_custom_include_class_by_alias(): void
     {
-        $includeClass = new class('relatedModels', 'relatedModelsCount') extends AbstractModelInclude {
-            public function handle($queryHandler, $model): void
+        $includeClass = new class('relatedModels', 'relatedModelsCount') extends ModelInclude {
+            public function handle($queryWizard, $model): void
             {
                 $model->loadCount($this->getInclude());
             }
         };
 
         $modelResult = $this
-            ->createWizardFromIncludeRequest('relatedModelsCount')
+            ->createModelWizardWithIncludes('relatedModelsCount')
             ->setAllowedIncludes($includeClass)
             ->build();
 
         $this->assertNotNull($modelResult->related_models_count);
-    }
-
-    protected function createWizardFromIncludeRequest(string $includes): ModelQueryWizard
-    {
-        $request = new Request([
-            'include' => $includes,
-        ]);
-
-        return ModelQueryWizard::for($this->model, $request);
     }
 
     /**
@@ -349,5 +330,11 @@ class IncludeTest extends TestCase
     protected function assertRelationLoaded($model, string $relation): void
     {
         $this->assertTrue($model->relationLoaded($relation), "The `{$relation}` relation was expected but not loaded.");
+    }
+
+
+    protected function createModelWizardWithIncludes(array|string $includes, $model = null): ModelQueryWizard
+    {
+        return parent::createModelWizardWithIncludes($includes, $model ?? $this->model);
     }
 }

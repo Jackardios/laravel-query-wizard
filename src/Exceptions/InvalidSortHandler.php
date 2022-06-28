@@ -2,7 +2,7 @@
 
 namespace Jackardios\QueryWizard\Exceptions;
 
-use Jackardios\QueryWizard\Abstracts\Handlers\Sorts\AbstractSort;
+use Jackardios\QueryWizard\Abstracts\AbstractSort;
 use LogicException;
 
 class InvalidSortHandler extends LogicException

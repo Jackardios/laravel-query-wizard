@@ -18,15 +18,15 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
     {
         $this->mergeConfigFrom(__DIR__.'/../config/query-wizard.php', 'query-wizard');
 
-        $this->app->bind(QueryWizardRequest::class, function ($app) {
-            return QueryWizardRequest::fromRequest($app['request']);
+        $this->app->bind(QueryParametersManager::class, function ($app) {
+            return new QueryParametersManager($app['request']);
         });
     }
 
     public function provides(): array
     {
         return [
-            QueryWizardRequest::class,
+            QueryParametersManager::class,
         ];
     }
 }

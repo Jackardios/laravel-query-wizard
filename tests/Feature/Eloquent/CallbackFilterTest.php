@@ -3,10 +3,9 @@
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
-use Jackardios\QueryWizard\EloquentQueryWizard;
-use Jackardios\QueryWizard\Handlers\Eloquent\EloquentQueryHandler;
-use Jackardios\QueryWizard\Handlers\Eloquent\Filters\CallbackFilter;
+use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
+use Jackardios\QueryWizard\Eloquent\Filters\CallbackFilter;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 
@@ -17,8 +16,7 @@ use Jackardios\QueryWizard\Tests\App\Models\TestModel;
  */
 class CallbackFilterTest extends TestCase
 {
-    /** @var \Illuminate\Support\Collection */
-    protected $models;
+    protected Collection $models;
 
     public function setUp(): void
     {
@@ -31,11 +29,11 @@ class CallbackFilterTest extends TestCase
     public function it_should_filter_by_closure(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'callback' => $this->models->first()->name,
             ])
             ->setAllowedFilters(
-                new CallbackFilter('callback', function (EloquentQueryHandler $queryHandler, Builder $queryBuilder, $value) {
+                new CallbackFilter('callback', function (EloquentQueryWizard $queryWizard, Builder $queryBuilder, $value) {
                     $queryBuilder->where('name', $value);
                 })
             )
@@ -49,7 +47,7 @@ class CallbackFilterTest extends TestCase
     public function it_should_filter_by_array_callback(): void
     {
         $models = $this
-            ->createWizardFromFilterRequest([
+            ->createEloquentWizardWithFilters([
                 'callback' => $this->models->first()->name,
             ])
             ->setAllowedFilters(new CallbackFilter('callback', [$this, 'filterCallback']))
@@ -59,17 +57,8 @@ class CallbackFilterTest extends TestCase
         $this->assertCount(1, $models);
     }
 
-    public function filterCallback(EloquentQueryHandler $queryHandler, Builder $queryBuilder, $value): void
+    public function filterCallback(EloquentQueryWizard $queryWizard, Builder $queryBuilder, $value): void
     {
         $queryBuilder->where('name', $value);
-    }
-
-    protected function createWizardFromFilterRequest(array $filters): EloquentQueryWizard
-    {
-        $request = new Request([
-            'filter' => $filters,
-        ]);
-
-        return EloquentQueryWizard::for(TestModel::class, $request);
     }
 }
