@@ -18,9 +18,14 @@ class QueryParametersManager
     protected string $arrayValueSeparator;
 
     public function __construct(
-        protected Request $request
+        protected ?Request $request = null
     ) {
         $this->arrayValueSeparator = config('query-wizard.array_value_separator', ',');
+    }
+
+    public function getRequest(): ?Request
+    {
+        return $this->request;
     }
 
     public function getFields(): Collection
