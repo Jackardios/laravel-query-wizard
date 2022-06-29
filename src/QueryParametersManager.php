@@ -200,6 +200,14 @@ class QueryParametersManager
             return $this->separateToArray($filterValue);
         }
 
+        if ($filterValue === 'true') {
+            return true;
+        }
+
+        if ($filterValue === 'false') {
+            return false;
+        }
+
         return $filterValue;
     }
 }
