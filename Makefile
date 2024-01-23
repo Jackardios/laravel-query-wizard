@@ -1,11 +1,11 @@
-.PHONY: up down test coverage help
+.PHONY: up down wait test coverage help
 
 .DEFAULT_GOAL := help
 
 ## mysql config
 MYSQL_VERSION ?= 8.0
 MYSQL_CONTAINER_IMAGE := mysql:${MYSQL_VERSION}
-MYSQL_CONTAINER_NAME := laravel_query_wizard_mysql
+MYSQL_CONTAINER_NAME := laravel-query-wizard-mysql
 MYSQL_HOST_PORT := 23306
 MYSQL_DATABASE := test
 MYSQL_USER := test
