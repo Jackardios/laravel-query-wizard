@@ -8,6 +8,7 @@ use Jackardios\QueryWizard\Model\ModelInclude;
 
 class RelationshipInclude extends ModelInclude
 {
+    /** {@inheritdoc} */
     public function handle($queryWizard, $model): void
     {
         $relatedTables = collect(explode('.', $this->getInclude()));

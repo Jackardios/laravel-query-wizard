@@ -2,6 +2,7 @@
 
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 
@@ -13,7 +14,7 @@ class TrashedFilter extends EloquentFilter
     }
 
     /**
-     * @param SoftDeletes $queryBuilder
+     * @param SoftDeletes&Builder $queryBuilder
      */
     public function handle($queryWizard, $queryBuilder, $value): void
     {

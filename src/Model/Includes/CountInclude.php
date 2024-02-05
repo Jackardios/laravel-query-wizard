@@ -14,6 +14,7 @@ class CountInclude extends ModelInclude
         parent::__construct($include, $alias);
     }
 
+    /** {@inheritdoc} */
     public function handle($queryWizard, $model): void
     {
         $model->loadCount($this->getInclude());

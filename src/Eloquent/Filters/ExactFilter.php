@@ -27,6 +27,7 @@ class ExactFilter extends EloquentFilter
         $this->withRelationConstraint = $value;
     }
 
+    /** {@inheritdoc} */
     public function handle($queryWizard, Builder $queryBuilder, $value): void
     {
         $propertyName = $this->getPropertyName();

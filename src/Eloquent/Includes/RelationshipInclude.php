@@ -9,6 +9,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 
 class RelationshipInclude extends EloquentInclude
 {
+    /** {@inheritdoc} */
     public function handle($queryWizard, Builder $queryBuilder): void
     {
         $relatedTables = collect(explode('.', $this->getInclude()));

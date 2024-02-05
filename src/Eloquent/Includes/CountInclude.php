@@ -15,6 +15,7 @@ class CountInclude extends EloquentInclude
         parent::__construct($include, $alias);
     }
 
+    /** {@inheritdoc} */
     public function handle($queryWizard, Builder $queryBuilder): void
     {
         $queryBuilder->withCount($this->getInclude());

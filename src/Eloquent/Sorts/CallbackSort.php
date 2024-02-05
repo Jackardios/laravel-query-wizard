@@ -26,6 +26,7 @@ class CallbackSort extends EloquentSort
         $this->callback = $callback;
     }
 
+    /** {@inheritdoc} */
     public function handle($queryWizard, Builder $queryBuilder, string $direction): void
     {
         call_user_func($this->callback, $queryWizard, $queryBuilder, $direction, $this->getPropertyName());

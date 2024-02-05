@@ -26,7 +26,8 @@ class CallbackFilter extends EloquentFilter
 
         $this->callback = $callback;
     }
-
+    
+    /** {@inheritdoc} */
     public function handle($queryWizard, Builder $queryBuilder, $value): void
     {
         call_user_func($this->callback, $queryWizard, $queryBuilder, $value, $this->getPropertyName());
