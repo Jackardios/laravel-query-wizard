@@ -14,14 +14,9 @@ class RelationshipInclude extends EloquentInclude
     {
         $relatedTables = collect(explode('.', $this->getInclude()));
 
-        $eagerLoads = $queryBuilder->getEagerLoads();
         $withs = $relatedTables
-            ->mapWithKeys(function ($table, $key) use ($queryWizard, $relatedTables, $eagerLoads) {
+            ->mapWithKeys(function ($table, $key) use ($queryWizard, $relatedTables) {
                 $fullRelationName = $relatedTables->slice(0, $key + 1)->implode('.');
-
-                if (array_key_exists($fullRelationName, $eagerLoads)) {
-                    return [];
-                }
 
                 $key = Str::plural(Str::snake($fullRelationName));
                 $fields = method_exists($queryWizard, 'getFieldsByKey') ? $queryWizard->getFieldsByKey($key) : null;
@@ -37,7 +32,7 @@ class RelationshipInclude extends EloquentInclude
             ->filter()
             ->toArray();
 
-        $queryBuilder->setEagerLoads(array_merge($eagerLoads, $withs));
+        $queryBuilder->with($withs);
     }
 
     protected function getIndividualRelationshipPathsFromInclude(string $include): Collection
