@@ -58,7 +58,7 @@ trait HandlesFields
 
     public function getRootFieldsKey(): string
     {
-        if (!($this->rootFieldsKey instanceof Collection)) {
+        if ($this->rootFieldsKey === null) {
             $rootFieldsKeyFromCallback = $this->rootFieldsKey();
             if (!$rootFieldsKeyFromCallback) {
                 throw new RootFieldsKeyIsNotDefined();
