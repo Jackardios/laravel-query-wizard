@@ -72,7 +72,7 @@ class EloquentQueryWizard extends AbstractQueryWizard
         throw InvalidSubject::make($this->subject);
     }
 
-    public function defaultFieldsKey(): string
+    public function rootFieldsKey(): string
     {
         return $this->subject->getModel()->getTable();
     }
@@ -108,42 +108,49 @@ class EloquentQueryWizard extends AbstractQueryWizard
     public function handleForwardedResult(mixed $result)
     {
         if ($result instanceof Model) {
-            $this->addAppendsToResults(collect([$result]));
+            $this->handleModels(collect([$result]));
         }
 
         if ($result instanceof Collection) {
-            $this->addAppendsToResults($result);
+            $this->handleModels($result);
         }
 
         if ($result instanceof LengthAwarePaginator
             || $result instanceof Paginator
             || $result instanceof CursorPaginator) {
-            $this->addAppendsToResults(collect($result->items()));
+            $this->handleModels(collect($result->items()));
         }
 
         return $result;
     }
 
-    protected function addAppendsToResults(Collection $results): void
+    /**
+     * @param Collection<int, Model> $models
+     * @return void
+     */
+    protected function handleModels(Collection $models): void
     {
-        $requestedAppends = $this->getAppends();
+        if ($requestedAppends = $this->getAppends()->toArray()) {
+            $models->each(function (Model $model) use ($requestedAppends) {
+                return $model->append($requestedAppends);
+            });
+        }
 
-        if ($requestedAppends->isNotEmpty()) {
-            $results->each(function (Model $result) use ($requestedAppends) {
-                return $result->append($requestedAppends->toArray());
+        if ($rootFields = $this->getRootFields()) {
+            $visibleAttributes = [...$requestedAppends, ...$rootFields];
+            $models->each(function (Model $model) use ($visibleAttributes) {
+                return $model->setVisible($visibleAttributes);
             });
         }
     }
 
     protected function handleFields(): static
     {
-        $requestedFields = $this->getFields();
-        $defaultFieldsKey = $this->getDefaultFieldsKey();
-        $modelFields = $requestedFields->get($defaultFieldsKey);
+        $rootFields = $this->getRootFields();
 
-        if (!empty($modelFields)) {
-            $modelFields = $this->prependFieldsWithKey($modelFields);
-            $this->subject->select($modelFields);
+        if (!empty($rootFields)) {
+            $rootFields = $this->prependFieldsWithKey($rootFields, $this->getRootFieldsKey());
+            $this->subject->select($rootFields);
         }
 
         return $this;

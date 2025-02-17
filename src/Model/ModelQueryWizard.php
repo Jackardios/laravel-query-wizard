@@ -32,7 +32,7 @@ class ModelQueryWizard extends AbstractQueryWizard
         parent::__construct($subject, $parametersManager);
     }
 
-    protected function defaultFieldsKey(): string
+    protected function rootFieldsKey(): string
     {
         return $this->subject->getTable();
     }
@@ -63,14 +63,10 @@ class ModelQueryWizard extends AbstractQueryWizard
 
     protected function handleFields(): static
     {
-        $requestedFields = $this->getFields();
-        $defaultFieldsKey = $this->getDefaultFieldsKey();
-        $modelFields = $requestedFields->get($defaultFieldsKey);
+        $rootFields = $this->getRootFields();
 
-        if (!empty($modelFields)) {
-            $this->subject = $this->subject
-                ->newInstance([], true)
-                ->setRawAttributes($this->subject->only($modelFields));
+        if (!empty($rootFields)) {
+            $this->subject = $this->subject->setVisible($rootFields);
         }
 
         return $this;

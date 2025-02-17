@@ -4,14 +4,14 @@ namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Jackardios\QueryWizard\Exceptions\DefaultFieldsKeyIsNotDefined;
+use Jackardios\QueryWizard\Exceptions\RootFieldsKeyIsNotDefined;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 
 trait HandlesFields
 {
     private ?Collection $allowedFields = null;
     private ?Collection $preparedFields = null;
-    protected ?string $defaultFieldsKey = null;
+    protected ?string $rootFieldsKey = null;
 
     /**
      * @return string[]
@@ -51,27 +51,27 @@ trait HandlesFields
         return $this;
     }
 
-    protected function defaultFieldsKey(): string
+    protected function rootFieldsKey(): string
     {
         return "";
     }
 
-    public function getDefaultFieldsKey(): string
+    public function getRootFieldsKey(): string
     {
-        if (!($this->defaultFieldsKey instanceof Collection)) {
-            $defaultFieldsKeyFromCallback = $this->defaultFieldsKey();
-            if (!$defaultFieldsKeyFromCallback) {
-                throw new DefaultFieldsKeyIsNotDefined();
+        if (!($this->rootFieldsKey instanceof Collection)) {
+            $rootFieldsKeyFromCallback = $this->rootFieldsKey();
+            if (!$rootFieldsKeyFromCallback) {
+                throw new RootFieldsKeyIsNotDefined();
             }
-            $this->setDefaultFieldsKey($defaultFieldsKeyFromCallback);
+            $this->setRootFieldsKey($rootFieldsKeyFromCallback);
         }
 
-        return $this->defaultFieldsKey;
+        return $this->rootFieldsKey;
     }
 
-    public function setDefaultFieldsKey(string $key): static
+    public function setRootFieldsKey(string $key): static
     {
-        $this->defaultFieldsKey = $key;
+        $this->rootFieldsKey = $key;
 
         return $this;
     }
@@ -95,6 +95,11 @@ trait HandlesFields
     public function getFieldsByKey(string $key): array
     {
         return $this->getFields()->get($key, []);
+    }
+
+    public function getRootFields(): array
+    {
+        return $this->getFieldsByKey($this->getRootFieldsKey());
     }
 
     protected function getFormattedFields(): Collection
@@ -128,7 +133,7 @@ trait HandlesFields
     protected function splitField(string $rawField): array {
         $parts = explode('.', $rawField);
         $field = array_pop($parts);
-        $key = empty($parts) ? $this->getDefaultFieldsKey() : implode('.', $parts);
+        $key = empty($parts) ? $this->getRootFieldsKey() : implode('.', $parts);
 
         return [$key, $field];
     }
@@ -163,7 +168,7 @@ trait HandlesFields
             return $field;
         }
 
-        $key = $key ?? $this->getDefaultFieldsKey();
+        $key = $key ?? $this->getRootFieldsKey();
 
         return "{$key}.{$field}";
     }

@@ -144,7 +144,7 @@ class FieldsTest extends TestCase
 
     protected function assertModelAttributeKeys($attributes, Model $model): void
     {
-        $this->assertEqualsCanonicalizing($attributes, array_keys($model->getAttributes()));
+        $this->assertEqualsCanonicalizing($attributes, array_keys($model->attributesToArray()));
     }
 
     protected function createModelWizardWithFields(array|string $fields = [], $model = null): ModelQueryWizard
