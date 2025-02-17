@@ -74,7 +74,7 @@ class EloquentQueryWizard extends AbstractQueryWizard
 
     public function rootFieldsKey(): string
     {
-        return $this->subject->getModel()->getTable();
+        return Str::camel(class_basename($this->subject->getModel()));
     }
 
     public function makeDefaultFilterHandler(string $filterName): ExactFilter
@@ -131,25 +131,26 @@ class EloquentQueryWizard extends AbstractQueryWizard
     protected function handleModels(Collection $models): void
     {
         if ($requestedAppends = $this->getAppends()->toArray()) {
-            $models->each(function (Model $model) use ($requestedAppends) {
+            $models->each(static function (Model $model) use ($requestedAppends) {
                 return $model->append($requestedAppends);
             });
         }
 
         if ($rootFields = $this->getRootFields()) {
-            $visibleAttributes = [...$requestedAppends, ...$rootFields];
-            $models->each(function (Model $model) use ($visibleAttributes) {
-                return $model->setVisible($visibleAttributes);
+            $model = $models->first();
+            $newHidden = array_values(array_unique([
+                ...$model->getHidden(),
+                ...array_diff(array_keys($model->getAttributes()), $rootFields),
+            ]));
+            $models->each(static function (Model $model) use ($newHidden) {
+                return $model->setHidden($newHidden);
             });
         }
     }
 
     protected function handleFields(): static
     {
-        $rootFields = $this->getRootFields();
-
-        if (!empty($rootFields)) {
-            $rootFields = $this->prependFieldsWithKey($rootFields, $this->getRootFieldsKey());
+        if ($rootFields = $this->getRootFields()) {
             $this->subject->select($rootFields);
         }
 

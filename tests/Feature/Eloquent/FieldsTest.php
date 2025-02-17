@@ -19,15 +19,11 @@ class FieldsTest extends TestCase
     /** @var TestModel */
     protected $model;
 
-    /** @var string */
-    protected string $modelTableName;
-
     public function setUp(): void
     {
         parent::setUp();
 
         $this->model = factory(TestModel::class)->create();
-        $this->modelTableName = $this->model->getTable();
     }
 
     /** @test */
@@ -44,19 +40,18 @@ class FieldsTest extends TestCase
                 'related.id'
             ]);
 
-        $wizardFields = $wizard->getFields()->toArray();
-
-        $this->assertEqualsCanonicalizing(['test_models', 'some.related.model', 'related'], array_keys($wizardFields));
-        $this->assertEqualsCanonicalizing(['id', 'name', 'content'], $wizardFields['test_models']);
-        $this->assertEqualsCanonicalizing(['id', 'title'], $wizardFields['some.related.model']);
-        $this->assertEqualsCanonicalizing(['created_at', 'id'], $wizardFields['related']);
+        $this->assertEquals([
+            'testModel' => ['id', 'name', 'content'],
+            'some.related.model' => ['id', 'title'],
+            'related' => ['created_at', 'id']
+        ], $wizard->getFields()->toArray());
     }
 
     /** @test */
     public function it_can_accept_fields_as_associative_array(): void
     {
         $wizard = $this->createEloquentWizardWithFields([
-            'test_models' => ['id', 'name', 'content'],
+            'testModel' => ['id', 'name', 'content'],
             'some.related.model' => ['id', 'title'],
             'related' => ['created_at', 'id']
         ])
@@ -70,12 +65,11 @@ class FieldsTest extends TestCase
                 'related.id'
             ]);
 
-        $wizardFields = $wizard->getFields()->toArray();
-
-        $this->assertEqualsCanonicalizing(['test_models', 'some.related.model', 'related'], array_keys($wizardFields));
-        $this->assertEqualsCanonicalizing(['id', 'name', 'content'], $wizardFields['test_models']);
-        $this->assertEqualsCanonicalizing(['id', 'title'], $wizardFields['some.related.model']);
-        $this->assertEqualsCanonicalizing(['created_at', 'id'], $wizardFields['related']);
+        $this->assertEquals([
+            'testModel' => ['id', 'name', 'content'],
+            'some.related.model' => ['id', 'title'],
+            'related' => ['created_at', 'id']
+        ], $wizard->getFields()->toArray());
     }
 
     /** @test */
@@ -106,13 +100,13 @@ class FieldsTest extends TestCase
     /** @test */
     public function it_can_fetch_specific_columns(): void
     {
-        $query = $this->createEloquentWizardWithFields(['test_models' => 'name,id'])
+        $query = $this->createEloquentWizardWithFields(['testModel' => 'name,id'])
             ->setAllowedFields(['name', 'id'])
             ->build()
             ->toSql();
 
         $expected = TestModel::query()
-            ->select("{$this->modelTableName}.name", "{$this->modelTableName}.id")
+            ->select("name", "id")
             ->toSql();
 
         $this->assertEquals($expected, $query);
@@ -121,14 +115,14 @@ class FieldsTest extends TestCase
     /** @test */
     public function it_replaces_selected_columns_on_the_query(): void
     {
-        $query = $this->createEloquentWizardWithFields(['test_models' => 'name,id'])
+        $query = $this->createEloquentWizardWithFields(['testModel' => 'name,id'])
             ->select(['id', 'is_visible'])
             ->setAllowedFields(['name', 'id'])
             ->build()
             ->toSql();
 
         $expected = TestModel::query()
-            ->select("{$this->modelTableName}.name", "{$this->modelTableName}.id")
+            ->select("name", "id")
             ->toSql();
 
         $this->assertEquals($expected, $query);
@@ -138,7 +132,7 @@ class FieldsTest extends TestCase
     /** @test */
     public function it_wont_fetch_a_specific_column_if_its_not_allowed(): void
     {
-        $query = $this->createEloquentWizardWithFields(['test_models' => 'random-column'])
+        $query = $this->createEloquentWizardWithFields(['testModel' => 'random-column'])
             ->build()
             ->toSql();
 
@@ -150,13 +144,13 @@ class FieldsTest extends TestCase
     /** @test */
     public function it_can_fetch_sketchy_columns_if_they_are_allowed_fields(): void
     {
-        $query = $this->createEloquentWizardWithFields(['test_models' => 'name->first,id'])
+        $query = $this->createEloquentWizardWithFields(['testModel' => 'name->first,id'])
             ->setAllowedFields(['name->first', 'id'])
             ->build()
             ->toSql();
 
         $expected = TestModel::query()
-            ->select("{$this->modelTableName}.name->first", "{$this->modelTableName}.id")
+            ->select("name->first", "id")
             ->toSql();
 
         $this->assertEquals($expected, $query);
@@ -167,7 +161,7 @@ class FieldsTest extends TestCase
     {
         $this->expectException(InvalidFieldQuery::class);
 
-        $this->createEloquentWizardWithFields(['test_models' => 'random-column'])
+        $this->createEloquentWizardWithFields(['testModel' => 'random-column'])
             ->setAllowedFields('name')
             ->build();
     }
@@ -177,8 +171,8 @@ class FieldsTest extends TestCase
     {
         $this->expectException(InvalidFieldQuery::class);
 
-        $this->createEloquentWizardWithFields(['related_models' => 'random_column'])
-            ->setAllowedFields('related_models.name')
+        $this->createEloquentWizardWithFields(['relatedModels' => 'random_column'])
+            ->setAllowedFields('relatedModels.name')
             ->build();
     }
 
@@ -192,12 +186,12 @@ class FieldsTest extends TestCase
 
         $queryWizard = $this->createEloquentWizardFromQuery([
             'fields' => [
-                'test_models' => 'id',
-                'related_models' => 'name',
+                'testModel' => 'id',
+                'relatedModels' => 'name',
             ],
             'include' => ['relatedModels'],
         ])
-            ->setAllowedFields('related_models.name', 'id')
+            ->setAllowedFields('relatedModels.name', 'id')
             ->setAllowedIncludes('relatedModels')
             ->build();
 
@@ -205,7 +199,7 @@ class FieldsTest extends TestCase
 
         $queryWizard->first()->relatedModels;
 
-        $this->assertQueryLogContains('select `test_models`.`id` from `test_models`');
+        $this->assertQueryLogContains('select `id` from `test_models`');
         $this->assertQueryLogContains('select `name` from `related_models`');
     }
 
@@ -219,12 +213,12 @@ class FieldsTest extends TestCase
 
         $result = $this->createEloquentWizardFromQuery([
             'fields' => [
-                'test_models' => 'id,name',
-                'related_models.test_models' => 'id',
+                'testModel' => 'id,name',
+                'relatedModels.testModel' => 'id',
             ],
             'include' => ['relatedModels.testModel'],
         ])
-            ->setAllowedFields('related_models.test_models.id', 'id', 'name')
+            ->setAllowedFields('relatedModels.testModel.id', 'id', 'name')
             ->setAllowedIncludes('relatedModels.testModel')
             ->build()
             ->first();
@@ -238,10 +232,10 @@ class FieldsTest extends TestCase
     public function it_can_allow_specific_fields_on_an_included_model(): void
     {
         $queryWizard = $this->createEloquentWizardFromQuery([
-            'fields' => ['related_models' => 'id,name'],
+            'fields' => ['relatedModels' => 'id,name'],
             'include' => ['relatedModels'],
         ])
-            ->setAllowedFields(['related_models.id', 'related_models.name'])
+            ->setAllowedFields(['relatedModels.id', 'relatedModels.name'])
             ->setAllowedIncludes('relatedModels')
             ->build();
 
@@ -258,7 +252,7 @@ class FieldsTest extends TestCase
     {
         DB::enableQueryLog();
 
-        $this->createEloquentWizardWithFields(['test_models' => 'id->"\')from test_models--injection'])
+        $this->createEloquentWizardWithFields(['testModel' => 'id->"\')from test_models--injection'])
             ->build()
             ->get();
 

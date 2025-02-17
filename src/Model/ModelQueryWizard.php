@@ -32,9 +32,9 @@ class ModelQueryWizard extends AbstractQueryWizard
         parent::__construct($subject, $parametersManager);
     }
 
-    protected function rootFieldsKey(): string
+    public function rootFieldsKey(): string
     {
-        return $this->subject->getTable();
+        return Str::camel(class_basename($this->subject));
     }
 
     public function build(): Model
@@ -66,7 +66,12 @@ class ModelQueryWizard extends AbstractQueryWizard
         $rootFields = $this->getRootFields();
 
         if (!empty($rootFields)) {
-            $this->subject = $this->subject->setVisible($rootFields);
+            $newHidden = array_values(array_unique([
+                ...$this->subject->getHidden(),
+                ...array_diff(array_keys($this->subject->getAttributes()), $rootFields),
+            ]));
+
+            $this->subject = $this->subject->setHidden($newHidden);
         }
 
         return $this;

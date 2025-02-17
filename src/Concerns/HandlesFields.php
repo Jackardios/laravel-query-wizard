@@ -51,7 +51,7 @@ trait HandlesFields
         return $this;
     }
 
-    protected function rootFieldsKey(): string
+    public function rootFieldsKey(): string
     {
         return "";
     }
@@ -155,12 +155,12 @@ trait HandlesFields
         return $this;
     }
 
-    public function prependFieldsWithKey(array $fields, ?string $key = null): array
+    public function prependFieldsWithKey(array $fields, ?string $defaultKey = null): array
     {
-        return array_map(fn ($field) => $this->prependFieldWithKey($field, $key), $fields);
+        return array_map(fn ($field) => $this->prependFieldWithKey($field, $defaultKey), $fields);
     }
 
-    public function prependFieldWithKey(string $field, ?string $key = null): string
+    public function prependFieldWithKey(string $field, ?string $defaultKey = null): string
     {
         if (Str::contains($field, '.')) {
             // Already prepended
@@ -168,8 +168,8 @@ trait HandlesFields
             return $field;
         }
 
-        $key = $key ?? $this->getRootFieldsKey();
+        $defaultKey = $defaultKey ?? $this->getRootFieldsKey();
 
-        return "{$key}.{$field}";
+        return "{$defaultKey}.{$field}";
     }
 }

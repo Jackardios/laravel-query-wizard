@@ -3,6 +3,7 @@
 namespace Jackardios\QueryWizard\Tests\Feature\Model;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Model\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
@@ -55,7 +56,7 @@ class FieldsTest extends TestCase
     /** @test */
     public function it_can_fetch_specific_columns(): void
     {
-        $model = $this->createModelWizardWithFields(['test_models' => 'name,id'])
+        $model = $this->createModelWizardWithFields(['testModel' => 'name,id'])
             ->setAllowedFields(['name', 'id'])
             ->build();
 
@@ -65,7 +66,7 @@ class FieldsTest extends TestCase
     /** @test */
     public function it_wont_fetch_a_specific_column_if_its_not_allowed(): void
     {
-        $model = $this->createModelWizardWithFields(['test_models' => 'random-column'])
+        $model = $this->createModelWizardWithFields(['testModel' => 'random-column'])
             ->build();
 
         $expectedModel = TestModel::find($this->model->getKey());
@@ -78,7 +79,7 @@ class FieldsTest extends TestCase
     {
         $this->expectException(InvalidFieldQuery::class);
 
-        $this->createModelWizardWithFields(['test_models' => 'random-column'])
+        $this->createModelWizardWithFields(['testModel' => 'random-column'])
             ->setAllowedFields('name')
             ->build();
     }
@@ -88,39 +89,15 @@ class FieldsTest extends TestCase
     {
         $this->expectException(InvalidFieldQuery::class);
 
-        $this->createModelWizardWithFields(['related_models' => 'random_column'])
-            ->setAllowedFields('related_models.name')
+        $this->createModelWizardWithFields(['relatedModels' => 'random_column'])
+            ->setAllowedFields('relatedModels.name')
             ->build();
     }
 
     /** @test */
     public function it_can_fetch_only_requested_columns_from_an_included_model(): void
     {
-        RelatedModel::create([
-            'test_model_id' => $this->model->id,
-            'name' => 'related',
-        ]);
-
-        $model = $this
-            ->createModelWizardFromQuery([
-                'fields' => [
-                    'test_models' => 'id',
-                    'related_models' => 'id,test_model_id',
-                ],
-                'include' => ['relatedModels'],
-            ])
-            ->setAllowedFields('related_models.id', 'related_models.test_model_id', 'id')
-            ->setAllowedIncludes('relatedModels')
-            ->build();
-
-        $this->assertModelAttributeKeys(['id'], $model);
-        $this->assertModelAttributeKeys(['id', 'test_model_id'], $model->relatedModels[0]);
-    }
-
-    /** @test */
-    public function it_can_fetch_requested_columns_from_included_models_up_to_two_levels_deep(): void
-    {
-        RelatedModel::create([
+        $relatedModel = RelatedModel::create([
             'test_model_id' => $this->model->id,
             'name' => 'related',
         ]);
@@ -128,18 +105,62 @@ class FieldsTest extends TestCase
         $result = $this
             ->createModelWizardFromQuery([
                 'fields' => [
-                    'test_models' => 'id,name',
-                    'related_models.test_models' => 'id',
+                    'testModel' => 'id',
+                    'relatedModels' => 'id,test_model_id',
+                ],
+                'include' => ['relatedModels'],
+            ])
+            ->setAllowedFields('relatedModels.id', 'relatedModels.test_model_id', 'id')
+            ->setAllowedIncludes('relatedModels')
+            ->build();
+
+
+        $this->assertEquals([
+            'id' => $this->model->id,
+            'related_models' => [
+                [
+
+                    'id' => $relatedModel->id,
+                    'test_model_id' => $this->model->id,
+                ]
+            ],
+        ], $result->toArray());
+    }
+
+    /** @test */
+    public function it_can_fetch_requested_columns_from_included_models_up_to_two_levels_deep(): void
+    {
+        $relatedModel = RelatedModel::create([
+            'test_model_id' => $this->model->id,
+            'name' => 'related',
+        ]);
+
+        $result = $this
+            ->createModelWizardFromQuery([
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels.testModel' => 'id',
                 ],
                 'include' => ['relatedModels.testModel'],
             ])
-            ->setAllowedFields('related_models.test_models.id', 'id', 'name')
-            ->setAllowedIncludes('relatedModels.testModel')
+            ->setAllowedFields('relatedModels.testModel.id', 'id', 'name')
+            ->setAllowedIncludes('relatedModels', 'relatedModels.testModel')
             ->build();
 
-        $this->assertArrayHasKey('name', $result);
-
-        $this->assertEquals(['id' => $this->model->id], $result->relatedModels->first()->testModel->toArray());
+        $this->assertEquals([
+            'id' => $this->model->id,
+            'name' => $this->model->name,
+            'related_models' => [
+                [
+                    'id' => $relatedModel->id,
+                    'name' => $relatedModel->name,
+                    'test_model_id' => $this->model->id,
+                    'test_model' => [
+                        'id' => $this->model->id,
+                    ]
+                ]
+            ],
+        ], $result->toArray());
     }
 
     protected function assertModelAttributeKeys($attributes, Model $model): void

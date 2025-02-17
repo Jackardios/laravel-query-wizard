@@ -16,9 +16,7 @@ class RelationshipInclude extends ModelInclude
         $loads = $relatedTables
             ->mapWithKeys(function ($table, $key) use ($queryWizard, $relatedTables) {
                 $fullRelationName = $relatedTables->slice(0, $key + 1)->implode('.');
-
-                $key = Str::plural(Str::snake($fullRelationName));
-                $fields = method_exists($queryWizard, 'getFieldsByKey') ? $queryWizard->getFieldsByKey($key) : null;
+                $fields = method_exists($queryWizard, 'getFieldsByKey') ? $queryWizard->getFieldsByKey($fullRelationName) : null;
 
                 if (empty($fields)) {
                     return [$fullRelationName];
