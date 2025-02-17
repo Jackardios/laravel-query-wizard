@@ -19,15 +19,11 @@ class FieldsTest extends TestCase
 {
     protected TestModel $model;
 
-    /** @var string */
-    protected string $modelTableName;
-
     public function setUp(): void
     {
         parent::setUp();
 
         $this->model = factory(TestModel::class)->create()->first();
-        $this->modelTableName = $this->model->getTable();
     }
 
     /** @test */
