@@ -141,7 +141,7 @@ class EloquentQueryWizard extends AbstractQueryWizard
             if ($firstModel) {
                 $newHidden = array_values(array_unique([
                     ...$firstModel->getHidden(),
-                    ...array_diff(array_keys($firstModel->getAttributes()), $rootFields),
+                    ...(in_array('*', $rootFields) ? [] : array_diff(array_keys($firstModel->getAttributes()), $rootFields)),
                 ]));
                 $models->each(static function (Model $model) use ($newHidden) {
                     return $model->setHidden($newHidden);

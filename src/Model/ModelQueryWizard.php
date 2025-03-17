@@ -68,7 +68,7 @@ class ModelQueryWizard extends AbstractQueryWizard
         if (!empty($rootFields)) {
             $newHidden = array_values(array_unique([
                 ...$this->subject->getHidden(),
-                ...array_diff(array_keys($this->subject->getAttributes()), $rootFields),
+                ...(in_array('*', $rootFields) ? [] : array_diff(array_keys($this->subject->getAttributes()), $rootFields)),
             ]));
 
             $this->subject = $this->subject->setHidden($newHidden);
