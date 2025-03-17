@@ -11,11 +11,11 @@ class RelationshipInclude extends ModelInclude
     /** {@inheritdoc} */
     public function handle($queryWizard, $model): void
     {
-        $relatedTables = collect(explode('.', $this->getInclude()));
+        $relationNames = collect(explode('.', $this->getInclude()));
 
-        $loads = $relatedTables
-            ->mapWithKeys(function ($table, $key) use ($queryWizard, $relatedTables) {
-                $fullRelationName = $relatedTables->slice(0, $key + 1)->implode('.');
+        $loads = $relationNames
+            ->mapWithKeys(function ($table, $key) use ($queryWizard, $relationNames) {
+                $fullRelationName = $relationNames->slice(0, $key + 1)->implode('.');
                 $fields = method_exists($queryWizard, 'getFieldsByKey') ? $queryWizard->getFieldsByKey($fullRelationName) : null;
 
                 if (empty($fields)) {
@@ -23,7 +23,7 @@ class RelationshipInclude extends ModelInclude
                 }
 
                 return [$fullRelationName => function ($query) use ($fields) {
-                    $query->select($fields);
+                    $query->select($query->qualifyColumns($fields));
                 }];
             })
             ->toArray();

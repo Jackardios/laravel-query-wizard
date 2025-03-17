@@ -12,11 +12,11 @@ class RelationshipInclude extends EloquentInclude
     /** {@inheritdoc} */
     public function handle($queryWizard, Builder $queryBuilder): void
     {
-        $relatedTables = collect(explode('.', $this->getInclude()));
+        $relationNames = collect(explode('.', $this->getInclude()));
 
-        $withs = $relatedTables
-            ->mapWithKeys(function ($table, $key) use ($queryWizard, $relatedTables) {
-                $fullRelationName = $relatedTables->slice(0, $key + 1)->implode('.');
+        $withs = $relationNames
+            ->mapWithKeys(function ($table, $key) use ($queryWizard, $relationNames) {
+                $fullRelationName = $relationNames->slice(0, $key + 1)->implode('.');
                 $fields = method_exists($queryWizard, 'getFieldsByKey') ? $queryWizard->getFieldsByKey($fullRelationName) : null;
 
                 if (empty($fields)) {
@@ -24,7 +24,7 @@ class RelationshipInclude extends EloquentInclude
                 }
 
                 return [$fullRelationName => function ($query) use ($fields) {
-                    $query->select($fields);
+                    $query->select($query->qualifyColumns($fields));
                 }];
             })
             ->filter()
