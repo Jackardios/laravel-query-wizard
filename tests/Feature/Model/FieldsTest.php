@@ -3,7 +3,6 @@
 namespace Jackardios\QueryWizard\Tests\Feature\Model;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Model\ModelQueryWizard;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
@@ -53,7 +52,7 @@ class FieldsTest extends TestCase
     public function it_can_fetch_specific_columns(): void
     {
         $model = $this->createModelWizardWithFields(['testModel' => 'name,id'])
-            ->setAllowedFields(['name', 'id'])
+            ->setAllowedFields(['id', 'name', 'is_visible', 'created_at', 'updated_at'])
             ->build();
 
         $this->assertModelAttributeKeys(['id', 'name'], $model);
@@ -106,7 +105,7 @@ class FieldsTest extends TestCase
                 ],
                 'include' => ['relatedModels'],
             ])
-            ->setAllowedFields('relatedModels.id', 'relatedModels.test_model_id', 'id')
+            ->setAllowedFields('relatedModels.id', 'relatedModels.test_model_id', 'id', 'name', 'is_visible', 'created_at', 'updated_at')
             ->setAllowedIncludes('relatedModels')
             ->build();
 
@@ -139,7 +138,7 @@ class FieldsTest extends TestCase
                 ],
                 'include' => ['relatedModels.testModel'],
             ])
-            ->setAllowedFields('relatedModels.testModel.id', 'id', 'name')
+            ->setAllowedFields('relatedModels.testModel.id', 'id', 'name', 'is_visible', 'created_at', 'updated_at')
             ->setAllowedIncludes('relatedModels', 'relatedModels.testModel')
             ->build();
 

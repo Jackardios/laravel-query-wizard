@@ -21,7 +21,7 @@ trait HandlesFields
         return [];
     }
 
-    public function getAllowedFields(): Collection
+    public function getAllowedFields(?string $key = null): Collection
     {
         if (!($this->allowedFields instanceof Collection)) {
             $allowedFieldsFromCallback = $this->allowedFields();
@@ -33,7 +33,20 @@ trait HandlesFields
             }
         }
 
-        return $this->allowedFields;
+        if ($key === null) {
+            return $this->allowedFields;
+        }
+
+        $allowedFieldsOfKey = [];
+
+        foreach ($this->allowedFields as $field) {
+            $prefix = $key . '.';
+            if (Str::startsWith($field, $prefix)) {
+                $allowedFieldsOfKey[] = Str::replaceFirst($prefix, '', $field);
+            }
+        }
+
+        return collect($allowedFieldsOfKey);
     }
 
     public function setAllowedFields($fields): static

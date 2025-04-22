@@ -135,19 +135,6 @@ class EloquentQueryWizard extends AbstractQueryWizard
                 return $model->append($requestedAppends);
             });
         }
-
-        if ($rootFields = $this->getRootFields()) {
-            $firstModel = $models->first();
-            if ($firstModel) {
-                $newHidden = array_values(array_unique([
-                    ...$firstModel->getHidden(),
-                    ...(in_array('*', $rootFields) ? [] : array_diff(array_keys($firstModel->getAttributes()), $rootFields)),
-                ]));
-                $models->each(static function (Model $model) use ($newHidden) {
-                    return $model->setHidden($newHidden);
-                });
-            }
-        }
     }
 
     protected function handleFields(): static

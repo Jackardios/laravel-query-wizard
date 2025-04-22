@@ -63,15 +63,17 @@ class ModelQueryWizard extends AbstractQueryWizard
 
     protected function handleFields(): static
     {
-        $rootFields = $this->getRootFields();
+        $requestedRootFields = $this->getRootFields();
 
-        if (!empty($rootFields)) {
-            $newHidden = array_values(array_unique([
-                ...$this->subject->getHidden(),
-                ...(in_array('*', $rootFields) ? [] : array_diff(array_keys($this->subject->getAttributes()), $rootFields)),
-            ]));
+        if (in_array('*', $requestedRootFields)) {
+            return $this;
+        }
 
-            $this->subject = $this->subject->setHidden($newHidden);
+        $allRootFields = $this->getAllowedFields($this->rootFieldsKey())->all();
+        $fieldsToHide = array_diff($allRootFields, $requestedRootFields);
+
+        if ($fieldsToHide) {
+            $this->subject->makeHidden($fieldsToHide);
         }
 
         return $this;
