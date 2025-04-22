@@ -65,7 +65,7 @@ class ModelQueryWizard extends AbstractQueryWizard
     {
         $requestedRootFields = $this->getRootFields();
 
-        if (in_array('*', $requestedRootFields)) {
+        if (! $requestedRootFields || in_array('*', $requestedRootFields)) {
             return $this;
         }
 
