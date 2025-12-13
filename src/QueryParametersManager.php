@@ -303,6 +303,31 @@ class QueryParametersManager
         return $this;
     }
 
+    /**
+     * Reset all cached parameters.
+     * Useful when reusing the same instance for multiple requests (e.g., in Laravel Octane).
+     */
+    public function reset(): static
+    {
+        $this->appends = null;
+        $this->fields = null;
+        $this->filters = null;
+        $this->includes = null;
+        $this->sorts = null;
+
+        return $this;
+    }
+
+    /**
+     * Set a new request instance and reset cached parameters.
+     */
+    public function setRequest(Request $request): static
+    {
+        $this->request = $request;
+
+        return $this->reset();
+    }
+
     protected function getRequestData(?string $key = null, mixed $default = null): mixed
     {
         if ($this->config->shouldUseRequestBody()) {

@@ -15,14 +15,18 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
 use ReflectionParameter;
+use WeakMap;
 
 class ScopeFilterStrategy implements FilterStrategyInterface
 {
     /**
-     * Cache for reflected scope method parameters
-     * @var array<string, array<ReflectionParameter>|null>
+     * Cache for reflected scope method parameters.
+     * Uses WeakMap to automatically clean up when model instances are garbage collected,
+     * making it safe for Laravel Octane and other long-running processes.
+     *
+     * @var WeakMap<Model, array<string, array<ReflectionParameter>|null>>|null
      */
-    protected static array $reflectionCache = [];
+    protected static ?WeakMap $reflectionCache = null;
 
     /**
      * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
@@ -95,6 +99,22 @@ class ScopeFilterStrategy implements FilterStrategyInterface
     }
 
     /**
+     * Get the reflection cache WeakMap instance
+     *
+     * @return WeakMap<Model, array<string, array<ReflectionParameter>|null>>
+     */
+    protected static function getReflectionCache(): WeakMap
+    {
+        if (self::$reflectionCache === null) {
+            /** @var WeakMap<Model, array<string, array<ReflectionParameter>|null>> $cache */
+            $cache = new WeakMap();
+            self::$reflectionCache = $cache;
+        }
+
+        return self::$reflectionCache;
+    }
+
+    /**
      * Get scope method parameters with caching
      *
      * @param Builder<\Illuminate\Database\Eloquent\Model> $queryBuilder
@@ -102,20 +122,33 @@ class ScopeFilterStrategy implements FilterStrategyInterface
      */
     protected function getScopeParameters(Builder $queryBuilder, string $scope): ?array
     {
-        $modelClass = get_class($queryBuilder->getModel());
-        $cacheKey = $modelClass . '::scope' . ucfirst($scope);
+        $model = $queryBuilder->getModel();
+        $cache = self::getReflectionCache();
+        $scopeKey = 'scope' . ucfirst($scope);
 
-        if (array_key_exists($cacheKey, self::$reflectionCache)) {
-            return self::$reflectionCache[$cacheKey];
+        // Initialize cache entry for this model if not exists
+        if (!isset($cache[$model])) {
+            $cache[$model] = [];
+        }
+
+        /** @var array<string, array<ReflectionParameter>|null> $modelCache */
+        $modelCache = $cache[$model];
+
+        if (array_key_exists($scopeKey, $modelCache)) {
+            return $modelCache[$scopeKey];
         }
 
         try {
-            $parameters = (new \ReflectionObject($queryBuilder->getModel()))
-                ->getMethod('scope' . ucfirst($scope))
+            $parameters = (new \ReflectionObject($model))
+                ->getMethod($scopeKey)
                 ->getParameters();
-            return self::$reflectionCache[$cacheKey] = $parameters;
+            $modelCache[$scopeKey] = $parameters;
+            $cache[$model] = $modelCache;
+            return $parameters;
         } catch (ReflectionException) {
-            return self::$reflectionCache[$cacheKey] = null;
+            $modelCache[$scopeKey] = null;
+            $cache[$model] = $modelCache;
+            return null;
         }
     }
 

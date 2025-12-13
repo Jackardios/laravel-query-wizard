@@ -9,20 +9,30 @@ use Jackardios\QueryWizard\Contracts\DriverInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidSubject;
 use Jackardios\QueryWizard\Drivers\Eloquent\EloquentDriver;
 
+/**
+ * Registry for query wizard drivers.
+ *
+ * This class is designed to be used as a singleton registered in the Laravel container,
+ * making it fully compatible with Laravel Octane and other long-running processes.
+ */
 class DriverRegistry
 {
     /** @var array<string, DriverInterface> */
-    protected static array $drivers = [];
+    protected array $drivers = [];
 
-    protected static bool $initialized = false;
+    protected bool $initialized = false;
+
+    public function __construct()
+    {
+        $this->initialize();
+    }
 
     /**
      * Register a driver
      */
-    public static function register(DriverInterface $driver): void
+    public function register(DriverInterface $driver): void
     {
-        static::ensureInitialized();
-        static::$drivers[$driver->name()] = $driver;
+        $this->drivers[$driver->name()] = $driver;
     }
 
     /**
@@ -30,25 +40,21 @@ class DriverRegistry
      *
      * @throws InvalidArgumentException
      */
-    public static function get(string $name): DriverInterface
+    public function get(string $name): DriverInterface
     {
-        static::ensureInitialized();
-
-        if (!isset(static::$drivers[$name])) {
+        if (!isset($this->drivers[$name])) {
             throw new InvalidArgumentException("Driver '{$name}' is not registered");
         }
 
-        return static::$drivers[$name];
+        return $this->drivers[$name];
     }
 
     /**
      * Check if a driver is registered
      */
-    public static function has(string $name): bool
+    public function has(string $name): bool
     {
-        static::ensureInitialized();
-
-        return isset(static::$drivers[$name]);
+        return isset($this->drivers[$name]);
     }
 
     /**
@@ -56,11 +62,9 @@ class DriverRegistry
      *
      * @throws InvalidSubject
      */
-    public static function resolve(mixed $subject): DriverInterface
+    public function resolve(mixed $subject): DriverInterface
     {
-        static::ensureInitialized();
-
-        foreach (static::$drivers as $driver) {
+        foreach ($this->drivers as $driver) {
             if ($driver->supports($subject)) {
                 return $driver;
             }
@@ -74,40 +78,29 @@ class DriverRegistry
      *
      * @return array<string, DriverInterface>
      */
-    public static function all(): array
+    public function all(): array
     {
-        static::ensureInitialized();
-
-        return static::$drivers;
+        return $this->drivers;
     }
 
     /**
      * Unregister a driver by name
      */
-    public static function unregister(string $name): void
+    public function unregister(string $name): void
     {
-        unset(static::$drivers[$name]);
+        unset($this->drivers[$name]);
     }
 
     /**
-     * Reset the registry (useful for testing)
+     * Initialize default drivers
      */
-    public static function reset(): void
+    protected function initialize(): void
     {
-        static::$drivers = [];
-        static::$initialized = false;
-    }
-
-    /**
-     * Ensure default drivers are registered
-     */
-    protected static function ensureInitialized(): void
-    {
-        if (static::$initialized) {
+        if ($this->initialized) {
             return;
         }
 
-        static::$drivers['eloquent'] = new EloquentDriver();
+        $this->drivers['eloquent'] = new EloquentDriver();
 
         /** @var array<string, class-string<DriverInterface>> $customDrivers */
         $customDrivers = config('query-wizard.drivers', []);
@@ -115,11 +108,11 @@ class DriverRegistry
             if (is_string($driverClass) && class_exists($driverClass)) {
                 $driver = new $driverClass();
                 if ($driver instanceof DriverInterface) {
-                    static::$drivers[$name] = $driver;
+                    $this->drivers[$name] = $driver;
                 }
             }
         }
 
-        static::$initialized = true;
+        $this->initialized = true;
     }
 }

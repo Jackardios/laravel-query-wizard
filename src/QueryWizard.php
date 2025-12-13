@@ -27,7 +27,7 @@ class QueryWizard
         $config = app(QueryWizardConfig::class);
 
         $driverName = $schema->driver();
-        $driver = DriverRegistry::get($driverName);
+        $driver = app(DriverRegistry::class)->get($driverName);
 
         $modelClass = $schema->model();
 
@@ -50,31 +50,31 @@ class QueryWizard
         $config = app(QueryWizardConfig::class);
 
         $driverName = $schema->driver();
-        $driver = DriverRegistry::get($driverName);
+        $driver = app(DriverRegistry::class)->get($driverName);
 
         return new ItemQueryWizard($schema, $key, $driver, $parameters, $config);
     }
 
     /**
-     * @param class-string<Model>|\Illuminate\Database\Eloquent\Builder<Model>|\Illuminate\Database\Eloquent\Relations\Relation<Model>|Model $subject
+     * @param class-string<Model>|\Illuminate\Database\Eloquent\Builder<Model>|\Illuminate\Database\Eloquent\Relations\Relation<Model, Model, mixed>|Model $subject
      */
     public static function for(mixed $subject, ?QueryParametersManager $parameters = null): ListQueryWizard
     {
         $parameters ??= app(QueryParametersManager::class);
         $config = app(QueryWizardConfig::class);
-        $driver = DriverRegistry::resolve($subject);
+        $driver = app(DriverRegistry::class)->resolve($subject);
 
         return new ListQueryWizard($subject, $driver, $parameters, $config);
     }
 
     /**
-     * @param class-string<Model>|\Illuminate\Database\Eloquent\Builder<Model>|\Illuminate\Database\Eloquent\Relations\Relation<Model>|Model $subject
+     * @param class-string<Model>|\Illuminate\Database\Eloquent\Builder<Model>|\Illuminate\Database\Eloquent\Relations\Relation<Model, Model, mixed>|Model $subject
      */
     public static function using(string $driverName, mixed $subject, ?QueryParametersManager $parameters = null): ListQueryWizard
     {
         $parameters ??= app(QueryParametersManager::class);
         $config = app(QueryWizardConfig::class);
-        $driver = DriverRegistry::get($driverName);
+        $driver = app(DriverRegistry::class)->get($driverName);
 
         return new ListQueryWizard($subject, $driver, $parameters, $config);
     }
