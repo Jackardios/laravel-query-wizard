@@ -1,0 +1,10 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - src
+    level: 6
+    ignoreErrors:
+        # Template type resolution in collect() calls - known Larastan limitation
+        - message: '#Unable to resolve the template type .* in call to function collect#'

@@ -33,6 +33,7 @@
     },
     "require-dev": {
         "ext-json": "*",
+        "larastan/larastan": "^2.0",
         "laravel/legacy-factories": "^v1.4.0",
         "orchestra/testbench": "^v8.21.0",
         "phpunit/phpunit": "^9.5",
@@ -52,8 +53,9 @@
         }
     },
     "scripts": {
-        "test": "vendor/bin/phpunit",
-        "test-coverage": "phpunit --coverage-html coverage"
+        "test": "vendor/bin/phpunit --testdox",
+        "test-coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit --testdox --coverage-text",
+        "phpstan": "vendor/bin/phpstan analyse --memory-limit=512M"
     },
     "config": {
         "sort-packages": true
