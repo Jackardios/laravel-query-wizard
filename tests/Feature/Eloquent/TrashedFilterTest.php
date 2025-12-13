@@ -27,10 +27,10 @@ class TrashedFilterTest extends TestCase
         DB::enableQueryLog();
 
         // Create regular models
-        $this->models = factory(SoftDeleteModel::class, 3)->create();
+        $this->models = SoftDeleteModel::factory()->count(3)->create();
 
         // Create and soft-delete models
-        $this->trashedModels = factory(SoftDeleteModel::class, 2)->create();
+        $this->trashedModels = SoftDeleteModel::factory()->count(2)->create();
         $this->trashedModels->each->delete();
     }
 

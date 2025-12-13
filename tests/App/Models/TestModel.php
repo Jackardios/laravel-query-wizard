@@ -3,15 +3,23 @@
 namespace Jackardios\QueryWizard\Tests\App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
+use Jackardios\QueryWizard\Tests\App\data\factories\TestModelFactory;
 
 class TestModel extends Model
 {
+    use HasFactory;
+
+    protected static function newFactory(): TestModelFactory
+    {
+        return TestModelFactory::new();
+    }
     protected $guarded = [];
 
     public function relatedModels(): HasMany

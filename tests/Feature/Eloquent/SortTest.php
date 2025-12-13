@@ -27,11 +27,11 @@ class SortTest extends TestCase
 
         // Create models with predictable ordering
         $this->models = collect();
-        $this->models->push(factory(TestModel::class)->create(['name' => 'Alpha', 'id' => 1]));
-        $this->models->push(factory(TestModel::class)->create(['name' => 'Beta', 'id' => 2]));
-        $this->models->push(factory(TestModel::class)->create(['name' => 'Gamma', 'id' => 3]));
-        $this->models->push(factory(TestModel::class)->create(['name' => 'Delta', 'id' => 4]));
-        $this->models->push(factory(TestModel::class)->create(['name' => 'Epsilon', 'id' => 5]));
+        $this->models->push(TestModel::factory()->create(['name' => 'Alpha']));
+        $this->models->push(TestModel::factory()->create(['name' => 'Beta']));
+        $this->models->push(TestModel::factory()->create(['name' => 'Gamma']));
+        $this->models->push(TestModel::factory()->create(['name' => 'Delta']));
+        $this->models->push(TestModel::factory()->create(['name' => 'Epsilon']));
     }
 
     // ========== Basic Sort Tests ==========
@@ -220,8 +220,8 @@ class SortTest extends TestCase
     public function it_can_sort_by_multiple_fields(): void
     {
         // Create models with same name to test secondary sort
-        factory(TestModel::class)->create(['name' => 'Alpha', 'id' => 10]);
-        factory(TestModel::class)->create(['name' => 'Alpha', 'id' => 11]);
+        TestModel::factory()->create(['name' => 'Alpha']);
+        TestModel::factory()->create(['name' => 'Alpha']);
 
         $models = $this
             ->createEloquentWizardWithSorts('name,-id')
@@ -229,7 +229,9 @@ class SortTest extends TestCase
             ->get();
 
         $alphas = $models->where('name', 'Alpha');
-        $this->assertEquals(11, $alphas->first()->id);
+        // First Alpha should have higher ID (sorted descending by ID)
+        $ids = $alphas->pluck('id')->values()->all();
+        $this->assertEquals($ids, collect($ids)->sortDesc()->values()->all());
     }
 
     /** @test */
@@ -246,7 +248,7 @@ class SortTest extends TestCase
     /** @test */
     public function it_applies_sorts_in_order(): void
     {
-        factory(TestModel::class)->create(['name' => 'Alpha', 'id' => 100]);
+        TestModel::factory()->create(['name' => 'Alpha']);
 
         $models = $this
             ->createEloquentWizardWithSorts('name,id')
@@ -254,8 +256,9 @@ class SortTest extends TestCase
             ->get();
 
         $alphas = $models->where('name', 'Alpha')->values();
-        $this->assertEquals(1, $alphas->first()->id);
-        $this->assertEquals(100, $alphas->last()->id);
+        // IDs should be in ascending order (sorted by name ASC, then id ASC)
+        $ids = $alphas->pluck('id')->values()->all();
+        $this->assertEquals($ids, collect($ids)->sort()->values()->all());
     }
 
     // ========== Default Sort Tests ==========
@@ -450,7 +453,7 @@ class SortTest extends TestCase
     public function it_can_sort_by_empty_string_values(): void
     {
         // Create model with empty name
-        factory(TestModel::class)->create(['name' => '']);
+        TestModel::factory()->create(['name' => '']);
 
         $models = $this
             ->createEloquentWizardWithSorts('name')

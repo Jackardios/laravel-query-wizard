@@ -3,11 +3,11 @@
 namespace Jackardios\QueryWizard\Tests\App\data\factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
+use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 
-class SoftDeleteModelFactory extends Factory
+class TestModelFactory extends Factory
 {
-    protected $model = SoftDeleteModel::class;
+    protected $model = TestModel::class;
 
     public function definition(): array
     {

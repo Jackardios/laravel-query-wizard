@@ -38,11 +38,11 @@ class QueryWizardTest extends TestCase
 
         DB::enableQueryLog();
 
-        $this->models = factory(TestModel::class, 5)->create();
+        $this->models = TestModel::factory()->count(5)->create();
 
         // Create related models
         $this->models->each(function (TestModel $model) {
-            factory(RelatedModel::class, 2)->create([
+            RelatedModel::factory()->count(2)->create([
                 'test_model_id' => $model->id,
             ]);
         });

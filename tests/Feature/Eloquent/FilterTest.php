@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
+use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -26,7 +27,7 @@ class FilterTest extends TestCase
         parent::setUp();
 
         DB::enableQueryLog();
-        $this->models = factory(TestModel::class, 5)->create();
+        $this->models = TestModel::factory()->count(5)->create();
     }
 
     // ========== Exact Filter Tests ==========
@@ -108,7 +109,7 @@ class FilterTest extends TestCase
     /** @test */
     public function it_uses_default_filter_value_when_not_provided(): void
     {
-        factory(TestModel::class)->create(['name' => 'default_value']);
+        TestModel::factory()->create(['name' => 'default_value']);
 
         $models = $this
             ->createEloquentWizardFromQuery()
@@ -122,8 +123,8 @@ class FilterTest extends TestCase
     /** @test */
     public function it_ignores_default_when_filter_is_provided(): void
     {
-        factory(TestModel::class)->create(['name' => 'default_value']);
-        factory(TestModel::class)->create(['name' => 'explicit_value']);
+        TestModel::factory()->create(['name' => 'default_value']);
+        TestModel::factory()->create(['name' => 'explicit_value']);
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'explicit_value'])
@@ -459,7 +460,7 @@ class FilterTest extends TestCase
     public function it_can_filter_by_relation_property(): void
     {
         $testModel = $this->models->first();
-        $relatedModel = factory(RelatedModel::class)->create([
+        $relatedModel = RelatedModel::factory()->create([
             'test_model_id' => $testModel->id,
             'name' => 'specific_name',
         ]);
@@ -584,7 +585,7 @@ class FilterTest extends TestCase
     /** @test */
     public function it_handles_filter_with_special_characters(): void
     {
-        $model = factory(TestModel::class)->create(['name' => "Test's Model"]);
+        $model = TestModel::factory()->create(['name' => "Test's Model"]);
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => "Test's Model"])
@@ -623,7 +624,7 @@ class FilterTest extends TestCase
     public function it_can_filter_json_contains_single_value(): void
     {
         // Create test data with JSON column
-        factory(TestModel::class)->create(['name' => 'json_test']);
+        TestModel::factory()->create(['name' => 'json_test']);
 
         $sql = $this
             ->createEloquentWizardWithFilters(['tags' => 'php'])
@@ -675,7 +676,7 @@ class FilterTest extends TestCase
     /** @test */
     public function exact_filter_handles_zero_value(): void
     {
-        factory(TestModel::class)->create(['name' => '0']);
+        TestModel::factory()->create(['name' => '0']);
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => '0'])
@@ -747,10 +748,10 @@ class FilterTest extends TestCase
     public function it_can_filter_by_deeply_nested_relation(): void
     {
         $testModel = $this->models->first();
-        $relatedModel = factory(RelatedModel::class)->create([
+        $relatedModel = RelatedModel::factory()->create([
             'test_model_id' => $testModel->id,
         ]);
-        factory(\Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel::class)->create([
+        NestedRelatedModel::factory()->create([
             'related_model_id' => $relatedModel->id,
             'name' => 'deeply_nested',
         ]);
@@ -769,7 +770,7 @@ class FilterTest extends TestCase
     /** @test */
     public function default_filter_works_with_partial_filter(): void
     {
-        factory(TestModel::class)->create(['name' => 'default_partial_test']);
+        TestModel::factory()->create(['name' => 'default_partial_test']);
 
         $models = $this
             ->createEloquentWizardFromQuery()
@@ -942,7 +943,7 @@ class FilterTest extends TestCase
     /** @test */
     public function it_handles_unicode_filter_values(): void
     {
-        $model = factory(TestModel::class)->create(['name' => 'Тест']);
+        $model = TestModel::factory()->create(['name' => 'Тест']);
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'Тест'])
@@ -956,7 +957,7 @@ class FilterTest extends TestCase
     /** @test */
     public function it_handles_emoji_in_filter_values(): void
     {
-        $model = factory(TestModel::class)->create(['name' => 'Test 🎉']);
+        $model = TestModel::factory()->create(['name' => 'Test 🎉']);
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'Test 🎉'])
@@ -970,7 +971,7 @@ class FilterTest extends TestCase
     public function it_handles_very_long_filter_values(): void
     {
         $longName = str_repeat('a', 255);
-        $model = factory(TestModel::class)->create(['name' => $longName]);
+        $model = TestModel::factory()->create(['name' => $longName]);
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $longName])
@@ -985,7 +986,7 @@ class FilterTest extends TestCase
     /** @test */
     public function filters_are_applied_with_and_logic(): void
     {
-        factory(TestModel::class)->create(['name' => 'unique_combo', 'id' => 999]);
+        TestModel::factory()->create(['name' => 'unique_combo']);
 
         // This should find the model created above with specific ID
         $models = $this

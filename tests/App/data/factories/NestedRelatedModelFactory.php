@@ -1,14 +1,20 @@
 <?php
 
-use Faker\Generator as Faker;
+namespace Jackardios\QueryWizard\Tests\App\data\factories;
+
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
-use Illuminate\Database\Eloquent\Factory;
 
-/** @var Factory $factory */
-$factory->define(NestedRelatedModel::class, function (Faker $faker) {
-    return [
-        'related_model_id' => factory(RelatedModel::class),
-        'name' => $faker->name,
-    ];
-});
+class NestedRelatedModelFactory extends Factory
+{
+    protected $model = NestedRelatedModel::class;
+
+    public function definition(): array
+    {
+        return [
+            'related_model_id' => RelatedModel::factory(),
+            'name' => $this->faker->name,
+        ];
+    }
+}

@@ -8,6 +8,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
+use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
+use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 
 /**
@@ -24,7 +26,7 @@ class AppendTest extends TestCase
 
         DB::enableQueryLog();
 
-        $this->models = factory(AppendModel::class, 3)->create();
+        $this->models = AppendModel::factory()->count(3)->create();
     }
 
     // ========== Basic Append Tests ==========
@@ -385,8 +387,8 @@ class AppendTest extends TestCase
     public function it_can_append_to_relation_with_dot_notation(): void
     {
         // Create TestModel with RelatedModels
-        $testModel = factory(\Jackardios\QueryWizard\Tests\App\Models\TestModel::class)->create();
-        factory(\Jackardios\QueryWizard\Tests\App\Models\RelatedModel::class, 2)->create([
+        $testModel = TestModel::factory()->create();
+        RelatedModel::factory()->count(2)->create([
             'test_model_id' => $testModel->id,
         ]);
 
@@ -414,8 +416,8 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_append_multiple_attributes_to_relation(): void
     {
-        $testModel = factory(\Jackardios\QueryWizard\Tests\App\Models\TestModel::class)->create();
-        factory(\Jackardios\QueryWizard\Tests\App\Models\RelatedModel::class, 2)->create([
+        $testModel = TestModel::factory()->create();
+        RelatedModel::factory()->count(2)->create([
             'test_model_id' => $testModel->id,
         ]);
 
@@ -439,8 +441,8 @@ class AppendTest extends TestCase
     /** @test */
     public function it_can_combine_root_and_relation_appends(): void
     {
-        $testModel = factory(\Jackardios\QueryWizard\Tests\App\Models\TestModel::class)->create();
-        factory(\Jackardios\QueryWizard\Tests\App\Models\RelatedModel::class, 2)->create([
+        $testModel = TestModel::factory()->create();
+        RelatedModel::factory()->count(2)->create([
             'test_model_id' => $testModel->id,
         ]);
 
@@ -469,8 +471,8 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
-        $testModel = factory(\Jackardios\QueryWizard\Tests\App\Models\TestModel::class)->create();
-        factory(\Jackardios\QueryWizard\Tests\App\Models\RelatedModel::class)->create([
+        $testModel = TestModel::factory()->create();
+        RelatedModel::factory()->create([
             'test_model_id' => $testModel->id,
         ]);
 
@@ -487,8 +489,8 @@ class AppendTest extends TestCase
     /** @test */
     public function wildcard_allows_all_relation_appends(): void
     {
-        $testModel = factory(\Jackardios\QueryWizard\Tests\App\Models\TestModel::class)->create();
-        factory(\Jackardios\QueryWizard\Tests\App\Models\RelatedModel::class, 2)->create([
+        $testModel = TestModel::factory()->create();
+        RelatedModel::factory()->count(2)->create([
             'test_model_id' => $testModel->id,
         ]);
 
@@ -513,8 +515,8 @@ class AppendTest extends TestCase
     /** @test */
     public function it_ignores_relation_append_when_relation_not_loaded(): void
     {
-        $testModel = factory(\Jackardios\QueryWizard\Tests\App\Models\TestModel::class)->create();
-        factory(\Jackardios\QueryWizard\Tests\App\Models\RelatedModel::class)->create([
+        $testModel = TestModel::factory()->create();
+        RelatedModel::factory()->create([
             'test_model_id' => $testModel->id,
         ]);
 
@@ -536,9 +538,9 @@ class AppendTest extends TestCase
     public function nested_append_applies_to_all_models_in_collection(): void
     {
         // Create multiple TestModels each with RelatedModels
-        $testModels = factory(\Jackardios\QueryWizard\Tests\App\Models\TestModel::class, 3)->create();
+        $testModels = TestModel::factory()->count(3)->create();
         foreach ($testModels as $testModel) {
-            factory(\Jackardios\QueryWizard\Tests\App\Models\RelatedModel::class, 2)->create([
+            RelatedModel::factory()->count(2)->create([
                 'test_model_id' => $testModel->id,
             ]);
         }

@@ -36,7 +36,5 @@ abstract class TestCase extends Orchestra
     protected function setUp(): void
     {
         parent::setUp();
-
-        $this->withFactories(__DIR__ . '/App/data/factories');
     }
 }
