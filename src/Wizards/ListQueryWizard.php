@@ -96,12 +96,9 @@ class ListQueryWizard extends BaseQueryWizard
 
     /**
      * Build and paginate with appends applied
-     *
-     * @return LengthAwarePaginator<\Illuminate\Database\Eloquent\Model>
      */
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        /** @var LengthAwarePaginator<\Illuminate\Database\Eloquent\Model> $result */
         $result = $this->build()->paginate($perPage);
         $this->driver->applyAppends($result->getCollection(), $this->getValidRequestedAppends());
 
@@ -110,14 +107,10 @@ class ListQueryWizard extends BaseQueryWizard
 
     /**
      * Build and simple paginate with appends applied
-     *
-     * @return Paginator<\Illuminate\Database\Eloquent\Model>
      */
     public function simplePaginate(int $perPage = 15): Paginator
     {
-        /** @var Paginator<\Illuminate\Database\Eloquent\Model> $result */
         $result = $this->build()->simplePaginate($perPage);
-        /** @phpstan-ignore method.notFound */
         $this->driver->applyAppends($result->getCollection(), $this->getValidRequestedAppends());
 
         return $result;
@@ -125,12 +118,9 @@ class ListQueryWizard extends BaseQueryWizard
 
     /**
      * Build and cursor paginate with appends applied
-     *
-     * @return CursorPaginator<\Illuminate\Database\Eloquent\Model>
      */
     public function cursorPaginate(int $perPage = 15): CursorPaginator
     {
-        /** @var CursorPaginator<\Illuminate\Database\Eloquent\Model> $result */
         $result = $this->build()->cursorPaginate($perPage);
         $this->driver->applyAppends($result->items(), $this->getValidRequestedAppends());
 

@@ -7,4 +7,17 @@ parameters:
     level: 6
     ignoreErrors:
         # Template type resolution in collect() calls - known Larastan limitation
-        - message: '#Unable to resolve the template type .* in call to function collect#'
+        -
+            message: '#Unable to resolve the template type .* in call to function collect#'
+            reportUnmatched: false
+        # Pagination generic types differ between Laravel versions (1 param in L10-11, 2 params in L12)
+        -
+            message: '#return type with generic (class|interface) Illuminate\\(Contracts\\)?Pagination\\(LengthAware)?Paginator does not specify its types#'
+            reportUnmatched: false
+        -
+            message: '#return type with generic interface Illuminate\\Contracts\\Pagination\\CursorPaginator does not specify its types#'
+            reportUnmatched: false
+        # WeakMap covariance issues with Model - PHPStan version differences
+        -
+            message: '#WeakMap.* (covariant|template)#'
+            reportUnmatched: false

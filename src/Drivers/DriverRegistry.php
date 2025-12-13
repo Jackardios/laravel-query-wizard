@@ -105,7 +105,7 @@ class DriverRegistry
         /** @var array<string, class-string<DriverInterface>> $customDrivers */
         $customDrivers = config('query-wizard.drivers', []);
         foreach ($customDrivers as $name => $driverClass) {
-            if (is_string($driverClass) && class_exists($driverClass)) {
+            if (class_exists($driverClass)) {
                 $driver = new $driverClass();
                 if ($driver instanceof DriverInterface) {
                     $this->drivers[$name] = $driver;
