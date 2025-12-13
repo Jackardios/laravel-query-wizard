@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\Test;
 use Closure;
 use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
@@ -11,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 class FilterDefinitionTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_creates_exact_filter(): void
     {
         $filter = FilterDefinition::exact('name');
@@ -26,8 +27,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertNull($filter->getStrategyClass());
         $this->assertEquals([], $filter->getOptions());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_exact_filter_with_alias(): void
     {
         $filter = FilterDefinition::exact('property_name', 'alias');
@@ -36,8 +36,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('alias', $filter->getName());
         $this->assertEquals('alias', $filter->getAlias());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_partial_filter(): void
     {
         $filter = FilterDefinition::partial('search');
@@ -45,8 +44,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('search', $filter->getProperty());
         $this->assertEquals('partial', $filter->getType());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_partial_filter_with_alias(): void
     {
         $filter = FilterDefinition::partial('name', 'q');
@@ -55,8 +53,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('q', $filter->getName());
         $this->assertEquals('partial', $filter->getType());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_scope_filter(): void
     {
         $filter = FilterDefinition::scope('active');
@@ -64,8 +61,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('active', $filter->getProperty());
         $this->assertEquals('scope', $filter->getType());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_scope_filter_with_alias(): void
     {
         $filter = FilterDefinition::scope('isActive', 'active');
@@ -73,8 +69,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('isActive', $filter->getProperty());
         $this->assertEquals('active', $filter->getName());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_trashed_filter(): void
     {
         $filter = FilterDefinition::trashed();
@@ -83,8 +78,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('trashed', $filter->getType());
         $this->assertEquals('trashed', $filter->getName());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_trashed_filter_with_alias(): void
     {
         $filter = FilterDefinition::trashed('deleted');
@@ -92,8 +86,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('trashed', $filter->getProperty());
         $this->assertEquals('deleted', $filter->getName());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_callback_filter(): void
     {
         $callback = fn($query, $value) => $query->where('name', $value);
@@ -103,8 +96,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('callback', $filter->getType());
         $this->assertInstanceOf(Closure::class, $filter->getCallback());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_callback_filter_with_alias(): void
     {
         $callback = fn($query, $value) => $query->where('name', $value);
@@ -113,8 +105,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('full_name', $filter->getProperty());
         $this->assertEquals('name', $filter->getName());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_custom_filter(): void
     {
         $filter = FilterDefinition::custom('name', 'App\\Filters\\CustomFilter');
@@ -123,8 +114,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('custom', $filter->getType());
         $this->assertEquals('App\\Filters\\CustomFilter', $filter->getStrategyClass());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_range_filter(): void
     {
         $filter = FilterDefinition::range('price');
@@ -132,8 +122,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('price', $filter->getProperty());
         $this->assertEquals('range', $filter->getType());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_date_range_filter(): void
     {
         $filter = FilterDefinition::dateRange('created_at');
@@ -141,8 +130,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('created_at', $filter->getProperty());
         $this->assertEquals('dateRange', $filter->getType());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_null_filter(): void
     {
         $filter = FilterDefinition::null('deleted_at');
@@ -150,8 +138,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('deleted_at', $filter->getProperty());
         $this->assertEquals('null', $filter->getType());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_json_contains_filter(): void
     {
         $filter = FilterDefinition::jsonContains('meta.roles');
@@ -159,16 +146,14 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('meta.roles', $filter->getProperty());
         $this->assertEquals('jsonContains', $filter->getType());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_default_value(): void
     {
         $filter = FilterDefinition::exact('status')->default('active');
 
         $this->assertEquals('active', $filter->getDefault());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_default_value_immutably(): void
     {
         $original = FilterDefinition::exact('status');
@@ -178,8 +163,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('active', $withDefault->getDefault());
         $this->assertNotSame($original, $withDefault);
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_prepare_value_callback(): void
     {
         $filter = FilterDefinition::exact('status')
@@ -187,16 +171,14 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertEquals('ACTIVE', $filter->prepareValue('active'));
     }
-
-    /** @test */
+    #[Test]
     public function it_returns_value_unchanged_without_prepare_callback(): void
     {
         $filter = FilterDefinition::exact('status');
 
         $this->assertEquals('active', $filter->prepareValue('active'));
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_options(): void
     {
         $filter = FilterDefinition::exact('name')
@@ -206,8 +188,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertEquals('value1', $filter->getOption('key1'));
         $this->assertEquals('value2', $filter->getOption('key2'));
     }
-
-    /** @test */
+    #[Test]
     public function it_returns_default_for_missing_option(): void
     {
         $filter = FilterDefinition::exact('name');
@@ -215,8 +196,7 @@ class FilterDefinitionTest extends TestCase
         $this->assertNull($filter->getOption('missing'));
         $this->assertEquals('default', $filter->getOption('missing', 'default'));
     }
-
-    /** @test */
+    #[Test]
     public function it_merges_options(): void
     {
         $filter = FilterDefinition::exact('name')
@@ -225,24 +205,21 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $filter->getOptions());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_with_relation_constraint(): void
     {
         $filter = FilterDefinition::exact('posts.title')->withRelationConstraint(false);
 
         $this->assertFalse($filter->getOption('withRelationConstraint'));
     }
-
-    /** @test */
+    #[Test]
     public function it_defaults_with_relation_constraint_to_true(): void
     {
         $filter = FilterDefinition::exact('posts.title')->withRelationConstraint();
 
         $this->assertTrue($filter->getOption('withRelationConstraint'));
     }
-
-    /** @test */
+    #[Test]
     public function it_chains_multiple_modifiers(): void
     {
         $filter = FilterDefinition::exact('status', 'state')
@@ -258,40 +235,35 @@ class FilterDefinitionTest extends TestCase
         $this->assertTrue($filter->getOption('custom'));
         $this->assertFalse($filter->getOption('withRelationConstraint'));
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_null_default_value(): void
     {
         $filter = FilterDefinition::exact('status')->default(null);
 
         $this->assertNull($filter->getDefault());
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_array_default_value(): void
     {
         $filter = FilterDefinition::exact('statuses')->default(['active', 'pending']);
 
         $this->assertEquals(['active', 'pending'], $filter->getDefault());
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_boolean_default_value(): void
     {
         $filter = FilterDefinition::exact('is_active')->default(true);
 
         $this->assertTrue($filter->getDefault());
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_integer_default_value(): void
     {
         $filter = FilterDefinition::exact('count')->default(0);
 
         $this->assertSame(0, $filter->getDefault());
     }
-
-    /** @test */
+    #[Test]
     public function it_prepares_complex_values(): void
     {
         $filter = FilterDefinition::exact('tags')

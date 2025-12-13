@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Contracts\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Contracts\SchemaContextInterface;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
@@ -16,8 +17,7 @@ use PHPUnit\Framework\TestCase;
 class ResourceSchemaTest extends TestCase
 {
     // ========== Abstract Method Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_requires_model_method(): void
     {
         $schema = new class extends ResourceSchema {
@@ -31,8 +31,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Type Method Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_generates_type_from_model_name(): void
     {
         $schema = new class extends ResourceSchema {
@@ -44,8 +43,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals('userProfile', $schema->type());
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_simple_model_name(): void
     {
         $schema = new class extends ResourceSchema {
@@ -57,8 +55,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals('user', $schema->type());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_override_type(): void
     {
         $schema = new class extends ResourceSchema {
@@ -77,8 +74,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Driver Method Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_defaults_to_eloquent_driver(): void
     {
         $schema = new class extends ResourceSchema {
@@ -90,8 +86,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals('eloquent', $schema->driver());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_override_driver(): void
     {
         $schema = new class extends ResourceSchema {
@@ -110,8 +105,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Filters Method Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_empty_filters_by_default(): void
     {
         $schema = new class extends ResourceSchema {
@@ -123,8 +117,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals([], $schema->filters());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_string_filters(): void
     {
         $schema = new class extends ResourceSchema {
@@ -141,8 +134,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals(['name', 'email', 'status'], $schema->filters());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_filter_definitions(): void
     {
         $schema = new class extends ResourceSchema {
@@ -164,8 +156,7 @@ class ResourceSchemaTest extends TestCase
         $this->assertCount(2, $filters);
         $this->assertInstanceOf(FilterDefinition::class, $filters[0]);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_mix_strings_and_filter_definitions(): void
     {
         $schema = new class extends ResourceSchema {
@@ -189,8 +180,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Includes Method Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_empty_includes_by_default(): void
     {
         $schema = new class extends ResourceSchema {
@@ -202,8 +192,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals([], $schema->includes());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_string_includes(): void
     {
         $schema = new class extends ResourceSchema {
@@ -220,8 +209,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals(['posts', 'comments', 'profile'], $schema->includes());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_include_definitions(): void
     {
         $schema = new class extends ResourceSchema {
@@ -245,8 +233,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Sorts Method Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_empty_sorts_by_default(): void
     {
         $schema = new class extends ResourceSchema {
@@ -258,8 +245,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals([], $schema->sorts());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_string_sorts(): void
     {
         $schema = new class extends ResourceSchema {
@@ -276,8 +262,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals(['name', 'created_at'], $schema->sorts());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_sort_definitions(): void
     {
         $schema = new class extends ResourceSchema {
@@ -301,8 +286,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Fields Method Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_empty_fields_by_default(): void
     {
         $schema = new class extends ResourceSchema {
@@ -314,8 +298,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals([], $schema->fields());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_fields(): void
     {
         $schema = new class extends ResourceSchema {
@@ -334,8 +317,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Appends Method Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_empty_appends_by_default(): void
     {
         $schema = new class extends ResourceSchema {
@@ -347,8 +329,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals([], $schema->appends());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_appends(): void
     {
         $schema = new class extends ResourceSchema {
@@ -367,8 +348,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Default Fields Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_wildcard_as_default_fields(): void
     {
         $schema = new class extends ResourceSchema {
@@ -380,8 +360,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals(['*'], $schema->defaultFields());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_override_default_fields(): void
     {
         $schema = new class extends ResourceSchema {
@@ -400,8 +379,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Default Includes Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_empty_default_includes(): void
     {
         $schema = new class extends ResourceSchema {
@@ -413,8 +391,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals([], $schema->defaultIncludes());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_set_default_includes(): void
     {
         $schema = new class extends ResourceSchema {
@@ -433,8 +410,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Default Sorts Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_empty_default_sorts(): void
     {
         $schema = new class extends ResourceSchema {
@@ -446,8 +422,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals([], $schema->defaultSorts());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_set_default_sorts(): void
     {
         $schema = new class extends ResourceSchema {
@@ -466,8 +441,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Default Appends Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_empty_default_appends(): void
     {
         $schema = new class extends ResourceSchema {
@@ -479,8 +453,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals([], $schema->defaultAppends());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_set_default_appends(): void
     {
         $schema = new class extends ResourceSchema {
@@ -499,8 +472,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Context Methods Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_returns_null_forList_by_default(): void
     {
         $schema = new class extends ResourceSchema {
@@ -512,8 +484,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertNull($schema->forList());
     }
-
-    /** @test */
+    #[Test]
     public function it_returns_null_forItem_by_default(): void
     {
         $schema = new class extends ResourceSchema {
@@ -525,8 +496,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertNull($schema->forItem());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_forList_context(): void
     {
         $schema = new class extends ResourceSchema {
@@ -546,8 +516,7 @@ class ResourceSchemaTest extends TestCase
         $this->assertInstanceOf(SchemaContextInterface::class, $context);
         $this->assertEquals(['secrets'], $context->getDisallowedIncludes());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_return_forItem_context(): void
     {
         $schema = new class extends ResourceSchema {
@@ -569,8 +538,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Interface Implementation Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_implements_resource_schema_interface(): void
     {
         $schema = new class extends ResourceSchema {
@@ -584,8 +552,7 @@ class ResourceSchemaTest extends TestCase
     }
 
     // ========== Complex Schema Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_create_complex_schema(): void
     {
         $schema = new class extends ResourceSchema {

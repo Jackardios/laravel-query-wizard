@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Contracts\SchemaContextInterface;
 use Jackardios\QueryWizard\Schema\SchemaContext;
 use PHPUnit\Framework\TestCase;
 
 class SchemaContextTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_creates_empty_context(): void
     {
         $context = SchemaContext::make();
@@ -33,16 +34,14 @@ class SchemaContextTest extends TestCase
     }
 
     // ========== Allowed setters tests ==========
-
-    /** @test */
+    #[Test]
     public function it_sets_allowed_filters(): void
     {
         $context = SchemaContext::make()->allowFilters(['name', 'status']);
 
         $this->assertEquals(['name', 'status'], $context->getAllowedFilters());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_empty_allowed_filters(): void
     {
         $context = SchemaContext::make()->allowFilters([]);
@@ -50,32 +49,28 @@ class SchemaContextTest extends TestCase
         $this->assertEquals([], $context->getAllowedFilters());
         $this->assertNotNull($context->getAllowedFilters());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_allowed_sorts(): void
     {
         $context = SchemaContext::make()->allowSorts(['name', '-created_at']);
 
         $this->assertEquals(['name', '-created_at'], $context->getAllowedSorts());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_allowed_includes(): void
     {
         $context = SchemaContext::make()->allowIncludes(['posts', 'comments']);
 
         $this->assertEquals(['posts', 'comments'], $context->getAllowedIncludes());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_allowed_fields(): void
     {
         $context = SchemaContext::make()->allowFields(['id', 'name', 'email']);
 
         $this->assertEquals(['id', 'name', 'email'], $context->getAllowedFields());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_allowed_appends(): void
     {
         $context = SchemaContext::make()->allowAppends(['fullName', 'avatarUrl']);
@@ -84,40 +79,35 @@ class SchemaContextTest extends TestCase
     }
 
     // ========== Disallowed setters tests ==========
-
-    /** @test */
+    #[Test]
     public function it_sets_disallowed_filters(): void
     {
         $context = SchemaContext::make()->disallowFilters(['secret', 'password']);
 
         $this->assertEquals(['secret', 'password'], $context->getDisallowedFilters());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_disallowed_sorts(): void
     {
         $context = SchemaContext::make()->disallowSorts(['secret_score']);
 
         $this->assertEquals(['secret_score'], $context->getDisallowedSorts());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_disallowed_includes(): void
     {
         $context = SchemaContext::make()->disallowIncludes(['secrets', 'internalData']);
 
         $this->assertEquals(['secrets', 'internalData'], $context->getDisallowedIncludes());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_disallowed_fields(): void
     {
         $context = SchemaContext::make()->disallowFields(['password', 'remember_token']);
 
         $this->assertEquals(['password', 'remember_token'], $context->getDisallowedFields());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_disallowed_appends(): void
     {
         $context = SchemaContext::make()->disallowAppends(['secretData']);
@@ -126,40 +116,35 @@ class SchemaContextTest extends TestCase
     }
 
     // ========== Default setters tests ==========
-
-    /** @test */
+    #[Test]
     public function it_sets_default_fields(): void
     {
         $context = SchemaContext::make()->defaultFields(['id', 'name']);
 
         $this->assertEquals(['id', 'name'], $context->getDefaultFields());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_default_fields_with_wildcard(): void
     {
         $context = SchemaContext::make()->defaultFields(['*']);
 
         $this->assertEquals(['*'], $context->getDefaultFields());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_default_includes(): void
     {
         $context = SchemaContext::make()->defaultIncludes(['profile']);
 
         $this->assertEquals(['profile'], $context->getDefaultIncludes());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_default_sorts(): void
     {
         $context = SchemaContext::make()->defaultSorts(['-created_at']);
 
         $this->assertEquals(['-created_at'], $context->getDefaultSorts());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_default_appends(): void
     {
         $context = SchemaContext::make()->defaultAppends(['fullName']);
@@ -168,8 +153,7 @@ class SchemaContextTest extends TestCase
     }
 
     // ========== Fluent interface tests ==========
-
-    /** @test */
+    #[Test]
     public function it_supports_fluent_interface(): void
     {
         $context = SchemaContext::make()
@@ -203,8 +187,7 @@ class SchemaContextTest extends TestCase
         $this->assertEquals(['-created_at'], $context->getDefaultSorts());
         $this->assertEquals(['avatarUrl'], $context->getDefaultAppends());
     }
-
-    /** @test */
+    #[Test]
     public function it_returns_same_instance_for_fluent_calls(): void
     {
         $context = SchemaContext::make();
@@ -214,8 +197,7 @@ class SchemaContextTest extends TestCase
     }
 
     // ========== Edge cases ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_mixed_types_in_allowed_filters(): void
     {
         // When used with definitions, arrays can contain definition objects
@@ -227,8 +209,7 @@ class SchemaContextTest extends TestCase
 
         $this->assertCount(2, $context->getAllowedFilters());
     }
-
-    /** @test */
+    #[Test]
     public function it_overwrites_previous_allowed_value(): void
     {
         $context = SchemaContext::make()
@@ -237,8 +218,7 @@ class SchemaContextTest extends TestCase
 
         $this->assertEquals(['status', 'type'], $context->getAllowedFilters());
     }
-
-    /** @test */
+    #[Test]
     public function it_overwrites_previous_disallowed_value(): void
     {
         $context = SchemaContext::make()
@@ -247,8 +227,7 @@ class SchemaContextTest extends TestCase
 
         $this->assertEquals(['other'], $context->getDisallowedIncludes());
     }
-
-    /** @test */
+    #[Test]
     public function it_overwrites_previous_default_value(): void
     {
         $context = SchemaContext::make()
@@ -257,8 +236,7 @@ class SchemaContextTest extends TestCase
 
         $this->assertEquals(['-created_at'], $context->getDefaultSorts());
     }
-
-    /** @test */
+    #[Test]
     public function null_and_empty_array_are_different(): void
     {
         $emptyContext = SchemaContext::make()->allowFilters([]);
@@ -271,8 +249,7 @@ class SchemaContextTest extends TestCase
         // Null = use schema defaults
         $this->assertNull($nullContext->getAllowedFilters());
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_nested_include_names(): void
     {
         $context = SchemaContext::make()->disallowIncludes(['posts', 'posts.comments']);

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\SortDefinition;
@@ -11,10 +13,8 @@ use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 
-/**
- * @group eloquent
- * @group sort
- */
+#[Group('eloquent')]
+#[Group('sort')]
 class SortTest extends TestCase
 {
     protected Collection $models;
@@ -35,8 +35,7 @@ class SortTest extends TestCase
     }
 
     // ========== Basic Sort Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_field_ascending(): void
     {
         $models = $this
@@ -49,8 +48,7 @@ class SortTest extends TestCase
         $expectedOrder = ['Alpha', 'Beta', 'Delta', 'Epsilon', 'Gamma'];
         $this->assertEquals($expectedOrder, $sortedNames);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_field_descending(): void
     {
         $models = $this
@@ -61,8 +59,7 @@ class SortTest extends TestCase
         $this->assertEquals('Gamma', $models->first()->name);
         $this->assertEquals('Alpha', $models->last()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_field_with_definition(): void
     {
         $models = $this
@@ -72,8 +69,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_id_ascending(): void
     {
         $models = $this
@@ -84,8 +80,7 @@ class SortTest extends TestCase
         $this->assertEquals(1, $models->first()->id);
         $this->assertEquals(5, $models->last()->id);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_id_descending(): void
     {
         $models = $this
@@ -98,8 +93,7 @@ class SortTest extends TestCase
     }
 
     // ========== Alias Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_sort_with_alias(): void
     {
         $models = $this
@@ -109,8 +103,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_sort_descending_with_alias(): void
     {
         $models = $this
@@ -120,8 +113,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Gamma', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function alias_with_negative_prefix_in_definition(): void
     {
         $models = $this
@@ -134,8 +126,7 @@ class SortTest extends TestCase
     }
 
     // ========== Callback Sort Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_callback(): void
     {
         $models = $this
@@ -149,8 +140,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function callback_sort_respects_direction(): void
     {
         $models = $this
@@ -164,8 +154,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Gamma', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function callback_sort_receives_correct_direction(): void
     {
         $receivedDirection = null;
@@ -182,8 +171,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('desc', $receivedDirection);
     }
-
-    /** @test */
+    #[Test]
     public function callback_sort_can_add_multiple_order_clauses(): void
     {
         $models = $this
@@ -198,8 +186,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function callback_sort_with_alias(): void
     {
         $models = $this
@@ -215,8 +202,7 @@ class SortTest extends TestCase
     }
 
     // ========== Multiple Sorts Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_multiple_fields(): void
     {
         // Create models with same name to test secondary sort
@@ -233,8 +219,7 @@ class SortTest extends TestCase
         $ids = $alphas->pluck('id')->values()->all();
         $this->assertEquals($ids, collect($ids)->sortDesc()->values()->all());
     }
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_multiple_fields_as_array(): void
     {
         $models = $this
@@ -244,8 +229,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_applies_sorts_in_order(): void
     {
         TestModel::factory()->create(['name' => 'Alpha']);
@@ -262,8 +246,7 @@ class SortTest extends TestCase
     }
 
     // ========== Default Sort Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_uses_default_sorts_when_none_requested(): void
     {
         $models = $this
@@ -274,8 +257,7 @@ class SortTest extends TestCase
 
         $this->assertEquals(5, $models->first()->id);
     }
-
-    /** @test */
+    #[Test]
     public function it_uses_multiple_default_sorts(): void
     {
         $models = $this
@@ -286,8 +268,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function explicit_sort_overrides_default(): void
     {
         $models = $this
@@ -299,8 +280,7 @@ class SortTest extends TestCase
         // Should use name sort, not default -id
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function default_sort_with_definition(): void
     {
         $models = $this
@@ -313,8 +293,7 @@ class SortTest extends TestCase
     }
 
     // ========== Validation Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_throws_exception_for_not_allowed_sort(): void
     {
         $this->expectException(InvalidSortQuery::class);
@@ -324,8 +303,7 @@ class SortTest extends TestCase
             ->setAllowedSorts('name')
             ->get();
     }
-
-    /** @test */
+    #[Test]
     public function it_throws_exception_for_not_allowed_descending_sort(): void
     {
         $this->expectException(InvalidSortQuery::class);
@@ -335,8 +313,7 @@ class SortTest extends TestCase
             ->setAllowedSorts('name')
             ->get();
     }
-
-    /** @test */
+    #[Test]
     public function it_ignores_unknown_sorts_when_no_allowed_set(): void
     {
         $models = $this
@@ -346,8 +323,7 @@ class SortTest extends TestCase
         // No exception, returns all models in default order
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_ignores_sorts_when_empty_allowed_array(): void
     {
         // Empty allowed array means silently ignore all sort requests
@@ -361,8 +337,7 @@ class SortTest extends TestCase
     }
 
     // ========== SQL Verification Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_adds_order_by_clause_to_sql(): void
     {
         $sql = $this
@@ -375,8 +350,7 @@ class SortTest extends TestCase
         $this->assertStringContainsString('order by', strtolower($sql));
         $this->assertStringContainsString('"name"', $sql);
     }
-
-    /** @test */
+    #[Test]
     public function it_uses_asc_direction_by_default(): void
     {
         $sql = $this
@@ -387,8 +361,7 @@ class SortTest extends TestCase
 
         $this->assertStringContainsString('asc', strtolower($sql));
     }
-
-    /** @test */
+    #[Test]
     public function it_uses_desc_direction_with_minus_prefix(): void
     {
         $sql = $this
@@ -401,8 +374,7 @@ class SortTest extends TestCase
     }
 
     // ========== Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_empty_sort_string(): void
     {
         $models = $this
@@ -413,8 +385,7 @@ class SortTest extends TestCase
         // Empty sort, returns all
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_sort_values_literally(): void
     {
         // Sort values are used as-is, spaces are not automatically trimmed
@@ -425,8 +396,7 @@ class SortTest extends TestCase
 
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_removes_duplicate_sorts(): void
     {
         $models = $this
@@ -437,8 +407,7 @@ class SortTest extends TestCase
         // Only first sort should be used
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_sort_with_trailing_comma(): void
     {
         $models = $this
@@ -448,8 +417,7 @@ class SortTest extends TestCase
 
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_empty_string_values(): void
     {
         // Create model with empty name
@@ -463,8 +431,7 @@ class SortTest extends TestCase
         // Empty string sorts first in ascending order
         $this->assertEquals('', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_sort_by_created_at(): void
     {
         $sql = $this
@@ -481,8 +448,7 @@ class SortTest extends TestCase
     }
 
     // ========== Mixed Definitions Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_mix_string_and_definition_sorts(): void
     {
         $models = $this
@@ -495,8 +461,7 @@ class SortTest extends TestCase
 
         $this->assertEquals('Alpha', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_mix_field_and_callback_sorts(): void
     {
         $models = $this
@@ -511,8 +476,7 @@ class SortTest extends TestCase
     }
 
     // ========== Options Tests ==========
-
-    /** @test */
+    #[Test]
     public function sort_definition_options_are_accessible(): void
     {
         $sort = SortDefinition::field('name')->withOptions(['nullsLast' => true]);
@@ -521,8 +485,7 @@ class SortTest extends TestCase
     }
 
     // ========== Integration with Other Features ==========
-
-    /** @test */
+    #[Test]
     public function it_works_with_pagination(): void
     {
         $result = $this
@@ -534,8 +497,7 @@ class SortTest extends TestCase
         $this->assertEquals('Gamma', $result->first()->name);
         $this->assertEquals(5, $result->total());
     }
-
-    /** @test */
+    #[Test]
     public function it_works_with_first(): void
     {
         $model = $this
@@ -546,8 +508,7 @@ class SortTest extends TestCase
 
         $this->assertEquals(5, $model->id);
     }
-
-    /** @test */
+    #[Test]
     public function it_preserves_sort_through_cloning(): void
     {
         $wizard = $this
@@ -561,8 +522,7 @@ class SortTest extends TestCase
     }
 
     // ========== Snake Case / Camel Case Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_snake_case_sort(): void
     {
         $models = $this
@@ -572,8 +532,7 @@ class SortTest extends TestCase
 
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_camel_case_alias(): void
     {
         $models = $this

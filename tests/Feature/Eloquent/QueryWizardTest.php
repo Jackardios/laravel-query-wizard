@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -24,10 +26,8 @@ use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Wizards\ItemQueryWizard;
 use Jackardios\QueryWizard\Wizards\ListQueryWizard;
 
-/**
- * @group eloquent
- * @group wizard
- */
+#[Group('eloquent')]
+#[Group('wizard')]
 class QueryWizardTest extends TestCase
 {
     protected Collection $models;
@@ -49,24 +49,21 @@ class QueryWizardTest extends TestCase
     }
 
     // ========== QueryWizard::for() Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_creates_list_wizard_with_for(): void
     {
         $wizard = QueryWizard::for(TestModel::class);
 
         $this->assertInstanceOf(ListQueryWizard::class, $wizard);
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_list_wizard_with_builder(): void
     {
         $wizard = QueryWizard::for(TestModel::query());
 
         $this->assertInstanceOf(ListQueryWizard::class, $wizard);
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_list_wizard_with_custom_parameters(): void
     {
         $params = new QueryParametersManager(new Request(['filter' => ['name' => 'test']]));
@@ -74,16 +71,14 @@ class QueryWizardTest extends TestCase
 
         $this->assertInstanceOf(ListQueryWizard::class, $wizard);
     }
-
-    /** @test */
+    #[Test]
     public function for_wizard_can_get_results(): void
     {
         $models = QueryWizard::for(TestModel::class)->get();
 
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function for_wizard_can_use_filters(): void
     {
         $targetModel = $this->models->first();
@@ -96,8 +91,7 @@ class QueryWizardTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals($targetModel->id, $models->first()->id);
     }
-
-    /** @test */
+    #[Test]
     public function for_wizard_can_use_sorts(): void
     {
         $params = new QueryParametersManager(new Request(['sort' => '-id']));
@@ -108,8 +102,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals(5, $models->first()->id);
     }
-
-    /** @test */
+    #[Test]
     public function for_wizard_can_use_includes(): void
     {
         $params = new QueryParametersManager(new Request(['include' => 'relatedModels']));
@@ -122,16 +115,14 @@ class QueryWizardTest extends TestCase
     }
 
     // ========== QueryWizard::using() Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_creates_wizard_with_explicit_driver(): void
     {
         $wizard = QueryWizard::using('eloquent', TestModel::class);
 
         $this->assertInstanceOf(ListQueryWizard::class, $wizard);
     }
-
-    /** @test */
+    #[Test]
     public function using_wizard_works_correctly(): void
     {
         $models = QueryWizard::using('eloquent', TestModel::class)->get();
@@ -140,8 +131,7 @@ class QueryWizardTest extends TestCase
     }
 
     // ========== QueryWizard::forList() with Schema Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_creates_list_wizard_from_schema_class(): void
     {
         $schema = new class extends ResourceSchema {
@@ -155,8 +145,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertInstanceOf(ListQueryWizard::class, $wizard);
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_uses_schema_filters(): void
     {
         $schema = new class extends ResourceSchema {
@@ -178,8 +167,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_uses_schema_sorts(): void
     {
         $schema = new class extends ResourceSchema {
@@ -199,8 +187,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals(5, $models->first()->id);
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_uses_schema_includes(): void
     {
         $schema = new class extends ResourceSchema {
@@ -220,8 +207,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_uses_schema_defaults(): void
     {
         $schema = new class extends ResourceSchema {
@@ -247,8 +233,7 @@ class QueryWizardTest extends TestCase
     }
 
     // ========== QueryWizard::forItem() Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_creates_item_wizard_from_schema(): void
     {
         $schema = new class extends ResourceSchema {
@@ -262,8 +247,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertInstanceOf(ItemQueryWizard::class, $wizard);
     }
-
-    /** @test */
+    #[Test]
     public function item_wizard_can_get_model_by_id(): void
     {
         $schema = new class extends ResourceSchema {
@@ -279,8 +263,7 @@ class QueryWizardTest extends TestCase
         $this->assertNotNull($model);
         $this->assertEquals($targetModel->id, $model->id);
     }
-
-    /** @test */
+    #[Test]
     public function item_wizard_returns_null_for_non_existent_id(): void
     {
         $schema = new class extends ResourceSchema {
@@ -294,8 +277,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertNull($model);
     }
-
-    /** @test */
+    #[Test]
     public function item_wizard_throws_on_getOrFail_for_non_existent(): void
     {
         $schema = new class extends ResourceSchema {
@@ -309,8 +291,7 @@ class QueryWizardTest extends TestCase
 
         QueryWizard::forItem($schema, 9999)->getOrFail();
     }
-
-    /** @test */
+    #[Test]
     public function item_wizard_can_process_loaded_model(): void
     {
         $schema = new class extends ResourceSchema {
@@ -335,8 +316,7 @@ class QueryWizardTest extends TestCase
         // otherRelatedModels should be removed as it's not in schema
         $this->assertFalse($model->relationLoaded('otherRelatedModels'));
     }
-
-    /** @test */
+    #[Test]
     public function item_wizard_applies_includes(): void
     {
         $schema = new class extends ResourceSchema {
@@ -358,8 +338,7 @@ class QueryWizardTest extends TestCase
     }
 
     // ========== ListQueryWizard Methods Tests ==========
-
-    /** @test */
+    #[Test]
     public function list_wizard_query_method_sets_custom_builder(): void
     {
         $schema = new class extends ResourceSchema {
@@ -375,8 +354,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertCount(2, $models);
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_modifyQuery_applies_callback(): void
     {
         $schema = new class extends ResourceSchema {
@@ -392,8 +370,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertCount(2, $models);
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_build_returns_builder(): void
     {
         $wizard = QueryWizard::for(TestModel::class);
@@ -401,8 +378,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertInstanceOf(Builder::class, $builder);
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_first_returns_single_model(): void
     {
         $params = new QueryParametersManager(new Request(['sort' => 'id']));
@@ -413,8 +389,7 @@ class QueryWizardTest extends TestCase
         $this->assertInstanceOf(TestModel::class, $model);
         $this->assertEquals(1, $model->id);
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_paginate_works(): void
     {
         $result = QueryWizard::for(TestModel::class)->paginate(2);
@@ -422,24 +397,21 @@ class QueryWizardTest extends TestCase
         $this->assertEquals(5, $result->total());
         $this->assertCount(2, $result->items());
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_simplePaginate_works(): void
     {
         $result = QueryWizard::for(TestModel::class)->simplePaginate(2);
 
         $this->assertCount(2, $result->items());
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_cursorPaginate_works(): void
     {
         $result = QueryWizard::for(TestModel::class)->cursorPaginate(2);
 
         $this->assertCount(2, $result->items());
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_getFilters_returns_prepared_values(): void
     {
         $params = new QueryParametersManager(new Request(['filter' => ['name' => 'test']]));
@@ -451,8 +423,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals('test', $filters->get('name'));
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_getIncludes_returns_requested(): void
     {
         $params = new QueryParametersManager(new Request(['include' => 'relatedModels,otherRelatedModels']));
@@ -462,8 +433,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals(['relatedModels', 'otherRelatedModels'], $includes->all());
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_getSorts_returns_sort_objects(): void
     {
         $params = new QueryParametersManager(new Request(['sort' => '-name,id']));
@@ -477,8 +447,7 @@ class QueryWizardTest extends TestCase
     }
 
     // ========== Schema with Definitions Tests ==========
-
-    /** @test */
+    #[Test]
     public function schema_can_use_filter_definitions(): void
     {
         $schema = new class extends ResourceSchema {
@@ -505,8 +474,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1, $models->count());
     }
-
-    /** @test */
+    #[Test]
     public function schema_can_use_include_definitions(): void
     {
         $schema = new class extends ResourceSchema {
@@ -533,8 +501,7 @@ class QueryWizardTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertTrue(isset($models->first()->other_related_models_count));
     }
-
-    /** @test */
+    #[Test]
     public function schema_can_use_sort_definitions(): void
     {
         $schema = new class extends ResourceSchema {
@@ -559,8 +526,7 @@ class QueryWizardTest extends TestCase
     }
 
     // ========== Schema Context Tests ==========
-
-    /** @test */
+    #[Test]
     public function schema_forList_context_is_applied(): void
     {
         $schema = new class extends ResourceSchema {
@@ -587,8 +553,7 @@ class QueryWizardTest extends TestCase
         // Should work since relatedModels is not disallowed
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
-
-    /** @test */
+    #[Test]
     public function schema_forItem_context_is_applied(): void
     {
         $schema = new class extends ResourceSchema {
@@ -621,16 +586,14 @@ class QueryWizardTest extends TestCase
     }
 
     // ========== Magic Methods Tests ==========
-
-    /** @test */
+    #[Test]
     public function list_wizard_proxies_method_calls_to_builder(): void
     {
         $count = QueryWizard::for(TestModel::class)->count();
 
         $this->assertEquals(5, $count);
     }
-
-    /** @test */
+    #[Test]
     public function list_wizard_proxies_where_clauses(): void
     {
         $models = QueryWizard::for(TestModel::class)

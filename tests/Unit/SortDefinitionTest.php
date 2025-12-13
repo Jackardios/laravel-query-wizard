@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\Test;
 use Closure;
 use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\SortDefinition;
@@ -11,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 
 class SortDefinitionTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_creates_field_sort(): void
     {
         $sort = SortDefinition::field('name');
@@ -25,8 +26,7 @@ class SortDefinitionTest extends TestCase
         $this->assertNull($sort->getStrategyClass());
         $this->assertEquals([], $sort->getOptions());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_field_sort_with_alias(): void
     {
         $sort = SortDefinition::field('full_name', 'name');
@@ -35,8 +35,7 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals('name', $sort->getName());
         $this->assertEquals('name', $sort->getAlias());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_callback_sort(): void
     {
         $callback = fn($query, $direction) => $query->orderBy('name', $direction);
@@ -46,8 +45,7 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals('callback', $sort->getType());
         $this->assertInstanceOf(Closure::class, $sort->getCallback());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_callback_sort_with_alias(): void
     {
         $callback = fn($query, $direction) => $query->orderBy('popularity_score', $direction);
@@ -56,8 +54,7 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals('popularity_score', $sort->getProperty());
         $this->assertEquals('popularity', $sort->getName());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_custom_sort(): void
     {
         $sort = SortDefinition::custom('name', 'App\\Sorts\\CustomSort');
@@ -66,8 +63,7 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals('custom', $sort->getType());
         $this->assertEquals('App\\Sorts\\CustomSort', $sort->getStrategyClass());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_custom_sort_with_alias(): void
     {
         $sort = SortDefinition::custom('popularity_score', 'App\\Sorts\\CustomSort', 'popularity');
@@ -75,8 +71,7 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals('popularity_score', $sort->getProperty());
         $this->assertEquals('popularity', $sort->getName());
     }
-
-    /** @test */
+    #[Test]
     public function it_sets_options(): void
     {
         $sort = SortDefinition::field('name')
@@ -85,8 +80,7 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals(['nulls' => 'last'], $sort->getOptions());
         $this->assertEquals('last', $sort->getOption('nulls'));
     }
-
-    /** @test */
+    #[Test]
     public function it_returns_default_for_missing_option(): void
     {
         $sort = SortDefinition::field('name');
@@ -94,8 +88,7 @@ class SortDefinitionTest extends TestCase
         $this->assertNull($sort->getOption('missing'));
         $this->assertEquals('default', $sort->getOption('missing', 'default'));
     }
-
-    /** @test */
+    #[Test]
     public function it_merges_options(): void
     {
         $sort = SortDefinition::field('name')
@@ -104,8 +97,7 @@ class SortDefinitionTest extends TestCase
 
         $this->assertEquals(['key1' => 'value1', 'key2' => 'value2'], $sort->getOptions());
     }
-
-    /** @test */
+    #[Test]
     public function it_creates_options_immutably(): void
     {
         $original = SortDefinition::field('name');
@@ -115,8 +107,7 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals(['key' => 'value'], $withOptions->getOptions());
         $this->assertNotSame($original, $withOptions);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_descending_sort_alias(): void
     {
         $sort = SortDefinition::field('created_at', '-created_at');
@@ -124,24 +115,21 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals('created_at', $sort->getProperty());
         $this->assertEquals('-created_at', $sort->getName());
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_relation_property(): void
     {
         $sort = SortDefinition::field('author.name');
 
         $this->assertEquals('author.name', $sort->getProperty());
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_snake_case_property(): void
     {
         $sort = SortDefinition::field('created_at');
 
         $this->assertEquals('created_at', $sort->getProperty());
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_camelCase_property(): void
     {
         $sort = SortDefinition::field('createdAt');

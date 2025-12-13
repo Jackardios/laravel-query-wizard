@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,10 +16,8 @@ use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 
-/**
- * @group eloquent
- * @group filter
- */
+#[Group('eloquent')]
+#[Group('filter')]
 class FilterTest extends TestCase
 {
     protected Collection $models;
@@ -31,8 +31,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Exact Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_exact_property(): void
     {
         $models = $this
@@ -43,8 +42,7 @@ class FilterTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals($this->models->first()->id, $models->first()->id);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_exact_property_with_definition(): void
     {
         $models = $this
@@ -54,8 +52,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_exact_property_with_alias(): void
     {
         $models = $this
@@ -65,8 +62,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_array_of_values(): void
     {
         $names = $this->models->take(2)->pluck('name')->toArray();
@@ -78,8 +74,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(2, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_comma_separated_values(): void
     {
         $names = $this->models->take(2)->pluck('name')->implode(',');
@@ -91,8 +86,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(2, $models);
     }
-
-    /** @test */
+    #[Test]
     public function exact_filter_is_case_sensitive_on_sqlite(): void
     {
         $model = $this->models->first();
@@ -105,8 +99,7 @@ class FilterTest extends TestCase
         // SQLite is case-sensitive by default
         $this->assertCount(0, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_uses_default_filter_value_when_not_provided(): void
     {
         TestModel::factory()->create(['name' => 'default_value']);
@@ -119,8 +112,7 @@ class FilterTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals('default_value', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_ignores_default_when_filter_is_provided(): void
     {
         TestModel::factory()->create(['name' => 'default_value']);
@@ -134,8 +126,7 @@ class FilterTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals('explicit_value', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_prepares_filter_value_with_callback(): void
     {
         $receivedValue = null;
@@ -156,8 +147,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Partial Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_partial_property(): void
     {
         $model = $this->models->first();
@@ -170,8 +160,7 @@ class FilterTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1, $models->count());
     }
-
-    /** @test */
+    #[Test]
     public function partial_filter_is_case_insensitive(): void
     {
         $model = $this->models->first();
@@ -183,8 +172,7 @@ class FilterTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1, $models->count());
     }
-
-    /** @test */
+    #[Test]
     public function partial_filter_works_with_array_of_values(): void
     {
         $partials = $this->models->take(2)->map(fn($m) => substr($m->name, 0, 3))->toArray();
@@ -196,8 +184,7 @@ class FilterTest extends TestCase
 
         $this->assertGreaterThanOrEqual(2, $models->count());
     }
-
-    /** @test */
+    #[Test]
     public function partial_filter_ignores_empty_values_in_array(): void
     {
         $models = $this
@@ -210,8 +197,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Scope Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_scope(): void
     {
         $model = $this->models->first();
@@ -223,8 +209,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_scope_with_alias(): void
     {
         $model = $this->models->first();
@@ -236,8 +221,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_scope_with_multiple_parameters(): void
     {
         $model = $this->models->first();
@@ -253,8 +237,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Callback Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_callback(): void
     {
         $model = $this->models->first();
@@ -270,8 +253,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function callback_filter_receives_property_name(): void
     {
         $receivedProperty = null;
@@ -287,8 +269,7 @@ class FilterTest extends TestCase
 
         $this->assertEquals('name', $receivedProperty);
     }
-
-    /** @test */
+    #[Test]
     public function callback_filter_with_array_callback(): void
     {
         $model = $this->models->first();
@@ -309,8 +290,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Range Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_range_with_min_and_max(): void
     {
         $models = $this
@@ -321,8 +301,7 @@ class FilterTest extends TestCase
         $this->assertCount(3, $models);
         $this->assertTrue($models->every(fn($m) => $m->id >= 2 && $m->id <= 4));
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_range_with_only_min(): void
     {
         $models = $this
@@ -332,8 +311,7 @@ class FilterTest extends TestCase
 
         $this->assertTrue($models->every(fn($m) => $m->id >= 3));
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_range_with_only_max(): void
     {
         $models = $this
@@ -343,8 +321,7 @@ class FilterTest extends TestCase
 
         $this->assertTrue($models->every(fn($m) => $m->id <= 3));
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_range_with_comma_separated(): void
     {
         $models = $this
@@ -356,8 +333,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Date Range Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_date_range(): void
     {
         $from = Carbon::now()->subDays(1);
@@ -370,8 +346,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_date_range_with_only_from(): void
     {
         $from = Carbon::now()->subDays(1);
@@ -383,8 +358,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_date_range_with_only_to(): void
     {
         $to = Carbon::now()->addDays(1);
@@ -400,8 +374,7 @@ class FilterTest extends TestCase
     // ========== Null Filter Tests ==========
     // Note: These tests use a different column that allows NULL values
     // The 'name' column in test_models has NOT NULL constraint
-
-    /** @test */
+    #[Test]
     public function null_filter_generates_correct_sql(): void
     {
         $sql = $this
@@ -412,8 +385,7 @@ class FilterTest extends TestCase
 
         $this->assertStringContainsString('is null', strtolower($sql));
     }
-
-    /** @test */
+    #[Test]
     public function null_filter_with_false_generates_not_null_sql(): void
     {
         $sql = $this
@@ -424,8 +396,7 @@ class FilterTest extends TestCase
 
         $this->assertStringContainsString('is not null', strtolower($sql));
     }
-
-    /** @test */
+    #[Test]
     public function null_filter_with_string_true(): void
     {
         $sql = $this
@@ -437,8 +408,7 @@ class FilterTest extends TestCase
         // 'true' is converted to boolean true, which checks for NULL
         $this->assertStringContainsString('is null', strtolower($sql));
     }
-
-    /** @test */
+    #[Test]
     public function null_filter_with_inverted_logic_sql(): void
     {
         $sql = $this
@@ -455,8 +425,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Relation Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_relation_property(): void
     {
         $testModel = $this->models->first();
@@ -473,8 +442,7 @@ class FilterTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals($testModel->id, $models->first()->id);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_disable_relation_constraint(): void
     {
         $sql = $this
@@ -491,8 +459,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Validation Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_throws_exception_for_not_allowed_filter(): void
     {
         $this->expectException(InvalidFilterQuery::class);
@@ -502,8 +469,7 @@ class FilterTest extends TestCase
             ->setAllowedFilters('name')
             ->get();
     }
-
-    /** @test */
+    #[Test]
     public function it_throws_exception_for_unknown_filters_when_no_allowed_set(): void
     {
         // When no allowed filters are set, any requested filter throws exception
@@ -517,8 +483,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_empty_filter_value(): void
     {
         $models = $this
@@ -529,8 +494,7 @@ class FilterTest extends TestCase
         // Empty string filter should return nothing for exact match
         $this->assertCount(0, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_skips_null_filter_value(): void
     {
         $models = $this
@@ -541,8 +505,7 @@ class FilterTest extends TestCase
         // Null value means filter is not applied - returns all models
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_boolean_true_filter_value(): void
     {
         $models = $this
@@ -553,8 +516,7 @@ class FilterTest extends TestCase
         // 'true' is parsed as boolean true by QueryParametersManager
         $this->assertCount(0, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_boolean_false_filter_value(): void
     {
         $models = $this
@@ -565,8 +527,7 @@ class FilterTest extends TestCase
         // 'false' is parsed as boolean false
         $this->assertCount(0, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_combine_multiple_filters(): void
     {
         $model = $this->models->first();
@@ -581,8 +542,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_filter_with_special_characters(): void
     {
         $model = TestModel::factory()->create(['name' => "Test's Model"]);
@@ -594,8 +554,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_throws_exception_with_empty_allowed_filters_array(): void
     {
         $this->expectException(InvalidFilterQuery::class);
@@ -605,8 +564,7 @@ class FilterTest extends TestCase
             ->setAllowedFilters([])
             ->get();
     }
-
-    /** @test */
+    #[Test]
     public function it_qualifies_column_names(): void
     {
         $sql = $this
@@ -619,8 +577,7 @@ class FilterTest extends TestCase
     }
 
     // ========== JsonContains Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_json_contains_single_value(): void
     {
         // Create test data with JSON column
@@ -639,8 +596,7 @@ class FilterTest extends TestCase
             "Expected JSON filtering SQL, got: {$sql}"
         );
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_json_contains_array_value(): void
     {
         $sql = $this
@@ -658,8 +614,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Additional Exact Filter Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function exact_filter_handles_integer_values(): void
     {
         $model = $this->models->first();
@@ -672,8 +627,7 @@ class FilterTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals($model->id, $models->first()->id);
     }
-
-    /** @test */
+    #[Test]
     public function exact_filter_handles_zero_value(): void
     {
         TestModel::factory()->create(['name' => '0']);
@@ -686,8 +640,7 @@ class FilterTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals('0', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_filter_multiple_properties_with_definitions(): void
     {
         $model = $this->models->first();
@@ -705,8 +658,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_mix_string_and_definition_filters(): void
     {
         $model = $this->models->first();
@@ -726,8 +678,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Filter with Options Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_respects_filter_options(): void
     {
         $sql = $this
@@ -743,8 +694,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Nested Relation Filter Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_filter_by_deeply_nested_relation(): void
     {
         $testModel = $this->models->first();
@@ -766,8 +716,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Default Value Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function default_filter_works_with_partial_filter(): void
     {
         TestModel::factory()->create(['name' => 'default_partial_test']);
@@ -779,8 +728,7 @@ class FilterTest extends TestCase
 
         $this->assertTrue($models->contains('name', 'default_partial_test'));
     }
-
-    /** @test */
+    #[Test]
     public function default_filter_works_with_array_value(): void
     {
         $targetModels = $this->models->take(2);
@@ -795,8 +743,7 @@ class FilterTest extends TestCase
     }
 
     // ========== PrepareValue Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function prepare_value_can_transform_array(): void
     {
         $model = $this->models->first();
@@ -811,8 +758,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function prepare_value_receives_original_array(): void
     {
         $receivedValue = null;
@@ -832,8 +778,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Callback Filter Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function callback_filter_can_add_complex_conditions(): void
     {
         $model = $this->models->first();
@@ -852,8 +797,7 @@ class FilterTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1, $models->count());
     }
-
-    /** @test */
+    #[Test]
     public function callback_filter_can_modify_query_builder(): void
     {
         $models = $this
@@ -869,8 +813,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Range Filter Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function range_filter_handles_negative_values(): void
     {
         $models = $this
@@ -880,8 +823,7 @@ class FilterTest extends TestCase
 
         $this->assertTrue($models->every(fn($m) => $m->id >= -10 && $m->id <= 3));
     }
-
-    /** @test */
+    #[Test]
     public function range_filter_handles_float_values(): void
     {
         $sql = $this
@@ -893,8 +835,7 @@ class FilterTest extends TestCase
         $this->assertStringContainsString('>=', $sql);
         $this->assertStringContainsString('<=', $sql);
     }
-
-    /** @test */
+    #[Test]
     public function range_filter_with_alias(): void
     {
         $models = $this
@@ -906,8 +847,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Date Range Filter Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function date_range_filter_handles_various_formats(): void
     {
         $models = $this
@@ -920,8 +860,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(5, $models);
     }
-
-    /** @test */
+    #[Test]
     public function date_range_filter_with_alias(): void
     {
         $from = Carbon::now()->subDays(1);
@@ -939,8 +878,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Unicode and Special Input Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_unicode_filter_values(): void
     {
         $model = TestModel::factory()->create(['name' => 'Тест']);
@@ -953,8 +891,7 @@ class FilterTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals('Тест', $models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_emoji_in_filter_values(): void
     {
         $model = TestModel::factory()->create(['name' => 'Test 🎉']);
@@ -966,8 +903,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_very_long_filter_values(): void
     {
         $longName = str_repeat('a', 255);
@@ -982,8 +918,7 @@ class FilterTest extends TestCase
     }
 
     // ========== Multiple Filters Interaction Tests ==========
-
-    /** @test */
+    #[Test]
     public function filters_are_applied_with_and_logic(): void
     {
         TestModel::factory()->create(['name' => 'unique_combo']);
@@ -998,8 +933,7 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_many_filters_at_once(): void
     {
         $model = $this->models->first();

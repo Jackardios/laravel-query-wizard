@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\IncludeDefinition;
@@ -12,10 +14,8 @@ use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 
-/**
- * @group eloquent
- * @group fields
- */
+#[Group('eloquent')]
+#[Group('fields')]
 class FieldsTest extends TestCase
 {
     protected Collection $models;
@@ -37,8 +37,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Basic Fields Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_selects_all_fields_by_default(): void
     {
         $models = $this
@@ -48,8 +47,7 @@ class FieldsTest extends TestCase
         $this->assertNotNull($models->first()->name);
         $this->assertNotNull($models->first()->created_at);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_select_specific_fields(): void
     {
         // Resource key is camelCase of model class: TestModel -> testModel
@@ -64,8 +62,7 @@ class FieldsTest extends TestCase
         $this->assertContains('name', $attributes);
         $this->assertNotContains('created_at', $attributes);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_select_single_field(): void
     {
         $models = $this
@@ -76,8 +73,7 @@ class FieldsTest extends TestCase
         $attributes = array_keys($models->first()->getAttributes());
         $this->assertContains('name', $attributes);
     }
-
-    /** @test */
+    #[Test]
     public function it_can_select_fields_as_array(): void
     {
         $models = $this
@@ -91,8 +87,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Wildcard Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_use_wildcard_to_select_all(): void
     {
         $models = $this
@@ -103,8 +98,7 @@ class FieldsTest extends TestCase
         $this->assertNotNull($models->first()->name);
         $this->assertNotNull($models->first()->created_at);
     }
-
-    /** @test */
+    #[Test]
     public function wildcard_in_allowed_fields_permits_all(): void
     {
         $models = $this
@@ -119,8 +113,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Relation Fields Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_can_select_fields_for_included_relation(): void
     {
         $models = $this
@@ -137,8 +130,7 @@ class FieldsTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
-
-    /** @test */
+    #[Test]
     public function it_defaults_related_model_fields_correctly(): void
     {
         $models = $this
@@ -157,8 +149,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Validation Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_throws_exception_for_not_allowed_field(): void
     {
         $this->expectException(InvalidFieldQuery::class);
@@ -168,8 +159,7 @@ class FieldsTest extends TestCase
             ->setAllowedFields('id', 'name')
             ->get();
     }
-
-    /** @test */
+    #[Test]
     public function it_ignores_unknown_fields_when_no_allowed_set(): void
     {
         $models = $this
@@ -179,8 +169,7 @@ class FieldsTest extends TestCase
         // No exception, returns all models with all fields
         $this->assertCount(3, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_ignores_fields_when_empty_allowed_array(): void
     {
         // Empty allowed array means silently ignore all field requests
@@ -194,8 +183,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== SQL Verification Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_qualifies_column_names(): void
     {
         $sql = $this
@@ -207,8 +195,7 @@ class FieldsTest extends TestCase
         $this->assertStringContainsString('"test_models"."id"', $sql);
         $this->assertStringContainsString('"test_models"."name"', $sql);
     }
-
-    /** @test */
+    #[Test]
     public function it_uses_select_clause_for_fields(): void
     {
         $sql = $this
@@ -221,8 +208,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Edge Cases ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_empty_fields_string(): void
     {
         $models = $this
@@ -233,8 +219,7 @@ class FieldsTest extends TestCase
         // Empty fields = select all
         $this->assertNotNull($models->first()->name);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_fields_with_trailing_comma(): void
     {
         $models = $this
@@ -246,8 +231,7 @@ class FieldsTest extends TestCase
         $this->assertContains('id', $attributes);
         $this->assertContains('name', $attributes);
     }
-
-    /** @test */
+    #[Test]
     public function it_removes_duplicate_fields(): void
     {
         $models = $this
@@ -257,8 +241,7 @@ class FieldsTest extends TestCase
 
         $this->assertCount(3, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_treats_field_values_literally_with_spaces(): void
     {
         // Field values are treated literally - spaces are NOT trimmed
@@ -274,8 +257,7 @@ class FieldsTest extends TestCase
     // ========== Default Fields Tests ==========
     // Note: Default fields are configured via ResourceSchema, not via setDefaultFields()
     // The wizard uses getEffectiveDefaultFields() which reads from schema or context
-
-    /** @test */
+    #[Test]
     public function it_selects_all_fields_when_none_specifically_requested(): void
     {
         // When no fields are requested, all allowed fields are selected (or *)
@@ -291,8 +273,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Integration with Other Features ==========
-
-    /** @test */
+    #[Test]
     public function it_works_with_filtering(): void
     {
         $model = $this->models->first();
@@ -311,8 +292,7 @@ class FieldsTest extends TestCase
         $this->assertContains('id', $attributes);
         $this->assertContains('name', $attributes);
     }
-
-    /** @test */
+    #[Test]
     public function it_works_with_sorting(): void
     {
         $models = $this
@@ -326,8 +306,7 @@ class FieldsTest extends TestCase
 
         $this->assertCount(3, $models);
     }
-
-    /** @test */
+    #[Test]
     public function it_works_with_pagination(): void
     {
         $result = $this
@@ -340,8 +319,7 @@ class FieldsTest extends TestCase
         $this->assertContains('id', $attributes);
         $this->assertEquals(3, $result->total());
     }
-
-    /** @test */
+    #[Test]
     public function it_works_with_first(): void
     {
         $model = $this
@@ -356,8 +334,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Multiple Resource Types Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_different_resource_fields(): void
     {
         $models = $this
@@ -376,8 +353,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Dotted String Format Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_dotted_string_format(): void
     {
         $models = $this
@@ -389,8 +365,7 @@ class FieldsTest extends TestCase
         $this->assertContains('id', $attributes);
         $this->assertContains('name', $attributes);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_mixed_dotted_and_array_format(): void
     {
         $models = $this
@@ -404,8 +379,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Primary Key Handling ==========
-
-    /** @test */
+    #[Test]
     public function it_always_includes_primary_key_when_needed_for_relations(): void
     {
         $models = $this
@@ -422,8 +396,7 @@ class FieldsTest extends TestCase
     }
 
     // ========== Snake Case / Camel Case Tests ==========
-
-    /** @test */
+    #[Test]
     public function it_handles_snake_case_fields(): void
     {
         $models = $this
@@ -434,8 +407,7 @@ class FieldsTest extends TestCase
         $attributes = array_keys($models->first()->getAttributes());
         $this->assertContains('created_at', $attributes);
     }
-
-    /** @test */
+    #[Test]
     public function it_handles_camel_case_fields(): void
     {
         // This depends on model configuration, but test doesn't throw
