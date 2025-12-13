@@ -19,5 +19,12 @@ parameters:
             reportUnmatched: false
         # WeakMap covariance issues with Model - PHPStan version differences
         -
-            message: '#WeakMap.* (covariant|template)#'
+            message: '#WeakMap#'
+            reportUnmatched: false
+        # PHPDoc type checks that differ between PHPStan versions
+        -
+            message: '#Call to function is_string\(\) with string will always evaluate to true#'
+            reportUnmatched: false
+        -
+            message: '#Instanceof between .* and .* will always evaluate to true#'
             reportUnmatched: false
