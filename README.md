@@ -72,6 +72,7 @@ GET /users?filter[name]=John&filter[status]=active&sort=-created_at&include=post
 - [Resource Schemas](#resource-schemas)
 - [Custom Drivers](#custom-drivers)
 - [Configuration](#configuration)
+- [Laravel Octane Compatibility](#laravel-octane-compatibility)
 
 ## Basic Usage
 
@@ -765,7 +766,7 @@ Or register it globally on the driver:
 ```php
 use Jackardios\QueryWizard\Drivers\DriverRegistry;
 
-$driver = DriverRegistry::get('eloquent');
+$driver = app(DriverRegistry::class)->get('eloquent');
 $driver->registerFilterStrategy('fulltext', FullTextSearchFilterStrategy::class);
 ```
 
@@ -904,6 +905,29 @@ try {
 }
 ```
 
+## Laravel Octane Compatibility
+
+This package is fully compatible with Laravel Octane. The architecture is designed to avoid state leakage between requests:
+
+- **DriverRegistry** is registered as a singleton in the Laravel container, properly isolated per Octane worker
+- **QueryParametersManager** is created fresh per request via `bind()` registration
+- **Reflection caches** use `WeakMap` for automatic cleanup when model instances are garbage collected
+
+No additional configuration is required for Octane compatibility.
+
+### Best Practices for Callbacks
+
+When using callback filters, sorts, or includes, avoid capturing request-specific values in closures:
+
+```php
+// AVOID - captures user from first request
+$user = auth()->user();
+FilterDefinition::callback('owned', fn($q, $v) => $q->where('user_id', $user->id));
+
+// CORRECT - fetches user on each request
+FilterDefinition::callback('owned', fn($q, $v) => $q->where('user_id', auth()->id()));
+```
+
 ## Testing
 
 ```bash
@@ -913,7 +937,7 @@ composer test
 ## Requirements
 
 - PHP 8.1+
-- Laravel 10.0+
+- Laravel 10, 11, or 12
 
 ## License
 
