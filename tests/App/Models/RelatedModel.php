@@ -13,6 +13,22 @@ class RelatedModel extends Model
 
     public $timestamps = false;
 
+    /**
+     * Get the formatted name attribute
+     */
+    public function getFormattedNameAttribute(): string
+    {
+        return 'Formatted: ' . $this->name;
+    }
+
+    /**
+     * Get the uppercase name attribute
+     */
+    public function getUpperNameAttribute(): string
+    {
+        return strtoupper($this->name);
+    }
+
     public function testModel(): BelongsTo
     {
         return $this->belongsTo(TestModel::class);

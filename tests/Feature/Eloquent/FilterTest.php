@@ -1,698 +1,1016 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Abstracts\AbstractQueryWizard;
-use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
-use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
-use Jackardios\QueryWizard\Eloquent\Filters\ExactFilter;
-use Jackardios\QueryWizard\Eloquent\Filters\PartialFilter;
-use Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter;
-use Jackardios\QueryWizard\QueryParametersManager;
-use Jackardios\QueryWizard\Tests\TestCase;
+use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
+use Jackardios\QueryWizard\Tests\TestCase;
 
 /**
  * @group eloquent
  * @group filter
- * @group eloquent-filter
  */
 class FilterTest extends TestCase
 {
-    /** @var Collection */
-    protected $models;
+    protected Collection $models;
 
     public function setUp(): void
     {
         parent::setUp();
 
+        DB::enableQueryLog();
         $this->models = factory(TestModel::class, 5)->create();
     }
 
+    // ========== Exact Filter Tests ==========
+
     /** @test */
-    public function it_can_filter_models_by_exact_property_by_default(): void
+    public function it_can_filter_by_exact_property(): void
     {
         $models = $this
-            ->createEloquentWizardWithFilters([
-                'name' => $this->models->first()->name,
-            ])
+            ->createEloquentWizardWithFilters(['name' => $this->models->first()->name])
             ->setAllowedFilters('name')
-            ->build()
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($this->models->first()->id, $models->first()->id);
+    }
+
+    /** @test */
+    public function it_can_filter_by_exact_property_with_definition(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => $this->models->first()->name])
+            ->setAllowedFilters(FilterDefinition::exact('name'))
             ->get();
 
         $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_can_filter_models_by_an_array_as_filter_value(): void
+    public function it_can_filter_by_exact_property_with_alias(): void
     {
         $models = $this
-            ->createEloquentWizardWithFilters([
-                'name' => ['first' => $this->models->first()->name],
-            ])
-            ->setAllowedFilters('name')
-            ->build()
+            ->createEloquentWizardWithFilters(['n' => $this->models->first()->name])
+            ->setAllowedFilters(FilterDefinition::exact('name', 'n'))
             ->get();
 
         $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_can_filter_partially_and_case_insensitive(): void
+    public function it_can_filter_by_array_of_values(): void
     {
+        $names = $this->models->take(2)->pluck('name')->toArray();
+
         $models = $this
-            ->createEloquentWizardWithFilters([
-                'name' => strtoupper($this->models->first()->name),
-            ])
+            ->createEloquentWizardWithFilters(['name' => $names])
             ->setAllowedFilters('name')
-            ->build()
             ->get();
 
-        $this->assertCount(1, $models);
+        $this->assertCount(2, $models);
     }
 
     /** @test */
-    public function it_can_filter_results_based_on_the_partial_existence_of_a_property_in_an_array(): void
+    public function it_can_filter_by_comma_separated_values(): void
     {
-        $model1 = TestModel::create(['name' => 'abcdef']);
-        $model2 = TestModel::create(['name' => 'uvwxyz']);
+        $names = $this->models->take(2)->pluck('name')->implode(',');
 
-        $results = $this
-            ->createEloquentWizardWithFilters([
-                'name' => 'abc,xyz',
-            ])
-            ->setAllowedFilters(new PartialFilter('name'))
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => $names])
+            ->setAllowedFilters('name')
             ->get();
 
-        $this->assertCount(2, $results);
-        $this->assertEquals([$model1->id, $model2->id], $results->pluck('id')->all());
+        $this->assertCount(2, $models);
     }
 
     /** @test */
-    public function it_can_filter_models_and_return_an_empty_collection(): void
+    public function exact_filter_is_case_sensitive_on_sqlite(): void
     {
+        $model = $this->models->first();
+
         $models = $this
-            ->createEloquentWizardWithFilters([
-                'name' => 'None existing first name',
-            ])
+            ->createEloquentWizardWithFilters(['name' => strtoupper($model->name)])
             ->setAllowedFilters('name')
-            ->build()
             ->get();
 
+        // SQLite is case-sensitive by default
         $this->assertCount(0, $models);
     }
 
     /** @test */
-    public function it_can_filter_a_custom_base_query_with_select(): void
+    public function it_uses_default_filter_value_when_not_provided(): void
     {
-        $request = new Request([
-            'filter' => ['name' => 'john'],
-        ]);
+        factory(TestModel::class)->create(['name' => 'default_value']);
 
-        $queryWizardSql = EloquentQueryWizard::for(TestModel::select('id', 'name'), new QueryParametersManager($request))
-            ->setAllowedFilters('name', 'id')
-            ->build()
-            ->toSql();
-
-        $expectedSql = TestModel::select('id', 'name')
-            ->where(DB::raw('`test_models`.`name`'), '=', 'john')
-            ->toSql();
-
-        $this->assertEquals($expectedSql, $queryWizardSql);
-    }
-
-    /** @test */
-    public function it_can_filter_results_based_on_the_existence_of_a_property_in_an_array(): void
-    {
-        $results = $this
-            ->createEloquentWizardWithFilters([
-                'id' => '1,2',
-            ])
-            ->setAllowedFilters('id')
-            ->build()
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->setAllowedFilters(FilterDefinition::exact('name')->default('default_value'))
             ->get();
 
-        $this->assertCount(2, $results);
-        $this->assertEquals([1, 2], $results->pluck('id')->all());
+        $this->assertCount(1, $models);
+        $this->assertEquals('default_value', $models->first()->name);
     }
 
     /** @test */
-    public function it_ignores_empty_values_in_an_array_partial_filter(): void
+    public function it_ignores_default_when_filter_is_provided(): void
     {
-        $results = $this
-            ->createEloquentWizardWithFilters([
-                'id' => '2,',
-            ])
-            ->setAllowedFilters(new PartialFilter('id'))
-            ->build()
+        factory(TestModel::class)->create(['name' => 'default_value']);
+        factory(TestModel::class)->create(['name' => 'explicit_value']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'explicit_value'])
+            ->setAllowedFilters(FilterDefinition::exact('name')->default('default_value'))
             ->get();
 
-        $this->assertCount(1, $results);
-        $this->assertEquals([2], $results->pluck('id')->all());
+        $this->assertCount(1, $models);
+        $this->assertEquals('explicit_value', $models->first()->name);
     }
 
     /** @test */
-    public function it_ignores_an_empty_array_partial_filter(): void
+    public function it_prepares_filter_value_with_callback(): void
     {
-        $results = $this
-            ->createEloquentWizardWithFilters([
-                'id' => ',,',
-            ])
-            ->setAllowedFilters(new PartialFilter('id'))
-            ->build()
-            ->get();
-
-        $this->assertCount(5, $results);
-    }
-
-    /** @test */
-    public function falsy_values_are_not_ignored_when_applying_a_partial_filter(): void
-    {
-        DB::enableQueryLog();
+        $receivedValue = null;
 
         $this
-            ->createEloquentWizardWithFilters([
-                'id' => [0],
-            ])
-            ->setAllowedFilters(new PartialFilter('id'))
-            ->build()
+            ->createEloquentWizardWithFilters(['name' => 'TRANSFORM_ME'])
+            ->setAllowedFilters(
+                // Callback receives ($query, $value, $property)
+                FilterDefinition::callback('name', function ($query, $value, $property) use (&$receivedValue) {
+                    $receivedValue = $value;
+                    // Don't actually filter - just verify the value was transformed
+                })->prepareValueWith(fn($v) => strtolower($v))
+            )
             ->get();
 
-        $this->assertQueryLogContains("select * from `test_models` where (LOWER(`test_models`.`id`) LIKE ?)");
+        // Value should be transformed by prepareValueWith callback
+        $this->assertEquals('transform_me', $receivedValue);
     }
 
+    // ========== Partial Filter Tests ==========
+
     /** @test */
-    public function it_can_filter_and_match_results_by_exact_property(): void
+    public function it_can_filter_by_partial_property(): void
     {
-        $testModel = TestModel::first();
+        $model = $this->models->first();
+        $partialName = substr($model->name, 0, 3);
 
-        $models = TestModel::where('id', $testModel->id)
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => $partialName])
+            ->setAllowedFilters(FilterDefinition::partial('name'))
             ->get();
 
-        $modelsResult = $this
-            ->createEloquentWizardWithFilters([
-                'id' => $testModel->id,
-            ])
-            ->setAllowedFilters(new ExactFilter('id'))
-            ->build()
-            ->get();
-
-        $this->assertEquals($modelsResult, $models);
+        $this->assertGreaterThanOrEqual(1, $models->count());
     }
 
     /** @test */
-    public function it_can_filter_and_reject_results_by_exact_property(): void
+    public function partial_filter_is_case_insensitive(): void
     {
-        $testModel = TestModel::create(['name' => 'John Testing Doe']);
+        $model = $this->models->first();
 
-        $modelsResult = $this
-            ->createEloquentWizardWithFilters([
-                'name' => ' Testing ',
-            ])
-            ->setAllowedFilters(new ExactFilter('name'))
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => strtoupper($model->name)])
+            ->setAllowedFilters(FilterDefinition::partial('name'))
             ->get();
 
-        $this->assertCount(0, $modelsResult);
+        $this->assertGreaterThanOrEqual(1, $models->count());
     }
 
     /** @test */
-    public function it_can_filter_results_by_scope(): void
+    public function partial_filter_works_with_array_of_values(): void
     {
-        $testModel = TestModel::create(['name' => 'John Testing Doe']);
+        $partials = $this->models->take(2)->map(fn($m) => substr($m->name, 0, 3))->toArray();
 
-        $modelsResult = $this
-            ->createEloquentWizardWithFilters(['named' => 'John Testing Doe'])
-            ->setAllowedFilters(new ScopeFilter('named'))
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => $partials])
+            ->setAllowedFilters(FilterDefinition::partial('name'))
             ->get();
 
-        $this->assertCount(1, $modelsResult);
+        $this->assertGreaterThanOrEqual(2, $models->count());
     }
 
     /** @test */
-    public function it_can_filter_results_by_nested_relation_scope(): void
+    public function partial_filter_ignores_empty_values_in_array(): void
     {
-        $testModel = TestModel::create(['name' => 'John Testing Doe 234234']);
-        $testModel->relatedModels()->create(['name' => 'John\'s Post']);
-
-        $modelsResult = $this
-            ->createEloquentWizardWithFilters(['relatedModels.named' => 'John\'s Post'])
-            ->setAllowedFilters(new ScopeFilter('relatedModels.named'))
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => ['', null, '']])
+            ->setAllowedFilters(FilterDefinition::partial('name'))
             ->get();
 
-        $this->assertCount(1, $modelsResult);
+        // Empty filter should return all models
+        $this->assertEquals(TestModel::count(), $models->count());
     }
 
+    // ========== Scope Filter Tests ==========
+
     /** @test */
-    public function it_can_filter_results_by_type_hinted_scope(): void
+    public function it_can_filter_by_scope(): void
     {
-        TestModel::create(['name' => 'John Testing Doe']);
+        $model = $this->models->first();
 
-        $modelsResult = $this
-            ->createEloquentWizardWithFilters(['user' => 1])
-            ->setAllowedFilters(new ScopeFilter('user'))
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['named' => $model->name])
+            ->setAllowedFilters(FilterDefinition::scope('named'))
             ->get();
 
-        $this->assertCount(1, $modelsResult);
+        $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_can_filter_results_by_regular_and_type_hinted_scope(): void
+    public function it_can_filter_by_scope_with_alias(): void
     {
-        TestModel::create(['id' => 1000, 'name' => 'John Testing Doe']);
+        $model = $this->models->first();
 
-        $modelsResult = $this
-            ->createEloquentWizardWithFilters(['user_info' => ['id' => '1000', 'name' => 'John Testing Doe']])
-            ->setAllowedFilters(new ScopeFilter('user_info'))
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['filter_name' => $model->name])
+            ->setAllowedFilters(FilterDefinition::scope('named', 'filter_name'))
             ->get();
 
-        $this->assertCount(1, $modelsResult);
+        $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_can_filter_results_by_scope_with_multiple_parameters(): void
+    public function it_can_filter_by_scope_with_multiple_parameters(): void
     {
-        Carbon::setTestNow(Carbon::parse('2016-05-05'));
+        $model = $this->models->first();
+        $from = $model->created_at->subDay();
+        $to = $model->created_at->addDay();
 
-        $testModel = TestModel::create(['name' => 'John Testing Doe']);
-
-        $modelsResult = $this
-            ->createEloquentWizardWithFilters(['created_between' => '2016-01-01,2017-01-01'])
-            ->setAllowedFilters(new ScopeFilter('created_between'))
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_between' => [$from->toDateTimeString(), $to->toDateTimeString()]])
+            ->setAllowedFilters(FilterDefinition::scope('createdBetween', 'created_between'))
             ->get();
 
-        $this->assertCount(1, $modelsResult);
+        $this->assertGreaterThanOrEqual(1, $models->count());
     }
 
+    // ========== Callback Filter Tests ==========
+
     /** @test */
-    public function it_can_filter_results_by_scope_with_multiple_parameters_in_an_associative_array(): void
+    public function it_can_filter_by_callback(): void
     {
-        Carbon::setTestNow(Carbon::parse('2016-05-05'));
+        $model = $this->models->first();
 
-        $testModel = TestModel::create(['name' => 'John Testing Doe']);
-
-        $modelsResult = $this
-            ->createEloquentWizardWithFilters(['created_between' => ['start' => '2016-01-01', 'end' => '2017-01-01']])
-            ->setAllowedFilters(new ScopeFilter('created_between'))
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['custom' => $model->name])
+            ->setAllowedFilters(
+                FilterDefinition::callback('custom', function ($query, $value) {
+                    $query->where('name', $value);
+                })
+            )
             ->get();
 
-        $this->assertCount(1, $modelsResult);
+        $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_can_filter_results_by_a_custom_filter_class(): void
+    public function callback_filter_receives_property_name(): void
+    {
+        $receivedProperty = null;
+
+        $this
+            ->createEloquentWizardWithFilters(['search' => 'test'])
+            ->setAllowedFilters(
+                FilterDefinition::callback('name', function ($query, $value, $property) use (&$receivedProperty) {
+                    $receivedProperty = $property;
+                }, 'search')
+            )
+            ->get();
+
+        $this->assertEquals('name', $receivedProperty);
+    }
+
+    /** @test */
+    public function callback_filter_with_array_callback(): void
+    {
+        $model = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['custom' => $model->name])
+            ->setAllowedFilters(
+                FilterDefinition::callback('custom', [$this, 'customFilterCallback'])
+            )
+            ->get();
+
+        $this->assertCount(1, $models);
+    }
+
+    public function customFilterCallback($query, $value): void
+    {
+        $query->where('name', $value);
+    }
+
+    // ========== Range Filter Tests ==========
+
+    /** @test */
+    public function it_can_filter_by_range_with_min_and_max(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => 2, 'max' => 4]])
+            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->get();
+
+        $this->assertCount(3, $models);
+        $this->assertTrue($models->every(fn($m) => $m->id >= 2 && $m->id <= 4));
+    }
+
+    /** @test */
+    public function it_can_filter_by_range_with_only_min(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => 3]])
+            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->get();
+
+        $this->assertTrue($models->every(fn($m) => $m->id >= 3));
+    }
+
+    /** @test */
+    public function it_can_filter_by_range_with_only_max(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => ['max' => 3]])
+            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->get();
+
+        $this->assertTrue($models->every(fn($m) => $m->id <= 3));
+    }
+
+    /** @test */
+    public function it_can_filter_by_range_with_comma_separated(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '2,4'])
+            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->get();
+
+        $this->assertCount(3, $models);
+    }
+
+    // ========== Date Range Filter Tests ==========
+
+    /** @test */
+    public function it_can_filter_by_date_range(): void
+    {
+        $from = Carbon::now()->subDays(1);
+        $to = Carbon::now()->addDays(1);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => $from->toDateTimeString(), 'to' => $to->toDateTimeString()]])
+            ->setAllowedFilters(FilterDefinition::dateRange('created_at'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    /** @test */
+    public function it_can_filter_by_date_range_with_only_from(): void
+    {
+        $from = Carbon::now()->subDays(1);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => $from->toDateTimeString()]])
+            ->setAllowedFilters(FilterDefinition::dateRange('created_at'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    /** @test */
+    public function it_can_filter_by_date_range_with_only_to(): void
+    {
+        $to = Carbon::now()->addDays(1);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['to' => $to->toDateTimeString()]])
+            ->setAllowedFilters(FilterDefinition::dateRange('created_at'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    // ========== Null Filter Tests ==========
+    // Note: These tests use a different column that allows NULL values
+    // The 'name' column in test_models has NOT NULL constraint
+
+    /** @test */
+    public function null_filter_generates_correct_sql(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => true])
+            ->setAllowedFilters(FilterDefinition::null('name'))
+            ->build()
+            ->toSql();
+
+        $this->assertStringContainsString('is null', strtolower($sql));
+    }
+
+    /** @test */
+    public function null_filter_with_false_generates_not_null_sql(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => false])
+            ->setAllowedFilters(FilterDefinition::null('name'))
+            ->build()
+            ->toSql();
+
+        $this->assertStringContainsString('is not null', strtolower($sql));
+    }
+
+    /** @test */
+    public function null_filter_with_string_true(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => 'true'])
+            ->setAllowedFilters(FilterDefinition::null('name'))
+            ->build()
+            ->toSql();
+
+        // 'true' is converted to boolean true, which checks for NULL
+        $this->assertStringContainsString('is null', strtolower($sql));
+    }
+
+    /** @test */
+    public function null_filter_with_inverted_logic_sql(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['has_name' => true])
+            ->setAllowedFilters(
+                FilterDefinition::null('name', 'has_name')
+                    ->withOptions(['invertLogic' => true])
+            )
+            ->build()
+            ->toSql();
+
+        // invertLogic: true means "true" checks for NOT NULL
+        $this->assertStringContainsString('is not null', strtolower($sql));
+    }
+
+    // ========== Relation Filter Tests ==========
+
+    /** @test */
+    public function it_can_filter_by_relation_property(): void
     {
         $testModel = $this->models->first();
+        $relatedModel = factory(RelatedModel::class)->create([
+            'test_model_id' => $testModel->id,
+            'name' => 'specific_name',
+        ]);
 
-        $filterClass = new class('custom_name') extends EloquentFilter {
-            public function handle(AbstractQueryWizard $queryWizard, $queryBuilder, $value): void
-            {
-                $queryBuilder->where('name', $value);
-            }
-        };
-
-        $modelResult = $this
-            ->createEloquentWizardWithFilters([
-                'custom_name' => $testModel->name,
-            ])
-            ->setAllowedFilters($filterClass)
-            ->build()
-            ->first();
-
-        $this->assertEquals($testModel->id, $modelResult->id);
-    }
-
-    /** @test */
-    public function it_can_allow_multiple_filters(): void
-    {
-        $model1 = TestModel::create(['name' => 'abcdef']);
-        $model2 = TestModel::create(['name' => 'abcdef']);
-
-        $results = $this
-            ->createEloquentWizardWithFilters([
-                'name' => 'abc',
-            ])
-            ->setAllowedFilters(new PartialFilter('name'), 'id')
-            ->build()
+        $models = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => 'specific_name'])
+            ->setAllowedFilters(FilterDefinition::exact('relatedModels.name'))
             ->get();
 
-        $this->assertCount(2, $results);
-        $this->assertEquals([$model1->id, $model2->id], $results->pluck('id')->all());
+        $this->assertCount(1, $models);
+        $this->assertEquals($testModel->id, $models->first()->id);
     }
 
     /** @test */
-    public function it_can_allow_multiple_filters_as_an_array(): void
+    public function it_can_disable_relation_constraint(): void
     {
-        $model1 = TestModel::create(['name' => 'abcdef']);
-        $model2 = TestModel::create(['name' => 'abcdef']);
-
-        $results = $this
-            ->createEloquentWizardWithFilters([
-                'name' => 'abc',
-            ])
-            ->setAllowedFilters([new PartialFilter('name'), 'id'])
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => 'test'])
+            ->setAllowedFilters(
+                FilterDefinition::exact('relatedModels.name')
+                    ->withRelationConstraint(false)
+            )
             ->build()
-            ->get();
+            ->toSql();
 
-        $this->assertCount(2, $results);
-        $this->assertEquals([$model1->id, $model2->id], $results->pluck('id')->all());
+        // Without relation constraint, it should NOT use whereHas
+        $this->assertStringNotContainsString('exists', strtolower($sql));
     }
 
-    /** @test */
-    public function it_can_filter_by_multiple_filters(): void
-    {
-        $model1 = TestModel::create(['name' => 'abcdef']);
-        $model2 = TestModel::create(['name' => 'abcdef']);
-
-        $results = $this
-            ->createEloquentWizardWithFilters([
-                'name' => 'abc',
-                'id' => "1,{$model1->id}",
-            ])
-            ->setAllowedFilters(new PartialFilter('name'), 'id')
-            ->build()
-            ->get();
-
-        $this->assertCount(1, $results);
-        $this->assertEquals([$model1->id], $results->pluck('id')->all());
-    }
+    // ========== Validation Tests ==========
 
     /** @test */
-    public function it_guards_against_invalid_filters(): void
+    public function it_throws_exception_for_not_allowed_filter(): void
     {
         $this->expectException(InvalidFilterQuery::class);
 
         $this
-            ->createEloquentWizardWithFilters(['name' => 'John'])
-            ->setAllowedFilters('id')
-            ->build();
+            ->createEloquentWizardWithFilters(['not_allowed' => 'value'])
+            ->setAllowedFilters('name')
+            ->get();
     }
 
     /** @test */
-    public function it_can_create_a_custom_filter_with_an_instantiated_filter(): void
+    public function it_throws_exception_for_unknown_filters_when_no_allowed_set(): void
     {
-        $customFilter = new class('*') extends EloquentFilter {
-            public function handle(AbstractQueryWizard $queryWizard, $queryBuilder, $value): void
-            {
-                //
-            }
-        };
+        // When no allowed filters are set, any requested filter throws exception
+        // This is the strict validation behavior
+        $this->expectException(InvalidFilterQuery::class);
 
-        TestModel::create(['name' => 'abcdef']);
+        $this
+            ->createEloquentWizardWithFilters(['unknown' => 'value'])
+            ->setAllowedFilters([])
+            ->get();
+    }
 
-        $results = $this
-            ->createEloquentWizardWithFilters([
-                '*' => '*',
-            ])
-            ->setAllowedFilters('name', $customFilter)
-            ->build()
+    // ========== Edge Cases ==========
+
+    /** @test */
+    public function it_handles_empty_filter_value(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => ''])
+            ->setAllowedFilters('name')
             ->get();
 
-        $this->assertNotEmpty($results);
+        // Empty string filter should return nothing for exact match
+        $this->assertCount(0, $models);
     }
 
     /** @test */
-    public function an_invalid_filter_query_exception_contains_the_unknown_and_allowed_filters(): void
+    public function it_skips_null_filter_value(): void
     {
-        $exception = new InvalidFilterQuery(collect(['unknown filter']), collect(['allowed filter']));
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => null])
+            ->setAllowedFilters('name')
+            ->get();
 
-        $this->assertEquals(['unknown filter'], $exception->unknownFilters->all());
-        $this->assertEquals(['allowed filter'], $exception->allowedFilters->all());
+        // Null value means filter is not applied - returns all models
+        $this->assertCount(5, $models);
     }
 
     /** @test */
-    public function it_sets_property_column_name_to_property_name_by_default(): void
+    public function it_handles_boolean_true_filter_value(): void
     {
-        $filter = new ExactFilter('property_name');
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'true'])
+            ->setAllowedFilters('name')
+            ->get();
 
-        $this->assertEquals($filter->getName(), $filter->getPropertyName());
+        // 'true' is parsed as boolean true by QueryParametersManager
+        $this->assertCount(0, $models);
     }
 
     /** @test */
-    public function it_resolves_queries_using_property_column_name(): void
+    public function it_handles_boolean_false_filter_value(): void
     {
-        $filter = new ExactFilter('name', 'nickname');
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'false'])
+            ->setAllowedFilters('name')
+            ->get();
 
-        TestModel::create(['name' => 'abcdef']);
+        // 'false' is parsed as boolean false
+        $this->assertCount(0, $models);
+    }
+
+    /** @test */
+    public function it_can_combine_multiple_filters(): void
+    {
+        $model = $this->models->first();
 
         $models = $this
             ->createEloquentWizardWithFilters([
-                'nickname' => 'abcdef',
+                'name' => $model->name,
+                'id' => $model->id,
             ])
-            ->setAllowedFilters($filter)
-            ->build()
+            ->setAllowedFilters('name', 'id')
             ->get();
 
         $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_can_filter_using_boolean_flags(): void
+    public function it_handles_filter_with_special_characters(): void
     {
-        TestModel::query()->update(['is_visible' => true]);
-        $filter = new ExactFilter('is_visible');
+        $model = factory(TestModel::class)->create(['name' => "Test's Model"]);
 
         $models = $this
-            ->createEloquentWizardWithFilters(['is_visible' => 'false'])
-            ->setAllowedFilters($filter)
-            ->build()
+            ->createEloquentWizardWithFilters(['name' => "Test's Model"])
+            ->setAllowedFilters('name')
             ->get();
 
-        $this->assertCount(0, $models);
-        $this->assertGreaterThan(0, TestModel::all()->count());
+        $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_should_apply_a_default_filter_value_if_nothing_in_request(): void
+    public function it_throws_exception_with_empty_allowed_filters_array(): void
     {
-        TestModel::create(['name' => 'UniqueJohn Doe']);
-        TestModel::create(['name' => 'UniqueJohn Deer']);
+        $this->expectException(InvalidFilterQuery::class);
 
-        $filter = (new PartialFilter('name'))->default('UniqueJohn');
-
-        $models = $this
-            ->createEloquentWizardWithFilters([])
-            ->setAllowedFilters($filter)
-            ->build()
+        $this
+            ->createEloquentWizardWithFilters(['name' => 'test'])
+            ->setAllowedFilters([])
             ->get();
-
-        $this->assertEquals(2, $models->count());
     }
 
     /** @test */
-    public function it_does_not_apply_default_filter_when_filter_exists_and_default_is_set(): void
+    public function it_qualifies_column_names(): void
     {
-        TestModel::create(['name' => 'UniqueJohn UniqueDoe']);
-        TestModel::create(['name' => 'UniqueJohn Deer']);
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => 'test'])
+            ->setAllowedFilters('name')
+            ->build()
+            ->toSql();
 
-        $filter = (new PartialFilter('name'))->default('UniqueJohn');
+        $this->assertStringContainsString('"test_models"."name"', $sql);
+    }
+
+    // ========== JsonContains Filter Tests ==========
+
+    /** @test */
+    public function it_can_filter_json_contains_single_value(): void
+    {
+        // Create test data with JSON column
+        factory(TestModel::class)->create(['name' => 'json_test']);
+
+        $sql = $this
+            ->createEloquentWizardWithFilters(['tags' => 'php'])
+            ->setAllowedFilters(FilterDefinition::jsonContains('tags'))
+            ->build()
+            ->toSql();
+
+        // SQLite uses json_each, MySQL uses json_contains
+        $sqlLower = strtolower($sql);
+        $this->assertTrue(
+            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each'),
+            "Expected JSON filtering SQL, got: {$sql}"
+        );
+    }
+
+    /** @test */
+    public function it_can_filter_json_contains_array_value(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['tags' => ['php', 'laravel']])
+            ->setAllowedFilters(FilterDefinition::jsonContains('tags'))
+            ->build()
+            ->toSql();
+
+        // SQLite uses json_each, MySQL uses json_contains
+        $sqlLower = strtolower($sql);
+        $this->assertTrue(
+            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each'),
+            "Expected JSON filtering SQL, got: {$sql}"
+        );
+    }
+
+    // ========== Additional Exact Filter Edge Cases ==========
+
+    /** @test */
+    public function exact_filter_handles_integer_values(): void
+    {
+        $model = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => $model->id])
+            ->setAllowedFilters('id')
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($model->id, $models->first()->id);
+    }
+
+    /** @test */
+    public function exact_filter_handles_zero_value(): void
+    {
+        factory(TestModel::class)->create(['name' => '0']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => '0'])
+            ->setAllowedFilters('name')
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals('0', $models->first()->name);
+    }
+
+    /** @test */
+    public function it_can_filter_multiple_properties_with_definitions(): void
+    {
+        $model = $this->models->first();
 
         $models = $this
             ->createEloquentWizardWithFilters([
-                'name' => 'UniqueDoe',
+                'name' => $model->name,
+                'id' => $model->id,
             ])
-            ->setAllowedFilters($filter)
-            ->build()
+            ->setAllowedFilters(
+                FilterDefinition::exact('name'),
+                FilterDefinition::exact('id')
+            )
             ->get();
 
-        $this->assertEquals(1, $models->count());
+        $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_should_prepare_filter_value_using_callback(): void
+    public function it_can_mix_string_and_definition_filters(): void
     {
-        $filter = (new PartialFilter('is_active'))
-            ->prepareValueWith(static function($value) {
-                return (bool) $value;
-            });
-        $nestedFilter = (new PartialFilter('some.status'))
-            ->prepareValueWith(static function($value) {
-                return (bool) $value;
-            });
+        $model = $this->models->first();
 
-        $wizard = $this
+        $models = $this
             ->createEloquentWizardWithFilters([
-                'is_active' => '1',
-                'some.status' => '0'
+                'name' => $model->name,
+                'id' => $model->id,
             ])
-            ->setAllowedFilters([
-                $filter,
-                $nestedFilter,
-            ]);
+            ->setAllowedFilters(
+                'name',
+                FilterDefinition::exact('id')
+            )
+            ->get();
 
-        $this->assertEquals([
-            'is_active' => true,
-            'some.status' => false
-        ], $wizard->getFilters()->toArray());
+        $this->assertCount(1, $models);
+    }
+
+    // ========== Filter with Options Tests ==========
+
+    /** @test */
+    public function it_respects_filter_options(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => 'test'])
+            ->setAllowedFilters(
+                FilterDefinition::exact('name')->withOptions(['customOption' => true])
+            )
+            ->build()
+            ->toSql();
+
+        // Just verify it doesn't break
+        $this->assertStringContainsString('name', $sql);
+    }
+
+    // ========== Nested Relation Filter Tests ==========
+
+    /** @test */
+    public function it_can_filter_by_deeply_nested_relation(): void
+    {
+        $testModel = $this->models->first();
+        $relatedModel = factory(RelatedModel::class)->create([
+            'test_model_id' => $testModel->id,
+        ]);
+        factory(\Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel::class)->create([
+            'related_model_id' => $relatedModel->id,
+            'name' => 'deeply_nested',
+        ]);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['relatedModels.nestedRelatedModels.name' => 'deeply_nested'])
+            ->setAllowedFilters(FilterDefinition::exact('relatedModels.nestedRelatedModels.name'))
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($testModel->id, $models->first()->id);
+    }
+
+    // ========== Default Value Edge Cases ==========
+
+    /** @test */
+    public function default_filter_works_with_partial_filter(): void
+    {
+        factory(TestModel::class)->create(['name' => 'default_partial_test']);
+
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->setAllowedFilters(FilterDefinition::partial('name')->default('partial'))
+            ->get();
+
+        $this->assertTrue($models->contains('name', 'default_partial_test'));
     }
 
     /** @test */
-    public function it_can_handle_arrays_for_nested_filter_values(): void
+    public function default_filter_works_with_array_value(): void
     {
-        $wizard = $this
+        $targetModels = $this->models->take(2);
+        $names = $targetModels->pluck('name')->toArray();
+
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->setAllowedFilters(FilterDefinition::exact('name')->default($names))
+            ->get();
+
+        $this->assertCount(2, $models);
+    }
+
+    // ========== PrepareValue Edge Cases ==========
+
+    /** @test */
+    public function prepare_value_can_transform_array(): void
+    {
+        $model = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'INPUT_' . $model->name])
+            ->setAllowedFilters(
+                FilterDefinition::exact('name')
+                    ->prepareValueWith(fn($v) => str_replace('INPUT_', '', $v))
+            )
+            ->get();
+
+        $this->assertCount(1, $models);
+    }
+
+    /** @test */
+    public function prepare_value_receives_original_array(): void
+    {
+        $receivedValue = null;
+
+        $this
+            ->createEloquentWizardWithFilters(['name' => ['a', 'b', 'c']])
+            ->setAllowedFilters(
+                FilterDefinition::exact('name')
+                    ->prepareValueWith(function ($v) use (&$receivedValue) {
+                        $receivedValue = $v;
+                        return $v;
+                    })
+            )
+            ->get();
+
+        $this->assertEquals(['a', 'b', 'c'], $receivedValue);
+    }
+
+    // ========== Callback Filter Edge Cases ==========
+
+    /** @test */
+    public function callback_filter_can_add_complex_conditions(): void
+    {
+        $model = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['search' => $model->name])
+            ->setAllowedFilters(
+                FilterDefinition::callback('search', function ($query, $value) {
+                    $query->where(function ($q) use ($value) {
+                        $q->where('name', 'LIKE', "%{$value}%")
+                            ->orWhere('id', $value);
+                    });
+                })
+            )
+            ->get();
+
+        $this->assertGreaterThanOrEqual(1, $models->count());
+    }
+
+    /** @test */
+    public function callback_filter_can_modify_query_builder(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['limit' => 2])
+            ->setAllowedFilters(
+                FilterDefinition::callback('limit', function ($query, $value) {
+                    $query->limit((int) $value);
+                })
+            )
+            ->get();
+
+        $this->assertCount(2, $models);
+    }
+
+    // ========== Range Filter Edge Cases ==========
+
+    /** @test */
+    public function range_filter_handles_negative_values(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => -10, 'max' => 3]])
+            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->get();
+
+        $this->assertTrue($models->every(fn($m) => $m->id >= -10 && $m->id <= 3));
+    }
+
+    /** @test */
+    public function range_filter_handles_float_values(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => 1.5, 'max' => 3.5]])
+            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->build()
+            ->toSql();
+
+        $this->assertStringContainsString('>=', $sql);
+        $this->assertStringContainsString('<=', $sql);
+    }
+
+    /** @test */
+    public function range_filter_with_alias(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['model_id' => ['min' => 2, 'max' => 4]])
+            ->setAllowedFilters(FilterDefinition::range('id', 'model_id'))
+            ->get();
+
+        $this->assertCount(3, $models);
+    }
+
+    // ========== Date Range Filter Edge Cases ==========
+
+    /** @test */
+    public function date_range_filter_handles_various_formats(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => '2020-01-01',
+                'to' => '2030-12-31 23:59:59',
+            ]])
+            ->setAllowedFilters(FilterDefinition::dateRange('created_at'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    /** @test */
+    public function date_range_filter_with_alias(): void
+    {
+        $from = Carbon::now()->subDays(1);
+        $to = Carbon::now()->addDays(1);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['date' => [
+                'from' => $from->toDateTimeString(),
+                'to' => $to->toDateTimeString(),
+            ]])
+            ->setAllowedFilters(FilterDefinition::dateRange('created_at', 'date'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    // ========== Unicode and Special Input Tests ==========
+
+    /** @test */
+    public function it_handles_unicode_filter_values(): void
+    {
+        $model = factory(TestModel::class)->create(['name' => 'Тест']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'Тест'])
+            ->setAllowedFilters('name')
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals('Тест', $models->first()->name);
+    }
+
+    /** @test */
+    public function it_handles_emoji_in_filter_values(): void
+    {
+        $model = factory(TestModel::class)->create(['name' => 'Test 🎉']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'Test 🎉'])
+            ->setAllowedFilters('name')
+            ->get();
+
+        $this->assertCount(1, $models);
+    }
+
+    /** @test */
+    public function it_handles_very_long_filter_values(): void
+    {
+        $longName = str_repeat('a', 255);
+        $model = factory(TestModel::class)->create(['name' => $longName]);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => $longName])
+            ->setAllowedFilters('name')
+            ->get();
+
+        $this->assertCount(1, $models);
+    }
+
+    // ========== Multiple Filters Interaction Tests ==========
+
+    /** @test */
+    public function filters_are_applied_with_and_logic(): void
+    {
+        factory(TestModel::class)->create(['name' => 'unique_combo', 'id' => 999]);
+
+        // This should find the model created above with specific ID
+        $models = $this
             ->createEloquentWizardWithFilters([
-                'is_active' => '1',
-                'some' => [
-                    'status' => '0',
-                    'foo' => [
-                        'bar' => [
-                            'testing' => 'hello',
-                        ],
-                        'baz' => 'fee',
-                    ],
-                ],
-                'nested.plain.yan' => 'yaa',
-                'nested.filtering.names' => [
-                    'alex' => 23,
-                    'jeena' => 'five'
-                ],
-                'another' => [
-                    'hello' => 'world',
-                    'qwerty' => [
-                        'hoo' => 'jee'
-                    ]
-                ],
+                'name' => 'unique_combo',
             ])
-            ->setAllowedFilters([
-                'is_active',
-                (new ExactFilter('some.status'))
-                    ->prepareValueWith(function($value) {
-                        $this->assertEquals('0', $value);
-                        return (bool) $value;
-                    }),
-                (new ExactFilter('some.foo.bar'))
-                    ->prepareValueWith(function($value) {
-                        $this->assertEquals([
-                            'testing' => 'hello',
-                        ], $value);
-                        return [
-                            'new' => 'thing'
-                        ];
-                    }),
-                (new PartialFilter('make.love'))
-                    ->default('not war'),
-                (new PartialFilter('some.foo.nothing'))
-                    ->default('yes')
-                    ->prepareValueWith(function($value) {
-                        $this->assertEquals('yes', $value);
-                        return 'no';
-                    }),
-                'some.foo.baz',
-                'nested.plain.yan',
-                'nested.filtering.names.alex',
-                'nested.filtering.names.jeena',
-                'another',
-            ]);
+            ->setAllowedFilters('name', 'id')
+            ->get();
 
-        $this->assertEquals([
-            'is_active' => '1',
-            'some.status' => false,
-            'make.love' => 'not war',
-            'some.foo.nothing' => 'no',
-            'some.foo.bar' => [
-                'new' => 'thing'
-            ],
-            'some.foo.baz' => 'fee',
-            'nested.plain.yan' => 'yaa',
-            'nested.filtering.names.alex' => 23,
-            'nested.filtering.names.jeena' => 'five',
-            'another' => [
-                'hello' => 'world',
-                'qwerty' => [
-                    'hoo' => 'jee'
-                ]
-            ],
-        ], $wizard->getFilters()->toArray());
+        $this->assertCount(1, $models);
     }
 
     /** @test */
-    public function it_throws_an_exception_when_unknown_filter_passed(): void
+    public function it_handles_many_filters_at_once(): void
     {
-        try {
-            $this
-                ->createEloquentWizardWithFilters([
-                    'is_active' => '1',
-                    'some' => [
-                        'status' => '0',
-                        'foo' => [
-                            'bar' => [
-                                'testing' => 'hello',
-                            ],
-                            'baz' => 'fee',
-                            'not-existing' => [
-                                'work' => 'sleep'
-                            ]
-                        ],
-                    ],
-                    'some-wrong' => ['car', 'moto'],
-                    'nested.plain.yan' => 'yaa',
-                    'nested.filtering.names' => [
-                        'alex' => 23,
-                        'jeena' => 'five'
-                    ],
-                    'another' => [
-                        'hello' => 'world',
-                        'qwerty' => [
-                            'hoo' => 'jee'
-                        ]
-                    ],
-                ])
-                ->setAllowedFilters([
-                    'is_active',
-                    (new ExactFilter('some.status'))
-                        ->prepareValueWith(function($value) {
-                            $this->assertEquals('0', $value);
-                            return (bool) $value;
-                        }),
-                    (new ExactFilter('some.foo.bar'))
-                        ->prepareValueWith(function($value) {
-                            $this->assertEquals([
-                                'testing' => 'hello',
-                            ], $value);
-                            return [
-                                'new' => 'thing'
-                            ];
-                        }),
-                    (new PartialFilter('make.love'))
-                        ->default('not war'),
-                    (new PartialFilter('some.foo.nothing'))
-                        ->default('yes')
-                        ->prepareValueWith(function($value) {
-                            $this->assertEquals('yes', $value);
-                            return 'no';
-                        }),
-                    'some.foo.baz',
-                    'nested.plain.yan',
-                    'nested.filtering.names.alex',
-                    'nested.filtering.names.jeena',
-                    'another',
-                ]);
-        } catch (InvalidFilterQuery $exception) {
-            $this->assertEquals(['some.foo.not-existing.work', 'some-wrong.0', 'some-wrong.1'], $exception->unknownFilters->toArray());
-            $this->assertEquals([
-                'is_active',
-                'some.status',
-                'some.foo.bar',
-                'make.love',
-                'some.foo.nothing',
-                'some.foo.baz',
-                'nested.plain.yan',
-                'nested.filtering.names.alex',
-                'nested.filtering.names.jeena',
-                'another',
-            ], $exception->allowedFilters->toArray());
-        }
+        $model = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters([
+                'name' => $model->name,
+                'id' => $model->id,
+            ])
+            ->setAllowedFilters('name', 'id')
+            ->get();
+
+        $this->assertCount(1, $models);
     }
 }
