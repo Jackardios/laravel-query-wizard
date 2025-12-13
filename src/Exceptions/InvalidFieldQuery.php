@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Exceptions;
 
 use Illuminate\Support\Collection;
@@ -7,9 +9,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class InvalidFieldQuery extends InvalidQuery
 {
+    /** @var Collection<int, string> */
     public Collection $unknownFields;
+
+    /** @var Collection<int, string> */
     public Collection $allowedFields;
 
+    /**
+     * @param Collection<int, string> $unknownFields
+     * @param Collection<int, string> $allowedFields
+     */
     public function __construct(Collection $unknownFields, Collection $allowedFields)
     {
         $this->unknownFields = $unknownFields;
@@ -22,8 +31,12 @@ class InvalidFieldQuery extends InvalidQuery
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
     }
 
-    public static function fieldsNotAllowed(Collection $unknownFields, Collection $allowedFields): InvalidFieldQuery
+    /**
+     * @param Collection<int, string> $unknownFields
+     * @param Collection<int, string> $allowedFields
+     */
+    public static function fieldsNotAllowed(Collection $unknownFields, Collection $allowedFields): self
     {
-        return new static(...func_get_args());
+        return new self($unknownFields, $allowedFields);
     }
 }

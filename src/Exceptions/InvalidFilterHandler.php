@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Exceptions;
 
-use Jackardios\QueryWizard\Abstracts\AbstractFilter;
+use Jackardios\QueryWizard\Contracts\FilterStrategyInterface;
 use LogicException;
 
 class InvalidFilterHandler extends LogicException
@@ -10,9 +12,9 @@ class InvalidFilterHandler extends LogicException
     /**
      * @param string[] $baseFilterHandlerClasses
      */
-    public function __construct(array $baseFilterHandlerClasses = [AbstractFilter::class])
+    public function __construct(array $baseFilterHandlerClasses = [FilterStrategyInterface::class])
     {
         $baseFilterHandlerClassesImploded = implode('` or `', $baseFilterHandlerClasses);
-        parent::__construct("Invalid FilterHandler class. FilterHandler must extend `$baseFilterHandlerClassesImploded`");
+        parent::__construct("Invalid FilterHandler class. FilterHandler must implement `$baseFilterHandlerClassesImploded`");
     }
 }

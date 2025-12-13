@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Exceptions;
 
 use Illuminate\Support\Collection;
@@ -7,9 +9,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class InvalidAppendQuery extends InvalidQuery
 {
+    /** @var Collection<int, string> */
     public Collection $unknownAppends;
+
+    /** @var Collection<int, string> */
     public Collection $allowedAppends;
 
+    /**
+     * @param Collection<int, string> $unknownAppends
+     * @param Collection<int, string> $allowedAppends
+     */
     public function __construct(Collection $unknownAppends, Collection $allowedAppends)
     {
         $this->unknownAppends = $unknownAppends;
@@ -22,8 +31,12 @@ class InvalidAppendQuery extends InvalidQuery
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
     }
 
-    public static function appendsNotAllowed(Collection $unknownAppends, Collection $allowedAppends): InvalidAppendQuery
+    /**
+     * @param Collection<int, string> $unknownAppends
+     * @param Collection<int, string> $allowedAppends
+     */
+    public static function appendsNotAllowed(Collection $unknownAppends, Collection $allowedAppends): self
     {
-        return new static(...func_get_args());
+        return new self($unknownAppends, $allowedAppends);
     }
 }

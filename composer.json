@@ -42,10 +42,7 @@
     "autoload": {
         "psr-4": {
             "Jackardios\\QueryWizard\\": "src"
-        },
-        "files": [
-            "./src/helpers.php"
-        ]
+        }
     },
     "autoload-dev": {
         "psr-4": {

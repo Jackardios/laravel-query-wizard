@@ -1,14 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Exceptions;
 
 use InvalidArgumentException;
 
 class InvalidSubject extends InvalidArgumentException
 {
-    public static function make($subject): InvalidSubject
+    public static function make(mixed $subject): self
     {
-        return new static(
+        return new self(
             sprintf(
                 'Subject %s is invalid.',
                 is_object($subject)

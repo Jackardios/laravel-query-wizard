@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Enums;
 
-class SortDirection
+enum SortDirection: string
 {
-    public const ASCENDING = 'asc';
-    public const DESCENDING = 'desc';
+    case Ascending = 'asc';
+    case Descending = 'desc';
 }

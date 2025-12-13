@@ -41,5 +41,16 @@ return [
      */
     'request_data_source' => 'query_string',
 
-    'array_value_separator' => ','
+    'array_value_separator' => ',',
+
+    /*
+     * Custom drivers to register.
+     * Key is the driver name, value is the driver class.
+     *
+     * Example:
+     * 'drivers' => [
+     *     'scout' => \App\QueryWizard\Drivers\ScoutDriver::class,
+     * ],
+     */
+    'drivers' => [],
 ];

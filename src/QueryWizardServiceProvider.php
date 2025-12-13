@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard;
 
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
+use Jackardios\QueryWizard\Config\QueryWizardConfig;
 
 class QueryWizardServiceProvider extends ServiceProvider implements DeferrableProvider
 {
@@ -18,15 +21,26 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
     {
         $this->mergeConfigFrom(__DIR__.'/../config/query-wizard.php', 'query-wizard');
 
+        $this->app->singleton(QueryWizardConfig::class, function () {
+            return new QueryWizardConfig();
+        });
+
         $this->app->bind(QueryParametersManager::class, function ($app) {
-            return new QueryParametersManager($app['request']);
+            return new QueryParametersManager(
+                $app['request'],
+                $app->make(QueryWizardConfig::class)
+            );
         });
     }
 
+    /**
+     * @return array<int, class-string>
+     */
     public function provides(): array
     {
         return [
             QueryParametersManager::class,
+            QueryWizardConfig::class,
         ];
     }
 }

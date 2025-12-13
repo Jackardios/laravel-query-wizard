@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Exceptions;
 
 use Illuminate\Support\Collection;
@@ -7,9 +9,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class InvalidIncludeQuery extends InvalidQuery
 {
+    /** @var Collection<int, string> */
     public Collection $unknownIncludes;
+
+    /** @var Collection<int, string> */
     public Collection $allowedIncludes;
 
+    /**
+     * @param Collection<int, string> $unknownIncludes
+     * @param Collection<int, string> $allowedIncludes
+     */
     public function __construct(Collection $unknownIncludes, Collection $allowedIncludes)
     {
         $this->unknownIncludes = $unknownIncludes;
@@ -29,8 +38,12 @@ class InvalidIncludeQuery extends InvalidQuery
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
     }
 
-    public static function includesNotAllowed(Collection $unknownIncludes, Collection $allowedIncludes): InvalidIncludeQuery
+    /**
+     * @param Collection<int, string> $unknownIncludes
+     * @param Collection<int, string> $allowedIncludes
+     */
+    public static function includesNotAllowed(Collection $unknownIncludes, Collection $allowedIncludes): self
     {
-        return new static(...func_get_args());
+        return new self($unknownIncludes, $allowedIncludes);
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Values;
 
 use Jackardios\QueryWizard\Enums\SortDirection;
@@ -7,28 +9,37 @@ use Jackardios\QueryWizard\Enums\SortDirection;
 class Sort
 {
     protected string $field;
-    protected string $direction;
+    protected SortDirection $direction;
 
-    public function __construct(string $field, ?string $direction = null)
+    /**
+     * @param string $field Field name (may include leading '-' for descending)
+     */
+    public function __construct(string $field, ?SortDirection $direction = null)
     {
         $this->field = ltrim($field, '-');
-        if ($direction) {
-            $this->direction = $direction === SortDirection::DESCENDING ? SortDirection::DESCENDING : SortDirection::ASCENDING;
-        } else {
-            $this->direction = self::parseSortDirection($field);
-        }
+        $this->direction = $direction ?? self::parseSortDirection($field);
     }
 
-    public function getField(): string {
+    public function getField(): string
+    {
         return $this->field;
     }
 
-    public function getDirection(): string {
+    /**
+     * @return 'asc'|'desc'
+     */
+    public function getDirection(): string
+    {
+        return $this->direction->value;
+    }
+
+    public function getSortDirection(): SortDirection
+    {
         return $this->direction;
     }
 
-    public static function parseSortDirection(string $field): string
+    public static function parseSortDirection(string $field): SortDirection
     {
-        return strpos($field, '-') === 0 ? SortDirection::DESCENDING : SortDirection::ASCENDING;
+        return str_starts_with($field, '-') ? SortDirection::Descending : SortDirection::Ascending;
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Exceptions;
 
 use Illuminate\Support\Collection;
@@ -7,9 +9,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class InvalidSortQuery extends InvalidQuery
 {
+    /** @var Collection<int, string> */
     public Collection $unknownSorts;
+
+    /** @var Collection<int, string> */
     public Collection $allowedSorts;
 
+    /**
+     * @param Collection<int, string> $unknownSorts
+     * @param Collection<int, string> $allowedSorts
+     */
     public function __construct(Collection $unknownSorts, Collection $allowedSorts)
     {
         $this->unknownSorts = $unknownSorts;
@@ -22,8 +31,12 @@ class InvalidSortQuery extends InvalidQuery
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
     }
 
-    public static function sortsNotAllowed(Collection $unknownSorts, Collection $allowedSorts): InvalidSortQuery
+    /**
+     * @param Collection<int, string> $unknownSorts
+     * @param Collection<int, string> $allowedSorts
+     */
+    public static function sortsNotAllowed(Collection $unknownSorts, Collection $allowedSorts): self
     {
-        return new static(...func_get_args());
+        return new self($unknownSorts, $allowedSorts);
     }
 }

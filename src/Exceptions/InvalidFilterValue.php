@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jackardios\QueryWizard\Exceptions;
 
 use Exception;
 
 class InvalidFilterValue extends Exception
 {
-    public static function make($value): InvalidFilterValue
+    public static function make(mixed $value): self
     {
-        return new static("Filter value `{$value}` is invalid.");
+        return new self("Filter value `{$value}` is invalid.");
     }
 }
