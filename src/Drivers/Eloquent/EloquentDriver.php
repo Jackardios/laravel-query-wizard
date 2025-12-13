@@ -300,7 +300,7 @@ class EloquentDriver implements DriverInterface
     }
 
     /**
-     * @return Builder<Model>|Relation<Model>
+     * @return Builder<Model>|Relation<Model, Model, mixed>
      */
     public function prepareSubject(mixed $subject): Builder|Relation
     {
@@ -322,14 +322,17 @@ class EloquentDriver implements DriverInterface
         }
 
         if ($subject instanceof Relation) {
+            /** @var Builder<Model> */
             return $subject->getQuery();
         }
 
         if ($subject instanceof Model) {
+            /** @var Builder<Model> */
             return $subject->newQuery();
         }
 
         if (is_string($subject) && is_subclass_of($subject, Model::class)) {
+            /** @var Builder<Model> */
             return $subject::query();
         }
 

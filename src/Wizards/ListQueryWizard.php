@@ -33,7 +33,7 @@ class ListQueryWizard extends BaseQueryWizard
     /**
      * Set a custom base query
      *
-     * @param Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model> $builder
+     * @param Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed> $builder
      */
     public function query(Builder|Relation $builder): static
     {
@@ -42,7 +42,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * @param Closure(Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model>): void $callback
+     * @param Closure(Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed>): void $callback
      */
     public function modifyQuery(Closure $callback): static
     {
@@ -53,7 +53,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * @return Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed>
      */
     public function build(): mixed
     {

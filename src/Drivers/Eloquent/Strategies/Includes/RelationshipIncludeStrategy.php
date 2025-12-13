@@ -42,7 +42,7 @@ class RelationshipIncludeStrategy implements IncludeStrategyInterface
 
     /**
      * @param array<string> $fields
-     * @return (Closure(Builder<\Illuminate\Database\Eloquent\Model>|\Illuminate\Database\Eloquent\Relations\Relation<\Illuminate\Database\Eloquent\Model>): void)|null
+     * @return (Closure(Builder<\Illuminate\Database\Eloquent\Model>|\Illuminate\Database\Eloquent\Relations\Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed>): void)|null
      */
     protected function buildFieldSelectionCallback(string $fullRelationName, array $fields): ?Closure
     {
