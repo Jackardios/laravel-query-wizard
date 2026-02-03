@@ -23,7 +23,8 @@ interface DriverInterface
     /**
      * Returns list of supported capabilities
      *
-     * @return array<string> ['filters', 'sorts', 'includes', 'fields', 'appends']
+     * @return array<string> Array of capability values from Capability enum
+     * @see \Jackardios\QueryWizard\Enums\Capability
      */
     public function capabilities(): array;
 
