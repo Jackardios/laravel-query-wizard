@@ -17,7 +17,8 @@ class FieldSortStrategy implements SortStrategyInterface
      */
     public function apply(mixed $subject, SortDefinitionInterface $sort, string $direction): mixed
     {
-        $subject->orderBy($sort->getProperty(), $direction);
+        $column = $subject->qualifyColumn($sort->getProperty());
+        $subject->orderBy($column, $direction);
 
         return $subject;
     }
