@@ -72,17 +72,7 @@ final class IncludeDefinition implements IncludeDefinitionInterface
 
     public function getName(): string
     {
-        if ($this->alias !== null) {
-            return $this->alias;
-        }
-
-        // For count includes without alias, auto-generate the count name
-        if ($this->type === 'count') {
-            $countSuffix = app(\Jackardios\QueryWizard\Config\QueryWizardConfig::class)->getCountSuffix();
-            return $this->relation . $countSuffix;
-        }
-
-        return $this->relation;
+        return $this->alias ?? $this->relation;
     }
 
     public function getAlias(): ?string
