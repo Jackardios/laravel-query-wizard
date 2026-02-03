@@ -346,9 +346,9 @@ class SortTest extends TestCase
             ->build()
             ->toSql();
 
-        // Verify ORDER BY is added (columns may not be qualified)
+        // Verify ORDER BY is added with qualified column name
         $this->assertStringContainsString('order by', strtolower($sql));
-        $this->assertStringContainsString('"name"', $sql);
+        $this->assertStringContainsString('"test_models"."name"', $sql);
     }
     #[Test]
     public function it_uses_asc_direction_by_default(): void

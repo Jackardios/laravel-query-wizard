@@ -235,6 +235,22 @@ class FilterTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1, $models->count());
     }
+    #[Test]
+    public function scope_filter_can_disable_model_binding_resolution(): void
+    {
+        $model = $this->models->first();
+
+        // With resolveModelBindings disabled, the raw value is passed to the scope
+        $models = $this
+            ->createEloquentWizardWithFilters(['named' => $model->name])
+            ->setAllowedFilters(
+                FilterDefinition::scope('named')
+                    ->withOptions(['resolveModelBindings' => false])
+            )
+            ->get();
+
+        $this->assertCount(1, $models);
+    }
 
     // ========== Callback Filter Tests ==========
     #[Test]
@@ -421,6 +437,31 @@ class FilterTest extends TestCase
             ->toSql();
 
         // invertLogic: true means "true" checks for NOT NULL
+        $this->assertStringContainsString('is not null', strtolower($sql));
+    }
+    #[Test]
+    public function null_filter_with_invalid_value_defaults_to_false(): void
+    {
+        // Invalid values like 'invalid', 'random', etc. should default to false (NOT NULL)
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => 'invalid'])
+            ->setAllowedFilters(FilterDefinition::null('name'))
+            ->build()
+            ->toSql();
+
+        // 'invalid' is not a valid boolean, so it defaults to false -> NOT NULL
+        $this->assertStringContainsString('is not null', strtolower($sql));
+    }
+    #[Test]
+    public function null_filter_with_numeric_value_defaults_to_false(): void
+    {
+        // Numeric values like '123' should default to false (NOT NULL)
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => '123'])
+            ->setAllowedFilters(FilterDefinition::null('name'))
+            ->build()
+            ->toSql();
+
         $this->assertStringContainsString('is not null', strtolower($sql));
     }
 
