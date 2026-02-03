@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
 use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
+use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
+use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 
 trait HandlesIncludes
 {
@@ -46,23 +49,15 @@ trait HandlesIncludes
      */
     protected function getEffectiveIncludes(): array
     {
-        $includes = !empty($this->allowedIncludes)
-            ? $this->allowedIncludes
-            : ($this->schema?->includes() ?? []);
-
         $context = $this->resolveContext();
-        if ($context !== null) {
-            if ($context->getAllowedIncludes() !== null) {
-                $includes = $context->getAllowedIncludes();
-            }
 
-            $disallowed = $context->getDisallowedIncludes();
-            if (!empty($disallowed)) {
-                $includes = $this->removeDisallowed($includes, $disallowed, fn($item) =>
-                    $item instanceof IncludeDefinitionInterface ? $item->getName() : $item
-                );
-            }
-        }
+        $includes = $this->resolveAllowedDefinitions(
+            $this->allowedIncludes,
+            fn() => $this->schema?->includes() ?? [],
+            $context !== null ? fn() => $context->getAllowedIncludes() : null,
+            $context !== null ? fn() => $context->getDisallowedIncludes() : null,
+            fn($item) => $item instanceof IncludeDefinitionInterface ? $item->getName() : $item
+        );
 
         return $this->normalizeIncludes($includes);
     }
@@ -75,13 +70,12 @@ trait HandlesIncludes
     protected function getEffectiveDefaultIncludes(): array
     {
         $context = $this->resolveContext();
-        if ($context?->getDefaultIncludes() !== null) {
-            return $context->getDefaultIncludes();
-        }
 
-        return !empty($this->defaultIncludes)
-            ? $this->defaultIncludes
-            : ($this->schema?->defaultIncludes() ?? []);
+        return $this->resolveEffectiveDefaults(
+            $this->defaultIncludes,
+            $context !== null ? fn() => $context->getDefaultIncludes() : null,
+            fn() => $this->schema?->defaultIncludes() ?? []
+        );
     }
 
     /**
@@ -93,7 +87,7 @@ trait HandlesIncludes
             return;
         }
 
-        if (!in_array('includes', $this->driver->capabilities(), true)) {
+        if (!in_array(Capability::INCLUDES->value, $this->driver->capabilities(), true)) {
             $this->includesApplied = true;
             return;
         }
@@ -133,6 +127,9 @@ trait HandlesIncludes
             ->unique()
             ->values();
 
+        // Validate security limits
+        $this->validateIncludeLimits($effectiveIncludes);
+
         $allowedIncludeNames = array_keys($includesIndex);
         foreach ($effectiveIncludes as $includeName) {
             if (!isset($includesIndex[$includeName])) {
@@ -161,6 +158,29 @@ trait HandlesIncludes
             fn($include) => $include !== null && $include !== '' ? $this->driver->normalizeInclude($include) : null,
             $includes
         )));
+    }
+
+    /**
+     * Validate include limits (count and depth)
+     *
+     * @param \Illuminate\Support\Collection<int, string> $effectiveIncludes
+     */
+    protected function validateIncludeLimits(\Illuminate\Support\Collection $effectiveIncludes): void
+    {
+        $maxCount = $this->config->getMaxIncludesCount();
+        if ($maxCount !== null && $effectiveIncludes->count() > $maxCount) {
+            throw MaxIncludesCountExceeded::create($effectiveIncludes->count(), $maxCount);
+        }
+
+        $maxDepth = $this->config->getMaxIncludeDepth();
+        if ($maxDepth !== null) {
+            foreach ($effectiveIncludes as $includeName) {
+                $depth = substr_count($includeName, '.') + 1;
+                if ($depth > $maxDepth) {
+                    throw MaxIncludeDepthExceeded::create($includeName, $depth, $maxDepth);
+                }
+            }
+        }
     }
 
     /**

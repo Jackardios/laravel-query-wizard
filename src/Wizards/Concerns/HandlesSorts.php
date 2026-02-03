@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
 use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
+use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
+use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Values\Sort;
 
 trait HandlesSorts
@@ -57,23 +59,15 @@ trait HandlesSorts
      */
     protected function getEffectiveSorts(): array
     {
-        $sorts = !empty($this->allowedSorts)
-            ? $this->allowedSorts
-            : ($this->schema?->sorts() ?? []);
-
         $context = $this->resolveContext();
-        if ($context !== null) {
-            if ($context->getAllowedSorts() !== null) {
-                $sorts = $context->getAllowedSorts();
-            }
 
-            $disallowed = $context->getDisallowedSorts();
-            if (!empty($disallowed)) {
-                $sorts = $this->removeDisallowed($sorts, $disallowed, fn($item) =>
-                    $item instanceof SortDefinitionInterface ? $item->getName() : ltrim($item, '-')
-                );
-            }
-        }
+        $sorts = $this->resolveAllowedDefinitions(
+            $this->allowedSorts,
+            fn() => $this->schema?->sorts() ?? [],
+            $context !== null ? fn() => $context->getAllowedSorts() : null,
+            $context !== null ? fn() => $context->getDisallowedSorts() : null,
+            fn($item) => $item instanceof SortDefinitionInterface ? $item->getName() : ltrim($item, '-')
+        );
 
         return $this->normalizeSorts($sorts);
     }
@@ -86,13 +80,12 @@ trait HandlesSorts
     protected function getEffectiveDefaultSorts(): array
     {
         $context = $this->resolveContext();
-        if ($context?->getDefaultSorts() !== null) {
-            return $context->getDefaultSorts();
-        }
 
-        return !empty($this->defaultSorts)
-            ? $this->defaultSorts
-            : ($this->schema?->defaultSorts() ?? []);
+        return $this->resolveEffectiveDefaults(
+            $this->defaultSorts,
+            $context !== null ? fn() => $context->getDefaultSorts() : null,
+            fn() => $this->schema?->defaultSorts() ?? []
+        );
     }
 
     /**
@@ -104,7 +97,7 @@ trait HandlesSorts
             return;
         }
 
-        if (!in_array('sorts', $this->driver->capabilities(), true)) {
+        if (!in_array(Capability::SORTS->value, $this->driver->capabilities(), true)) {
             $this->sortsApplied = true;
             return;
         }
@@ -146,6 +139,12 @@ trait HandlesSorts
             $appliedFields[$field] = true;
             return true;
         });
+
+        // Validate sort count limit
+        $maxSortsCount = $this->config->getMaxSortsCount();
+        if ($maxSortsCount !== null && $uniqueSorts->count() > $maxSortsCount) {
+            throw MaxSortsCountExceeded::create($uniqueSorts->count(), $maxSortsCount);
+        }
 
         foreach ($uniqueSorts as $sortValue) {
             /** @var Sort $sortValue */

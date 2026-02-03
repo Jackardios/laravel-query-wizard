@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
 use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 
 trait HandlesAppends
@@ -33,21 +34,15 @@ trait HandlesAppends
      */
     protected function getEffectiveAppends(): array
     {
-        $appends = !empty($this->allowedAppends)
-            ? $this->allowedAppends
-            : ($this->schema?->appends() ?? []);
-
         $context = $this->resolveContext();
-        if ($context !== null) {
-            if ($context->getAllowedAppends() !== null) {
-                $appends = $context->getAllowedAppends();
-            }
 
-            $disallowed = $context->getDisallowedAppends();
-            if (!empty($disallowed)) {
-                $appends = array_filter($appends, fn($append) => !in_array($append, $disallowed, true));
-            }
-        }
+        $appends = $this->resolveAllowedDefinitions(
+            $this->allowedAppends,
+            fn() => $this->schema?->appends() ?? [],
+            $context !== null ? fn() => $context->getAllowedAppends() : null,
+            $context !== null ? fn() => $context->getDisallowedAppends() : null,
+            fn($item) => $item
+        );
 
         return array_values($appends);
     }
@@ -60,11 +55,12 @@ trait HandlesAppends
     protected function getEffectiveDefaultAppends(): array
     {
         $context = $this->resolveContext();
-        if ($context?->getDefaultAppends() !== null) {
-            return $context->getDefaultAppends();
-        }
 
-        return $this->schema?->defaultAppends() ?? [];
+        return $this->resolveEffectiveDefaults(
+            [],
+            $context !== null ? fn() => $context->getDefaultAppends() : null,
+            fn() => $this->schema?->defaultAppends() ?? []
+        );
     }
 
     /**
@@ -72,7 +68,7 @@ trait HandlesAppends
      */
     protected function validateAppends(): void
     {
-        if (!in_array('appends', $this->driver->capabilities(), true)) {
+        if (!in_array(Capability::APPENDS->value, $this->driver->capabilities(), true)) {
             return;
         }
 

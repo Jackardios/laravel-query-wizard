@@ -12,6 +12,8 @@ use Jackardios\QueryWizard\QueryParametersManager;
 
 abstract class BaseQueryWizard
 {
+    use Concerns\ResolvesEffectiveDefinitions;
+
     protected mixed $subject;
     protected DriverInterface $driver;
     protected QueryParametersManager $parameters;

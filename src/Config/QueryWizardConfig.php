@@ -60,4 +60,34 @@ final class QueryWizardConfig
     {
         return (bool) config(self::CONFIG_PREFIX . '.disable_invalid_filter_query_exception', false);
     }
+
+    public function getMaxIncludeDepth(): ?int
+    {
+        $value = config(self::CONFIG_PREFIX . '.limits.max_include_depth');
+        return $value !== null ? (int) $value : null;
+    }
+
+    public function getMaxIncludesCount(): ?int
+    {
+        $value = config(self::CONFIG_PREFIX . '.limits.max_includes_count');
+        return $value !== null ? (int) $value : null;
+    }
+
+    public function getMaxFiltersCount(): ?int
+    {
+        $value = config(self::CONFIG_PREFIX . '.limits.max_filters_count');
+        return $value !== null ? (int) $value : null;
+    }
+
+    public function getMaxFilterDepth(): ?int
+    {
+        $value = config(self::CONFIG_PREFIX . '.limits.max_filter_depth');
+        return $value !== null ? (int) $value : null;
+    }
+
+    public function getMaxSortsCount(): ?int
+    {
+        $value = config(self::CONFIG_PREFIX . '.limits.max_sorts_count');
+        return $value !== null ? (int) $value : null;
+    }
 }

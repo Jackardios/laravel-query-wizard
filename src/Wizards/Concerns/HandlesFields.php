@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
 use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 
 trait HandlesFields
@@ -130,7 +131,7 @@ trait HandlesFields
             return;
         }
 
-        if (!in_array('fields', $this->driver->capabilities(), true)) {
+        if (!in_array(Capability::FIELDS->value, $this->driver->capabilities(), true)) {
             $this->fieldsApplied = true;
             return;
         }

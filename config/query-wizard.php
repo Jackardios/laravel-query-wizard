@@ -53,4 +53,16 @@ return [
      * ],
      */
     'drivers' => [],
+
+    /*
+     * Security limits to protect against resource exhaustion attacks.
+     * Set to null to disable a specific limit.
+     */
+    'limits' => [
+        'max_include_depth' => 5,
+        'max_includes_count' => 10,
+        'max_filters_count' => 15,
+        'max_filter_depth' => 5,
+        'max_sorts_count' => 5,
+    ],
 ];

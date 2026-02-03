@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
 use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
+use Jackardios\QueryWizard\Enums\Capability;
+use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 
 trait HandlesFilters
 {
@@ -31,23 +33,15 @@ trait HandlesFilters
      */
     protected function getEffectiveFilters(): array
     {
-        $filters = !empty($this->allowedFilters)
-            ? $this->allowedFilters
-            : ($this->schema?->filters() ?? []);
-
         $context = $this->resolveContext();
-        if ($context !== null) {
-            if ($context->getAllowedFilters() !== null) {
-                $filters = $context->getAllowedFilters();
-            }
 
-            $disallowed = $context->getDisallowedFilters();
-            if (!empty($disallowed)) {
-                $filters = $this->removeDisallowed($filters, $disallowed, fn($item) =>
-                    $item instanceof FilterDefinitionInterface ? $item->getName() : $item
-                );
-            }
-        }
+        $filters = $this->resolveAllowedDefinitions(
+            $this->allowedFilters,
+            fn() => $this->schema?->filters() ?? [],
+            $context !== null ? fn() => $context->getAllowedFilters() : null,
+            $context !== null ? fn() => $context->getDisallowedFilters() : null,
+            fn($item) => $item instanceof FilterDefinitionInterface ? $item->getName() : $item
+        );
 
         return $this->normalizeFilters($filters);
     }
@@ -61,7 +55,7 @@ trait HandlesFilters
             return;
         }
 
-        if (!in_array('filters', $this->driver->capabilities(), true)) {
+        if (!in_array(Capability::FILTERS->value, $this->driver->capabilities(), true)) {
             $this->filtersApplied = true;
             return;
         }
@@ -89,11 +83,19 @@ trait HandlesFilters
             }
         }
 
+        $maxFilterDepth = $this->config->getMaxFilterDepth();
         $requestedFilterNames = $this->extractAllRequestedFilterNames(
             $this->parameters->getFilters()->all(),
             '',
-            $allowedFilterNamesIndex
+            $allowedFilterNamesIndex,
+            $maxFilterDepth
         );
+
+        // Validate filter count limit
+        $maxFiltersCount = $this->config->getMaxFiltersCount();
+        if ($maxFiltersCount !== null && count($requestedFilterNames) > $maxFiltersCount) {
+            throw MaxFiltersCountExceeded::create(count($requestedFilterNames), $maxFiltersCount);
+        }
 
         foreach ($requestedFilterNames as $filterName) {
             if (!$this->isValidFilterName($filterName, $allowedFilterNamesIndex, $prefixIndex)) {
@@ -142,8 +144,13 @@ trait HandlesFilters
      * @param array<string, int> $allowedFilterNamesIndex Hash-based index for O(1) lookup
      * @return array<string>
      */
-    protected function extractAllRequestedFilterNames(array $filters, string $prefix = '', array $allowedFilterNamesIndex = []): array
-    {
+    protected function extractAllRequestedFilterNames(
+        array $filters,
+        string $prefix = '',
+        array $allowedFilterNamesIndex = [],
+        ?int $maxDepth = null,
+        int $currentDepth = 1
+    ): array {
         $names = [];
 
         foreach ($filters as $key => $value) {
@@ -154,8 +161,19 @@ trait HandlesFilters
                 continue;
             }
 
-            if (is_array($value) && !empty($value) && $this->isAssociativeArray($value)) {
-                $names = array_merge($names, $this->extractAllRequestedFilterNames($value, $fullKey, $allowedFilterNamesIndex));
+            // Only recurse if we haven't exceeded max depth
+            $canRecurse = $maxDepth === null || $currentDepth < $maxDepth;
+            if ($canRecurse && is_array($value) && !empty($value) && $this->isAssociativeArray($value)) {
+                $names = array_merge(
+                    $names,
+                    $this->extractAllRequestedFilterNames(
+                        $value,
+                        $fullKey,
+                        $allowedFilterNamesIndex,
+                        $maxDepth,
+                        $currentDepth + 1
+                    )
+                );
             }
         }
 
