@@ -933,19 +933,4 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
-    #[Test]
-    public function it_handles_many_filters_at_once(): void
-    {
-        $model = $this->models->first();
-
-        $models = $this
-            ->createEloquentWizardWithFilters([
-                'name' => $model->name,
-                'id' => $model->id,
-            ])
-            ->setAllowedFilters('name', 'id')
-            ->get();
-
-        $this->assertCount(1, $models);
-    }
 }

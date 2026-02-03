@@ -602,4 +602,111 @@ class QueryWizardTest extends TestCase
 
         $this->assertCount(2, $models);
     }
+
+    // ========== ListQueryWizard Idempotency Tests ==========
+    #[Test]
+    public function list_wizard_build_is_idempotent(): void
+    {
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['id' => 1],
+            'sort' => 'name',
+        ]));
+
+        $wizard = QueryWizard::for(TestModel::class, $params)
+            ->setAllowedFilters('id')
+            ->setAllowedSorts('name');
+
+        $builder1 = $wizard->build();
+        $builder2 = $wizard->build();
+
+        // Same builder instance, operations applied only once
+        $this->assertSame($builder1, $builder2);
+    }
+
+    #[Test]
+    public function list_wizard_operations_applied_only_once(): void
+    {
+        DB::flushQueryLog();
+
+        $params = new QueryParametersManager(new Request(['sort' => 'name']));
+
+        $wizard = QueryWizard::for(TestModel::class, $params)
+            ->setAllowedSorts('name');
+
+        // Call build multiple times
+        $wizard->build();
+        $wizard->build();
+        $wizard->get();
+
+        // Verify only one query executed (operations not reapplied)
+        $queryLog = DB::getQueryLog();
+        $this->assertCount(1, $queryLog);
+    }
+
+    #[Test]
+    public function list_wizard_query_method_allows_chaining(): void
+    {
+        $schema = new class extends ResourceSchema {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+        };
+
+        $result = QueryWizard::forList($schema)
+            ->query(TestModel::where('id', '>', 0))
+            ->where('id', '<', 10)
+            ->get();
+
+        $this->assertNotEmpty($result);
+    }
+
+    #[Test]
+    public function list_wizard_query_method_replaces_underlying_builder(): void
+    {
+        $wizard = QueryWizard::for(TestModel::class);
+
+        // Set a new query with where clause
+        $wizard->query(TestModel::where('id', '>', 2));
+
+        // Build should use the new query
+        $builder = $wizard->build();
+        $sql = $builder->toSql();
+
+        $this->assertStringContainsString('"id" > ?', $sql);
+    }
+
+    #[Test]
+    public function list_wizard_clone_creates_independent_instance(): void
+    {
+        $wizard = QueryWizard::for(TestModel::class)
+            ->setAllowedFilters('name')
+            ->setAllowedSorts('id');
+
+        $clone = clone $wizard;
+
+        // Modify original
+        $wizard->where('id', 1);
+
+        // Clone should be independent
+        $cloneModels = $clone->get();
+        $originalModels = $wizard->get();
+
+        $this->assertCount(5, $cloneModels);
+        $this->assertCount(1, $originalModels);
+    }
+
+    #[Test]
+    public function list_wizard_modifyQuery_applies_before_wizard_operations(): void
+    {
+        $params = new QueryParametersManager(new Request(['sort' => '-id']));
+
+        $models = QueryWizard::for(TestModel::class, $params)
+            ->setAllowedSorts('id')
+            ->modifyQuery(fn($query) => $query->where('id', '<=', 3))
+            ->get();
+
+        $this->assertCount(3, $models);
+        $this->assertEquals(3, $models->first()->id); // Sorted desc
+    }
 }

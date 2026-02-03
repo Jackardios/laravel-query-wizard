@@ -56,9 +56,11 @@ class IncludeDefinitionTest extends TestCase
         $include = IncludeDefinition::count('posts');
 
         $this->assertEquals('posts', $include->getRelation());
-        // getName() auto-generates count suffix for count includes
-        $this->assertEquals('postsCount', $include->getName());
+        // Without alias, getName() returns the relation name
+        // The count suffix is applied during normalization in the driver
+        $this->assertEquals('posts', $include->getName());
         $this->assertEquals('count', $include->getType());
+        $this->assertNull($include->getAlias());
     }
     #[Test]
     public function it_creates_count_include_with_alias(): void

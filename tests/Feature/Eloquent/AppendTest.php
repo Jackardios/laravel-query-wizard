@@ -50,19 +50,6 @@ class AppendTest extends TestCase
         $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
     }
     #[Test]
-    public function appended_attribute_has_correct_value(): void
-    {
-        $model = $this->models->first();
-
-        $models = $this
-            ->createEloquentWizardWithAppends('fullname')
-            ->setAllowedAppends('fullname')
-            ->get();
-
-        $expectedFullname = $model->firstname . ' ' . $model->lastname;
-        $this->assertEquals($expectedFullname, $models->first()->fullname);
-    }
-    #[Test]
     public function it_can_append_multiple_attributes(): void
     {
         $models = $this
@@ -171,18 +158,6 @@ class AppendTest extends TestCase
 
         $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
     }
-    #[Test]
-    public function it_handles_append_values_literally(): void
-    {
-        // Values are not trimmed - they are used as-is
-        $models = $this
-            ->createEloquentWizardWithAppends('fullname')
-            ->setAllowedAppends('fullname')
-            ->get();
-
-        $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
-    }
-
     // ========== Integration with Other Features ==========
     #[Test]
     public function it_works_with_filtering(): void

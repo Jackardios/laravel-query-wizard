@@ -386,17 +386,6 @@ class SortTest extends TestCase
         $this->assertCount(5, $models);
     }
     #[Test]
-    public function it_handles_sort_values_literally(): void
-    {
-        // Sort values are used as-is, spaces are not automatically trimmed
-        $models = $this
-            ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts('name')
-            ->get();
-
-        $this->assertCount(5, $models);
-    }
-    #[Test]
     public function it_removes_duplicate_sorts(): void
     {
         $models = $this
