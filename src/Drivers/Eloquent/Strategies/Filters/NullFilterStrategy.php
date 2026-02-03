@@ -19,7 +19,9 @@ class NullFilterStrategy implements FilterStrategyInterface
         $column = $subject->qualifyColumn($filter->getProperty());
         $invertLogic = $filter->getOption('invertLogic', false);
 
-        $isTruthy = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+        // Use FILTER_NULL_ON_FAILURE to properly handle invalid values
+        // Without it, filter_var returns null for invalid inputs which would be treated as falsy
+        $isTruthy = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
         $shouldBeNull = $invertLogic ? !$isTruthy : $isTruthy;
 
         if ($shouldBeNull) {
