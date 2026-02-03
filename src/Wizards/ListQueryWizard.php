@@ -25,40 +25,35 @@ class ListQueryWizard extends BaseQueryWizard
     use HandlesFields;
     use HandlesAppends;
 
+    protected bool $subjectPrepared = false;
+    protected bool $wizardApplied = false;
+
     protected function getContextMode(): string
     {
         return 'list';
     }
 
     /**
-     * Set a custom base query
-     *
-     * @param Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed> $builder
+     * Ensure subject is converted to Builder/Relation (done once).
      */
-    public function query(Builder|Relation $builder): static
+    protected function ensureSubjectPrepared(): void
     {
-        $this->subject = $builder;
-        return $this;
+        if (!$this->subjectPrepared) {
+            $this->subject = $this->driver->prepareSubject($this->subject);
+            $this->subjectPrepared = true;
+        }
     }
 
     /**
-     * @param Closure(Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed>): void $callback
+     * Apply all wizard operations (filters, includes, sorts, fields) once.
      */
-    public function modifyQuery(Closure $callback): static
+    protected function applyWizardOperations(): void
     {
-        // Ensure subject is prepared before modification
-        $this->subject = $this->driver->prepareSubject($this->subject);
-        $callback($this->subject);
-        return $this;
-    }
+        if ($this->wizardApplied) {
+            return;
+        }
 
-    /**
-     * @return Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed>
-     */
-    public function build(): mixed
-    {
-        // Ensure subject is prepared for execution
-        $this->subject = $this->driver->prepareSubject($this->subject);
+        $this->ensureSubjectPrepared();
 
         $this->applyFilters();
         $this->applyIncludes();
@@ -66,11 +61,55 @@ class ListQueryWizard extends BaseQueryWizard
         $this->applyFields();
         $this->validateAppends();
 
+        $this->wizardApplied = true;
+    }
+
+    /**
+     * Set a custom base query.
+     *
+     * Note: This resets the wizard state, so filters/sorts/includes will be re-applied.
+     *
+     * @param Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed> $builder
+     */
+    public function query(Builder|Relation $builder): static
+    {
+        $this->subject = $builder;
+        $this->subjectPrepared = true; // Already a Builder/Relation
+        $this->wizardApplied = false;  // Need to re-apply wizard operations
+        return $this;
+    }
+
+    /**
+     * Modify the underlying query builder directly.
+     *
+     * Use this for adding custom WHERE clauses, joins, etc.
+     * The callback receives the prepared Builder/Relation.
+     *
+     * @param Closure(Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed>): void $callback
+     */
+    public function modifyQuery(Closure $callback): static
+    {
+        $this->ensureSubjectPrepared();
+        $callback($this->subject);
+        return $this;
+    }
+
+    /**
+     * Build the query by applying all wizard operations.
+     *
+     * Returns the underlying Builder/Relation with filters, includes, sorts, and fields applied.
+     * Safe to call multiple times - operations are only applied once.
+     *
+     * @return Builder<\Illuminate\Database\Eloquent\Model>|Relation<\Illuminate\Database\Eloquent\Model, \Illuminate\Database\Eloquent\Model, mixed>
+     */
+    public function build(): mixed
+    {
+        $this->applyWizardOperations();
         return $this->subject;
     }
 
     /**
-     * Build and get results with appends applied
+     * Build and get results with appends applied.
      *
      * @return Collection<int, mixed>
      */
@@ -81,7 +120,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Build and get first result with appends applied
+     * Build and get first result with appends applied.
      */
     public function first(): mixed
     {
@@ -95,7 +134,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Build and paginate with appends applied
+     * Build and paginate with appends applied.
      */
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
@@ -106,7 +145,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Build and simple paginate with appends applied
+     * Build and simple paginate with appends applied.
      */
     public function simplePaginate(int $perPage = 15): Paginator
     {
@@ -117,7 +156,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Build and cursor paginate with appends applied
+     * Build and cursor paginate with appends applied.
      */
     public function cursorPaginate(int $perPage = 15): CursorPaginator
     {
@@ -128,7 +167,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Get the requested includes
+     * Get the requested includes.
      *
      * @return Collection<int, string>
      */
@@ -138,7 +177,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Get the requested sorts
+     * Get the requested sorts.
      *
      * @return Collection<int, \Jackardios\QueryWizard\Values\Sort>
      */
@@ -148,7 +187,7 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Get the prepared filter values from request
+     * Get the prepared filter values from request.
      *
      * @return Collection<string, mixed>
      */
@@ -171,7 +210,17 @@ class ListQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Proxy method calls to the built query
+     * Proxy method calls to the underlying query builder.
+     *
+     * This allows chaining Eloquent methods directly on the wizard:
+     *
+     *     $wizard->where('active', true)->orderBy('name')->get();
+     *
+     * Methods that modify the builder (where, orderBy, etc.) return $this for chaining.
+     * Terminal methods (count, exists, etc.) return their result directly.
+     *
+     * Note: Wizard operations (filters, sorts, includes from request) are applied
+     * when you call a terminal method like get(), first(), paginate(), or build().
      *
      * @param string $name
      * @param array<int, mixed> $arguments
@@ -179,6 +228,38 @@ class ListQueryWizard extends BaseQueryWizard
      */
     public function __call(string $name, array $arguments): mixed
     {
-        return $this->build()->$name(...$arguments);
+        $this->ensureSubjectPrepared();
+
+        $result = $this->subject->$name(...$arguments);
+
+        // If the method returns the same builder instance (mutating methods like where, orderBy),
+        // return $this to allow continued chaining on the wizard
+        if ($result === $this->subject) {
+            return $this;
+        }
+
+        // If the method returns a new Builder/Relation (some methods clone),
+        // update our subject and return $this for chaining
+        if ($result instanceof Builder || $result instanceof Relation) {
+            $this->subject = $result;
+            return $this;
+        }
+
+        // For terminal methods (count, exists, sum, etc.), return the result directly
+        return $result;
+    }
+
+    /**
+     * Clone the wizard.
+     */
+    public function __clone(): void
+    {
+        parent::__clone();
+
+        // Reset preparation flags for the cloned instance
+        // so it can be modified independently
+        $this->subjectPrepared = is_object($this->subject)
+            && ($this->subject instanceof Builder || $this->subject instanceof Relation);
+        $this->wizardApplied = false;
     }
 }
