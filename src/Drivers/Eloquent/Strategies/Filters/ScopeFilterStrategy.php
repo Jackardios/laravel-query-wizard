@@ -41,7 +41,11 @@ class ScopeFilterStrategy implements FilterStrategyInterface
 
         $scope = Str::camel($propertyParts->pop());
         $values = array_values(Arr::wrap($value));
-        $values = $this->resolveParameters($subject, $values, $scope);
+
+        $resolveModelBindings = $filter->getOption('resolveModelBindings', true);
+        if ($resolveModelBindings) {
+            $values = $this->resolveParameters($subject, $values, $scope);
+        }
 
         $relation = $propertyParts->implode('.');
 
