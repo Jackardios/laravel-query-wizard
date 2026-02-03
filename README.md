@@ -70,8 +70,10 @@ GET /users?filter[name]=John&filter[status]=active&sort=-created_at&include=post
 - [Selecting Fields](#selecting-fields)
 - [Appending Attributes](#appending-attributes)
 - [Resource Schemas](#resource-schemas)
+- [Security Limits](#security-limits)
 - [Custom Drivers](#custom-drivers)
 - [Configuration](#configuration)
+- [Error Handling](#error-handling)
 - [Laravel Octane Compatibility](#laravel-octane-compatibility)
 
 ## Basic Usage
@@ -574,20 +576,114 @@ class UserSchema extends ResourceSchema
 }
 ```
 
+## Security Limits
+
+Query Wizard includes built-in protection against resource exhaustion attacks. Malicious users could attempt to overload your server by requesting deeply nested includes or excessive numbers of filters/sorts.
+
+### Default Limits
+
+The following limits are applied by default:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `max_include_depth` | 5 | Maximum nesting depth for includes (e.g., `posts.comments.author` = depth 3) |
+| `max_includes_count` | 10 | Maximum number of includes per request |
+| `max_filters_count` | 15 | Maximum number of filters per request |
+| `max_filter_depth` | 5 | Maximum nesting depth for filters |
+| `max_sorts_count` | 5 | Maximum number of sorts per request |
+
+### Configuring Limits
+
+In your `config/query-wizard.php`:
+
+```php
+'limits' => [
+    'max_include_depth' => 3,      // Stricter limit
+    'max_includes_count' => 5,     // Fewer includes allowed
+    'max_filters_count' => 10,
+    'max_filter_depth' => 3,
+    'max_sorts_count' => 3,
+],
+```
+
+### Disabling Limits
+
+Set any limit to `null` to disable it:
+
+```php
+'limits' => [
+    'max_include_depth' => null,   // No depth limit
+    'max_includes_count' => null,  // No count limit
+    // ...
+],
+```
+
+### Limit Exceptions
+
+When a limit is exceeded, the following exceptions are thrown:
+
+| Exception | Description |
+|-----------|-------------|
+| `MaxIncludeDepthExceeded` | Include nesting too deep |
+| `MaxIncludesCountExceeded` | Too many includes requested |
+| `MaxFiltersCountExceeded` | Too many filters requested |
+| `MaxSortsCountExceeded` | Too many sorts requested |
+
+All limit exceptions extend `QueryLimitExceeded`, which extends `InvalidQuery`.
+
+```php
+use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
+
+try {
+    $users = QueryWizard::for(User::class)
+        ->setAllowedIncludes(['posts', 'comments', /* ... many more */])
+        ->get();
+} catch (MaxIncludesCountExceeded $e) {
+    return response()->json([
+        'error' => 'Too many includes',
+        'requested' => $e->count,
+        'maximum' => $e->maxCount,
+    ], 400);
+}
+```
+
 ## Custom Drivers
 
 The driver system allows complete customization of how queries are built. You can create drivers for different data sources (Scout, Meilisearch, etc.) or customize the Eloquent behavior.
 
-### Creating a Custom Driver
+### Using Driver Traits (Recommended)
+
+The package provides reusable traits that handle strategy registration, caching, and resolution:
 
 ```php
 use Jackardios\QueryWizard\Contracts\DriverInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
+use Jackardios\QueryWizard\Drivers\Concerns\HasFilterStrategies;
+use Jackardios\QueryWizard\Drivers\Concerns\HasSortStrategies;
+use Jackardios\QueryWizard\Drivers\Concerns\HasIncludeStrategies;
+use Jackardios\QueryWizard\Strategies\CallbackFilterStrategy;
+use Jackardios\QueryWizard\Strategies\CallbackSortStrategy;
 
 class ScoutDriver implements DriverInterface
 {
+    use HasFilterStrategies;
+    use HasSortStrategies;
+    use HasIncludeStrategies;
+
+    public function __construct()
+    {
+        // Register your strategies
+        $this->filterStrategies = [
+            'exact' => ScoutExactFilterStrategy::class,
+            'partial' => ScoutPartialFilterStrategy::class,
+            'callback' => CallbackFilterStrategy::class, // Generic strategy
+        ];
+
+        $this->sortStrategies = [
+            'field' => ScoutFieldSortStrategy::class,
+            'callback' => CallbackSortStrategy::class, // Generic strategy
+        ];
+    }
+
     public function name(): string
     {
         return 'scout';
@@ -595,106 +691,62 @@ class ScoutDriver implements DriverInterface
 
     public function supports(mixed $subject): bool
     {
-        // Define what subjects this driver can handle
         return $subject instanceof \Laravel\Scout\Builder;
     }
 
     public function capabilities(): array
     {
-        // Only filters and sorts make sense for Scout
-        return ['filters', 'sorts'];
-    }
-
-    public function normalizeFilter(FilterDefinitionInterface|string $filter): FilterDefinitionInterface
-    {
-        // Convert string filters to FilterDefinition objects
-        if ($filter instanceof FilterDefinitionInterface) {
-            return $filter;
-        }
-        return FilterDefinition::exact($filter);
-    }
-
-    public function normalizeInclude(IncludeDefinitionInterface|string $include): IncludeDefinitionInterface
-    {
-        // Implement based on your needs
-    }
-
-    public function normalizeSort(SortDefinitionInterface|string $sort): SortDefinitionInterface
-    {
-        // Implement based on your needs
+        return ['filters', 'sorts']; // Only filters and sorts for Scout
     }
 
     public function applyFilter(mixed $subject, FilterDefinitionInterface $filter, mixed $value): mixed
     {
-        // Apply filter to Scout builder
-        return $subject->where($filter->getProperty(), $value);
-    }
-
-    public function applyInclude(mixed $subject, IncludeDefinitionInterface $include, array $fields = []): mixed
-    {
-        // Not supported for Scout
-        return $subject;
+        $strategy = $this->resolveFilterStrategy($filter); // From trait
+        return $strategy->apply($subject, $filter, $value);
     }
 
     public function applySort(mixed $subject, SortDefinitionInterface $sort, string $direction): mixed
     {
-        // Apply sort to Scout builder
-        return $subject->orderBy($sort->getProperty(), $direction);
+        $strategy = $this->resolveSortStrategy($sort); // From trait
+        return $strategy->apply($subject, $sort, $direction);
     }
 
-    public function applyFields(mixed $subject, array $fields): mixed
-    {
-        // Not typically supported for Scout
-        return $subject;
-    }
+    // ... implement other DriverInterface methods
+}
+```
 
-    public function applyAppends(mixed $result, array $appends): mixed
-    {
-        // Apply appends to results after fetching
-        foreach ($result as $model) {
-            $model->append($appends);
-        }
-        return $result;
-    }
+### Available Traits
 
-    public function getResourceKey(mixed $subject): string
-    {
-        return $subject->model->getTable();
-    }
+| Trait | Provides |
+|-------|----------|
+| `HasFilterStrategies` | `registerFilterStrategy()`, `supportsFilterType()`, `getSupportedFilterTypes()`, `resolveFilterStrategy()` |
+| `HasSortStrategies` | `registerSortStrategy()`, `supportsSortType()`, `getSupportedSortTypes()`, `resolveSortStrategy()` |
+| `HasIncludeStrategies` | `registerIncludeStrategy()`, `supportsIncludeType()`, `getSupportedIncludeTypes()`, `resolveIncludeStrategy()` |
 
-    public function prepareSubject(mixed $subject): mixed
-    {
-        return $subject;
-    }
+### Generic Callback Strategies
 
-    public function supportsFilterType(string $type): bool
-    {
-        return in_array($type, ['exact', 'partial']);
-    }
+The package provides generic callback strategies that work with any query type:
 
-    public function supportsIncludeType(string $type): bool
-    {
-        return false;
-    }
+```php
+use Jackardios\QueryWizard\Strategies\CallbackFilterStrategy;
+use Jackardios\QueryWizard\Strategies\CallbackSortStrategy;
+use Jackardios\QueryWizard\Strategies\CallbackIncludeStrategy;
+```
 
-    public function supportsSortType(string $type): bool
-    {
-        return $type === 'field';
-    }
+These are useful when you want to support callback-based definitions without writing driver-specific strategy classes.
 
-    public function getSupportedFilterTypes(): array
-    {
-        return ['exact', 'partial'];
-    }
+### Creating Custom Strategies
 
-    public function getSupportedIncludeTypes(): array
-    {
-        return [];
-    }
+```php
+use Jackardios\QueryWizard\Contracts\FilterStrategyInterface;
+use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
 
-    public function getSupportedSortTypes(): array
+class ScoutExactFilterStrategy implements FilterStrategyInterface
+{
+    public function apply(mixed $subject, FilterDefinitionInterface $filter, mixed $value): mixed
     {
-        return ['field'];
+        // $subject is Scout\Builder
+        return $subject->where($filter->getProperty(), $value);
     }
 }
 ```
@@ -866,12 +918,26 @@ return [
     'drivers' => [
         // 'scout' => \App\QueryWizard\Drivers\ScoutDriver::class,
     ],
+
+    /*
+     * Security limits to protect against resource exhaustion attacks.
+     * Set to null to disable a specific limit.
+     */
+    'limits' => [
+        'max_include_depth' => 5,    // Max nesting: posts.comments.author = 3
+        'max_includes_count' => 10,  // Max includes per request
+        'max_filters_count' => 15,   // Max filters per request
+        'max_filter_depth' => 5,     // Max filter nesting depth
+        'max_sorts_count' => 5,      // Max sorts per request
+    ],
 ];
 ```
 
 ## Error Handling
 
 Query Wizard throws descriptive exceptions for invalid queries:
+
+### Validation Exceptions
 
 | Exception | Description |
 |-----------|-------------|
@@ -881,27 +947,59 @@ Query Wizard throws descriptive exceptions for invalid queries:
 | `InvalidFieldQuery` | Unknown field in request |
 | `InvalidAppendQuery` | Unknown append in request |
 
-Example handling:
+### Security Limit Exceptions
+
+| Exception | Description |
+|-----------|-------------|
+| `MaxIncludeDepthExceeded` | Include nesting exceeds `max_include_depth` |
+| `MaxIncludesCountExceeded` | Include count exceeds `max_includes_count` |
+| `MaxFiltersCountExceeded` | Filter count exceeds `max_filters_count` |
+| `MaxSortsCountExceeded` | Sort count exceeds `max_sorts_count` |
+
+All exceptions extend `InvalidQuery` (which extends Symfony's `HttpException` with 400 status).
+
+### Example Handling
 
 ```php
+use Jackardios\QueryWizard\Exceptions\InvalidQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
-use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
+use Jackardios\QueryWizard\Exceptions\QueryLimitExceeded;
 
 try {
     $users = QueryWizard::for(User::class)
         ->setAllowedFilters(['name'])
         ->setAllowedSorts(['created_at'])
         ->get();
-} catch (InvalidFilterQuery $e) {
+} catch (QueryLimitExceeded $e) {
+    // Handle security limit violations
     return response()->json([
-        'error' => 'Invalid filter',
+        'error' => 'Query limit exceeded',
         'message' => $e->getMessage(),
     ], 400);
-} catch (InvalidSortQuery $e) {
+} catch (InvalidQuery $e) {
+    // Handle all validation errors
     return response()->json([
-        'error' => 'Invalid sort',
+        'error' => 'Invalid query',
         'message' => $e->getMessage(),
     ], 400);
+}
+```
+
+### Global Exception Handler
+
+In `app/Exceptions/Handler.php`:
+
+```php
+use Jackardios\QueryWizard\Exceptions\InvalidQuery;
+
+public function register(): void
+{
+    $this->renderable(function (InvalidQuery $e) {
+        return response()->json([
+            'error' => class_basename($e),
+            'message' => $e->getMessage(),
+        ], $e->getStatusCode());
+    });
 }
 ```
 
