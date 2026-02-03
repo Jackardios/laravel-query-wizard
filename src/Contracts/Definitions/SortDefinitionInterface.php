@@ -14,6 +14,11 @@ interface SortDefinitionInterface
     public function getName(): string;
 
     /**
+     * Get the alias (null if not set)
+     */
+    public function getAlias(): ?string;
+
+    /**
      * Get the property/column name
      */
     public function getProperty(): string;

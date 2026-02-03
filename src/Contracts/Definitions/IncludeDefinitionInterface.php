@@ -19,6 +19,11 @@ interface IncludeDefinitionInterface
     public function getRelation(): string;
 
     /**
+     * Get the alias (null if not set)
+     */
+    public function getAlias(): ?string;
+
+    /**
      * Get the include type (relationship, count, callback, etc.)
      */
     public function getType(): string;
