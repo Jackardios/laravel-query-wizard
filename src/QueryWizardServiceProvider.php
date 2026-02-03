@@ -30,7 +30,8 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
             return new DriverRegistry();
         });
 
-        $this->app->bind(QueryParametersManager::class, function ($app) {
+        // Use scoped binding for Octane compatibility - ensures fresh instance per request
+        $this->app->scoped(QueryParametersManager::class, function ($app) {
             return new QueryParametersManager(
                 $app['request'],
                 $app->make(QueryWizardConfig::class)
