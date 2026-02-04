@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
+use Jackardios\QueryWizard\Contracts\FilterInterface;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Contracts\SchemaContextInterface;
+use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\IncludeDefinition;
 use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\SortDefinition;
@@ -154,8 +157,9 @@ class ResourceSchemaTest extends TestCase
 
         $filters = $schema->filters();
         $this->assertCount(2, $filters);
-        $this->assertInstanceOf(FilterDefinition::class, $filters[0]);
+        $this->assertInstanceOf(FilterInterface::class, $filters[0]);
     }
+
     #[Test]
     public function it_can_mix_strings_and_filter_definitions(): void
     {
@@ -176,7 +180,7 @@ class ResourceSchemaTest extends TestCase
 
         $filters = $schema->filters();
         $this->assertEquals('status', $filters[0]);
-        $this->assertInstanceOf(FilterDefinition::class, $filters[1]);
+        $this->assertInstanceOf(FilterInterface::class, $filters[1]);
     }
 
     // ========== Includes Method Tests ==========
@@ -229,7 +233,7 @@ class ResourceSchemaTest extends TestCase
 
         $includes = $schema->includes();
         $this->assertCount(2, $includes);
-        $this->assertInstanceOf(IncludeDefinition::class, $includes[0]);
+        $this->assertInstanceOf(IncludeInterface::class, $includes[0]);
     }
 
     // ========== Sorts Method Tests ==========
@@ -282,7 +286,7 @@ class ResourceSchemaTest extends TestCase
 
         $sorts = $schema->sorts();
         $this->assertCount(2, $sorts);
-        $this->assertInstanceOf(SortDefinition::class, $sorts[0]);
+        $this->assertInstanceOf(SortInterface::class, $sorts[0]);
     }
 
     // ========== Fields Method Tests ==========
@@ -508,7 +512,7 @@ class ResourceSchemaTest extends TestCase
             public function forList(): ?SchemaContextInterface
             {
                 return SchemaContext::make()
-                    ->disallowIncludes(['secrets']);
+                    ->setDisallowedIncludes(['secrets']);
             }
         };
 
@@ -528,7 +532,7 @@ class ResourceSchemaTest extends TestCase
             public function forItem(): ?SchemaContextInterface
             {
                 return SchemaContext::make()
-                    ->defaultIncludes(['profile', 'posts']);
+                    ->setDefaultIncludes(['profile', 'posts']);
             }
         };
 
@@ -622,14 +626,14 @@ class ResourceSchemaTest extends TestCase
             public function forList(): ?SchemaContextInterface
             {
                 return SchemaContext::make()
-                    ->disallowIncludes(['posts.comments'])
-                    ->defaultFields(['id', 'name']);
+                    ->setDisallowedIncludes(['posts.comments'])
+                    ->setDefaultFields(['id', 'name']);
             }
 
             public function forItem(): ?SchemaContextInterface
             {
                 return SchemaContext::make()
-                    ->defaultIncludes(['profile', 'posts']);
+                    ->setDefaultIncludes(['profile', 'posts']);
             }
         };
 

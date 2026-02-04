@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
@@ -306,34 +307,24 @@ class TrashedFilterTest extends TestCase
 
     // ========== Case Sensitivity Tests ==========
     // Note: TrashedFilterStrategy is case-sensitive, only exact 'with' and 'only' work
-    #[Test]
-    public function it_is_case_sensitive_for_only(): void
+    public static function caseSensitivityDataProvider(): array
     {
-        // 'ONLY' is not 'only', so it results in withoutTrashed
-        $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => 'ONLY'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
-            ->get();
-
-        $this->assertCount(3, $models);
+        return [
+            'uppercase ONLY' => ['ONLY'],
+            'uppercase WITH' => ['WITH'],
+            'mixed case Only' => ['Only'],
+            'mixed case With' => ['With'],
+            'uppercase WITHOUT' => ['WITHOUT'],
+        ];
     }
-    #[Test]
-    public function it_is_case_sensitive_for_with(): void
-    {
-        // 'WITH' is not 'with', so it results in withoutTrashed
-        $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => 'WITH'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
-            ->get();
 
-        $this->assertCount(3, $models);
-    }
     #[Test]
-    public function it_is_case_sensitive_mixed_case(): void
+    #[DataProvider('caseSensitivityDataProvider')]
+    public function it_is_case_sensitive(string $value): void
     {
-        // 'Only' is not 'only', so it results in withoutTrashed
+        // Wrong-case values are not recognized, so they result in withoutTrashed
         $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => 'Only'], SoftDeleteModel::class)
+            ->createEloquentWizardWithFilters(['trashed' => $value], SoftDeleteModel::class)
             ->setAllowedFilters(FilterDefinition::trashed())
             ->get();
 

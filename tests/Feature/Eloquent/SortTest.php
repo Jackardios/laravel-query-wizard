@@ -464,13 +464,14 @@ class SortTest extends TestCase
         $this->assertEquals('Alpha', $models->first()->name);
     }
 
-    // ========== Options Tests ==========
+    // ========== Alias Tests ==========
     #[Test]
-    public function sort_definition_options_are_accessible(): void
+    public function sort_definition_alias_is_accessible(): void
     {
-        $sort = SortDefinition::field('name')->withOptions(['nullsLast' => true]);
+        $sort = SortDefinition::field('name')->alias('sortName');
 
-        $this->assertTrue($sort->getOption('nullsLast'));
+        $this->assertEquals('sortName', $sort->getAlias());
+        $this->assertEquals('sortName', $sort->getName());
     }
 
     // ========== Integration with Other Features ==========

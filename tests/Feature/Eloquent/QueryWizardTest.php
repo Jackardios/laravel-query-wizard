@@ -543,7 +543,7 @@ class QueryWizardTest extends TestCase
             public function forList(): ?SchemaContextInterface
             {
                 return SchemaContext::make()
-                    ->disallowIncludes(['otherRelatedModels']);
+                    ->setDisallowedIncludes(['otherRelatedModels']);
             }
         };
 
@@ -575,7 +575,7 @@ class QueryWizardTest extends TestCase
             public function forItem(): ?SchemaContextInterface
             {
                 return SchemaContext::make()
-                    ->defaultIncludes(['relatedModels']);
+                    ->setDefaultIncludes(['relatedModels']);
             }
         };
 

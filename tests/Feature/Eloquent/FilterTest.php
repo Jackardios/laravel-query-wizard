@@ -245,7 +245,7 @@ class FilterTest extends TestCase
             ->createEloquentWizardWithFilters(['named' => $model->name])
             ->setAllowedFilters(
                 FilterDefinition::scope('named')
-                    ->withOptions(['resolveModelBindings' => false])
+                    ->resolveModelBindings(false)
             )
             ->get();
 
@@ -431,7 +431,7 @@ class FilterTest extends TestCase
             ->createEloquentWizardWithFilters(['has_name' => true])
             ->setAllowedFilters(
                 FilterDefinition::null('name', 'has_name')
-                    ->withOptions(['invertLogic' => true])
+                    ->invertLogic()
             )
             ->build()
             ->toSql();
@@ -718,14 +718,15 @@ class FilterTest extends TestCase
         $this->assertCount(1, $models);
     }
 
-    // ========== Filter with Options Tests ==========
+    // ========== Filter Type-Safe Options Tests ==========
     #[Test]
     public function it_respects_filter_options(): void
     {
+        // Type-safe options are now methods on the filter class itself
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => 'test'])
             ->setAllowedFilters(
-                FilterDefinition::exact('name')->withOptions(['customOption' => true])
+                FilterDefinition::exact('name')->withRelationConstraint(false)
             )
             ->build()
             ->toSql();

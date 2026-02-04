@@ -505,24 +505,26 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('morphModels'));
     }
 
-    // ========== Options Tests ==========
+    // ========== Alias Tests ==========
     #[Test]
-    public function include_definition_options_are_accessible(): void
+    public function include_definition_alias_is_accessible(): void
     {
         $include = IncludeDefinition::relationship('relatedModels')
-            ->withOptions(['eager' => true]);
+            ->alias('related');
 
-        $this->assertTrue($include->getOption('eager'));
+        $this->assertEquals('related', $include->getAlias());
+        $this->assertEquals('related', $include->getName());
     }
-    #[Test]
-    public function options_are_preserved_through_chaining(): void
-    {
-        $include = IncludeDefinition::relationship('relatedModels')
-            ->withOptions(['key1' => 'value1'])
-            ->withOptions(['key2' => 'value2']);
 
-        $this->assertEquals('value1', $include->getOption('key1'));
-        $this->assertEquals('value2', $include->getOption('key2'));
+    #[Test]
+    public function alias_is_set_immutably(): void
+    {
+        $original = IncludeDefinition::relationship('relatedModels');
+        $withAlias = $original->alias('related');
+
+        $this->assertNull($original->getAlias());
+        $this->assertEquals('related', $withAlias->getAlias());
+        $this->assertNotSame($original, $withAlias);
     }
 
     // ========== BelongsToMany / Through Pivot Tests ==========

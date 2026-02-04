@@ -4,42 +4,33 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
-use Closure;
 use PHPUnit\Framework\Attributes\Test;
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
-use Jackardios\QueryWizard\Strategies\CallbackFilterStrategy;
-use Jackardios\QueryWizard\Strategies\CallbackIncludeStrategy;
-use Jackardios\QueryWizard\Strategies\CallbackSortStrategy;
+use Jackardios\QueryWizard\Filters\CallbackFilter;
+use Jackardios\QueryWizard\Filters\PassthroughFilter;
+use Jackardios\QueryWizard\Includes\CallbackInclude;
+use Jackardios\QueryWizard\Sorts\CallbackSort;
 use Jackardios\QueryWizard\Tests\TestCase;
 use stdClass;
 
 class GenericStrategiesTest extends TestCase
 {
     #[Test]
-    public function callback_filter_strategy_applies_callback(): void
+    public function callback_filter_applies_callback(): void
     {
-        $strategy = new CallbackFilterStrategy();
-
         $callbackCalled = false;
         $receivedSubject = null;
         $receivedValue = null;
         $receivedProperty = null;
 
-        $callback = function ($subject, $value, $property) use (&$callbackCalled, &$receivedSubject, &$receivedValue, &$receivedProperty) {
+        $filter = CallbackFilter::make('test_property', function ($subject, $value, $property) use (&$callbackCalled, &$receivedSubject, &$receivedValue, &$receivedProperty) {
             $callbackCalled = true;
             $receivedSubject = $subject;
             $receivedValue = $value;
             $receivedProperty = $property;
-        };
-
-        $filter = $this->createMock(FilterDefinitionInterface::class);
-        $filter->method('getCallback')->willReturn(Closure::fromCallable($callback));
-        $filter->method('getProperty')->willReturn('test_property');
+        });
 
         $subject = new stdClass();
-        $result = $strategy->apply($subject, $filter, 'test_value');
+        $result = $filter->apply($subject, 'test_value');
 
         $this->assertTrue($callbackCalled);
         $this->assertSame($subject, $receivedSubject);
@@ -49,43 +40,54 @@ class GenericStrategiesTest extends TestCase
     }
 
     #[Test]
-    public function callback_filter_strategy_returns_subject_when_no_callback(): void
+    public function callback_filter_has_correct_type(): void
     {
-        $strategy = new CallbackFilterStrategy();
+        $filter = CallbackFilter::make('test_property', fn() => null);
 
-        $filter = $this->createMock(FilterDefinitionInterface::class);
-        $filter->method('getCallback')->willReturn(null);
-        $filter->method('getProperty')->willReturn('test_property');
-
-        $subject = new stdClass();
-        $result = $strategy->apply($subject, $filter, 'test_value');
-
-        $this->assertSame($subject, $result);
+        $this->assertEquals('callback', $filter->getType());
     }
 
     #[Test]
-    public function callback_sort_strategy_applies_callback(): void
+    public function callback_filter_has_correct_name_and_property(): void
     {
-        $strategy = new CallbackSortStrategy();
+        $filter = CallbackFilter::make('test_property', fn() => null, 'test_alias');
 
+        $this->assertEquals('test_alias', $filter->getName());
+        $this->assertEquals('test_property', $filter->getProperty());
+        $this->assertEquals('test_alias', $filter->getAlias());
+    }
+
+    #[Test]
+    public function passthrough_filter_returns_subject_unchanged(): void
+    {
+        $filter = PassthroughFilter::make('test_name');
+
+        $subject = new stdClass();
+        $subject->data = 'value';
+
+        $result = $filter->apply($subject, 'some_value');
+
+        $this->assertSame($subject, $result);
+        $this->assertEquals('passthrough', $filter->getType());
+    }
+
+    #[Test]
+    public function callback_sort_applies_callback(): void
+    {
         $callbackCalled = false;
         $receivedSubject = null;
         $receivedDirection = null;
         $receivedProperty = null;
 
-        $callback = function ($subject, $direction, $property) use (&$callbackCalled, &$receivedSubject, &$receivedDirection, &$receivedProperty) {
+        $sort = CallbackSort::make('test_property', function ($subject, $direction, $property) use (&$callbackCalled, &$receivedSubject, &$receivedDirection, &$receivedProperty) {
             $callbackCalled = true;
             $receivedSubject = $subject;
             $receivedDirection = $direction;
             $receivedProperty = $property;
-        };
-
-        $sort = $this->createMock(SortDefinitionInterface::class);
-        $sort->method('getCallback')->willReturn(Closure::fromCallable($callback));
-        $sort->method('getProperty')->willReturn('test_property');
+        });
 
         $subject = new stdClass();
-        $result = $strategy->apply($subject, $sort, 'desc');
+        $result = $sort->apply($subject, 'desc');
 
         $this->assertTrue($callbackCalled);
         $this->assertSame($subject, $receivedSubject);
@@ -95,44 +97,41 @@ class GenericStrategiesTest extends TestCase
     }
 
     #[Test]
-    public function callback_sort_strategy_returns_subject_when_no_callback(): void
+    public function callback_sort_has_correct_type(): void
     {
-        $strategy = new CallbackSortStrategy();
+        $sort = CallbackSort::make('test_property', fn() => null);
 
-        $sort = $this->createMock(SortDefinitionInterface::class);
-        $sort->method('getCallback')->willReturn(null);
-        $sort->method('getProperty')->willReturn('test_property');
-
-        $subject = new stdClass();
-        $result = $strategy->apply($subject, $sort, 'asc');
-
-        $this->assertSame($subject, $result);
+        $this->assertEquals('callback', $sort->getType());
     }
 
     #[Test]
-    public function callback_include_strategy_applies_callback(): void
+    public function callback_sort_has_correct_name_and_property(): void
     {
-        $strategy = new CallbackIncludeStrategy();
+        $sort = CallbackSort::make('test_property', fn() => null, 'test_alias');
 
+        $this->assertEquals('test_alias', $sort->getName());
+        $this->assertEquals('test_property', $sort->getProperty());
+        $this->assertEquals('test_alias', $sort->getAlias());
+    }
+
+    #[Test]
+    public function callback_include_applies_callback(): void
+    {
         $callbackCalled = false;
         $receivedSubject = null;
         $receivedRelation = null;
         $receivedFields = null;
 
-        $callback = function ($subject, $relation, $fields) use (&$callbackCalled, &$receivedSubject, &$receivedRelation, &$receivedFields) {
+        $include = CallbackInclude::make('test_relation', function ($subject, $relation, $fields) use (&$callbackCalled, &$receivedSubject, &$receivedRelation, &$receivedFields) {
             $callbackCalled = true;
             $receivedSubject = $subject;
             $receivedRelation = $relation;
             $receivedFields = $fields;
-        };
-
-        $include = $this->createMock(IncludeDefinitionInterface::class);
-        $include->method('getCallback')->willReturn(Closure::fromCallable($callback));
-        $include->method('getRelation')->willReturn('test_relation');
+        });
 
         $subject = new stdClass();
         $fields = ['field1', 'field2'];
-        $result = $strategy->apply($subject, $include, $fields);
+        $result = $include->apply($subject, $fields);
 
         $this->assertTrue($callbackCalled);
         $this->assertSame($subject, $receivedSubject);
@@ -142,82 +141,129 @@ class GenericStrategiesTest extends TestCase
     }
 
     #[Test]
-    public function callback_include_strategy_returns_subject_when_no_callback(): void
+    public function callback_include_has_correct_type(): void
     {
-        $strategy = new CallbackIncludeStrategy();
+        $include = CallbackInclude::make('test_relation', fn() => null);
 
-        $include = $this->createMock(IncludeDefinitionInterface::class);
-        $include->method('getCallback')->willReturn(null);
-        $include->method('getRelation')->willReturn('test_relation');
-
-        $subject = new stdClass();
-        $result = $strategy->apply($subject, $include, []);
-
-        $this->assertSame($subject, $result);
+        $this->assertEquals('callback', $include->getType());
     }
 
     #[Test]
-    public function callback_filter_strategy_works_with_array_subject(): void
+    public function callback_include_has_correct_name_and_relation(): void
     {
-        $strategy = new CallbackFilterStrategy();
+        $include = CallbackInclude::make('test_relation', fn() => null, 'test_alias');
 
+        $this->assertEquals('test_alias', $include->getName());
+        $this->assertEquals('test_relation', $include->getRelation());
+        $this->assertEquals('test_alias', $include->getAlias());
+    }
+
+    #[Test]
+    public function callback_filter_works_with_array_subject(): void
+    {
         $modified = false;
-        $callback = function (&$subject) use (&$modified) {
+        $filter = CallbackFilter::make('prop', function (&$subject) use (&$modified) {
             $subject['modified'] = true;
             $modified = true;
-        };
-
-        $filter = $this->createMock(FilterDefinitionInterface::class);
-        $filter->method('getCallback')->willReturn(Closure::fromCallable($callback));
-        $filter->method('getProperty')->willReturn('prop');
+        });
 
         $subject = ['data' => 'value'];
-        $strategy->apply($subject, $filter, null);
+        $filter->apply($subject, null);
 
         $this->assertTrue($modified);
     }
 
     #[Test]
-    public function callback_sort_strategy_works_with_custom_object(): void
+    public function callback_sort_works_with_custom_object(): void
     {
-        $strategy = new CallbackSortStrategy();
-
         $customObj = new class {
             public string $sortField = '';
             public string $sortDirection = '';
         };
 
-        $callback = function ($obj, $direction, $property) {
+        $sort = CallbackSort::make('created_at', function ($obj, $direction, $property) {
             $obj->sortField = $property;
             $obj->sortDirection = $direction;
-        };
+        });
 
-        $sort = $this->createMock(SortDefinitionInterface::class);
-        $sort->method('getCallback')->willReturn(Closure::fromCallable($callback));
-        $sort->method('getProperty')->willReturn('created_at');
-
-        $strategy->apply($customObj, $sort, 'desc');
+        $sort->apply($customObj, 'desc');
 
         $this->assertEquals('created_at', $customObj->sortField);
         $this->assertEquals('desc', $customObj->sortDirection);
     }
 
     #[Test]
-    public function callback_include_strategy_works_with_empty_fields(): void
+    public function callback_include_works_with_empty_fields(): void
     {
-        $strategy = new CallbackIncludeStrategy();
-
         $receivedFields = null;
-        $callback = function ($subject, $relation, $fields) use (&$receivedFields) {
+        $include = CallbackInclude::make('relation', function ($subject, $relation, $fields) use (&$receivedFields) {
             $receivedFields = $fields;
-        };
+        });
 
-        $include = $this->createMock(IncludeDefinitionInterface::class);
-        $include->method('getCallback')->willReturn(Closure::fromCallable($callback));
-        $include->method('getRelation')->willReturn('relation');
-
-        $strategy->apply(new stdClass(), $include, []);
+        $include->apply(new stdClass(), []);
 
         $this->assertEquals([], $receivedFields);
+    }
+
+    #[Test]
+    public function callback_filter_supports_default_value(): void
+    {
+        $filter = CallbackFilter::make('test', fn() => null)->default('default_value');
+
+        $this->assertEquals('default_value', $filter->getDefault());
+    }
+
+    #[Test]
+    public function callback_filter_supports_prepare_value(): void
+    {
+        $filter = CallbackFilter::make('test', fn() => null)
+            ->prepareValueWith(fn($value) => strtoupper($value));
+
+        $this->assertEquals('HELLO', $filter->prepareValue('hello'));
+    }
+
+    #[Test]
+    public function passthrough_filter_supports_default_value(): void
+    {
+        $filter = PassthroughFilter::make('test')->default('default_value');
+
+        $this->assertEquals('default_value', $filter->getDefault());
+    }
+
+    #[Test]
+    public function filters_are_immutable(): void
+    {
+        $original = CallbackFilter::make('test', fn() => null);
+        $withDefault = $original->default('value');
+        $withAlias = $original->alias('alias');
+
+        $this->assertNull($original->getDefault());
+        $this->assertEquals('value', $withDefault->getDefault());
+        $this->assertNull($original->getAlias());
+        $this->assertEquals('alias', $withAlias->getAlias());
+        $this->assertNotSame($original, $withDefault);
+        $this->assertNotSame($original, $withAlias);
+    }
+
+    #[Test]
+    public function sorts_are_immutable(): void
+    {
+        $original = CallbackSort::make('test', fn() => null);
+        $withAlias = $original->alias('alias');
+
+        $this->assertNull($original->getAlias());
+        $this->assertEquals('alias', $withAlias->getAlias());
+        $this->assertNotSame($original, $withAlias);
+    }
+
+    #[Test]
+    public function includes_are_immutable(): void
+    {
+        $original = CallbackInclude::make('test', fn() => null);
+        $withAlias = $original->alias('alias');
+
+        $this->assertNull($original->getAlias());
+        $this->assertEquals('alias', $withAlias->getAlias());
+        $this->assertNotSame($original, $withAlias);
     }
 }
