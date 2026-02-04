@@ -9,73 +9,32 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use InvalidArgumentException;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\DriverInterface;
-use Jackardios\QueryWizard\Drivers\Concerns\HasFilterStrategies;
-use Jackardios\QueryWizard\Drivers\Concerns\HasIncludeStrategies;
-use Jackardios\QueryWizard\Drivers\Concerns\HasSortStrategies;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Filters\DateRangeFilterStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Filters\ExactFilterStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Filters\JsonContainsFilterStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Filters\NullFilterStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Filters\PartialFilterStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Filters\RangeFilterStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Filters\ScopeFilterStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Filters\TrashedFilterStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Includes\CountIncludeStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Includes\RelationshipIncludeStrategy;
-use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Sorts\FieldSortStrategy;
-use Jackardios\QueryWizard\Strategies\CallbackFilterStrategy;
-use Jackardios\QueryWizard\Strategies\CallbackIncludeStrategy;
-use Jackardios\QueryWizard\Strategies\CallbackSortStrategy;
-use Jackardios\QueryWizard\Strategies\PassthroughFilterStrategy;
+use Jackardios\QueryWizard\Contracts\FilterInterface;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
+use Jackardios\QueryWizard\Contracts\SortInterface;
+use Jackardios\QueryWizard\Drivers\AbstractDriver;
+use Jackardios\QueryWizard\Drivers\Eloquent\Filters\ExactFilter;
+use Jackardios\QueryWizard\Drivers\Eloquent\Includes\CountInclude;
+use Jackardios\QueryWizard\Drivers\Eloquent\Includes\RelationshipInclude;
+use Jackardios\QueryWizard\Drivers\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\Enums\Capability;
 
-class EloquentDriver implements DriverInterface
+class EloquentDriver extends AbstractDriver
 {
-    use HasFilterStrategies;
-    use HasSortStrategies;
-    use HasIncludeStrategies;
+    /** @var array<string> Supported filter types */
+    protected array $supportedFilterTypes = [
+        'exact', 'partial', 'scope', 'null', 'range',
+        'dateRange', 'jsonContains', 'trashed', 'callback', 'passthrough'
+    ];
 
-    protected ?EloquentDefinitionNormalizer $normalizer = null;
+    /** @var array<string> Supported include types */
+    protected array $supportedIncludeTypes = ['relationship', 'count', 'callback'];
+
+    /** @var array<string> Supported sort types */
+    protected array $supportedSortTypes = ['field', 'callback'];
+
     protected ?EloquentAppendHandler $appendHandler = null;
-
-    public function __construct()
-    {
-        $this->initializeStrategies();
-    }
-
-    /**
-     * Initialize the default strategies for Eloquent driver.
-     */
-    protected function initializeStrategies(): void
-    {
-        $this->filterStrategies = [
-            'exact' => ExactFilterStrategy::class,
-            'partial' => PartialFilterStrategy::class,
-            'scope' => ScopeFilterStrategy::class,
-            'callback' => CallbackFilterStrategy::class,
-            'trashed' => TrashedFilterStrategy::class,
-            'range' => RangeFilterStrategy::class,
-            'dateRange' => DateRangeFilterStrategy::class,
-            'null' => NullFilterStrategy::class,
-            'jsonContains' => JsonContainsFilterStrategy::class,
-            'passthrough' => PassthroughFilterStrategy::class,
-        ];
-
-        $this->includeStrategies = [
-            'relationship' => RelationshipIncludeStrategy::class,
-            'count' => CountIncludeStrategy::class,
-            'callback' => CallbackIncludeStrategy::class,
-        ];
-
-        $this->sortStrategies = [
-            'field' => FieldSortStrategy::class,
-            'callback' => CallbackSortStrategy::class,
-        ];
-    }
+    protected ?QueryWizardConfig $config = null;
 
     public function name(): string
     {
@@ -100,12 +59,12 @@ class EloquentDriver implements DriverInterface
 
     // ========== Normalization methods ==========
 
-    protected function getNormalizer(): EloquentDefinitionNormalizer
+    protected function getConfig(): QueryWizardConfig
     {
-        if ($this->normalizer === null) {
-            $this->normalizer = new EloquentDefinitionNormalizer(app(QueryWizardConfig::class));
+        if ($this->config === null) {
+            $this->config = app(QueryWizardConfig::class);
         }
-        return $this->normalizer;
+        return $this->config;
     }
 
     protected function getAppendHandler(): EloquentAppendHandler
@@ -117,61 +76,74 @@ class EloquentDriver implements DriverInterface
     }
 
     /**
-     * Normalize a filter definition (string to FilterDefinition)
+     * Normalize a filter definition (string to FilterInterface)
      */
-    public function normalizeFilter(FilterDefinitionInterface|string $filter): FilterDefinitionInterface
+    public function normalizeFilter(FilterInterface|string $filter): FilterInterface
     {
-        return $this->getNormalizer()->normalizeFilter($filter);
-    }
-
-    /**
-     * Normalize an include definition (string to IncludeDefinition)
-     */
-    public function normalizeInclude(
-        IncludeDefinitionInterface|string $include,
-        ?QueryWizardConfig $config = null
-    ): IncludeDefinitionInterface {
-        if ($config !== null) {
-            return (new EloquentDefinitionNormalizer($config))->normalizeInclude($include);
+        if ($filter instanceof FilterInterface) {
+            return $filter;
         }
-        return $this->getNormalizer()->normalizeInclude($include);
+
+        return ExactFilter::make($filter);
     }
 
     /**
-     * Normalize a sort definition (string to SortDefinition)
+     * Normalize an include definition (string to IncludeInterface)
      */
-    public function normalizeSort(SortDefinitionInterface|string $sort): SortDefinitionInterface
+    public function normalizeInclude(IncludeInterface|string $include): IncludeInterface
     {
-        return $this->getNormalizer()->normalizeSort($sort);
+        $countSuffix = $this->getConfig()->getCountSuffix();
+
+        if ($include instanceof IncludeInterface) {
+            // For count includes without alias, set the alias to relation + suffix
+            if ($include->getType() === 'count' && $include->getAlias() === null) {
+                return CountInclude::make($include->getRelation(), $include->getRelation() . $countSuffix);
+            }
+            return $include;
+        }
+
+        if (str_ends_with($include, $countSuffix)) {
+            $relation = substr($include, 0, -strlen($countSuffix));
+            return CountInclude::make($relation, $include);
+        }
+
+        return RelationshipInclude::make($include);
+    }
+
+    /**
+     * Normalize a sort definition (string to SortInterface)
+     */
+    public function normalizeSort(SortInterface|string $sort): SortInterface
+    {
+        if ($sort instanceof SortInterface) {
+            return $sort;
+        }
+
+        $property = ltrim($sort, '-');
+        return FieldSort::make($property, $sort);
     }
 
     // ========== Apply methods ==========
 
-    public function applyFilter(mixed $subject, FilterDefinitionInterface $filter, mixed $value): mixed
+    public function applyFilter(mixed $subject, FilterInterface $filter, mixed $value): mixed
     {
         $builder = $this->ensureBuilder($subject);
-        $strategy = $this->resolveFilterStrategy($filter);
-
-        return $strategy->apply($builder, $filter, $value);
+        return $filter->apply($builder, $value);
     }
 
     /**
      * @param array<string> $fields
      */
-    public function applyInclude(mixed $subject, IncludeDefinitionInterface $include, array $fields = []): mixed
+    public function applyInclude(mixed $subject, IncludeInterface $include, array $fields = []): mixed
     {
         $builder = $this->ensureBuilder($subject);
-        $strategy = $this->resolveIncludeStrategy($include);
-
-        return $strategy->apply($builder, $include, $fields);
+        return $include->apply($builder, $fields);
     }
 
-    public function applySort(mixed $subject, SortDefinitionInterface $sort, string $direction): mixed
+    public function applySort(mixed $subject, SortInterface $sort, string $direction): mixed
     {
         $builder = $this->ensureBuilder($subject);
-        $strategy = $this->resolveSortStrategy($sort);
-
-        return $strategy->apply($builder, $sort, $direction);
+        return $sort->apply($builder, $direction);
     }
 
     /**
@@ -253,6 +225,12 @@ class EloquentDriver implements DriverInterface
             return $subject::query();
         }
 
-        throw new InvalidArgumentException('Cannot convert subject to Builder');
+        throw new InvalidArgumentException(
+            sprintf(
+                'Cannot convert %s to Eloquent Builder. Expected Builder, Relation, Model, or Model class-string.',
+                is_object($subject) ? get_class($subject) : gettype($subject)
+            )
+        );
     }
+
 }

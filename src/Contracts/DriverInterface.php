@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Contracts;
 
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
-
 interface DriverInterface
 {
     /**
@@ -29,36 +25,36 @@ interface DriverInterface
     public function capabilities(): array;
 
     /**
-     * Normalize a filter definition (string to FilterDefinition)
+     * Normalize a filter definition (string to FilterInterface)
      */
-    public function normalizeFilter(FilterDefinitionInterface|string $filter): FilterDefinitionInterface;
+    public function normalizeFilter(FilterInterface|string $filter): FilterInterface;
 
     /**
-     * Normalize an include definition (string to IncludeDefinition)
+     * Normalize an include definition (string to IncludeInterface)
      */
-    public function normalizeInclude(IncludeDefinitionInterface|string $include): IncludeDefinitionInterface;
+    public function normalizeInclude(IncludeInterface|string $include): IncludeInterface;
 
     /**
-     * Normalize a sort definition (string to SortDefinition)
+     * Normalize a sort definition (string to SortInterface)
      */
-    public function normalizeSort(SortDefinitionInterface|string $sort): SortDefinitionInterface;
+    public function normalizeSort(SortInterface|string $sort): SortInterface;
 
     /**
      * Apply filter to subject
      */
-    public function applyFilter(mixed $subject, FilterDefinitionInterface $filter, mixed $value): mixed;
+    public function applyFilter(mixed $subject, FilterInterface $filter, mixed $value): mixed;
 
     /**
      * Apply include to subject
      *
      * @param array<string> $fields
      */
-    public function applyInclude(mixed $subject, IncludeDefinitionInterface $include, array $fields = []): mixed;
+    public function applyInclude(mixed $subject, IncludeInterface $include, array $fields = []): mixed;
 
     /**
      * Apply sort to subject
      */
-    public function applySort(mixed $subject, SortDefinitionInterface $sort, string $direction): mixed;
+    public function applySort(mixed $subject, SortInterface $sort, string $direction): mixed;
 
     /**
      * Apply field selection to subject
