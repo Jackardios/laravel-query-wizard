@@ -83,6 +83,19 @@ final class FilterDefinition implements FilterDefinitionInterface
     }
 
     /**
+     * Create a passthrough filter that captures value without applying to query.
+     *
+     * Use this when you want Query Wizard to validate and capture a filter value,
+     * but handle the filtering logic yourself.
+     *
+     * @param string $name The filter name as it appears in the request
+     */
+    public static function passthrough(string $name): self
+    {
+        return new self($name, 'passthrough', $name);
+    }
+
+    /**
      * @return static
      */
     public function default(mixed $value): self

@@ -974,4 +974,144 @@ class FilterTest extends TestCase
 
         $this->assertCount(1, $models);
     }
+
+    // ========== Passthrough Filter Tests ==========
+    #[Test]
+    public function it_captures_passthrough_filter_values(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithFilters([
+                'name' => 'test',
+                'custom' => 'foo',
+            ])
+            ->setAllowedFilters(
+                'name',
+                FilterDefinition::passthrough('custom')
+            );
+
+        $wizard->get();
+
+        $passthrough = $wizard->getPassthroughFilters();
+        $this->assertEquals(['custom' => 'foo'], $passthrough->all());
+    }
+
+    #[Test]
+    public function passthrough_filters_do_not_modify_query(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['custom' => 'value'])
+            ->setAllowedFilters(FilterDefinition::passthrough('custom'))
+            ->build()
+            ->toSql();
+
+        // Should NOT contain WHERE clause for passthrough filter
+        $this->assertStringNotContainsString('custom', strtolower($sql));
+    }
+
+    #[Test]
+    public function passthrough_filters_pass_validation(): void
+    {
+        // Should NOT throw InvalidFilterQuery
+        $wizard = $this
+            ->createEloquentWizardWithFilters([
+                'name' => $this->models->first()->name,
+                'custom' => 'foo',
+            ])
+            ->setAllowedFilters(
+                'name',
+                FilterDefinition::passthrough('custom')
+            );
+
+        $result = $wizard->get();
+
+        $this->assertNotEmpty($result);
+        $this->assertEquals(['custom' => 'foo'], $wizard->getPassthroughFilters()->all());
+    }
+
+    #[Test]
+    public function passthrough_filter_with_default_value(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardFromQuery()  // No filters in request
+            ->setAllowedFilters(
+                FilterDefinition::passthrough('custom')->default('default_value')
+            );
+
+        $passthrough = $wizard->getPassthroughFilters();
+        $this->assertEquals(['custom' => 'default_value'], $passthrough->all());
+    }
+
+    #[Test]
+    public function passthrough_filter_with_value_preparation(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithFilters(['custom' => 'UPPERCASE'])
+            ->setAllowedFilters(
+                FilterDefinition::passthrough('custom')
+                    ->prepareValueWith(fn($v) => strtolower($v))
+            );
+
+        $passthrough = $wizard->getPassthroughFilters();
+        $this->assertEquals(['custom' => 'uppercase'], $passthrough->all());
+    }
+
+    #[Test]
+    public function it_returns_empty_when_no_passthrough_value_in_request(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithFilters(['name' => 'test'])
+            ->setAllowedFilters(
+                'name',
+                FilterDefinition::passthrough('custom')
+            );
+
+        $passthrough = $wizard->getPassthroughFilters();
+        $this->assertTrue($passthrough->isEmpty());
+    }
+
+    #[Test]
+    public function multiple_passthrough_filters(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithFilters([
+                'a' => '1',
+                'b' => '2',
+                'c' => '3',
+            ])
+            ->setAllowedFilters(
+                FilterDefinition::passthrough('a'),
+                FilterDefinition::passthrough('b'),
+                FilterDefinition::passthrough('c')
+            );
+
+        $passthrough = $wizard->getPassthroughFilters();
+        $this->assertCount(3, $passthrough);
+        $this->assertEquals(['a' => '1', 'b' => '2', 'c' => '3'], $passthrough->all());
+    }
+
+    #[Test]
+    public function mixed_regular_and_passthrough_filters(): void
+    {
+        $models = $this->models;
+        $targetModel = $models->first();
+
+        $wizard = $this
+            ->createEloquentWizardWithFilters([
+                'name' => $targetModel->name,
+                'custom' => 'passthrough_value',
+            ])
+            ->setAllowedFilters(
+                FilterDefinition::exact('name'),
+                FilterDefinition::passthrough('custom')
+            );
+
+        $result = $wizard->get();
+
+        // Regular filter applied
+        $this->assertCount(1, $result);
+        $this->assertEquals($targetModel->name, $result->first()->name);
+
+        // Passthrough captured
+        $this->assertEquals(['custom' => 'passthrough_value'], $wizard->getPassthroughFilters()->all());
+    }
 }

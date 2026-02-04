@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
+use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
 use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
@@ -135,6 +136,31 @@ trait HandlesFilters
             fn($filter) => $this->driver->normalizeFilter($filter),
             $filters
         );
+    }
+
+    /**
+     * Get passthrough filter values from request.
+     *
+     * Returns only values for filters defined with FilterDefinition::passthrough().
+     *
+     * @return Collection<string, mixed>
+     */
+    public function getPassthroughFilters(): Collection
+    {
+        $result = collect();
+
+        foreach ($this->getEffectiveFilters() as $filter) {
+            if ($filter->getType() === 'passthrough') {
+                $name = $filter->getName();
+                $value = $this->parameters->getFilterValue($name) ?? $filter->getDefault();
+
+                if ($value !== null) {
+                    $result[$name] = $filter->prepareValue($value);
+                }
+            }
+        }
+
+        return $result;
     }
 
     /**

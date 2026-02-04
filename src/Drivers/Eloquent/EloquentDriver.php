@@ -30,6 +30,7 @@ use Jackardios\QueryWizard\Drivers\Eloquent\Strategies\Sorts\FieldSortStrategy;
 use Jackardios\QueryWizard\Strategies\CallbackFilterStrategy;
 use Jackardios\QueryWizard\Strategies\CallbackIncludeStrategy;
 use Jackardios\QueryWizard\Strategies\CallbackSortStrategy;
+use Jackardios\QueryWizard\Strategies\PassthroughFilterStrategy;
 use Jackardios\QueryWizard\Enums\Capability;
 
 class EloquentDriver implements DriverInterface
@@ -61,6 +62,7 @@ class EloquentDriver implements DriverInterface
             'dateRange' => DateRangeFilterStrategy::class,
             'null' => NullFilterStrategy::class,
             'jsonContains' => JsonContainsFilterStrategy::class,
+            'passthrough' => PassthroughFilterStrategy::class,
         ];
 
         $this->includeStrategies = [
