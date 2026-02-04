@@ -18,7 +18,7 @@ class QueryWizard
     /**
      * Create a list query wizard from a schema
      *
-     * @param string|ResourceSchemaInterface $schema Schema instance or class name
+     * @param class-string<ResourceSchemaInterface>|ResourceSchemaInterface $schema Schema instance or class name
      */
     public static function forList(
         string|ResourceSchemaInterface $schema,
@@ -39,7 +39,7 @@ class QueryWizard
     /**
      * Create an item query wizard from a schema
      *
-     * @param string|ResourceSchemaInterface $schema Schema instance or class name
+     * @param class-string<ResourceSchemaInterface>|ResourceSchemaInterface $schema Schema instance or class name
      * @param int|string|Model $key Model ID or already loaded model
      */
     public static function forItem(

@@ -25,8 +25,8 @@ class EloquentAppendHandler
         $relationAppends = [];
 
         foreach ($appends as $append) {
-            if (str_contains($append, '.')) {
-                $lastDotPos = strrpos($append, '.');
+            $lastDotPos = strrpos($append, '.');
+            if ($lastDotPos !== false) {
                 $relationPath = substr($append, 0, $lastDotPos);
                 $appendName = substr($append, $lastDotPos + 1);
                 $relationAppends[$relationPath][] = $appendName;

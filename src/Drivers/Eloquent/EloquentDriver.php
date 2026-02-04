@@ -140,6 +140,9 @@ class EloquentDriver extends AbstractDriver
         return $include->apply($builder, $fields);
     }
 
+    /**
+     * @param 'asc'|'desc' $direction
+     */
     public function applySort(mixed $subject, SortInterface $sort, string $direction): mixed
     {
         $builder = $this->ensureBuilder($subject);

@@ -125,8 +125,9 @@ abstract class BaseQueryWizard
     /**
      * Flatten definitions array (handle variadic with nested arrays)
      *
-     * @param array<int, mixed> $items
-     * @return array<int, mixed>
+     * @template T
+     * @param array<array-key, T|array<array-key, T>> $items
+     * @return array<int, T>
      */
     protected function flattenDefinitions(array $items): array
     {

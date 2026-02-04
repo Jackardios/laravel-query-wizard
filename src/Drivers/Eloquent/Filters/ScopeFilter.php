@@ -220,6 +220,8 @@ class ScopeFilter extends AbstractFilter
             return $parameter->getDeclaringClass();
         }
 
-        return new ReflectionClass($type->getName());
+        /** @var class-string $className */
+        $className = $type->getName();
+        return new ReflectionClass($className);
     }
 }

@@ -64,7 +64,9 @@ class ItemQueryWizard extends BaseQueryWizard
         if ($model === null) {
             /** @var class-string<Model> $modelClass */
             $modelClass = $this->schema->model();
-            throw (new ModelNotFoundException())->setModel($modelClass, [$this->key]);
+            /** @var int|string $key */
+            $key = $this->key instanceof Model ? $this->key->getKey() : $this->key;
+            throw (new ModelNotFoundException())->setModel($modelClass, [$key]);
         }
 
         return $model;

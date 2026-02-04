@@ -342,7 +342,11 @@ class QueryParametersManager
      */
     protected function separateToArray(string $string): array
     {
-        return explode($this->config->getArrayValueSeparator(), $string);
+        $separator = $this->config->getArrayValueSeparator();
+        if ($separator === '') {
+            return [$string];
+        }
+        return explode($separator, $string);
     }
 
     /**
