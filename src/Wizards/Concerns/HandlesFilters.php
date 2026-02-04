@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
 use Illuminate\Support\Collection;
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
+use Illuminate\Support\Facades\Log;
+use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
+use Jackardios\QueryWizard\Exceptions\UnsupportedCapability;
 
 trait HandlesFilters
 {
-    /** @var array<FilterDefinitionInterface|string> */
+    /** @var array<FilterInterface|string> */
     protected array $allowedFilters = [];
 
     protected bool $filtersApplied = false;
@@ -19,9 +21,9 @@ trait HandlesFilters
     /**
      * Set allowed filters
      *
-     * @param FilterDefinitionInterface|string|array<FilterDefinitionInterface|string> ...$filters
+     * @param FilterInterface|string|array<FilterInterface|string> ...$filters
      */
-    public function setAllowedFilters(FilterDefinitionInterface|string|array ...$filters): static
+    public function setAllowedFilters(FilterInterface|string|array ...$filters): static
     {
         $this->allowedFilters = $this->flattenDefinitions($filters);
         return $this;
@@ -30,7 +32,7 @@ trait HandlesFilters
     /**
      * Get effective filters (schema + context applied)
      *
-     * @return array<FilterDefinitionInterface>
+     * @return array<FilterInterface>
      */
     protected function getEffectiveFilters(): array
     {
@@ -41,7 +43,7 @@ trait HandlesFilters
             fn() => $this->schema?->filters() ?? [],
             $context !== null ? fn() => $context->getAllowedFilters() : null,
             $context !== null ? fn() => $context->getDisallowedFilters() : null,
-            fn($item) => $item instanceof FilterDefinitionInterface ? $item->getName() : $item
+            fn($item) => $item instanceof FilterInterface ? $item->getName() : $item
         );
 
         return $this->normalizeFilters($filters);
@@ -57,6 +59,14 @@ trait HandlesFilters
         }
 
         if (!in_array(Capability::FILTERS->value, $this->driver->capabilities(), true)) {
+            if ($this->config->shouldThrowOnUnsupportedCapability()) {
+                throw UnsupportedCapability::make(Capability::FILTERS->value, $this->driver->name());
+            }
+
+            if ($this->config->shouldLogUnsupportedCapability()) {
+                Log::warning("Driver '{$this->driver->name()}' does not support filters capability");
+            }
+
             $this->filtersApplied = true;
             return;
         }
@@ -125,10 +135,10 @@ trait HandlesFilters
     }
 
     /**
-     * Normalize filters to FilterDefinitionInterface
+     * Normalize filters to FilterInterface
      *
-     * @param array<FilterDefinitionInterface|string> $filters
-     * @return array<FilterDefinitionInterface>
+     * @param array<FilterInterface|string> $filters
+     * @return array<FilterInterface>
      */
     protected function normalizeFilters(array $filters): array
     {

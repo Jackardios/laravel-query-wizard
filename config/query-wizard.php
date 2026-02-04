@@ -65,4 +65,10 @@ return [
         'max_filter_depth' => 5,
         'max_sorts_count' => 5,
     ],
+
+    /*
+     * Behavior when requesting a capability that the driver doesn't support.
+     * Options: 'exception' (throws), 'log' (warning), 'silent' (ignore)
+     */
+    'unsupported_capability_behavior' => 'exception',
 ];

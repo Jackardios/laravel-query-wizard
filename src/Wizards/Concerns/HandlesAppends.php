@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
+use Jackardios\QueryWizard\Exceptions\UnsupportedCapability;
 
 trait HandlesAppends
 {
@@ -69,6 +71,14 @@ trait HandlesAppends
     protected function validateAppends(): void
     {
         if (!in_array(Capability::APPENDS->value, $this->driver->capabilities(), true)) {
+            if ($this->config->shouldThrowOnUnsupportedCapability()) {
+                throw UnsupportedCapability::make(Capability::APPENDS->value, $this->driver->name());
+            }
+
+            if ($this->config->shouldLogUnsupportedCapability()) {
+                Log::warning("Driver '{$this->driver->name()}' does not support appends capability");
+            }
+
             return;
         }
 

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
+use Jackardios\QueryWizard\Exceptions\UnsupportedCapability;
 
 trait HandlesFields
 {
@@ -132,6 +134,14 @@ trait HandlesFields
         }
 
         if (!in_array(Capability::FIELDS->value, $this->driver->capabilities(), true)) {
+            if ($this->config->shouldThrowOnUnsupportedCapability()) {
+                throw UnsupportedCapability::make(Capability::FIELDS->value, $this->driver->name());
+            }
+
+            if ($this->config->shouldLogUnsupportedCapability()) {
+                Log::warning("Driver '{$this->driver->name()}' does not support fields capability");
+            }
+
             $this->fieldsApplied = true;
             return;
         }

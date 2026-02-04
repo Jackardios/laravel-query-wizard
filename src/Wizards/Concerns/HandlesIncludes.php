@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
-use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
+use Illuminate\Support\Facades\Log;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
+use Jackardios\QueryWizard\Exceptions\UnsupportedCapability;
 
 trait HandlesIncludes
 {
-    /** @var array<IncludeDefinitionInterface|string> */
+    /** @var array<IncludeInterface|string> */
     protected array $allowedIncludes = [];
 
     /** @var array<string> */
@@ -23,9 +25,9 @@ trait HandlesIncludes
     /**
      * Set allowed includes
      *
-     * @param IncludeDefinitionInterface|string|array<IncludeDefinitionInterface|string> ...$includes
+     * @param IncludeInterface|string|array<IncludeInterface|string> ...$includes
      */
-    public function setAllowedIncludes(IncludeDefinitionInterface|string|array ...$includes): static
+    public function setAllowedIncludes(IncludeInterface|string|array ...$includes): static
     {
         $this->allowedIncludes = $this->flattenDefinitions($includes);
         return $this;
@@ -45,7 +47,7 @@ trait HandlesIncludes
     /**
      * Get effective includes (schema + context applied)
      *
-     * @return array<IncludeDefinitionInterface>
+     * @return array<IncludeInterface>
      */
     protected function getEffectiveIncludes(): array
     {
@@ -56,7 +58,7 @@ trait HandlesIncludes
             fn() => $this->schema?->includes() ?? [],
             $context !== null ? fn() => $context->getAllowedIncludes() : null,
             $context !== null ? fn() => $context->getDisallowedIncludes() : null,
-            fn($item) => $item instanceof IncludeDefinitionInterface ? $item->getName() : $item
+            fn($item) => $item instanceof IncludeInterface ? $item->getName() : $item
         );
 
         return $this->normalizeIncludes($includes);
@@ -88,6 +90,14 @@ trait HandlesIncludes
         }
 
         if (!in_array(Capability::INCLUDES->value, $this->driver->capabilities(), true)) {
+            if ($this->config->shouldThrowOnUnsupportedCapability()) {
+                throw UnsupportedCapability::make(Capability::INCLUDES->value, $this->driver->name());
+            }
+
+            if ($this->config->shouldLogUnsupportedCapability()) {
+                Log::warning("Driver '{$this->driver->name()}' does not support includes capability");
+            }
+
             $this->includesApplied = true;
             return;
         }
@@ -147,10 +157,10 @@ trait HandlesIncludes
     }
 
     /**
-     * Normalize includes to IncludeDefinitionInterface
+     * Normalize includes to IncludeInterface
      *
-     * @param array<IncludeDefinitionInterface|string|null> $includes
-     * @return array<IncludeDefinitionInterface>
+     * @param array<IncludeInterface|string|null> $includes
+     * @return array<IncludeInterface>
      */
     protected function normalizeIncludes(array $includes): array
     {

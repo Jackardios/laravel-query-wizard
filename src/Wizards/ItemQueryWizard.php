@@ -128,7 +128,7 @@ class ItemQueryWizard extends BaseQueryWizard
     /**
      * Build an allowed tree from includes for efficient nested checking
      *
-     * @param array<\Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface> $includes
+     * @param array<\Jackardios\QueryWizard\Contracts\IncludeInterface> $includes
      * @return array<string, mixed>
      */
     protected function buildAllowedTree(array $includes): array
@@ -157,7 +157,7 @@ class ItemQueryWizard extends BaseQueryWizard
     /**
      * Clean unwanted relations from model (recursively)
      *
-     * @param array<\Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface> $allowedIncludes
+     * @param array<\Jackardios\QueryWizard\Contracts\IncludeInterface> $allowedIncludes
      */
     protected function cleanRelations(Model $model, array $allowedIncludes): void
     {

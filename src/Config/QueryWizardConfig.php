@@ -90,4 +90,19 @@ final class QueryWizardConfig
         $value = config(self::CONFIG_PREFIX . '.limits.max_sorts_count');
         return $value !== null ? (int) $value : null;
     }
+
+    public function getUnsupportedCapabilityBehavior(): string
+    {
+        return (string) config(self::CONFIG_PREFIX . '.unsupported_capability_behavior', 'exception');
+    }
+
+    public function shouldThrowOnUnsupportedCapability(): bool
+    {
+        return $this->getUnsupportedCapabilityBehavior() === 'exception';
+    }
+
+    public function shouldLogUnsupportedCapability(): bool
+    {
+        return $this->getUnsupportedCapabilityBehavior() === 'log';
+    }
 }

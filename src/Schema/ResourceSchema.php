@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Schema;
 
 use Illuminate\Support\Str;
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
+use Jackardios\QueryWizard\Contracts\FilterInterface;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Contracts\SchemaContextInterface;
+use Jackardios\QueryWizard\Contracts\SortInterface;
 
 abstract class ResourceSchema implements ResourceSchemaInterface
 {
@@ -38,9 +38,9 @@ abstract class ResourceSchema implements ResourceSchemaInterface
     }
 
     /**
-     * Allowed filters (strings or FilterDefinitionInterface)
+     * Allowed filters (strings or FilterInterface)
      *
-     * @return array<FilterDefinitionInterface|string>
+     * @return array<FilterInterface|string>
      */
     public function filters(): array
     {
@@ -48,9 +48,9 @@ abstract class ResourceSchema implements ResourceSchemaInterface
     }
 
     /**
-     * Allowed includes (strings or IncludeDefinitionInterface)
+     * Allowed includes (strings or IncludeInterface)
      *
-     * @return array<IncludeDefinitionInterface|string>
+     * @return array<IncludeInterface|string>
      */
     public function includes(): array
     {
@@ -58,9 +58,9 @@ abstract class ResourceSchema implements ResourceSchemaInterface
     }
 
     /**
-     * Allowed sorts (strings or SortDefinitionInterface)
+     * Allowed sorts (strings or SortInterface)
      *
-     * @return array<SortDefinitionInterface|string>
+     * @return array<SortInterface|string>
      */
     public function sorts(): array
     {

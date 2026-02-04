@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Schema;
 
+use Jackardios\QueryWizard\Contracts\FilterInterface;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\SchemaContextInterface;
+use Jackardios\QueryWizard\Contracts\SortInterface;
 
 class SchemaContext implements SchemaContextInterface
 {
-    /** @var array<\Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface|string>|null */
+    /** @var array<FilterInterface|string>|null */
     protected ?array $allowedFilters = null;
 
-    /** @var array<\Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface|string>|null */
+    /** @var array<SortInterface|string>|null */
     protected ?array $allowedSorts = null;
 
-    /** @var array<\Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface|string>|null */
+    /** @var array<IncludeInterface|string>|null */
     protected ?array $allowedIncludes = null;
 
     /** @var array<string>|null */
@@ -58,30 +61,30 @@ class SchemaContext implements SchemaContextInterface
     // ========== Allowed setters ==========
 
     /**
-     * @param array<\Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface|string> $filters
+     * @param array<FilterInterface|string> $filters
      * @return static
      */
-    public function allowFilters(array $filters): self
+    public function setAllowedFilters(array $filters): self
     {
         $this->allowedFilters = $filters;
         return $this;
     }
 
     /**
-     * @param array<\Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface|string> $sorts
+     * @param array<SortInterface|string> $sorts
      * @return static
      */
-    public function allowSorts(array $sorts): self
+    public function setAllowedSorts(array $sorts): self
     {
         $this->allowedSorts = $sorts;
         return $this;
     }
 
     /**
-     * @param array<\Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface|string> $includes
+     * @param array<IncludeInterface|string> $includes
      * @return static
      */
-    public function allowIncludes(array $includes): self
+    public function setAllowedIncludes(array $includes): self
     {
         $this->allowedIncludes = $includes;
         return $this;
@@ -91,7 +94,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $fields
      * @return static
      */
-    public function allowFields(array $fields): self
+    public function setAllowedFields(array $fields): self
     {
         $this->allowedFields = $fields;
         return $this;
@@ -101,7 +104,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $appends
      * @return static
      */
-    public function allowAppends(array $appends): self
+    public function setAllowedAppends(array $appends): self
     {
         $this->allowedAppends = $appends;
         return $this;
@@ -113,7 +116,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $filters
      * @return static
      */
-    public function disallowFilters(array $filters): self
+    public function setDisallowedFilters(array $filters): self
     {
         $this->disallowedFilters = $filters;
         return $this;
@@ -123,7 +126,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $sorts
      * @return static
      */
-    public function disallowSorts(array $sorts): self
+    public function setDisallowedSorts(array $sorts): self
     {
         $this->disallowedSorts = $sorts;
         return $this;
@@ -133,7 +136,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $includes
      * @return static
      */
-    public function disallowIncludes(array $includes): self
+    public function setDisallowedIncludes(array $includes): self
     {
         $this->disallowedIncludes = $includes;
         return $this;
@@ -143,7 +146,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $fields
      * @return static
      */
-    public function disallowFields(array $fields): self
+    public function setDisallowedFields(array $fields): self
     {
         $this->disallowedFields = $fields;
         return $this;
@@ -153,7 +156,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $appends
      * @return static
      */
-    public function disallowAppends(array $appends): self
+    public function setDisallowedAppends(array $appends): self
     {
         $this->disallowedAppends = $appends;
         return $this;
@@ -165,7 +168,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $fields
      * @return static
      */
-    public function defaultFields(array $fields): self
+    public function setDefaultFields(array $fields): self
     {
         $this->defaultFields = $fields;
         return $this;
@@ -175,7 +178,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $includes
      * @return static
      */
-    public function defaultIncludes(array $includes): self
+    public function setDefaultIncludes(array $includes): self
     {
         $this->defaultIncludes = $includes;
         return $this;
@@ -185,7 +188,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $sorts
      * @return static
      */
-    public function defaultSorts(array $sorts): self
+    public function setDefaultSorts(array $sorts): self
     {
         $this->defaultSorts = $sorts;
         return $this;
@@ -195,7 +198,7 @@ class SchemaContext implements SchemaContextInterface
      * @param array<string> $appends
      * @return static
      */
-    public function defaultAppends(array $appends): self
+    public function setDefaultAppends(array $appends): self
     {
         $this->defaultAppends = $appends;
         return $this;
@@ -204,7 +207,7 @@ class SchemaContext implements SchemaContextInterface
     // ========== Getters ==========
 
     /**
-     * @return array<\Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface|string>|null
+     * @return array<FilterInterface|string>|null
      */
     public function getAllowedFilters(): ?array
     {
@@ -212,7 +215,7 @@ class SchemaContext implements SchemaContextInterface
     }
 
     /**
-     * @return array<\Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface|string>|null
+     * @return array<SortInterface|string>|null
      */
     public function getAllowedSorts(): ?array
     {
@@ -220,7 +223,7 @@ class SchemaContext implements SchemaContextInterface
     }
 
     /**
-     * @return array<\Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface|string>|null
+     * @return array<IncludeInterface|string>|null
      */
     public function getAllowedIncludes(): ?array
     {

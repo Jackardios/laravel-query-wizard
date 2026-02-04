@@ -7,17 +7,17 @@ namespace Jackardios\QueryWizard\Contracts;
 interface SchemaContextInterface
 {
     /**
-     * @return array<\Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface|string>|null
+     * @return array<FilterInterface|string>|null
      */
     public function getAllowedFilters(): ?array;
 
     /**
-     * @return array<\Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface|string>|null
+     * @return array<SortInterface|string>|null
      */
     public function getAllowedSorts(): ?array;
 
     /**
-     * @return array<\Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface|string>|null
+     * @return array<IncludeInterface|string>|null
      */
     public function getAllowedIncludes(): ?array;
 

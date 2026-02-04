@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Wizards\Concerns;
 
-use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
+use Illuminate\Support\Facades\Log;
+use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Enums\Capability;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
+use Jackardios\QueryWizard\Exceptions\UnsupportedCapability;
 use Jackardios\QueryWizard\Values\Sort;
 
 trait HandlesSorts
 {
-    /** @var array<SortDefinitionInterface|string> */
+    /** @var array<SortInterface|string> */
     protected array $allowedSorts = [];
 
     /** @var array<string> */
@@ -23,9 +25,9 @@ trait HandlesSorts
     /**
      * Set allowed sorts
      *
-     * @param SortDefinitionInterface|string|array<SortDefinitionInterface|string> ...$sorts
+     * @param SortInterface|string|array<SortInterface|string> ...$sorts
      */
-    public function setAllowedSorts(SortDefinitionInterface|string|array ...$sorts): static
+    public function setAllowedSorts(SortInterface|string|array ...$sorts): static
     {
         $this->allowedSorts = $this->flattenDefinitions($sorts);
         return $this;
@@ -55,7 +57,7 @@ trait HandlesSorts
     /**
      * Get effective sorts (schema + context applied)
      *
-     * @return array<SortDefinitionInterface>
+     * @return array<SortInterface>
      */
     protected function getEffectiveSorts(): array
     {
@@ -66,7 +68,7 @@ trait HandlesSorts
             fn() => $this->schema?->sorts() ?? [],
             $context !== null ? fn() => $context->getAllowedSorts() : null,
             $context !== null ? fn() => $context->getDisallowedSorts() : null,
-            fn($item) => $item instanceof SortDefinitionInterface ? $item->getName() : ltrim($item, '-')
+            fn($item) => $item instanceof SortInterface ? $item->getName() : ltrim($item, '-')
         );
 
         return $this->normalizeSorts($sorts);
@@ -98,6 +100,14 @@ trait HandlesSorts
         }
 
         if (!in_array(Capability::SORTS->value, $this->driver->capabilities(), true)) {
+            if ($this->config->shouldThrowOnUnsupportedCapability()) {
+                throw UnsupportedCapability::make(Capability::SORTS->value, $this->driver->name());
+            }
+
+            if ($this->config->shouldLogUnsupportedCapability()) {
+                Log::warning("Driver '{$this->driver->name()}' does not support sorts capability");
+            }
+
             $this->sortsApplied = true;
             return;
         }
@@ -156,10 +166,10 @@ trait HandlesSorts
     }
 
     /**
-     * Normalize sorts to SortDefinitionInterface
+     * Normalize sorts to SortInterface
      *
-     * @param array<SortDefinitionInterface|string> $sorts
-     * @return array<SortDefinitionInterface>
+     * @param array<SortInterface|string> $sorts
+     * @return array<SortInterface>
      */
     protected function normalizeSorts(array $sorts): array
     {

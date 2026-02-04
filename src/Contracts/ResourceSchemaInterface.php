@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Contracts;
 
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
-
 interface ResourceSchemaInterface
 {
     /**
@@ -28,23 +24,23 @@ interface ResourceSchemaInterface
     public function driver(): string;
 
     /**
-     * Allowed filters (strings or FilterDefinitionInterface)
+     * Allowed filters (strings or FilterInterface)
      *
-     * @return array<FilterDefinitionInterface|string>
+     * @return array<FilterInterface|string>
      */
     public function filters(): array;
 
     /**
-     * Allowed includes (strings or IncludeDefinitionInterface)
+     * Allowed includes (strings or IncludeInterface)
      *
-     * @return array<IncludeDefinitionInterface|string>
+     * @return array<IncludeInterface|string>
      */
     public function includes(): array;
 
     /**
-     * Allowed sorts (strings or SortDefinitionInterface)
+     * Allowed sorts (strings or SortInterface)
      *
-     * @return array<SortDefinitionInterface|string>
+     * @return array<SortInterface|string>
      */
     public function sorts(): array;
 

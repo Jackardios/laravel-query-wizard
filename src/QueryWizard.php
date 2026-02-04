@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Drivers\DriverRegistry;
@@ -56,7 +58,7 @@ class QueryWizard
     }
 
     /**
-     * @param class-string<Model>|\Illuminate\Database\Eloquent\Builder<Model>|\Illuminate\Database\Eloquent\Relations\Relation<Model, Model, mixed>|Model $subject
+     * @param class-string<Model>|Builder<Model>|Relation<Model, Model, mixed>|Model $subject
      */
     public static function for(mixed $subject, ?QueryParametersManager $parameters = null): ListQueryWizard
     {
@@ -68,7 +70,7 @@ class QueryWizard
     }
 
     /**
-     * @param class-string<Model>|\Illuminate\Database\Eloquent\Builder<Model>|\Illuminate\Database\Eloquent\Relations\Relation<Model, Model, mixed>|Model $subject
+     * @param class-string<Model>|Builder<Model>|Relation<Model, Model, mixed>|Model $subject
      */
     public static function using(string $driverName, mixed $subject, ?QueryParametersManager $parameters = null): ListQueryWizard
     {
