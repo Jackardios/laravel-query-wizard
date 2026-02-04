@@ -1,6 +1,6 @@
 # Laravel Query Wizard
 
-Build Eloquent queries from API request parameters with ease. Filter, sort, include relationships, select fields, and append computed attributes - all from query string parameters.
+Build Eloquent queries from API request parameters. Filter, sort, include relationships, select fields, and append computed attributes - all from query string parameters.
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/jackardios/laravel-query-wizard.svg)](https://packagist.org/packages/jackardios/laravel-query-wizard)
 [![License](https://img.shields.io/packagist/l/jackardios/laravel-query-wizard.svg)](https://packagist.org/packages/jackardios/laravel-query-wizard)
@@ -19,7 +19,7 @@ Building APIs often requires handling complex query parameters for filtering, so
 - Automatically parses request parameters
 - Validates and whitelists allowed operations
 - Applies filters, sorts, includes, fields, and appends to your queries
-- Supports custom strategies for complete flexibility
+- Supports custom filter/sort/include implementations
 - Works with any Eloquent model or query builder
 
 ## Installation
@@ -42,7 +42,6 @@ php artisan vendor:publish --provider="Jackardios\QueryWizard\QueryWizardService
 use App\Models\User;
 use Jackardios\QueryWizard\QueryWizard;
 
-// In your controller
 public function index()
 {
     $users = QueryWizard::for(User::class)
@@ -69,8 +68,9 @@ GET /users?filter[name]=John&filter[status]=active&sort=-created_at&include=post
 - [Including Relationships](#including-relationships)
 - [Selecting Fields](#selecting-fields)
 - [Appending Attributes](#appending-attributes)
+- [API Reference](#api-reference)
 - [Resource Schemas](#resource-schemas)
-- [Security Limits](#security-limits)
+- [Security](#security)
 - [Custom Drivers](#custom-drivers)
 - [Configuration](#configuration)
 - [Error Handling](#error-handling)
@@ -79,8 +79,6 @@ GET /users?filter[name]=John&filter[status]=active&sort=-created_at&include=post
 ## Basic Usage
 
 ### Creating a Query Wizard
-
-There are several ways to create a Query Wizard:
 
 ```php
 use Jackardios\QueryWizard\QueryWizard;
@@ -152,6 +150,7 @@ QueryWizard::for(User::class)
 ### Available Filter Types
 
 #### Exact Filter
+
 Matches exact values. Supports arrays for `IN` queries.
 
 ```php
@@ -165,6 +164,7 @@ FilterDefinition::exact('user_id', 'user')  // ?filter[user]=5
 **Request:** `?filter[status]=active` or `?filter[status]=active,pending` (IN query)
 
 #### Partial Filter
+
 Case-insensitive LIKE search.
 
 ```php
@@ -175,6 +175,7 @@ FilterDefinition::partial('description')
 **Request:** `?filter[name]=john` matches "John", "Johnny", "john doe"
 
 #### Scope Filter
+
 Uses model scopes for filtering.
 
 ```php
@@ -194,6 +195,7 @@ FilterDefinition::scope('popular')
 **Request:** `?filter[popular]=5000`
 
 #### Callback Filter
+
 Custom filtering logic.
 
 ```php
@@ -206,6 +208,7 @@ FilterDefinition::callback('age_range', function ($query, $value, $property) {
 **Request:** `?filter[age_range]=18-35`
 
 #### Trashed Filter
+
 Filter soft-deleted models.
 
 ```php
@@ -215,6 +218,7 @@ FilterDefinition::trashed()
 **Request:** `?filter[trashed]=with` (include trashed), `?filter[trashed]=only` (only trashed)
 
 #### Range Filter
+
 Filter by numeric ranges.
 
 ```php
@@ -228,6 +232,7 @@ FilterDefinition::range('price')->withOptions([
 **Request:** `?filter[price][min]=100&filter[price][max]=500`
 
 #### Date Range Filter
+
 Filter by date ranges.
 
 ```php
@@ -242,6 +247,7 @@ FilterDefinition::dateRange('created_at')->withOptions([
 **Request:** `?filter[created_at][from]=2024-01-01&filter[created_at][to]=2024-12-31`
 
 #### Null Filter
+
 Check for null/not null values.
 
 ```php
@@ -252,6 +258,7 @@ FilterDefinition::null('email')->withOptions(['invertLogic' => true])
 **Request:** `?filter[deleted_at]=1` (is null), `?filter[deleted_at]=0` (is not null)
 
 #### JSON Contains Filter
+
 Filter JSON columns.
 
 ```php
@@ -263,26 +270,51 @@ FilterDefinition::jsonContains('settings.roles')->withOptions([
 
 **Request:** `?filter[meta.tags]=laravel,php`
 
+#### Passthrough Filter
+
+Capture filter values without applying them to the query. Useful when you need to handle filtering logic manually (e.g., for external services).
+
+```php
+QueryWizard::for(User::class)
+    ->setAllowedFilters([
+        FilterDefinition::passthrough('external_id'),
+    ])
+    ->get();
+
+// Access passthrough values
+$wizard = QueryWizard::for(User::class)
+    ->setAllowedFilters([FilterDefinition::passthrough('search')]);
+
+$passthroughFilters = $wizard->getPassthroughFilters();
+// ['search' => 'query value']
+```
+
 ### Filter Options
 
 #### Default Values
+
 ```php
 FilterDefinition::exact('status')->default('active')
 ```
 
 #### Prepare Values
+
 Transform filter values before applying:
+
 ```php
 FilterDefinition::exact('email')->prepareValueWith(fn($value) => strtolower($value))
 ```
 
 #### Relation Filtering
+
 Filters with dot notation automatically use `whereHas`:
+
 ```php
 FilterDefinition::exact('posts.status')  // Filters users by their posts' status
 ```
 
 Disable this behavior:
+
 ```php
 FilterDefinition::exact('posts.status')->withRelationConstraint(false)
 ```
@@ -310,6 +342,7 @@ QueryWizard::for(User::class)
 ### Available Sort Types
 
 #### Field Sort
+
 Sort by a database column.
 
 ```php
@@ -318,6 +351,7 @@ SortDefinition::field('created_at', 'date')  // Alias: ?sort=-date
 ```
 
 #### Callback Sort
+
 Custom sorting logic.
 
 ```php
@@ -360,6 +394,7 @@ QueryWizard::for(User::class)
 ### Available Include Types
 
 #### Relationship Include
+
 Eager load a relationship.
 
 ```php
@@ -368,6 +403,7 @@ IncludeDefinition::relationship('posts.author')  // Nested relationships
 ```
 
 #### Count Include
+
 Load relationship counts (uses `withCount`).
 
 ```php
@@ -376,11 +412,13 @@ IncludeDefinition::count('posts', 'postCount')  // Custom alias
 ```
 
 Includes ending with "Count" (configurable) are auto-detected:
+
 ```php
 ->setAllowedIncludes(['posts', 'postsCount'])  // postsCount becomes count include
 ```
 
 #### Callback Include
+
 Custom include logic.
 
 ```php
@@ -417,17 +455,6 @@ QueryWizard::for(User::class)
 
 **Request:** `?fields[users]=id,name&fields[posts]=id,title`
 
-### Default Fields
-
-```php
-QueryWizard::for(User::class)
-    ->setAllowedFields(['id', 'name', 'email', 'password'])
-    ->setDefaultFields(['id', 'name', 'email'])  // Exclude password by default
-    ->get();
-```
-
-Use `['*']` to select all fields by default.
-
 ## Appending Attributes
 
 Append computed model attributes (accessors) to results.
@@ -453,6 +480,7 @@ QueryWizard::for(User::class)
 ### Nested Appends
 
 Append attributes on related models:
+
 ```php
 ->setAllowedAppends([
     'full_name',              // Root model
@@ -464,9 +492,83 @@ Append attributes on related models:
 ### Wildcard Appends
 
 Allow any appends on a relation:
+
 ```php
 ->setAllowedAppends(['posts.*'])  // Any append on posts
 ```
+
+## API Reference
+
+This section provides a quick reference for all available methods on filters, includes, and sorts.
+
+### Filter Methods
+
+All filters inherit these methods from `AbstractFilter`:
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `->alias(string)` | Use different name in URL | `exact('user_id', 'user')` or `->alias('user')` |
+| `->default(mixed)` | Default value when not in request | `->default('active')` |
+| `->prepareValueWith(Closure)` | Transform value before applying | `->prepareValueWith(fn($v) => strtolower($v))` |
+
+### Filter-Specific Methods
+
+| Filter | Method | Description | Example |
+|--------|--------|-------------|---------|
+| `exact`, `partial` | `->withRelationConstraint(bool)` | Enable/disable auto `whereHas` for `relation.column` | `->withRelationConstraint(false)` |
+| `scope` | `->resolveModelBindings(bool)` | Auto-resolve model bindings in scope parameters | `->resolveModelBindings(false)` |
+| `range` | `->keys(string $min, string $max)` | Custom key names (default: 'min', 'max') | `->keys('from', 'to')` |
+| `dateRange` | `->keys(string $from, string $to)` | Custom key names (default: 'from', 'to') | `->keys('start', 'end')` |
+| `dateRange` | `->dateFormat(string)` | Date format for DateTime objects | `->dateFormat('Y-m-d')` |
+| `null` | `->invertLogic(bool)` | Invert null check (true → NOT NULL) | `->invertLogic()` |
+| `jsonContains` | `->matchAll(bool)` | Match all values (AND) vs any (OR) | `->matchAll(false)` |
+
+### Filter Types Summary
+
+| Type | Factory Method | Request Format | SQL Generated |
+|------|---------------|----------------|---------------|
+| Exact | `FilterDefinition::exact('col')` | `?filter[col]=value` | `WHERE col = 'value'` |
+| Exact (array) | `FilterDefinition::exact('col')` | `?filter[col]=a,b` | `WHERE col IN ('a', 'b')` |
+| Partial | `FilterDefinition::partial('col')` | `?filter[col]=val` | `WHERE LOWER(col) LIKE '%val%'` |
+| Scope | `FilterDefinition::scope('name')` | `?filter[name]=arg` | Calls `scopeName($query, 'arg')` |
+| Callback | `FilterDefinition::callback('n', fn)` | `?filter[n]=val` | Custom logic |
+| Range | `FilterDefinition::range('col')` | `?filter[col][min]=1&[max]=10` | `WHERE col >= 1 AND col <= 10` |
+| Date Range | `FilterDefinition::dateRange('col')` | `?filter[col][from]=...&[to]=...` | `WHERE col >= ... AND col <= ...` |
+| Null | `FilterDefinition::null('col')` | `?filter[col]=true` | `WHERE col IS NULL` |
+| JSON Contains | `FilterDefinition::jsonContains('col')` | `?filter[col]=a,b` | `whereJsonContains` for each |
+| Trashed | `FilterDefinition::trashed()` | `?filter[trashed]=with` | `withTrashed()` / `onlyTrashed()` |
+| Passthrough | `FilterDefinition::passthrough('n')` | `?filter[n]=val` | No SQL (value captured) |
+
+### Include Methods
+
+All includes inherit these methods from `AbstractInclude`:
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `->alias(string)` | Use different name in URL | `relationship('posts', 'articles')` or `->alias('articles')` |
+
+### Include Types Summary
+
+| Type | Factory Method | Request Format | Eloquent Method |
+|------|---------------|----------------|-----------------|
+| Relationship | `IncludeDefinition::relationship('rel')` | `?include=rel` | `with('rel')` |
+| Count | `IncludeDefinition::count('rel')` | `?include=relCount` | `withCount('rel')` |
+| Callback | `IncludeDefinition::callback('n', fn)` | `?include=n` | Custom logic |
+
+### Sort Methods
+
+All sorts inherit these methods from `AbstractSort`:
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `->alias(string)` | Use different name in URL | `field('created_at', 'date')` or `->alias('date')` |
+
+### Sort Types Summary
+
+| Type | Factory Method | Request Format | SQL Generated |
+|------|---------------|----------------|---------------|
+| Field | `SortDefinition::field('col')` | `?sort=col` / `?sort=-col` | `ORDER BY col ASC/DESC` |
+| Callback | `SortDefinition::callback('n', fn)` | `?sort=n` / `?sort=-n` | Custom logic |
 
 ## Resource Schemas
 
@@ -563,26 +665,45 @@ class UserSchema extends ResourceSchema
     public function forList(): ?SchemaContextInterface
     {
         return SchemaContext::make()
-            ->disallowIncludes(['sensitiveRelation'])
-            ->defaultSorts(['-created_at']);
+            ->setDisallowedIncludes(['sensitiveRelation'])
+            ->setDefaultSorts(['-created_at']);
     }
 
     public function forItem(): ?SchemaContextInterface
     {
         return SchemaContext::make()
-            ->allowIncludes(['profile', 'posts', 'settings'])
-            ->disallowFields(['password_hash']);
+            ->setAllowedIncludes(['profile', 'posts', 'settings'])
+            ->setDisallowedFields(['password_hash']);
     }
 }
 ```
 
-## Security Limits
+### SchemaContext Methods
+
+| Method | Description |
+|--------|-------------|
+| `setAllowedFilters(array)` | Override allowed filters |
+| `setAllowedSorts(array)` | Override allowed sorts |
+| `setAllowedIncludes(array)` | Override allowed includes |
+| `setAllowedFields(array)` | Override allowed fields |
+| `setAllowedAppends(array)` | Override allowed appends |
+| `setDisallowedFilters(array)` | Remove specific filters from allowed list |
+| `setDisallowedSorts(array)` | Remove specific sorts from allowed list |
+| `setDisallowedIncludes(array)` | Remove specific includes from allowed list |
+| `setDisallowedFields(array)` | Remove specific fields from allowed list |
+| `setDisallowedAppends(array)` | Remove specific appends from allowed list |
+| `setDefaultFields(array)` | Set default fields |
+| `setDefaultSorts(array)` | Set default sorts |
+| `setDefaultIncludes(array)` | Set default includes |
+| `setDefaultAppends(array)` | Set default appends |
+
+## Security
+
+### Request Limits
 
 Query Wizard includes built-in protection against resource exhaustion attacks. Malicious users could attempt to overload your server by requesting deeply nested includes or excessive numbers of filters/sorts.
 
-### Default Limits
-
-The following limits are applied by default:
+#### Default Limits
 
 | Setting | Default | Description |
 |---------|---------|-------------|
@@ -592,7 +713,7 @@ The following limits are applied by default:
 | `max_filter_depth` | 5 | Maximum nesting depth for filters |
 | `max_sorts_count` | 5 | Maximum number of sorts per request |
 
-### Configuring Limits
+#### Configuring Limits
 
 In your `config/query-wizard.php`:
 
@@ -606,88 +727,74 @@ In your `config/query-wizard.php`:
 ],
 ```
 
-### Disabling Limits
-
 Set any limit to `null` to disable it:
 
 ```php
 'limits' => [
     'max_include_depth' => null,   // No depth limit
-    'max_includes_count' => null,  // No count limit
-    // ...
 ],
 ```
 
-### Limit Exceptions
+### Unsupported Capability Behavior
 
-When a limit is exceeded, the following exceptions are thrown:
-
-| Exception | Description |
-|-----------|-------------|
-| `MaxIncludeDepthExceeded` | Include nesting too deep |
-| `MaxIncludesCountExceeded` | Too many includes requested |
-| `MaxFiltersCountExceeded` | Too many filters requested |
-| `MaxSortsCountExceeded` | Too many sorts requested |
-
-All limit exceptions extend `QueryLimitExceeded`, which extends `InvalidQuery`.
+Configure how the package behaves when a driver doesn't support a requested capability (e.g., filters on a driver that only supports sorting):
 
 ```php
-use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
-
-try {
-    $users = QueryWizard::for(User::class)
-        ->setAllowedIncludes(['posts', 'comments', /* ... many more */])
-        ->get();
-} catch (MaxIncludesCountExceeded $e) {
-    return response()->json([
-        'error' => 'Too many includes',
-        'requested' => $e->count,
-        'maximum' => $e->maxCount,
-    ], 400);
-}
+// config/query-wizard.php
+'unsupported_capability_behavior' => 'exception', // default
 ```
+
+| Value | Behavior |
+|-------|----------|
+| `'exception'` | Throws `UnsupportedCapability` exception |
+| `'log'` | Logs a warning and continues |
+| `'silent'` | Silently ignores the unsupported capability |
 
 ## Custom Drivers
 
 The driver system allows complete customization of how queries are built. You can create drivers for different data sources (Scout, Meilisearch, etc.) or customize the Eloquent behavior.
 
-### Using Driver Traits (Recommended)
+### Driver Methods Reference
 
-The package provides reusable traits that handle strategy registration, caching, and resolution:
+When extending `AbstractDriver`, you must implement these methods:
+
+| Method | Purpose |
+|--------|---------|
+| `name()` | Unique driver identifier (e.g., `'scout'`, `'meilisearch'`) |
+| `supports($subject)` | Return `true` if driver can handle this subject type |
+| `capabilities()` | Return array of supported `Capability` enum values |
+| `normalizeFilter($filter)` | Convert string to `FilterInterface` (e.g., `'name'` → `ExactFilter`) |
+| `normalizeInclude($include)` | Convert string to `IncludeInterface` |
+| `normalizeSort($sort)` | Convert string to `SortInterface` |
+| `applyFilter($subject, $filter, $value)` | Apply filter to query subject, return modified subject |
+| `applyInclude($subject, $include, $fields)` | Apply include to query subject, return modified subject |
+| `applySort($subject, $sort, $direction)` | Apply sort to query subject, return modified subject |
+| `applyFields($subject, $fields)` | Apply field selection to subject, return modified subject |
+| `applyAppends($result, $appends)` | Apply appends to **query result** (not subject!), return modified result |
+| `getResourceKey($subject)` | Return key for sparse fieldsets (e.g., `'users'` for `?fields[users]=id,name`) |
+| `prepareSubject($subject)` | Transform subject before query execution (e.g., class-string → Builder) |
+
+`AbstractDriver` automatically provides `supportsFilterType()`, `supportsSortType()`, `supportsIncludeType()` based on the `$supportedFilterTypes`, `$supportedSortTypes`, `$supportedIncludeTypes` arrays.
+
+### Creating a Custom Driver
+
+Extend `AbstractDriver` for the easiest implementation:
 
 ```php
-use Jackardios\QueryWizard\Contracts\DriverInterface;
-use Jackardios\QueryWizard\Drivers\Concerns\HasFilterStrategies;
-use Jackardios\QueryWizard\Drivers\Concerns\HasSortStrategies;
-use Jackardios\QueryWizard\Drivers\Concerns\HasIncludeStrategies;
-use Jackardios\QueryWizard\Strategies\CallbackFilterStrategy;
-use Jackardios\QueryWizard\Strategies\CallbackSortStrategy;
+use Jackardios\QueryWizard\Drivers\AbstractDriver;
+use Jackardios\QueryWizard\Contracts\FilterInterface;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
+use Jackardios\QueryWizard\Contracts\SortInterface;
+use Jackardios\QueryWizard\Enums\Capability;
 
-class ScoutDriver implements DriverInterface
+class ScoutDriver extends AbstractDriver
 {
-    use HasFilterStrategies;
-    use HasSortStrategies;
-    use HasIncludeStrategies;
+    // Declare supported types - AbstractDriver handles supportsFilterType(), etc.
+    protected array $supportedFilterTypes = ['exact', 'callback'];
+    protected array $supportedSortTypes = ['field', 'callback'];
+    protected array $supportedIncludeTypes = ['relationship', 'count', 'callback'];
 
-    public function __construct()
-    {
-        // Register your strategies
-        $this->filterStrategies = [
-            'exact' => ScoutExactFilterStrategy::class,
-            'partial' => ScoutPartialFilterStrategy::class,
-            'callback' => CallbackFilterStrategy::class, // Generic strategy
-        ];
-
-        $this->sortStrategies = [
-            'field' => ScoutFieldSortStrategy::class,
-            'callback' => CallbackSortStrategy::class, // Generic strategy
-        ];
-    }
-
-    public function name(): string
-    {
-        return 'scout';
-    }
+    public function name(): string { return 'scout'; }
 
     public function supports(mixed $subject): bool
     {
@@ -696,68 +803,73 @@ class ScoutDriver implements DriverInterface
 
     public function capabilities(): array
     {
-        return ['filters', 'sorts']; // Only filters and sorts for Scout
+        // Scout supports includes/fields/appends via query() callback
+        return Capability::values(); // All capabilities
     }
 
-    public function applyFilter(mixed $subject, FilterDefinitionInterface $filter, mixed $value): mixed
+    public function normalizeFilter(FilterInterface|string $filter): FilterInterface { ... }
+    public function normalizeSort(SortInterface|string $sort): SortInterface { ... }
+    public function normalizeInclude(IncludeInterface|string $include): IncludeInterface { ... }
+
+    public function applyFilter(mixed $subject, FilterInterface $filter, mixed $value): mixed
     {
-        $strategy = $this->resolveFilterStrategy($filter); // From trait
-        return $strategy->apply($subject, $filter, $value);
+        // Scout filters apply directly to Scout\Builder
+        return $filter->apply($subject, $value);
     }
 
-    public function applySort(mixed $subject, SortDefinitionInterface $sort, string $direction): mixed
+    public function applySort(mixed $subject, SortInterface $sort, string $direction): mixed
     {
-        $strategy = $this->resolveSortStrategy($sort); // From trait
-        return $strategy->apply($subject, $sort, $direction);
+        return $sort->apply($subject, $direction);
     }
 
-    // ... implement other DriverInterface methods
+    public function applyInclude(mixed $subject, IncludeInterface $include, array $fields = []): mixed
+    {
+        // Use Scout's query() to access underlying Eloquent builder
+        $subject->query(fn ($query) => $include->apply($query, $fields));
+        return $subject;
+    }
+
+    public function applyFields(mixed $subject, array $fields): mixed
+    {
+        $subject->query(fn ($query) => $query->select($fields));
+        return $subject;
+    }
+
+    public function applyAppends(mixed $result, array $appends): mixed { ... }
+    public function getResourceKey(mixed $subject): string { ... }
+    public function prepareSubject(mixed $subject): mixed { return $subject; }
 }
 ```
 
-### Available Traits
+### Creating Custom Filters
 
-| Trait | Provides |
-|-------|----------|
-| `HasFilterStrategies` | `registerFilterStrategy()`, `supportsFilterType()`, `getSupportedFilterTypes()`, `resolveFilterStrategy()` |
-| `HasSortStrategies` | `registerSortStrategy()`, `supportsSortType()`, `getSupportedSortTypes()`, `resolveSortStrategy()` |
-| `HasIncludeStrategies` | `registerIncludeStrategy()`, `supportsIncludeType()`, `getSupportedIncludeTypes()`, `resolveIncludeStrategy()` |
-
-### Generic Callback Strategies
-
-The package provides generic callback strategies that work with any query type:
+Implement `FilterInterface` for custom filter types:
 
 ```php
-use Jackardios\QueryWizard\Strategies\CallbackFilterStrategy;
-use Jackardios\QueryWizard\Strategies\CallbackSortStrategy;
-use Jackardios\QueryWizard\Strategies\CallbackIncludeStrategy;
-```
+use Jackardios\QueryWizard\Contracts\FilterInterface;
+use Jackardios\QueryWizard\Filters\AbstractFilter;
 
-These are useful when you want to support callback-based definitions without writing driver-specific strategy classes.
-
-### Creating Custom Strategies
-
-```php
-use Jackardios\QueryWizard\Contracts\FilterStrategyInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
-
-class ScoutExactFilterStrategy implements FilterStrategyInterface
+class ScoutExactFilter extends AbstractFilter
 {
-    public function apply(mixed $subject, FilterDefinitionInterface $filter, mixed $value): mixed
+    public function getType(): string
+    {
+        return 'exact';
+    }
+
+    public function apply(mixed $subject, mixed $value): mixed
     {
         // $subject is Scout\Builder
-        return $subject->where($filter->getProperty(), $value);
+        return $subject->where($this->getProperty(), $value);
     }
 }
 ```
 
 ### Registering a Custom Driver
 
-In your config file (`config/query-wizard.php`):
+In `config/query-wizard.php`:
 
 ```php
 return [
-    // ...
     'drivers' => [
         'scout' => \App\QueryWizard\Drivers\ScoutDriver::class,
     ],
@@ -780,95 +892,7 @@ class UserSchema extends ResourceSchema
     {
         return 'scout';
     }
-
-    // ...
 }
-```
-
-### Custom Filter Strategies
-
-Create custom filter strategies for the Eloquent driver:
-
-```php
-use Jackardios\QueryWizard\Contracts\FilterStrategyInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
-use Illuminate\Database\Eloquent\Builder;
-
-class FullTextSearchFilterStrategy implements FilterStrategyInterface
-{
-    public function apply(mixed $subject, FilterDefinitionInterface $filter, mixed $value): mixed
-    {
-        /** @var Builder $subject */
-        $columns = $filter->getOption('columns', [$filter->getProperty()]);
-
-        return $subject->whereFullText($columns, $value);
-    }
-}
-```
-
-Use it with `FilterDefinition::custom()`:
-
-```php
-FilterDefinition::custom('search', FullTextSearchFilterStrategy::class)
-    ->withOptions(['columns' => ['title', 'body', 'tags']])
-```
-
-Or register it globally on the driver:
-
-```php
-use Jackardios\QueryWizard\Drivers\DriverRegistry;
-
-$driver = app(DriverRegistry::class)->get('eloquent');
-$driver->registerFilterStrategy('fulltext', FullTextSearchFilterStrategy::class);
-```
-
-### Custom Sort Strategies
-
-```php
-use Jackardios\QueryWizard\Contracts\SortStrategyInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\SortDefinitionInterface;
-
-class RandomSortStrategy implements SortStrategyInterface
-{
-    public function apply(mixed $subject, SortDefinitionInterface $sort, string $direction): mixed
-    {
-        return $subject->inRandomOrder();
-    }
-}
-```
-
-Use with:
-```php
-SortDefinition::custom('random', RandomSortStrategy::class)
-```
-
-### Custom Include Strategies
-
-```php
-use Jackardios\QueryWizard\Contracts\IncludeStrategyInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\IncludeDefinitionInterface;
-
-class CachedRelationIncludeStrategy implements IncludeStrategyInterface
-{
-    public function apply(mixed $subject, IncludeDefinitionInterface $include, array $fields = []): mixed
-    {
-        $relation = $include->getRelation();
-
-        return $subject->with([
-            $relation => function ($query) use ($fields) {
-                if (!empty($fields)) {
-                    $query->select($fields);
-                }
-                // Add your caching logic here
-            }
-        ]);
-    }
-}
-```
-
-Use with:
-```php
-IncludeDefinition::custom('posts', CachedRelationIncludeStrategy::class)
 ```
 
 ## Configuration
@@ -924,18 +948,24 @@ return [
      * Set to null to disable a specific limit.
      */
     'limits' => [
-        'max_include_depth' => 5,    // Max nesting: posts.comments.author = 3
-        'max_includes_count' => 10,  // Max includes per request
-        'max_filters_count' => 15,   // Max filters per request
-        'max_filter_depth' => 5,     // Max filter nesting depth
-        'max_sorts_count' => 5,      // Max sorts per request
+        'max_include_depth' => 5,
+        'max_includes_count' => 10,
+        'max_filters_count' => 15,
+        'max_filter_depth' => 5,
+        'max_sorts_count' => 5,
     ],
+
+    /*
+     * Behavior when requesting a capability that the driver doesn't support.
+     * Options: 'exception' (throws), 'log' (warning), 'silent' (ignore)
+     */
+    'unsupported_capability_behavior' => 'exception',
 ];
 ```
 
 ## Error Handling
 
-Query Wizard throws descriptive exceptions for invalid queries:
+Query Wizard throws descriptive exceptions for invalid queries.
 
 ### Validation Exceptions
 
@@ -956,14 +986,20 @@ Query Wizard throws descriptive exceptions for invalid queries:
 | `MaxFiltersCountExceeded` | Filter count exceeds `max_filters_count` |
 | `MaxSortsCountExceeded` | Sort count exceeds `max_sorts_count` |
 
-All exceptions extend `InvalidQuery` (which extends Symfony's `HttpException` with 400 status).
+### Capability Exceptions
+
+| Exception | Description |
+|-----------|-------------|
+| `UnsupportedCapability` | Driver doesn't support requested capability |
+
+All exceptions extend `InvalidQuery` (which extends Symfony's `HttpException` with 400 status), except `UnsupportedCapability` which extends `LogicException`.
 
 ### Example Handling
 
 ```php
 use Jackardios\QueryWizard\Exceptions\InvalidQuery;
-use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\QueryLimitExceeded;
+use Jackardios\QueryWizard\Exceptions\UnsupportedCapability;
 
 try {
     $users = QueryWizard::for(User::class)
@@ -971,13 +1007,17 @@ try {
         ->setAllowedSorts(['created_at'])
         ->get();
 } catch (QueryLimitExceeded $e) {
-    // Handle security limit violations
     return response()->json([
         'error' => 'Query limit exceeded',
         'message' => $e->getMessage(),
     ], 400);
+} catch (UnsupportedCapability $e) {
+    return response()->json([
+        'error' => 'Unsupported capability',
+        'capability' => $e->capability,
+        'driver' => $e->driverName,
+    ], 400);
 } catch (InvalidQuery $e) {
-    // Handle all validation errors
     return response()->json([
         'error' => 'Invalid query',
         'message' => $e->getMessage(),
@@ -1005,11 +1045,11 @@ public function register(): void
 
 ## Laravel Octane Compatibility
 
-This package is fully compatible with Laravel Octane. The architecture is designed to avoid state leakage between requests:
+This package is fully compatible with Laravel Octane. The architecture avoids state leakage between requests:
 
-- **DriverRegistry** is registered as a singleton in the Laravel container, properly isolated per Octane worker
-- **QueryParametersManager** is created fresh per request via `bind()` registration
-- **Reflection caches** use `WeakMap` for automatic cleanup when model instances are garbage collected
+- **DriverRegistry** is registered as a singleton, properly isolated per Octane worker
+- **QueryParametersManager** is created fresh per request
+- **Reflection caches** use `WeakMap` for automatic cleanup
 
 No additional configuration is required for Octane compatibility.
 

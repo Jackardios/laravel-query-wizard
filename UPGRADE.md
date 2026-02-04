@@ -350,50 +350,62 @@ class UserSchema extends ResourceSchema
     public function forList(): ?SchemaContextInterface
     {
         return SchemaContext::make()
-            ->disallowIncludes(['posts', 'comments']) // Too expensive for lists
-            ->defaultSorts(['-created_at']);
+            ->setDisallowedIncludes(['posts', 'comments']) // Too expensive for lists
+            ->setDefaultSorts(['-created_at']);
     }
 
     // Customize for item operations
     public function forItem(): ?SchemaContextInterface
     {
         return SchemaContext::make()
-            ->disallowFilters(['status', 'role']) // Not needed for single item
-            ->defaultIncludes(['profile']);
+            ->setDisallowedFilters(['status', 'role']) // Not needed for single item
+            ->setDefaultIncludes(['profile']);
     }
 }
 ```
 
-### 8. Custom Strategies (New Feature)
+### 8. Custom Filters (New Feature)
 
-You can now create custom filter/sort/include strategies:
+You can create custom filter types by extending `AbstractFilter`:
 
 ```php
-use Jackardios\QueryWizard\Contracts\FilterStrategyInterface;
-use Jackardios\QueryWizard\Contracts\Definitions\FilterDefinitionInterface;
+use Jackardios\QueryWizard\Filters\AbstractFilter;
 
-class MyCustomFilterStrategy implements FilterStrategyInterface
+class MyCustomFilter extends AbstractFilter
 {
-    public function apply(mixed $query, FilterDefinitionInterface $filter, mixed $value): mixed
+    public function getType(): string
+    {
+        return 'custom';
+    }
+
+    public function apply(mixed $query, mixed $value): mixed
     {
         // Custom filtering logic
-        return $query->where($filter->getProperty(), 'CUSTOM_OP', $value);
+        return $query->where($this->getProperty(), 'CUSTOM_OP', $value);
     }
 }
 
-// Use with FilterDefinition::custom()
-FilterDefinition::custom('field', MyCustomFilterStrategy::class)
+// Use directly
+->setAllowedFilters([
+    MyCustomFilter::make('field'),
+])
 ```
 
 ### 9. Custom Drivers (New Feature)
 
-Create custom drivers for non-Eloquent query backends:
+Create custom drivers for non-Eloquent query backends by extending `AbstractDriver`:
 
 ```php
-use Jackardios\QueryWizard\Contracts\DriverInterface;
+use Jackardios\QueryWizard\Drivers\AbstractDriver;
+use Jackardios\QueryWizard\Enums\Capability;
 
-class ScoutDriver implements DriverInterface
+class ScoutDriver extends AbstractDriver
 {
+    // Declare supported types
+    protected array $supportedFilterTypes = ['exact', 'partial', 'callback'];
+    protected array $supportedSortTypes = ['field', 'callback'];
+    protected array $supportedIncludeTypes = [];
+
     public function name(): string
     {
         return 'scout';
@@ -401,19 +413,24 @@ class ScoutDriver implements DriverInterface
 
     public function supports(mixed $subject): bool
     {
-        return $subject instanceof ScoutBuilder;
+        return $subject instanceof \Laravel\Scout\Builder;
     }
 
-    // Implement other interface methods...
+    public function capabilities(): array
+    {
+        return [
+            Capability::FILTERS->value,
+            Capability::SORTS->value,
+        ];
+    }
+
+    // Implement other abstract methods...
 }
 
 // Register in config/query-wizard.php
 'drivers' => [
     'scout' => \App\QueryWizard\Drivers\ScoutDriver::class,
 ],
-
-// Or register programmatically
-DriverRegistry::register(new ScoutDriver());
 
 // Use with QueryWizard::using()
 QueryWizard::using('scout', $scoutBuilder)
@@ -512,7 +529,7 @@ FilterDefinition::range('price')           // ?filter[price][min]=10&filter[pric
 FilterDefinition::dateRange('date')        // Same but parses dates
 FilterDefinition::null('field')            // Filter by null/not null
 FilterDefinition::jsonContains('tags')     // JSON contains
-FilterDefinition::custom('field', MyStrategy::class)
+FilterDefinition::passthrough('field')     // Capture value without applying
 
 // With options
 FilterDefinition::exact('name')
