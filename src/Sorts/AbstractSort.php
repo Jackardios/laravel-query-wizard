@@ -27,6 +27,7 @@ abstract class AbstractSort implements SortInterface
     public function alias(string $alias): static
     {
         $this->alias = $alias;
+
         return $this;
     }
 
@@ -63,8 +64,8 @@ abstract class AbstractSort implements SortInterface
     /**
      * Apply the sort to the subject.
      *
-     * @param mixed $subject The query builder or similar
-     * @param 'asc'|'desc' $direction The sort direction
+     * @param  mixed  $subject  The query builder or similar
+     * @param  'asc'|'desc'  $direction  The sort direction
      * @return mixed The modified subject
      */
     abstract public function apply(mixed $subject, string $direction): mixed;

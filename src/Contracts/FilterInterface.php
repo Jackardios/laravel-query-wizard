@@ -48,7 +48,7 @@ interface FilterInterface
      * Use this to transform, validate, or normalize the value
      * from the request before it's used in the filter logic.
      *
-     * @param mixed $value The raw value from the request
+     * @param  mixed  $value  The raw value from the request
      * @return mixed The prepared value to use in apply()
      */
     public function prepareValue(mixed $value): mixed;
@@ -56,8 +56,8 @@ interface FilterInterface
     /**
      * Apply the filter to the subject.
      *
-     * @param mixed $subject The query builder or similar
-     * @param mixed $value The prepared filter value
+     * @param  mixed  $subject  The query builder or similar
+     * @param  mixed  $value  The prepared filter value
      * @return mixed The modified subject
      */
     public function apply(mixed $subject, mixed $value): mixed;

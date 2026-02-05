@@ -15,12 +15,12 @@ final class PassthroughFilter extends AbstractFilter
     /**
      * Create a new passthrough filter.
      *
-     * @param string $name The filter name
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $name  The filter name
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $name, ?string $alias = null): static
     {
-        return new static($name, $alias);
+        return new self($name, $alias);
     }
 
     public function getType(): string

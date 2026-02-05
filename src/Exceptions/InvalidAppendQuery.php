@@ -16,8 +16,8 @@ class InvalidAppendQuery extends InvalidQuery
     public Collection $allowedAppends;
 
     /**
-     * @param Collection<int, string> $unknownAppends
-     * @param Collection<int, string> $allowedAppends
+     * @param  Collection<int, string>  $unknownAppends
+     * @param  Collection<int, string>  $allowedAppends
      */
     public function __construct(Collection $unknownAppends, Collection $allowedAppends)
     {
@@ -32,8 +32,8 @@ class InvalidAppendQuery extends InvalidQuery
     }
 
     /**
-     * @param Collection<int, string> $unknownAppends
-     * @param Collection<int, string> $allowedAppends
+     * @param  Collection<int, string>  $unknownAppends
+     * @param  Collection<int, string>  $allowedAppends
      */
     public static function appendsNotAllowed(Collection $unknownAppends, Collection $allowedAppends): self
     {

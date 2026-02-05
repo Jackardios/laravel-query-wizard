@@ -17,11 +17,11 @@ final class TrashedFilter extends AbstractFilter
     /**
      * Create a new trashed filter.
      *
-     * @param string|null $alias Optional alias for URL parameter name (default uses 'trashed')
+     * @param  string|null  $alias  Optional alias for URL parameter name (default uses 'trashed')
      */
     public static function make(?string $alias = null): static
     {
-        return new static('trashed', $alias);
+        return new self('trashed', $alias);
     }
 
     public function getType(): string
@@ -30,8 +30,8 @@ final class TrashedFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
-     * @param 'with'|'only'|mixed $value
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  'with'|'only'|mixed  $value
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function apply(mixed $subject, mixed $value): mixed

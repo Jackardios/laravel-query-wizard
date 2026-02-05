@@ -16,8 +16,8 @@ class InvalidSortQuery extends InvalidQuery
     public Collection $allowedSorts;
 
     /**
-     * @param Collection<int, string> $unknownSorts
-     * @param Collection<int, string> $allowedSorts
+     * @param  Collection<int, string>  $unknownSorts
+     * @param  Collection<int, string>  $allowedSorts
      */
     public function __construct(Collection $unknownSorts, Collection $allowedSorts)
     {
@@ -32,8 +32,8 @@ class InvalidSortQuery extends InvalidQuery
     }
 
     /**
-     * @param Collection<int, string> $unknownSorts
-     * @param Collection<int, string> $allowedSorts
+     * @param  Collection<int, string>  $unknownSorts
+     * @param  Collection<int, string>  $allowedSorts
      */
     public static function sortsNotAllowed(Collection $unknownSorts, Collection $allowedSorts): self
     {

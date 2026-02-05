@@ -26,8 +26,8 @@ final class EloquentFilter
     /**
      * Create an exact match filter.
      *
-     * @param string $property The column name to filter on
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to filter on
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function exact(string $property, ?string $alias = null): ExactFilter
     {
@@ -37,8 +37,8 @@ final class EloquentFilter
     /**
      * Create a partial match filter (LIKE %value%).
      *
-     * @param string $property The column name to filter on
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to filter on
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function partial(string $property, ?string $alias = null): PartialFilter
     {
@@ -48,8 +48,8 @@ final class EloquentFilter
     /**
      * Create a scope filter.
      *
-     * @param string $scope The scope method name (without 'scope' prefix)
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $scope  The scope method name (without 'scope' prefix)
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function scope(string $scope, ?string $alias = null): ScopeFilter
     {
@@ -59,7 +59,7 @@ final class EloquentFilter
     /**
      * Create a trashed filter for soft-deleted models.
      *
-     * @param string|null $alias Optional alias for URL parameter name (default: 'trashed')
+     * @param  string|null  $alias  Optional alias for URL parameter name (default: 'trashed')
      */
     public static function trashed(?string $alias = null): TrashedFilter
     {
@@ -69,8 +69,8 @@ final class EloquentFilter
     /**
      * Create a null/not null filter.
      *
-     * @param string $property The column name to check for NULL
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to check for NULL
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function null(string $property, ?string $alias = null): NullFilter
     {
@@ -80,8 +80,8 @@ final class EloquentFilter
     /**
      * Create a numeric range filter.
      *
-     * @param string $property The column name to filter on
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to filter on
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function range(string $property, ?string $alias = null): RangeFilter
     {
@@ -91,8 +91,8 @@ final class EloquentFilter
     /**
      * Create a date range filter.
      *
-     * @param string $property The column name to filter on
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to filter on
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function dateRange(string $property, ?string $alias = null): DateRangeFilter
     {
@@ -102,8 +102,8 @@ final class EloquentFilter
     /**
      * Create a JSON contains filter.
      *
-     * @param string $property The JSON column name (dot notation for nested paths)
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The JSON column name (dot notation for nested paths)
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function jsonContains(string $property, ?string $alias = null): JsonContainsFilter
     {
@@ -113,9 +113,9 @@ final class EloquentFilter
     /**
      * Create a callback filter for custom logic.
      *
-     * @param string $name The filter name (also used as property)
-     * @param callable(mixed $query, mixed $value, string $property): void $callback
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $name  The filter name (also used as property)
+     * @param  callable(mixed $query, mixed $value, string $property): void  $callback
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function callback(string $name, callable $callback, ?string $alias = null): CallbackFilter
     {
@@ -125,8 +125,8 @@ final class EloquentFilter
     /**
      * Create a passthrough filter that doesn't modify the query.
      *
-     * @param string $name The filter name
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $name  The filter name
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function passthrough(string $name, ?string $alias = null): PassthroughFilter
     {

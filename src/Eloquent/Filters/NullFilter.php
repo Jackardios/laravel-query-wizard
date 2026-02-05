@@ -23,23 +23,38 @@ final class NullFilter extends AbstractFilter
     /**
      * Create a new null filter.
      *
-     * @param string $property The column name to check for NULL
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to check for NULL
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, ?string $alias = null): static
     {
-        return new static($property, $alias);
+        return new self($property, $alias);
     }
 
     /**
      * Invert the filter logic.
      * When inverted: truthy → NOT NULL, falsy → NULL
+     *
+     * Note: This method mutates the current instance.
      */
-    public function invertLogic(bool $value = true): static
+    public function withInvertedLogic(): static
     {
-        $clone = clone $this;
-        $clone->invertLogic = $value;
-        return $clone;
+        $this->invertLogic = true;
+
+        return $this;
+    }
+
+    /**
+     * Use normal filter logic (default).
+     * Normal: truthy → NULL, falsy → NOT NULL
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function withoutInvertedLogic(): static
+    {
+        $this->invertLogic = false;
+
+        return $this;
     }
 
     public function getType(): string
@@ -48,7 +63,7 @@ final class NullFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
@@ -57,7 +72,7 @@ final class NullFilter extends AbstractFilter
 
         // Use FILTER_NULL_ON_FAILURE to properly handle invalid values
         $isTruthy = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
-        $shouldBeNull = $this->invertLogic ? !$isTruthy : $isTruthy;
+        $shouldBeNull = $this->invertLogic ? ! $isTruthy : $isTruthy;
 
         if ($shouldBeNull) {
             $subject->whereNull($column);

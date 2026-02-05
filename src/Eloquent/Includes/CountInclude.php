@@ -17,12 +17,12 @@ final class CountInclude extends AbstractInclude
     /**
      * Create a new count include.
      *
-     * @param string $relation The relationship name
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $relation  The relationship name
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $relation, ?string $alias = null): static
     {
-        return new static($relation, $alias);
+        return new self($relation, $alias);
     }
 
     public function getType(): string
@@ -31,7 +31,7 @@ final class CountInclude extends AbstractInclude
     }
 
     /**
-     * @param Builder<Model>|Relation<Model, Model, mixed> $subject
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
      * @return Builder<Model>|Relation<Model, Model, mixed>
      */
     public function apply(mixed $subject): mixed

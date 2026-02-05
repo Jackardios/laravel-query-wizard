@@ -16,8 +16,8 @@ class InvalidFieldQuery extends InvalidQuery
     public Collection $allowedFields;
 
     /**
-     * @param Collection<int, string> $unknownFields
-     * @param Collection<int, string> $allowedFields
+     * @param  Collection<int, string>  $unknownFields
+     * @param  Collection<int, string>  $allowedFields
      */
     public function __construct(Collection $unknownFields, Collection $allowedFields)
     {
@@ -32,8 +32,8 @@ class InvalidFieldQuery extends InvalidQuery
     }
 
     /**
-     * @param Collection<int, string> $unknownFields
-     * @param Collection<int, string> $allowedFields
+     * @param  Collection<int, string>  $unknownFields
+     * @param  Collection<int, string>  $allowedFields
      */
     public static function fieldsNotAllowed(Collection $unknownFields, Collection $allowedFields): self
     {

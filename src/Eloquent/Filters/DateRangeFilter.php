@@ -19,48 +19,56 @@ final class DateRangeFilter extends AbstractFilter
     use ParsesRangeValues;
 
     protected string $fromKey = 'from';
+
     protected string $toKey = 'to';
+
     protected ?string $dateFormat = null;
 
     /**
      * Create a new date range filter.
      *
-     * @param string $property The column name to filter on
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to filter on
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, ?string $alias = null): static
     {
-        return new static($property, $alias);
+        return new self($property, $alias);
     }
 
     /**
      * Set the key used for start date in the request.
+     *
+     * Note: This method mutates the current instance.
      */
     public function fromKey(string $key): static
     {
-        $clone = clone $this;
-        $clone->fromKey = $key;
-        return $clone;
+        $this->fromKey = $key;
+
+        return $this;
     }
 
     /**
      * Set the key used for end date in the request.
+     *
+     * Note: This method mutates the current instance.
      */
     public function toKey(string $key): static
     {
-        $clone = clone $this;
-        $clone->toKey = $key;
-        return $clone;
+        $this->toKey = $key;
+
+        return $this;
     }
 
     /**
      * Set the date format for DateTime values.
+     *
+     * Note: This method mutates the current instance.
      */
     public function dateFormat(string $format): static
     {
-        $clone = clone $this;
-        $clone->dateFormat = $format;
-        return $clone;
+        $this->dateFormat = $format;
+
+        return $this;
     }
 
     public function getType(): string
@@ -69,8 +77,8 @@ final class DateRangeFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
-     * @param array<string, mixed>|mixed $value
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  array<string, mixed>|mixed  $value
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
@@ -91,7 +99,7 @@ final class DateRangeFilter extends AbstractFilter
     }
 
     /**
-     * @param DateTimeInterface|mixed $value
+     * @param  DateTimeInterface|mixed  $value
      */
     protected function formatDate(mixed $value): mixed
     {

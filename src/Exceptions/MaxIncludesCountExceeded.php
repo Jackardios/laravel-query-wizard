@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Exceptions;
 class MaxIncludesCountExceeded extends QueryLimitExceeded
 {
     public int $count;
+
     public int $maxCount;
 
     public function __construct(int $count, int $maxCount)

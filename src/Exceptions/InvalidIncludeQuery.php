@@ -16,8 +16,8 @@ class InvalidIncludeQuery extends InvalidQuery
     public Collection $allowedIncludes;
 
     /**
-     * @param Collection<int, string> $unknownIncludes
-     * @param Collection<int, string> $allowedIncludes
+     * @param  Collection<int, string>  $unknownIncludes
+     * @param  Collection<int, string>  $allowedIncludes
      */
     public function __construct(Collection $unknownIncludes, Collection $allowedIncludes)
     {
@@ -39,8 +39,8 @@ class InvalidIncludeQuery extends InvalidQuery
     }
 
     /**
-     * @param Collection<int, string> $unknownIncludes
-     * @param Collection<int, string> $allowedIncludes
+     * @param  Collection<int, string>  $unknownIncludes
+     * @param  Collection<int, string>  $allowedIncludes
      */
     public static function includesNotAllowed(Collection $unknownIncludes, Collection $allowedIncludes): self
     {

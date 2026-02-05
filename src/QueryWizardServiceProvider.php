@@ -22,7 +22,7 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
         $this->mergeConfigFrom(__DIR__.'/../config/query-wizard.php', 'query-wizard');
 
         $this->app->singleton(QueryWizardConfig::class, function () {
-            return new QueryWizardConfig();
+            return new QueryWizardConfig;
         });
 
         // Use scoped binding for Octane compatibility - ensures fresh instance per request

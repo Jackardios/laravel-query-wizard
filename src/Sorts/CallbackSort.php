@@ -27,9 +27,9 @@ class CallbackSort extends AbstractSort
     /**
      * Create a new callback sort.
      *
-     * @param string $property The sort property name
-     * @param callable(mixed $subject, string $direction, string $property): void $callback
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The sort property name
+     * @param  callable(mixed $subject, string $direction, string $property): void  $callback
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, callable $callback, ?string $alias = null): static
     {
@@ -44,6 +44,7 @@ class CallbackSort extends AbstractSort
     public function apply(mixed $subject, string $direction): mixed
     {
         ($this->callback)($subject, $direction, $this->property);
+
         return $subject;
     }
 }

@@ -36,7 +36,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
     protected mixed $subject;
 
     /**
-     * @param Builder<Model>|Relation<Model, Model, mixed> $subject
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
      */
     public function __construct(
         Builder|Relation $subject,
@@ -53,7 +53,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
     /**
      * Create a wizard for a model, query builder, or relation.
      *
-     * @param class-string<Model>|Builder<Model>|Relation<Model, Model, mixed>|Model $subject
+     * @param  class-string<Model>|Builder<Model>|Relation<Model, Model, mixed>|Model  $subject
      */
     public static function for(string|Builder|Relation|Model $subject): static
     {
@@ -66,13 +66,13 @@ final class EloquentQueryWizard extends BaseQueryWizard
         }
 
         /** @var Builder<Model>|Relation<Model, Model, mixed> $subject */
-        return new static($subject);
+        return new self($subject);
     }
 
     /**
      * Create a wizard from a resource schema.
      *
-     * @param class-string<ResourceSchemaInterface>|ResourceSchemaInterface $schema
+     * @param  class-string<ResourceSchemaInterface>|ResourceSchemaInterface  $schema
      */
     public static function forSchema(string|ResourceSchemaInterface $schema): static
     {
@@ -101,6 +101,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $results = $this->subject->get();
         $this->applyAppendsTo($results);
+
         return $results;
     }
 
@@ -114,6 +115,21 @@ final class EloquentQueryWizard extends BaseQueryWizard
         if ($result !== null) {
             $this->applyAppendsTo([$result]);
         }
+
+        return $result;
+    }
+
+    /**
+     * Build and execute query, returning first result or throwing exception.
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException<Model>
+     */
+    public function firstOrFail(): Model
+    {
+        $this->build();
+        $result = $this->subject->firstOrFail();
+        $this->applyAppendsTo([$result]);
+
         return $result;
     }
 
@@ -125,6 +141,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $paginator = $this->subject->paginate($perPage);
         $this->applyAppendsTo($paginator->getCollection());
+
         return $paginator;
     }
 
@@ -136,6 +153,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $paginator = $this->subject->simplePaginate($perPage);
         $this->applyAppendsTo($paginator->items());
+
         return $paginator;
     }
 
@@ -147,6 +165,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $paginator = $this->subject->cursorPaginate($perPage);
         $this->applyAppendsTo($paginator->items());
+
         return $paginator;
     }
 
@@ -158,6 +177,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
     public function toQuery(): Builder|Relation
     {
         $this->build();
+
         return $this->subject;
     }
 
@@ -183,6 +203,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
     {
         // String = field sort by default, strip leading '-' for property
         $property = ltrim($name, '-');
+
         return FieldSort::make($property);
     }
 
@@ -193,7 +214,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
 
     protected function applyFields(array $fields): void
     {
-        if (!empty($fields) && $fields !== ['*']) {
+        if (! empty($fields) && $fields !== ['*']) {
             $qualifiedFields = $this->qualifyColumns($fields);
             $this->subject->select($qualifiedFields);
         }
@@ -204,6 +225,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         if ($this->schema !== null) {
             return $this->schema->type();
         }
+
         return Str::camel(class_basename($this->subject->getModel()));
     }
 
@@ -212,14 +234,15 @@ final class EloquentQueryWizard extends BaseQueryWizard
     /**
      * Qualify column names with table prefix.
      *
-     * @param array<string> $fields
+     * @param  array<string>  $fields
      * @return array<string>
      */
     protected function qualifyColumns(array $fields): array
     {
         $model = $this->subject->getModel();
+
         return array_map(
-            fn($field) => $model->qualifyColumn($field),
+            fn ($field) => $model->qualifyColumn($field),
             $fields
         );
     }
@@ -227,9 +250,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
     /**
      * Proxy method calls to the underlying query builder.
      *
-     * @param string $name
-     * @param array<int, mixed> $arguments
-     * @return mixed
+     * @param  array<int, mixed>  $arguments
      */
     public function __call(string $name, array $arguments): mixed
     {
@@ -243,6 +264,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         // If the method returns a new Builder/Relation, update subject and return $this
         if ($result instanceof Builder || $result instanceof Relation) {
             $this->subject = $result;
+
             return $this;
         }
 
@@ -252,12 +274,13 @@ final class EloquentQueryWizard extends BaseQueryWizard
 
     /**
      * Clone the wizard.
+     *
+     * Creates an independent copy with the same build state.
+     * The query builder is cloned to ensure independent state.
      */
     public function __clone(): void
     {
+        // Parent handles subject cloning and build state preservation
         parent::__clone();
-
-        // Clone the query builder to ensure independent state
-        $this->subject = clone $this->subject;
     }
 }

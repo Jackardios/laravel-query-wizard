@@ -20,32 +20,30 @@ use WeakMap;
  * Filter by model scope.
  *
  * Calls the specified scope method on the model with the filter value(s).
- * Supports automatic model binding resolution for type-hinted parameters.
+ * Supports automatic model binding resolution for type-hinted parameters
+ * (disabled by default for security).
  *
- * SECURITY NOTE: When using resolveModelBindings (enabled by default),
- * ensure your scope methods include proper authorization checks.
- * The binding resolution will load any model by ID without authorization.
+ * To enable model binding resolution:
+ * ```php
+ * EloquentFilter::scope('byAuthor')->withModelBinding()
+ * ```
+ *
+ * SECURITY NOTE: When using withModelBinding(), ensure your scope
+ * methods include proper authorization checks. The binding resolution
+ * will load any model by ID without authorization.
  *
  * Example safe usage:
  * ```php
  * public function scopeByAuthor(Builder $query, User $author)
  * {
- *     // Add authorization check
- *     if (!auth()->user()->can('view', $author)) {
- *         abort(403);
- *     }
+ *     abort_unless(auth()->user()->can('view', $author), 403);
  *     return $query->where('author_id', $author->id);
  * }
- * ```
- *
- * Or disable binding resolution:
- * ```php
- * EloquentFilter::scope('byAuthor')->resolveModelBindings(false)
  * ```
  */
 final class ScopeFilter extends AbstractFilter
 {
-    protected bool $resolveModelBindings = true;
+    protected bool $resolveModelBindings = false;
 
     /**
      * Cache for reflected scope method parameters.
@@ -56,24 +54,54 @@ final class ScopeFilter extends AbstractFilter
     protected static ?WeakMap $reflectionCache = null;
 
     /**
-     * Create a new scope filter.
+     * Clear the reflection cache.
      *
-     * @param string $scope The scope method name (without 'scope' prefix)
-     * @param string|null $alias Optional alias for URL parameter name
+     * Call this method in Laravel Octane's RequestTerminated listener
+     * if you want to explicitly clear the cache between requests.
+     * Note: The WeakMap already handles cleanup automatically when
+     * model instances are garbage collected, so this is optional.
      */
-    public static function make(string $scope, ?string $alias = null): static
+    public static function clearReflectionCache(): void
     {
-        return new static($scope, $alias);
+        self::$reflectionCache = null;
     }
 
     /**
-     * Enable or disable automatic model binding resolution.
+     * Create a new scope filter.
+     *
+     * @param  string  $scope  The scope method name (without 'scope' prefix)
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
-    public function resolveModelBindings(bool $value = true): static
+    public static function make(string $scope, ?string $alias = null): static
     {
-        $clone = clone $this;
-        $clone->resolveModelBindings = $value;
-        return $clone;
+        return new self($scope, $alias);
+    }
+
+    /**
+     * Enable automatic model binding resolution for type-hinted parameters.
+     *
+     * When enabled, filter values are resolved to model instances using
+     * Laravel's resolveRouteBinding() method.
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function withModelBinding(): static
+    {
+        $this->resolveModelBindings = true;
+
+        return $this;
+    }
+
+    /**
+     * Disable automatic model binding resolution (default).
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function withoutModelBinding(): static
+    {
+        $this->resolveModelBindings = false;
+
+        return $this;
     }
 
     public function getType(): string
@@ -82,8 +110,9 @@ final class ScopeFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
      * @return Builder<\Illuminate\Database\Eloquent\Model>
+     *
      * @throws InvalidFilterValue
      * @throws ReflectionException
      */
@@ -114,9 +143,10 @@ final class ScopeFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $queryBuilder
-     * @param array<int, mixed> $values
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $queryBuilder
+     * @param  array<int, mixed>  $values
      * @return array<int, mixed>
+     *
      * @throws ReflectionException
      * @throws InvalidFilterValue
      */
@@ -130,7 +160,7 @@ final class ScopeFilter extends AbstractFilter
 
         foreach ($parameters as $parameter) {
             $class = $this->getClass($parameter);
-            if ($class === null || !$class->isSubclassOf(Model::class)) {
+            if ($class === null || ! $class->isSubclassOf(Model::class)) {
                 continue;
             }
 
@@ -162,7 +192,7 @@ final class ScopeFilter extends AbstractFilter
     {
         if (self::$reflectionCache === null) {
             /** @var WeakMap<Model, array<string, array<ReflectionParameter>|null>> $cache */
-            $cache = new WeakMap();
+            $cache = new WeakMap;
             self::$reflectionCache = $cache;
         }
 
@@ -172,17 +202,17 @@ final class ScopeFilter extends AbstractFilter
     /**
      * Get scope method parameters with caching
      *
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $queryBuilder
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $queryBuilder
      * @return array<ReflectionParameter>|null
      */
     protected function getScopeParameters(Builder $queryBuilder, string $scope): ?array
     {
         $model = $queryBuilder->getModel();
         $cache = self::getReflectionCache();
-        $scopeKey = 'scope' . ucfirst($scope);
+        $scopeKey = 'scope'.ucfirst($scope);
 
         // Initialize cache entry for this model if not exists
-        if (!isset($cache[$model])) {
+        if (! isset($cache[$model])) {
             $cache[$model] = [];
         }
 
@@ -199,23 +229,26 @@ final class ScopeFilter extends AbstractFilter
                 ->getParameters();
             $modelCache[$scopeKey] = $parameters;
             $cache[$model] = $modelCache;
+
             return $parameters;
         } catch (ReflectionException) {
             $modelCache[$scopeKey] = null;
             $cache[$model] = $modelCache;
+
             return null;
         }
     }
 
     /**
      * @return ReflectionClass<object>|null
+     *
      * @throws ReflectionException
      */
     protected function getClass(ReflectionParameter $parameter): ?ReflectionClass
     {
         $type = $parameter->getType();
 
-        if (!$type instanceof ReflectionNamedType) {
+        if (! $type instanceof ReflectionNamedType) {
             return null;
         }
 
@@ -229,6 +262,7 @@ final class ScopeFilter extends AbstractFilter
 
         /** @var class-string $className */
         $className = $type->getName();
+
         return new ReflectionClass($className);
     }
 }

@@ -27,9 +27,9 @@ class CallbackFilter extends AbstractFilter
     /**
      * Create a new callback filter.
      *
-     * @param string $property The filter property name
-     * @param callable(mixed $subject, mixed $value, string $property): void $callback
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The filter property name
+     * @param  callable(mixed $subject, mixed $value, string $property): void  $callback
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, callable $callback, ?string $alias = null): static
     {
@@ -44,6 +44,7 @@ class CallbackFilter extends AbstractFilter
     public function apply(mixed $subject, mixed $value): mixed
     {
         ($this->callback)($subject, $value, $this->property);
+
         return $subject;
     }
 }

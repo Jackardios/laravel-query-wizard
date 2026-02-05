@@ -38,7 +38,7 @@ interface IncludeInterface
     /**
      * Apply the include to the subject.
      *
-     * @param mixed $subject The query builder or other subject
+     * @param  mixed  $subject  The query builder or other subject
      * @return mixed The modified subject
      */
     public function apply(mixed $subject): mixed;

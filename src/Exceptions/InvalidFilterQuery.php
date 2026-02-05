@@ -16,8 +16,8 @@ class InvalidFilterQuery extends InvalidQuery
     public Collection $allowedFilters;
 
     /**
-     * @param Collection<int, string> $unknownFilters
-     * @param Collection<int, string> $allowedFilters
+     * @param  Collection<int, string>  $unknownFilters
+     * @param  Collection<int, string>  $allowedFilters
      */
     public function __construct(Collection $unknownFilters, Collection $allowedFilters)
     {
@@ -32,8 +32,8 @@ class InvalidFilterQuery extends InvalidQuery
     }
 
     /**
-     * @param Collection<int, string> $unknownFilters
-     * @param Collection<int, string> $allowedFilters
+     * @param  Collection<int, string>  $unknownFilters
+     * @param  Collection<int, string>  $allowedFilters
      */
     public static function filtersNotAllowed(Collection $unknownFilters, Collection $allowedFilters): self
     {

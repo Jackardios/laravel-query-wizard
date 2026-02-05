@@ -41,7 +41,7 @@ interface ResourceSchemaInterface
     /**
      * Get allowed includes.
      *
-     * @param QueryWizardInterface $wizard The wizard requesting includes (for conditional logic)
+     * @param  QueryWizardInterface  $wizard  The wizard requesting includes (for conditional logic)
      * @return array<IncludeInterface|string>
      */
     public function includes(QueryWizardInterface $wizard): array;
@@ -49,7 +49,7 @@ interface ResourceSchemaInterface
     /**
      * Get allowed fields.
      *
-     * @param QueryWizardInterface $wizard The wizard requesting fields (for conditional logic)
+     * @param  QueryWizardInterface  $wizard  The wizard requesting fields (for conditional logic)
      * @return array<string>
      */
     public function fields(QueryWizardInterface $wizard): array;
@@ -57,7 +57,7 @@ interface ResourceSchemaInterface
     /**
      * Get allowed appends.
      *
-     * @param QueryWizardInterface $wizard The wizard requesting appends (for conditional logic)
+     * @param  QueryWizardInterface  $wizard  The wizard requesting appends (for conditional logic)
      * @return array<string>
      */
     public function appends(QueryWizardInterface $wizard): array;
@@ -65,7 +65,7 @@ interface ResourceSchemaInterface
     /**
      * Get default includes to always load.
      *
-     * @param QueryWizardInterface $wizard The wizard requesting default includes (for conditional logic)
+     * @param  QueryWizardInterface  $wizard  The wizard requesting default includes (for conditional logic)
      * @return array<string>
      */
     public function defaultIncludes(QueryWizardInterface $wizard): array;
@@ -73,7 +73,7 @@ interface ResourceSchemaInterface
     /**
      * Get default appends to always add.
      *
-     * @param QueryWizardInterface $wizard The wizard requesting default appends (for conditional logic)
+     * @param  QueryWizardInterface  $wizard  The wizard requesting default appends (for conditional logic)
      * @return array<string>
      */
     public function defaultAppends(QueryWizardInterface $wizard): array;
@@ -83,7 +83,7 @@ interface ResourceSchemaInterface
     /**
      * Get allowed filters.
      *
-     * @param QueryWizardInterface $wizard The wizard requesting filters (for conditional logic)
+     * @param  QueryWizardInterface  $wizard  The wizard requesting filters (for conditional logic)
      * @return array<FilterInterface|string>
      */
     public function filters(QueryWizardInterface $wizard): array;
@@ -91,7 +91,7 @@ interface ResourceSchemaInterface
     /**
      * Get allowed sorts.
      *
-     * @param QueryWizardInterface $wizard The wizard requesting sorts (for conditional logic)
+     * @param  QueryWizardInterface  $wizard  The wizard requesting sorts (for conditional logic)
      * @return array<SortInterface|string>
      */
     public function sorts(QueryWizardInterface $wizard): array;
@@ -99,7 +99,7 @@ interface ResourceSchemaInterface
     /**
      * Get default sorts to apply when none requested.
      *
-     * @param QueryWizardInterface $wizard The wizard requesting default sorts (for conditional logic)
+     * @param  QueryWizardInterface  $wizard  The wizard requesting default sorts (for conditional logic)
      * @return array<string>
      */
     public function defaultSorts(QueryWizardInterface $wizard): array;

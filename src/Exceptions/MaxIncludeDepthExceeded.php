@@ -7,7 +7,9 @@ namespace Jackardios\QueryWizard\Exceptions;
 class MaxIncludeDepthExceeded extends QueryLimitExceeded
 {
     public int $depth;
+
     public int $maxDepth;
+
     public string $include;
 
     public function __construct(string $include, int $depth, int $maxDepth)

@@ -18,37 +18,42 @@ final class RangeFilter extends AbstractFilter
     use ParsesRangeValues;
 
     protected string $minKey = 'min';
+
     protected string $maxKey = 'max';
 
     /**
      * Create a new range filter.
      *
-     * @param string $property The column name to filter on
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to filter on
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, ?string $alias = null): static
     {
-        return new static($property, $alias);
+        return new self($property, $alias);
     }
 
     /**
      * Set the key used for minimum value in the request.
+     *
+     * Note: This method mutates the current instance.
      */
     public function minKey(string $key): static
     {
-        $clone = clone $this;
-        $clone->minKey = $key;
-        return $clone;
+        $this->minKey = $key;
+
+        return $this;
     }
 
     /**
      * Set the key used for maximum value in the request.
+     *
+     * Note: This method mutates the current instance.
      */
     public function maxKey(string $key): static
     {
-        $clone = clone $this;
-        $clone->maxKey = $key;
-        return $clone;
+        $this->maxKey = $key;
+
+        return $this;
     }
 
     public function getType(): string
@@ -57,8 +62,8 @@ final class RangeFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
-     * @param array<string, mixed>|mixed $value
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  array<string, mixed>|mixed  $value
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function apply(mixed $subject, mixed $value): mixed

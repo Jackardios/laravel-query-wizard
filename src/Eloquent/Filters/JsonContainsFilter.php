@@ -20,30 +20,36 @@ final class JsonContainsFilter extends AbstractFilter
     /**
      * Create a new JSON contains filter.
      *
-     * @param string $property The JSON column name (dot notation for nested paths)
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The JSON column name (dot notation for nested paths)
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, ?string $alias = null): static
     {
-        return new static($property, $alias);
+        return new self($property, $alias);
     }
 
     /**
-     * Set whether all values must match (AND) or any value (OR).
+     * Require all values to match (AND logic, default).
+     *
+     * Note: This method mutates the current instance.
      */
-    public function matchAll(bool $value = true): static
+    public function matchAll(): static
     {
-        $clone = clone $this;
-        $clone->matchAll = $value;
-        return $clone;
+        $this->matchAll = true;
+
+        return $this;
     }
 
     /**
-     * Use OR logic instead of AND.
+     * Require any value to match (OR logic).
+     *
+     * Note: This method mutates the current instance.
      */
     public function matchAny(): static
     {
-        return $this->matchAll(false);
+        $this->matchAll = false;
+
+        return $this;
     }
 
     public function getType(): string
@@ -52,8 +58,8 @@ final class JsonContainsFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
-     * @param array|mixed $value
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  array|mixed  $value
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
@@ -82,13 +88,13 @@ final class JsonContainsFilter extends AbstractFilter
      */
     protected function resolveJsonColumn(string $propertyName): string
     {
-        if (!str_contains($propertyName, '.')) {
+        if (! str_contains($propertyName, '.')) {
             return $propertyName;
         }
 
         $parts = explode('.', $propertyName);
         $column = array_shift($parts);
 
-        return $column . '->' . implode('->', $parts);
+        return $column.'->'.implode('->', $parts);
     }
 }

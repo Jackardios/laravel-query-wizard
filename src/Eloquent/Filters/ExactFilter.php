@@ -24,8 +24,8 @@ class ExactFilter extends AbstractFilter
     /**
      * Create a new exact filter.
      *
-     * @param string $property The column name to filter on
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to filter on
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, ?string $alias = null): static
     {
@@ -33,13 +33,34 @@ class ExactFilter extends AbstractFilter
     }
 
     /**
-     * Enable or disable relation constraint for dot notation filtering.
+     * Enable relation constraint for dot notation filtering (default).
+     *
+     * When enabled, filters like 'posts.title' use whereHas() to constrain
+     * the query to records that have related posts matching the filter.
+     *
+     * Note: This method mutates the current instance.
      */
-    public function withRelationConstraint(bool $value = true): static
+    public function withRelationConstraint(): static
     {
-        $clone = clone $this;
-        $clone->withRelationConstraint = $value;
-        return $clone;
+        $this->withRelationConstraint = true;
+
+        return $this;
+    }
+
+    /**
+     * Disable relation constraint for dot notation filtering.
+     *
+     * When disabled, filters like 'posts.title' are applied directly
+     * without using whereHas(), which may be useful for JSON columns
+     * or when joining tables manually.
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function withoutRelationConstraint(): static
+    {
+        $this->withRelationConstraint = false;
+
+        return $this;
     }
 
     public function getType(): string
@@ -48,7 +69,7 @@ class ExactFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
@@ -61,7 +82,7 @@ class ExactFilter extends AbstractFilter
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $builder
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder

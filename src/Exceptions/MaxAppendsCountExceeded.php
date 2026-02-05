@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Exceptions;
 
-class MaxSortsCountExceeded extends QueryLimitExceeded
+class MaxAppendsCountExceeded extends QueryLimitExceeded
 {
     public int $count;
 
@@ -15,7 +15,7 @@ class MaxSortsCountExceeded extends QueryLimitExceeded
         $this->count = $count;
         $this->maxCount = $maxCount;
 
-        $message = "The number of requested sorts ({$count}) exceeds the maximum allowed ({$maxCount}).";
+        $message = "The number of requested appends ({$count}) exceeds the maximum allowed ({$maxCount}).";
         parent::__construct($message);
     }
 

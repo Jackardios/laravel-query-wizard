@@ -40,8 +40,8 @@ interface SortInterface
     /**
      * Apply the sort to the subject.
      *
-     * @param mixed $subject The query builder or similar
-     * @param 'asc'|'desc' $direction The sort direction
+     * @param  mixed  $subject  The query builder or similar
+     * @param  'asc'|'desc'  $direction  The sort direction
      * @return mixed The modified subject
      */
     public function apply(mixed $subject, string $direction): mixed;

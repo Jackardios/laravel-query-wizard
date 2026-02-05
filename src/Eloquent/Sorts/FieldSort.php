@@ -15,12 +15,12 @@ final class FieldSort extends AbstractSort
     /**
      * Create a new field sort.
      *
-     * @param string $property The column name to sort on
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $property  The column name to sort on
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, ?string $alias = null): static
     {
-        return new static($property, $alias);
+        return new self($property, $alias);
     }
 
     public function getType(): string
@@ -29,8 +29,8 @@ final class FieldSort extends AbstractSort
     }
 
     /**
-     * @param Builder<\Illuminate\Database\Eloquent\Model> $subject
-     * @param 'asc'|'desc' $direction
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  'asc'|'desc'  $direction
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function apply(mixed $subject, string $direction): mixed

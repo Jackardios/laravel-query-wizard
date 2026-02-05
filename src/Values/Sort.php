@@ -9,10 +9,11 @@ use Jackardios\QueryWizard\Enums\SortDirection;
 class Sort
 {
     protected string $field;
+
     protected SortDirection $direction;
 
     /**
-     * @param string $field Field name (may include leading '-' for descending)
+     * @param  string  $field  Field name (may include leading '-' for descending)
      */
     public function __construct(string $field, ?SortDirection $direction = null)
     {

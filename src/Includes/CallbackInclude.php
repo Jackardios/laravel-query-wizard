@@ -27,9 +27,9 @@ class CallbackInclude extends AbstractInclude
     /**
      * Create a new callback include.
      *
-     * @param string $relation The relation/include name
-     * @param callable(mixed $subject, string $relation): void $callback
-     * @param string|null $alias Optional alias for URL parameter name
+     * @param  string  $relation  The relation/include name
+     * @param  callable(mixed $subject, string $relation): void  $callback
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $relation, callable $callback, ?string $alias = null): static
     {
@@ -44,6 +44,7 @@ class CallbackInclude extends AbstractInclude
     public function apply(mixed $subject): mixed
     {
         ($this->callback)($subject, $this->relation);
+
         return $subject;
     }
 }

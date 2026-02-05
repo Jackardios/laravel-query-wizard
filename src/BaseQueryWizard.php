@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard;
 
 use Illuminate\Support\Collection;
+use Jackardios\QueryWizard\Concerns\HandlesAppends;
 use Jackardios\QueryWizard\Concerns\HandlesConfiguration;
+use Jackardios\QueryWizard\Concerns\HandlesFields;
+use Jackardios\QueryWizard\Concerns\HandlesIncludes;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
@@ -31,43 +34,69 @@ use Jackardios\QueryWizard\Values\Sort;
  */
 abstract class BaseQueryWizard implements QueryWizardInterface
 {
+    use HandlesAppends;
     use HandlesConfiguration;
+    use HandlesFields;
+    use HandlesIncludes;
 
     protected mixed $subject;
+
     protected QueryParametersManager $parameters;
+
     protected QueryWizardConfig $config;
+
     protected ?ResourceSchemaInterface $schema = null;
 
     // Configuration (instance level)
     /** @var array<FilterInterface|string> */
     protected array $allowedFilters = [];
+
+    protected bool $allowedFiltersExplicitlySet = false;
+
     /** @var array<string> */
     protected array $disallowedFilters = [];
+
     /** @var array<SortInterface|string> */
     protected array $allowedSorts = [];
+
     protected bool $allowedSortsExplicitlySet = false;
+
     /** @var array<string> */
     protected array $disallowedSorts = [];
+
     /** @var array<string> */
     protected array $defaultSorts = [];
+
     /** @var array<IncludeInterface|string> */
     protected array $allowedIncludes = [];
+
     protected bool $allowedIncludesExplicitlySet = false;
+
     /** @var array<string> */
     protected array $disallowedIncludes = [];
+
     /** @var array<string> */
     protected array $defaultIncludes = [];
+
     /** @var array<string> */
     protected array $allowedFields = [];
+
+    protected bool $allowedFieldsExplicitlySet = false;
+
     /** @var array<string> */
     protected array $disallowedFields = [];
+
     /** @var array<string> */
     protected array $allowedAppends = [];
+
     protected bool $allowedAppendsExplicitlySet = false;
+
     /** @var array<string> */
     protected array $disallowedAppends = [];
+
     /** @var array<string> */
     protected array $defaultAppends = [];
+
     /** @var array<callable> */
     protected array $tapCallbacks = [];
 
@@ -105,7 +134,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Apply field selection to subject.
      *
-     * @param array<string> $fields
+     * @param  array<string>  $fields
      */
     abstract protected function applyFields(array $fields): void;
 
@@ -122,61 +151,101 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         return $this->config;
     }
 
+    /**
+     * Get the parameters manager.
+     */
+    protected function getParametersManager(): QueryParametersManager
+    {
+        return $this->parameters;
+    }
+
+    /**
+     * Get the schema instance.
+     */
+    protected function getSchema(): ?ResourceSchemaInterface
+    {
+        return $this->schema;
+    }
+
     // === Configuration API ===
+
+    /**
+     * Set the resource schema for configuration.
+     *
+     * The schema provides default filters, sorts, includes, fields, and appends.
+     * Explicit calls to allowed*() methods override schema definitions.
+     *
+     * @param  class-string<ResourceSchemaInterface>|ResourceSchemaInterface  $schema
+     */
+    public function schema(string|ResourceSchemaInterface $schema): static
+    {
+        $this->schema = is_string($schema) ? app($schema) : $schema;
+        $this->invalidateBuild();
+
+        return $this;
+    }
 
     /**
      * Set allowed filters.
      *
-     * @param FilterInterface|string|array<FilterInterface|string> ...$filters
+     * Empty array means all filters are forbidden.
+     * Not calling this method falls back to schema filters (if any).
+     *
+     * @param  FilterInterface|string|array<FilterInterface|string>  ...$filters
      */
     public function allowedFilters(FilterInterface|string|array ...$filters): static
     {
         $this->allowedFilters = $this->flattenDefinitions($filters);
+        $this->allowedFiltersExplicitlySet = true;
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set disallowed filters (to override schema).
      *
-     * @param string|array<string> ...$names
+     * @param  string|array<string>  ...$names
      */
     public function disallowedFilters(string|array ...$names): static
     {
         $this->disallowedFilters = $this->flattenStringArray($names);
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set allowed sorts.
      *
-     * @param SortInterface|string|array<SortInterface|string> ...$sorts
+     * @param  SortInterface|string|array<SortInterface|string>  ...$sorts
      */
     public function allowedSorts(SortInterface|string|array ...$sorts): static
     {
         $this->allowedSorts = $this->flattenDefinitions($sorts);
         $this->allowedSortsExplicitlySet = true;
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set disallowed sorts (to override schema).
      *
-     * @param string|array<string> ...$names
+     * @param  string|array<string>  ...$names
      */
     public function disallowedSorts(string|array ...$names): static
     {
         $this->disallowedSorts = $this->flattenStringArray($names);
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set default sorts.
      *
-     * @param string|Sort|array<string|Sort> ...$sorts
+     * @param  string|Sort|array<string|Sort>  ...$sorts
      */
     public function defaultSorts(string|Sort|array ...$sorts): static
     {
@@ -192,116 +261,131 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         }
         $this->defaultSorts = $flatSorts;
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set allowed includes.
      *
-     * @param IncludeInterface|string|array<IncludeInterface|string> ...$includes
+     * @param  IncludeInterface|string|array<IncludeInterface|string>  ...$includes
      */
     public function allowedIncludes(IncludeInterface|string|array ...$includes): static
     {
         $this->allowedIncludes = $this->flattenDefinitions($includes);
         $this->allowedIncludesExplicitlySet = true;
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set disallowed includes (to override schema).
      *
-     * @param string|array<string> ...$names
+     * @param  string|array<string>  ...$names
      */
     public function disallowedIncludes(string|array ...$names): static
     {
         $this->disallowedIncludes = $this->flattenStringArray($names);
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set default includes.
      *
-     * @param string|array<string> ...$names
+     * @param  string|array<string>  ...$names
      */
     public function defaultIncludes(string|array ...$names): static
     {
         $this->defaultIncludes = $this->flattenStringArray($names);
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set allowed fields.
      *
-     * @param string|array<string> ...$fields
+     * Empty array means all fields are forbidden.
+     * Use ['*'] to allow any fields requested by client.
+     * Not calling this method falls back to schema fields (if any).
+     *
+     * @param  string|array<string>  ...$fields
      */
     public function allowedFields(string|array ...$fields): static
     {
         $this->allowedFields = $this->flattenStringArray($fields);
+        $this->allowedFieldsExplicitlySet = true;
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set disallowed fields (to override schema).
      *
-     * @param string|array<string> ...$names
+     * @param  string|array<string>  ...$names
      */
     public function disallowedFields(string|array ...$names): static
     {
         $this->disallowedFields = $this->flattenStringArray($names);
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set allowed appends.
      *
-     * @param string|array<string> ...$appends
+     * @param  string|array<string>  ...$appends
      */
     public function allowedAppends(string|array ...$appends): static
     {
         $this->allowedAppends = $this->flattenStringArray($appends);
         $this->allowedAppendsExplicitlySet = true;
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set disallowed appends (to override schema).
      *
-     * @param string|array<string> ...$names
+     * @param  string|array<string>  ...$names
      */
     public function disallowedAppends(string|array ...$names): static
     {
         $this->disallowedAppends = $this->flattenStringArray($names);
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Set default appends.
      *
-     * @param string|array<string> ...$appends
+     * @param  string|array<string>  ...$appends
      */
     public function defaultAppends(string|array ...$appends): static
     {
         $this->defaultAppends = $this->flattenStringArray($appends);
         $this->invalidateBuild();
+
         return $this;
     }
 
     /**
      * Add a tap callback to modify the subject.
      *
-     * @param callable(mixed): void $callback
+     * @param  callable(mixed): void  $callback
      */
     public function tap(callable $callback): static
     {
         $this->tapCallbacks[] = $callback;
         $this->invalidateBuild();
+
         return $this;
     }
 
@@ -359,31 +443,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         return $result;
     }
 
-    /**
-     * Apply appends to a collection of results.
-     *
-     * Call this after executing the query to apply allowed appends.
-     *
-     * @template T of \Traversable<mixed>|array<mixed>
-     * @param T $results
-     * @return T
-     */
-    public function applyAppendsTo(mixed $results): mixed
-    {
-        $appends = $this->getValidRequestedAppends();
-        if (empty($appends)) {
-            return $results;
-        }
-
-        foreach ($results as $item) {
-            if (is_object($item) && method_exists($item, 'append')) {
-                $item->append($appends);
-            }
-        }
-
-        return $results;
-    }
-
     // === Protected: Build Logic ===
 
     protected function applyTapCallbacks(): void
@@ -410,8 +469,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
         // Validate requested filters
         foreach ($requestedFilterNames as $filterName) {
-            if (!$this->isValidFilterName($filterName, $allowedFilterNamesIndex, $prefixIndex)) {
-                if (!$this->config->isInvalidFilterQueryExceptionDisabled()) {
+            if (! $this->isValidFilterName($filterName, $allowedFilterNamesIndex, $prefixIndex)) {
+                if (! $this->config->isInvalidFilterQueryExceptionDisabled()) {
                     throw InvalidFilterQuery::filtersNotAllowed(
                         collect([$filterName]),
                         collect($allowedFilterNames)
@@ -430,10 +489,25 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             }
 
             $preparedValue = $filter->prepareValue($value);
+
+            // Skip if when() condition returned false (prepareValue returns null)
+            if ($preparedValue === null) {
+                continue;
+            }
+
             $this->subject = $filter->apply($this->subject, $preparedValue);
         }
     }
 
+    /**
+     * Apply sorts to the query subject.
+     *
+     * Validates requested sorts against allowed sorts, applies default sorts
+     * if none requested, and enforces sort count limits.
+     *
+     * @throws InvalidSortQuery When requested sort is not allowed
+     * @throws MaxSortsCountExceeded When sort count exceeds configured limit
+     */
     protected function applySortsToSubject(): void
     {
         $sorts = $this->getEffectiveSorts();
@@ -441,18 +515,18 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $defaultSorts = $this->getEffectiveDefaultSorts();
 
         $effectiveSorts = $requestedSorts->isEmpty()
-            ? collect($defaultSorts)->map(fn($s) => new Sort($s))
+            ? collect($defaultSorts)->map(fn ($s) => new Sort($s))
             : $requestedSorts;
 
-        // If no allowed sorts but some are requested, throw exception
-        // when allowedSorts was explicitly set to empty
-        if (empty($sorts) && $this->allowedSortsExplicitlySet && $effectiveSorts->isNotEmpty()) {
-            if (!$this->config->isInvalidSortQueryExceptionDisabled()) {
+        // If no allowed sorts but some are requested/default, throw exception
+        if (empty($sorts) && $effectiveSorts->isNotEmpty()) {
+            if (! $this->config->isInvalidSortQueryExceptionDisabled()) {
                 throw InvalidSortQuery::sortsNotAllowed(
-                    $effectiveSorts->map(fn(Sort $s) => $s->getField()),
+                    $effectiveSorts->map(fn (Sort $s) => $s->getField()),
                     collect([])
                 );
             }
+
             return;
         }
 
@@ -479,10 +553,11 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             /** @var Sort $sortValue */
             $field = $sortValue->getField();
 
-            if (!isset($sortsIndex[$field])) {
-                if (!$this->config->isInvalidSortQueryExceptionDisabled()) {
+            if (! isset($sortsIndex[$field])) {
+                if (! $this->config->isInvalidSortQueryExceptionDisabled()) {
                     throw InvalidSortQuery::sortsNotAllowed(collect([$field]), collect($allowedSortNames));
                 }
+
                 continue;
             }
 
@@ -506,14 +581,14 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $this->validateIncludesLimit(count($requestedIncludes));
 
         // If no allowed includes but some are requested, throw exception
-        // when allowedIncludes was explicitly set to empty
-        if (empty($includes) && $this->allowedIncludesExplicitlySet && !empty($requestedIncludes)) {
-            if (!$this->config->isInvalidIncludeQueryExceptionDisabled()) {
+        if (empty($includes) && ! empty($requestedIncludes)) {
+            if (! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
                 throw InvalidIncludeQuery::includesNotAllowed(
                     collect($requestedIncludes),
                     collect([])
                 );
             }
+
             return;
         }
 
@@ -521,35 +596,21 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return;
         }
 
-        // Build includes index
-        $includesIndex = [];
-        foreach ($includes as $include) {
-            $includesIndex[$include->getName()] = $include;
-        }
-
-        // Also add implicit count includes for relationships
-        $countSuffix = $this->config->getCountSuffix();
-        foreach ($includes as $include) {
-            if ($include->getType() === 'relationship') {
-                $countName = $include->getRelation() . $countSuffix;
-                if (!isset($includesIndex[$countName])) {
-                    $countInclude = $this->normalizeStringToInclude($countName);
-                    $includesIndex[$countName] = $countInclude;
-                }
-            }
-        }
+        // Build includes index (with implicit count includes)
+        $includesIndex = $this->buildIncludesIndex($includes);
 
         // Validate requested includes
         $allowedIncludeNames = array_keys($includesIndex);
         $validRequestedIncludes = [];
         foreach ($requestedIncludes as $includeName) {
-            if (!isset($includesIndex[$includeName])) {
-                if (!$this->config->isInvalidIncludeQueryExceptionDisabled()) {
+            if (! isset($includesIndex[$includeName])) {
+                if (! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
                     throw InvalidIncludeQuery::includesNotAllowed(
                         collect([$includeName]),
                         collect($allowedIncludeNames)
                     );
                 }
+
                 continue;
             }
 
@@ -573,25 +634,42 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $requestedFields = $this->parameters->getFields();
         $resourceKey = $this->getResourceKey();
 
-        if (empty($allowedFields) || in_array('*', $allowedFields, true)) {
-            // If no specific allowed fields or wildcard, apply whatever was requested
-            $fields = $requestedFields->get($resourceKey, []);
-            if (!empty($fields) && !in_array('*', $fields, true)) {
+        // Get requested fields for this resource
+        $fields = $requestedFields->get($resourceKey, []);
+
+        // Wildcard - allow any fields requested by client
+        if (in_array('*', $allowedFields, true)) {
+            if (! empty($fields) && ! in_array('*', $fields, true)) {
                 $this->applyFields($fields);
             }
+
             return;
         }
 
-        // Get requested fields for this resource
-        $fields = $requestedFields->get($resourceKey, []);
+        // Empty allowed fields - client cannot request specific fields
+        if (empty($allowedFields)) {
+            if (! empty($fields) && ! in_array('*', $fields, true)) {
+                // Client requested fields but none are allowed
+                if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
+                    throw \Jackardios\QueryWizard\Exceptions\InvalidFieldQuery::fieldsNotAllowed(
+                        collect($fields),
+                        collect([])
+                    );
+                }
+            }
+
+            return;
+        }
+
+        // No fields requested - nothing to apply
         if (empty($fields) || in_array('*', $fields, true)) {
             return;
         }
 
-        // Validate requested fields
+        // Validate requested fields against allowed list
         $invalidFields = array_diff($fields, $allowedFields);
-        if (!empty($invalidFields)) {
-            if (!$this->config->isInvalidFieldQueryExceptionDisabled()) {
+        if (! empty($invalidFields)) {
+            if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
                 throw \Jackardios\QueryWizard\Exceptions\InvalidFieldQuery::fieldsNotAllowed(
                     collect($invalidFields),
                     collect($allowedFields)
@@ -601,7 +679,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $fields = array_intersect($fields, $allowedFields);
         }
 
-        $this->applyFields($fields);
+        if (! empty($fields)) {
+            $this->applyFields($fields);
+        }
     }
 
     // === Protected: Resolution ===
@@ -614,44 +694,72 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Get effective filters.
      *
+     * If allowedFilters() was called explicitly, use those (even if empty).
+     * Otherwise, fall back to schema filters (if any).
+     * Empty result means all filters are forbidden.
+     *
      * @return array<string, FilterInterface>
      */
     protected function getEffectiveFilters(): array
     {
-        $filters = !empty($this->allowedFilters)
+        $filters = $this->allowedFiltersExplicitlySet
             ? $this->allowedFilters
             : ($this->schema?->filters($this) ?? []);
 
-        $filters = $this->normalizeFilters($filters);
-        $filters = $this->removeDisallowedFilters(array_values($filters));
-
-        // Re-index by name
+        // Single pass: normalize, filter disallowed, and index by name
+        $disallowed = $this->disallowedFilters;
         $result = [];
+
         foreach ($filters as $filter) {
-            $result[$filter->getName()] = $filter;
+            if (is_string($filter)) {
+                $filter = $this->normalizeStringToFilter($filter);
+            }
+            $name = $filter->getName();
+
+            // Skip if disallowed (check name and prefix match)
+            if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed)) {
+                continue;
+            }
+
+            $result[$name] = $filter;
         }
+
         return $result;
     }
 
     /**
      * Get effective sorts.
      *
+     * If allowedSorts() was called explicitly, use those (even if empty).
+     * Otherwise, fall back to schema sorts (if any).
+     * Empty result means all sorts are forbidden.
+     *
      * @return array<string, SortInterface>
      */
     protected function getEffectiveSorts(): array
     {
-        $sorts = !empty($this->allowedSorts)
+        $sorts = $this->allowedSortsExplicitlySet
             ? $this->allowedSorts
             : ($this->schema?->sorts($this) ?? []);
 
-        $sorts = $this->normalizeSorts($sorts);
-        $sorts = $this->removeDisallowedSorts(array_values($sorts));
-
-        // Re-index by name
+        // Single pass: normalize, filter disallowed, and index by name
+        $disallowed = $this->disallowedSorts;
         $result = [];
+
         foreach ($sorts as $sort) {
-            $result[$sort->getName()] = $sort;
+            if (is_string($sort)) {
+                $sort = $this->normalizeStringToSort($sort);
+            }
+            $name = $sort->getName();
+
+            // Skip if disallowed (check name and prefix match)
+            if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed)) {
+                continue;
+            }
+
+            $result[$name] = $sort;
         }
+
         return $result;
     }
 
@@ -662,228 +770,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      */
     protected function getEffectiveDefaultSorts(): array
     {
-        return !empty($this->defaultSorts)
+        return ! empty($this->defaultSorts)
             ? $this->defaultSorts
             : ($this->schema?->defaultSorts($this) ?? []);
-    }
-
-    /**
-     * Get effective includes.
-     *
-     * @return array<IncludeInterface>
-     */
-    protected function getEffectiveIncludes(): array
-    {
-        $includes = !empty($this->allowedIncludes)
-            ? $this->allowedIncludes
-            : ($this->schema?->includes($this) ?? []);
-
-        $includes = $this->normalizeIncludes($includes);
-        return $this->removeDisallowedIncludesFromArray($includes, $this->disallowedIncludes);
-    }
-
-    /**
-     * Get effective default includes.
-     *
-     * @return array<string>
-     */
-    protected function getEffectiveDefaultIncludes(): array
-    {
-        return !empty($this->defaultIncludes)
-            ? $this->defaultIncludes
-            : ($this->schema?->defaultIncludes($this) ?? []);
-    }
-
-    /**
-     * Get merged requested includes (defaults + request).
-     *
-     * @return array<string>
-     */
-    protected function getMergedRequestedIncludes(): array
-    {
-        $defaults = $this->getEffectiveDefaultIncludes();
-        $requested = $this->parameters->getIncludes()->all();
-        return array_unique(array_merge($defaults, $requested));
-    }
-
-    /**
-     * Get effective fields.
-     *
-     * @return array<string>
-     */
-    protected function getEffectiveFields(): array
-    {
-        $fields = !empty($this->allowedFields)
-            ? $this->allowedFields
-            : ($this->schema?->fields($this) ?? ['*']);
-
-        return $this->removeDisallowedStrings($fields, $this->disallowedFields);
-    }
-
-    /**
-     * Get effective appends.
-     *
-     * @return array<string>
-     */
-    protected function getEffectiveAppends(): array
-    {
-        $appends = !empty($this->allowedAppends)
-            ? $this->allowedAppends
-            : ($this->schema?->appends($this) ?? []);
-
-        return $this->removeDisallowedStrings($appends, $this->disallowedAppends);
-    }
-
-    /**
-     * Get effective default appends.
-     *
-     * @return array<string>
-     */
-    protected function getEffectiveDefaultAppends(): array
-    {
-        return !empty($this->defaultAppends)
-            ? $this->defaultAppends
-            : ($this->schema?->defaultAppends($this) ?? []);
-    }
-
-    /**
-     * Get valid requested appends.
-     *
-     * @return array<string>
-     */
-    protected function getValidRequestedAppends(): array
-    {
-        $allowed = $this->getEffectiveAppends();
-        $requested = $this->parameters->getAppends()->all();
-        $defaults = $this->getEffectiveDefaultAppends();
-
-        // Validate requested appends when allowedAppends was explicitly set
-        if ($this->allowedAppendsExplicitlySet && !empty($requested)) {
-            $invalidAppends = array_diff($requested, $allowed);
-            if (!empty($invalidAppends) && !$this->config->isInvalidAppendQueryExceptionDisabled()) {
-                throw \Jackardios\QueryWizard\Exceptions\InvalidAppendQuery::appendsNotAllowed(
-                    collect($invalidAppends),
-                    collect($allowed)
-                );
-            }
-        }
-
-        $validRequested = array_intersect($requested, $allowed);
-
-        return array_unique(array_merge($defaults, $validRequested));
-    }
-
-    // === Protected: Normalization ===
-
-    /**
-     * Normalize filters to FilterInterface instances.
-     *
-     * @param array<FilterInterface|string> $filters
-     * @return array<string, FilterInterface>
-     */
-    protected function normalizeFilters(array $filters): array
-    {
-        $result = [];
-        foreach ($filters as $filter) {
-            if (is_string($filter)) {
-                $filter = $this->normalizeStringToFilter($filter);
-            }
-            $result[$filter->getName()] = $filter;
-        }
-        return $result;
-    }
-
-    /**
-     * Normalize sorts to SortInterface instances.
-     *
-     * @param array<SortInterface|string> $sorts
-     * @return array<string, SortInterface>
-     */
-    protected function normalizeSorts(array $sorts): array
-    {
-        $result = [];
-        foreach ($sorts as $sort) {
-            if (is_string($sort)) {
-                $sort = $this->normalizeStringToSort($sort);
-            }
-            $result[$sort->getName()] = $sort;
-        }
-        return $result;
-    }
-
-    /**
-     * Normalize includes to IncludeInterface instances.
-     *
-     * @param array<IncludeInterface|string> $includes
-     * @return array<IncludeInterface>
-     */
-    protected function normalizeIncludes(array $includes): array
-    {
-        $countSuffix = $this->config->getCountSuffix();
-
-        $result = [];
-        foreach ($includes as $include) {
-            if (is_string($include)) {
-                $include = $this->normalizeStringToInclude($include);
-            }
-
-            // For count includes without alias, auto-apply count suffix
-            if ($include->getType() === 'count' && $include->getAlias() === null) {
-                $include = $include->alias($include->getRelation() . $countSuffix);
-            }
-
-            $result[] = $include;
-        }
-        return $result;
-    }
-
-    // === Protected: Filtering disallowed ===
-
-    /**
-     * Remove disallowed filters.
-     *
-     * @param array<FilterInterface> $filters
-     * @return array<FilterInterface>
-     */
-    protected function removeDisallowedFilters(array $filters): array
-    {
-        return $this->removeDisallowedByName(
-            $filters,
-            $this->disallowedFilters,
-            static fn(FilterInterface $f) => $f->getName()
-        );
-    }
-
-    /**
-     * Remove disallowed sorts.
-     *
-     * @param array<SortInterface> $sorts
-     * @return array<SortInterface>
-     */
-    protected function removeDisallowedSorts(array $sorts): array
-    {
-        return $this->removeDisallowedByName(
-            $sorts,
-            $this->disallowedSorts,
-            static fn(SortInterface $s) => $s->getName()
-        );
-    }
-
-    /**
-     * Remove disallowed includes.
-     *
-     * @param array<IncludeInterface> $includes
-     * @param array<string> $disallowedIncludes
-     * @return array<IncludeInterface>
-     */
-    protected function removeDisallowedIncludesFromArray(array $includes, array $disallowedIncludes): array
-    {
-        return $this->removeDisallowedByName(
-            $includes,
-            $disallowedIncludes,
-            static fn(IncludeInterface $i) => $i->getName(),
-            $this->config->getCountSuffix()
-        );
     }
 
     // === Protected: Validation ===
@@ -910,8 +799,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Extract all possible filter names from a nested request structure.
      *
-     * @param array<string, mixed> $filters
-     * @param array<string, int> $allowedFilterNamesIndex
+     * @param  array<string, mixed>  $filters
+     * @param  array<string, int>  $allowedFilterNamesIndex
      * @return array<string>
      */
     protected function extractAllRequestedFilterNames(
@@ -924,7 +813,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $names = [];
 
         foreach ($filters as $key => $value) {
-            $fullKey = $prefix === '' ? (string) $key : $prefix . '.' . $key;
+            $fullKey = $prefix === '' ? (string) $key : $prefix.'.'.$key;
             $names[] = $fullKey;
 
             if (isset($allowedFilterNamesIndex[$fullKey])) {
@@ -932,7 +821,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             }
 
             $canRecurse = $maxDepth === null || $currentDepth < $maxDepth;
-            if ($canRecurse && is_array($value) && !empty($value) && $this->isAssociativeArray($value)) {
+            if ($canRecurse && is_array($value) && ! empty($value) && $this->isAssociativeArray($value)) {
                 $names = array_merge(
                     $names,
                     $this->extractAllRequestedFilterNames(
@@ -952,7 +841,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Build prefix index for dot notation support.
      *
-     * @param array<string> $allowedFilterNames
+     * @param  array<string>  $allowedFilterNames
      * @return array<string, bool>
      */
     protected function buildPrefixIndex(array $allowedFilterNames): array
@@ -965,18 +854,19 @@ abstract class BaseQueryWizard implements QueryWizardInterface
                 if ($i === count($parts) - 1) {
                     break;
                 }
-                $prefix = $prefix === '' ? $part : $prefix . '.' . $part;
+                $prefix = $prefix === '' ? $part : $prefix.'.'.$part;
                 $prefixIndex[$prefix] = true;
             }
         }
+
         return $prefixIndex;
     }
 
     /**
      * Check if a filter name is valid.
      *
-     * @param array<string, int> $allowedFilterNamesIndex
-     * @param array<string, bool> $prefixIndex
+     * @param  array<string, int>  $allowedFilterNamesIndex
+     * @param  array<string, bool>  $prefixIndex
      */
     protected function isValidFilterName(string $filterName, array $allowedFilterNamesIndex, array $prefixIndex): bool
     {
@@ -1036,19 +926,42 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     {
         if ($sort instanceof Sort) {
             $prefix = $sort->getDirection() === 'desc' ? '-' : '';
-            return $prefix . $sort->getField();
+
+            return $prefix.$sort->getField();
         }
+
         return $sort;
     }
 
     /**
      * Clone the wizard.
+     *
+     * Creates an independent copy with the same build state.
+     * If the original was built, the clone will also be built
+     * (with already-applied operations) to avoid double-application.
+     *
+     * To reconfigure a cloned wizard, call resetBuild() first.
      */
     public function __clone(): void
     {
         if (is_object($this->subject)) {
             $this->subject = clone $this->subject;
         }
+        // Preserve built state to avoid double-applying operations
+        // If you need to reconfigure the clone, call resetBuild()
+    }
+
+    /**
+     * Reset the build state to allow reconfiguration.
+     *
+     * WARNING: If the subject already has operations applied (from a previous build),
+     * calling this and then build() will apply operations again.
+     * Only use this if you know the subject is in a clean state.
+     */
+    public function resetBuild(): static
+    {
         $this->built = false;
+
+        return $this;
     }
 }

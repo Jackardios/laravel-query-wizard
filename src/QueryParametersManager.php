@@ -6,10 +6,17 @@ namespace Jackardios\QueryWizard;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Support\FilterValueTransformer;
+use Jackardios\QueryWizard\Support\ParameterParser;
 use Jackardios\QueryWizard\Values\Sort;
 
+/**
+ * Manages query parameters from HTTP requests.
+ *
+ * Handles parsing and caching of filter, sort, include, field, and append parameters.
+ * Uses ParameterParser for list/sort parsing and FilterValueTransformer for filter values.
+ */
 class QueryParametersManager
 {
     /** @var Collection<int, string>|null */
@@ -29,11 +36,18 @@ class QueryParametersManager
 
     protected QueryWizardConfig $config;
 
+    protected ParameterParser $parser;
+
+    protected FilterValueTransformer $filterTransformer;
+
     public function __construct(
         protected ?Request $request = null,
         ?QueryWizardConfig $config = null
     ) {
-        $this->config = $config ?? new QueryWizardConfig();
+        $this->config = $config ?? new QueryWizardConfig;
+        $separator = $this->config->getArrayValueSeparator();
+        $this->parser = new ParameterParser($separator);
+        $this->filterTransformer = new FilterValueTransformer($separator);
     }
 
     public function getRequest(): ?Request
@@ -56,11 +70,12 @@ class QueryParametersManager
         }
 
         $fieldsParameterName = $this->config->getFieldsParameterName();
+        $rawValue = $fieldsParameterName ? $this->getRequestData($fieldsParameterName) : null;
 
-        $this->setFieldsParameter($fieldsParameterName ? $this->getRequestData($fieldsParameterName) : collect());
+        $this->fields = $this->parser->parseFields($rawValue);
 
         /** @var Collection<string, array<string>> */
-        return $this->fields ?? collect();
+        return $this->fields;
     }
 
     /**
@@ -73,11 +88,12 @@ class QueryParametersManager
         }
 
         $appendsParameterName = $this->config->getAppendsParameterName();
+        $rawValue = $appendsParameterName ? $this->getRequestData($appendsParameterName) : null;
 
-        $this->setAppendsParameter($appendsParameterName ? $this->getRequestData($appendsParameterName) : collect());
+        $this->appends = $this->parser->parseList($rawValue);
 
         /** @var Collection<int, string> */
-        return $this->appends ?? collect();
+        return $this->appends;
     }
 
     /**
@@ -90,8 +106,9 @@ class QueryParametersManager
         }
 
         $filtersParameterName = $this->config->getFiltersParameterName();
+        $rawValue = $filtersParameterName ? $this->getRequestData($filtersParameterName) : null;
 
-        $this->setFiltersParameter($filtersParameterName ? $this->getRequestData($filtersParameterName) : collect());
+        $this->setFiltersParameter($rawValue);
 
         /** @var Collection<string, mixed> */
         return $this->filters ?? collect();
@@ -107,11 +124,12 @@ class QueryParametersManager
         }
 
         $includesParameterName = $this->config->getIncludesParameterName();
+        $rawValue = $includesParameterName ? $this->getRequestData($includesParameterName) : null;
 
-        $this->setIncludesParameter($includesParameterName ? $this->getRequestData($includesParameterName) : collect());
+        $this->includes = $this->parser->parseList($rawValue);
 
         /** @var Collection<int, string> */
-        return $this->includes ?? collect();
+        return $this->includes;
     }
 
     /**
@@ -124,83 +142,37 @@ class QueryParametersManager
         }
 
         $sortsParameterName = $this->config->getSortsParameterName();
+        $rawValue = $sortsParameterName ? $this->getRequestData($sortsParameterName) : null;
 
-        $this->setSortsParameter($sortsParameterName ? $this->getRequestData($sortsParameterName) : collect());
+        $this->sorts = $this->parser->parseSorts($rawValue);
 
         /** @var Collection<int, Sort> */
-        return $this->sorts ?? collect();
+        return $this->sorts;
     }
 
+    /**
+     * Set fields parameter manually (for testing or programmatic use).
+     */
     public function setFieldsParameter(mixed $fieldsParameter): static
     {
-        if (is_string($fieldsParameter)) {
-            $fieldsParameter = $this->parseFieldsString($fieldsParameter);
-        }
-
-        /** @var Collection<string, array<string>> $fields */
-        $fields = collect($fieldsParameter)
-            ->map(function ($fields) {
-                if (is_string($fields)) {
-                    $fields = $this->separateToArray($fields);
-                }
-
-                return $this->prepareList($fields)->toArray();
-            })
-            ->filter();
-
-        $this->fields = $fields;
+        $this->fields = $this->parser->parseFields($fieldsParameter);
 
         return $this;
     }
 
     /**
-     * Parse fields string like "resource.field,resource2.field2,simpleField"
-     * into associative array grouped by resource name.
-     * Fields without dots are grouped under empty string key.
-     *
-     * @param string $fieldsString
-     * @return array<string, array<string>>
+     * Set appends parameter manually (for testing or programmatic use).
      */
-    protected function parseFieldsString(string $fieldsString): array
-    {
-        $fields = $this->separateToArray($fieldsString);
-        $grouped = [];
-
-        foreach ($fields as $field) {
-            $field = trim($field);
-            if (empty($field)) {
-                continue;
-            }
-
-            $lastDotPos = strrpos($field, '.');
-            if ($lastDotPos !== false) {
-                $resource = substr($field, 0, $lastDotPos);
-                $fieldName = substr($field, $lastDotPos + 1);
-            } else {
-                $resource = '';
-                $fieldName = $field;
-            }
-
-            if (!isset($grouped[$resource])) {
-                $grouped[$resource] = [];
-            }
-            $grouped[$resource][] = $fieldName;
-        }
-
-        return $grouped;
-    }
-
     public function setAppendsParameter(mixed $appendsParameter): static
     {
-        if (is_string($appendsParameter)) {
-            $appendsParameter = $this->separateToArray($appendsParameter);
-        }
-
-        $this->appends = $this->prepareList($appendsParameter);
+        $this->appends = $this->parser->parseList($appendsParameter);
 
         return $this;
     }
 
+    /**
+     * Set filters parameter manually (for testing or programmatic use).
+     */
     public function setFiltersParameter(mixed $filtersParameter): static
     {
         if (is_string($filtersParameter)) {
@@ -210,7 +182,7 @@ class QueryParametersManager
         }
 
         $this->filters = collect($filtersParameter)->map(function ($value) {
-            return $this->parseFilterValue($value);
+            return $this->filterTransformer->transform($value);
         });
 
         return $this;
@@ -242,9 +214,9 @@ class QueryParametersManager
     }
 
     /**
-     * Recursively look for a filter value in nested array structure
+     * Recursively look for a filter value in nested array structure.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     protected function getNestedFilterValue(array $data, string $name): mixed
     {
@@ -277,28 +249,22 @@ class QueryParametersManager
         return null;
     }
 
+    /**
+     * Set includes parameter manually (for testing or programmatic use).
+     */
     public function setIncludesParameter(mixed $includesParameter): static
     {
-        if (is_string($includesParameter)) {
-            $includesParameter = $this->separateToArray($includesParameter);
-        }
-
-        $this->includes = $this->prepareList($includesParameter);
+        $this->includes = $this->parser->parseList($includesParameter);
 
         return $this;
     }
 
+    /**
+     * Set sorts parameter manually (for testing or programmatic use).
+     */
     public function setSortsParameter(mixed $sortsParameter): static
     {
-        if (is_string($sortsParameter)) {
-            $sortsParameter = $this->separateToArray($sortsParameter);
-        }
-
-        $this->sorts = collect($sortsParameter)
-            ->filter()
-            ->map(fn($field) => new Sort(trim((string) $field)))
-            ->unique(fn(Sort $sort) => $sort->getField())
-            ->values();
+        $this->sorts = $this->parser->parseSorts($sortsParameter);
 
         return $this;
     }
@@ -328,6 +294,9 @@ class QueryParametersManager
         return $this->reset();
     }
 
+    /**
+     * Get data from request (query string or body based on config).
+     */
     protected function getRequestData(?string $key = null, mixed $default = null): mixed
     {
         if ($this->request === null) {
@@ -339,56 +308,5 @@ class QueryParametersManager
         }
 
         return $this->request->query($key, $default);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function separateToArray(string $string): array
-    {
-        $separator = $this->config->getArrayValueSeparator();
-        if ($separator === '') {
-            return [$string];
-        }
-        return explode($separator, $string);
-    }
-
-    /**
-     * @param array<int, mixed>|null $list
-     * @return Collection<int, string>
-     */
-    protected function prepareList(?array $list): Collection
-    {
-        /** @var Collection<int, string> $result */
-        $result = collect($list)
-            ->map(fn($item) => is_string($item) ? trim($item) : $item)
-            ->filter()
-            ->unique()
-            ->values();
-
-        return $result;
-    }
-
-    protected function parseFilterValue(mixed $filterValue): mixed
-    {
-        if (is_array($filterValue)) {
-            return collect($filterValue)->map(function ($item) {
-                return $this->parseFilterValue($item);
-            })->all();
-        }
-
-        if (is_string($filterValue) && Str::contains($filterValue, $this->config->getArrayValueSeparator())) {
-            return $this->separateToArray($filterValue);
-        }
-
-        if ($filterValue === 'true') {
-            return true;
-        }
-
-        if ($filterValue === 'false') {
-            return false;
-        }
-
-        return $filterValue;
     }
 }

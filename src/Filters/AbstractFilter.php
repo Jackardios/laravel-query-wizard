@@ -14,6 +14,7 @@ use Jackardios\QueryWizard\Contracts\FilterInterface;
  * - Property/alias management
  * - Default values
  * - Value preparation callbacks
+ * - Conditional application via when()
  *
  * All modifier methods mutate and return the same instance (fluent pattern).
  *
@@ -22,7 +23,10 @@ use Jackardios\QueryWizard\Contracts\FilterInterface;
 abstract class AbstractFilter implements FilterInterface
 {
     protected mixed $default = null;
+
     protected ?Closure $prepareValueCallback = null;
+
+    protected ?Closure $whenCallback = null;
 
     protected function __construct(
         protected string $property,
@@ -35,6 +39,7 @@ abstract class AbstractFilter implements FilterInterface
     public function alias(string $alias): static
     {
         $this->alias = $alias;
+
         return $this;
     }
 
@@ -44,17 +49,37 @@ abstract class AbstractFilter implements FilterInterface
     public function default(mixed $value): static
     {
         $this->default = $value;
+
         return $this;
     }
 
     /**
      * Set a callback to transform the value before applying.
      *
-     * @param Closure(mixed): mixed $callback
+     * @param  Closure(mixed): mixed  $callback
      */
     public function prepareValueWith(Closure $callback): static
     {
         $this->prepareValueCallback = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Only apply the filter when the condition is true.
+     *
+     * If the callback returns false, the filter value becomes null (filter skipped).
+     *
+     * Example:
+     *   ->when(fn($value) => auth()->check())
+     *   ->when(fn($value) => $value !== 'all')
+     *
+     * @param  Closure(mixed): bool  $callback
+     */
+    public function when(Closure $callback): static
+    {
+        $this->whenCallback = $callback;
+
         return $this;
     }
 
@@ -93,9 +118,17 @@ abstract class AbstractFilter implements FilterInterface
 
     /**
      * Prepare the filter value before applying.
+     *
+     * Checks the when() condition first - returns null if condition is false.
+     * Then applies prepareValueWith() callback if set.
      */
     public function prepareValue(mixed $value): mixed
     {
+        // Check when() condition - if false, return null to skip filter
+        if ($this->whenCallback !== null && ! ($this->whenCallback)($value)) {
+            return null;
+        }
+
         return $this->prepareValueCallback !== null
             ? ($this->prepareValueCallback)($value)
             : $value;
@@ -109,8 +142,8 @@ abstract class AbstractFilter implements FilterInterface
     /**
      * Apply the filter to the subject.
      *
-     * @param mixed $subject The query builder or similar
-     * @param mixed $value The prepared filter value
+     * @param  mixed  $subject  The query builder or similar
+     * @param  mixed  $value  The prepared filter value
      * @return mixed The modified subject
      */
     abstract public function apply(mixed $subject, mixed $value): mixed;
