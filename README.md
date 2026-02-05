@@ -19,8 +19,8 @@ Building APIs often requires handling complex query parameters for filtering, so
 - Automatically parses request parameters
 - Validates and whitelists allowed operations
 - Applies filters, sorts, includes, fields, and appends to your queries
+- Protects against resource exhaustion attacks with built-in limits
 - Supports custom filter/sort/include implementations
-- Works with any Eloquent model or query builder
 
 ## Installation
 
@@ -40,14 +40,14 @@ php artisan vendor:publish --provider="Jackardios\QueryWizard\QueryWizardService
 
 ```php
 use App\Models\User;
-use Jackardios\QueryWizard\QueryWizard;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 
 public function index()
 {
-    $users = QueryWizard::for(User::class)
-        ->setAllowedFilters(['name', 'email', 'status'])
-        ->setAllowedSorts(['name', 'created_at'])
-        ->setAllowedIncludes(['posts', 'profile'])
+    $users = EloquentQueryWizard::for(User::class)
+        ->allowedFilters('name', 'email', 'status')
+        ->allowedSorts('name', 'created_at')
+        ->allowedIncludes('posts', 'profile')
         ->get();
 
     return response()->json($users);
@@ -68,32 +68,28 @@ GET /users?filter[name]=John&filter[status]=active&sort=-created_at&include=post
 - [Including Relationships](#including-relationships)
 - [Selecting Fields](#selecting-fields)
 - [Appending Attributes](#appending-attributes)
-- [API Reference](#api-reference)
 - [Resource Schemas](#resource-schemas)
+- [ModelQueryWizard](#modelquerywizard)
+- [Laravel Octane Compatibility](#laravel-octane-compatibility)
 - [Security](#security)
-- [Custom Drivers](#custom-drivers)
 - [Configuration](#configuration)
 - [Error Handling](#error-handling)
-- [Laravel Octane Compatibility](#laravel-octane-compatibility)
 
 ## Basic Usage
 
 ### Creating a Query Wizard
 
 ```php
-use Jackardios\QueryWizard\QueryWizard;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 
 // From a model class
-$wizard = QueryWizard::for(User::class);
+$wizard = EloquentQueryWizard::for(User::class);
 
 // From an existing query builder
-$wizard = QueryWizard::for(User::where('active', true));
+$wizard = EloquentQueryWizard::for(User::where('active', true));
 
 // From a relation
-$wizard = QueryWizard::for($user->posts());
-
-// Using a specific driver
-$wizard = QueryWizard::using('eloquent', User::class);
+$wizard = EloquentQueryWizard::for($user->posts());
 ```
 
 ### Executing Queries
@@ -104,25 +100,38 @@ $users = $wizard->get();
 
 // Get first result
 $user = $wizard->first();
+$user = $wizard->firstOrFail();  // Throws ModelNotFoundException if not found
 
 // Paginate results
 $users = $wizard->paginate(15);
 $users = $wizard->simplePaginate(15);
 $users = $wizard->cursorPaginate(15);
 
-// Access the underlying query builder
-$query = $wizard->build();
+// Get the underlying query builder (without executing)
+$query = $wizard->toQuery();
 ```
 
 ### Modifying the Query
 
+Use `tap()` to add custom query modifications:
+
 ```php
-QueryWizard::for(User::class)
-    ->setAllowedFilters(['name'])
-    ->modifyQuery(function ($query) {
+EloquentQueryWizard::for(User::class)
+    ->allowedFilters('name')
+    ->tap(function ($query) {
         $query->where('active', true)
               ->whereNotNull('email_verified_at');
     })
+    ->get();
+```
+
+You can also call query builder methods directly - they're proxied to the underlying builder:
+
+```php
+EloquentQueryWizard::for(User::class)
+    ->where('active', true)
+    ->whereNotNull('email_verified_at')
+    ->allowedFilters('name')
     ->get();
 ```
 
@@ -133,15 +142,15 @@ Filters allow API consumers to narrow down results based on specific criteria.
 ### Basic Filters
 
 ```php
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 
-QueryWizard::for(User::class)
-    ->setAllowedFilters([
-        'name',           // Exact match filter (shorthand)
-        'email',          // Exact match filter (shorthand)
-        FilterDefinition::exact('status'),
-        FilterDefinition::partial('bio'),
-    ])
+EloquentQueryWizard::for(User::class)
+    ->allowedFilters(
+        'name',                              // Exact match (string shorthand)
+        'email',                             // Exact match (string shorthand)
+        EloquentFilter::exact('status'),     // Explicit exact filter
+        EloquentFilter::partial('bio'),      // LIKE %value%
+    )
     ->get();
 ```
 
@@ -154,11 +163,11 @@ QueryWizard::for(User::class)
 Matches exact values. Supports arrays for `IN` queries.
 
 ```php
-FilterDefinition::exact('status')
-FilterDefinition::exact('category_id')
+EloquentFilter::exact('status')
+EloquentFilter::exact('category_id')
 
 // With alias (use different name in URL)
-FilterDefinition::exact('user_id', 'user')  // ?filter[user]=5
+EloquentFilter::exact('user_id', 'user')  // ?filter[user]=5
 ```
 
 **Request:** `?filter[status]=active` or `?filter[status]=active,pending` (IN query)
@@ -168,8 +177,8 @@ FilterDefinition::exact('user_id', 'user')  // ?filter[user]=5
 Case-insensitive LIKE search.
 
 ```php
-FilterDefinition::partial('name')
-FilterDefinition::partial('description')
+EloquentFilter::partial('name')
+EloquentFilter::partial('description')
 ```
 
 **Request:** `?filter[name]=john` matches "John", "Johnny", "john doe"
@@ -189,7 +198,7 @@ class User extends Model
 }
 
 // Query Wizard
-FilterDefinition::scope('popular')
+EloquentFilter::scope('popular')
 ```
 
 **Request:** `?filter[popular]=5000`
@@ -199,7 +208,7 @@ FilterDefinition::scope('popular')
 Custom filtering logic.
 
 ```php
-FilterDefinition::callback('age_range', function ($query, $value, $property) {
+EloquentFilter::callback('age_range', function ($query, $value, $property) {
     [$min, $max] = explode('-', $value);
     $query->whereBetween('age', [(int) $min, (int) $max]);
 })
@@ -212,111 +221,127 @@ FilterDefinition::callback('age_range', function ($query, $value, $property) {
 Filter soft-deleted models.
 
 ```php
-FilterDefinition::trashed()
+EloquentFilter::trashed()
 ```
 
-**Request:** `?filter[trashed]=with` (include trashed), `?filter[trashed]=only` (only trashed)
+**Request:** `?filter[trashed]=with` (include), `?filter[trashed]=only` (only trashed), omit or any other value (exclude)
 
 #### Range Filter
 
 Filter by numeric ranges.
 
 ```php
-FilterDefinition::range('price')
-FilterDefinition::range('price')->withOptions([
-    'minKey' => 'from',
-    'maxKey' => 'to',
-])
+EloquentFilter::range('price')
+
+// Custom keys (default: 'min', 'max')
+EloquentFilter::range('price')->minKey('from')->maxKey('to')
 ```
 
 **Request:** `?filter[price][min]=100&filter[price][max]=500`
 
 #### Date Range Filter
 
-Filter by date ranges.
+Filter by date ranges with Carbon parsing.
 
 ```php
-FilterDefinition::dateRange('created_at')
-FilterDefinition::dateRange('created_at')->withOptions([
-    'fromKey' => 'start',
-    'toKey' => 'end',
-    'dateFormat' => 'Y-m-d',
-])
+EloquentFilter::dateRange('created_at')
+
+// Custom keys (default: 'from', 'to')
+EloquentFilter::dateRange('created_at')->fromKey('start')->toKey('end')
+
+// Custom date format for DateTime objects
+EloquentFilter::dateRange('created_at')->dateFormat('Y-m-d')
 ```
 
 **Request:** `?filter[created_at][from]=2024-01-01&filter[created_at][to]=2024-12-31`
 
 #### Null Filter
 
-Check for null/not null values.
+Check for NULL/NOT NULL values.
 
 ```php
-FilterDefinition::null('deleted_at')
-FilterDefinition::null('email')->withOptions(['invertLogic' => true])
+EloquentFilter::null('deleted_at')
+
+// Invert logic (true = NOT NULL)
+EloquentFilter::null('verified_at')->withInvertedLogic()
 ```
 
-**Request:** `?filter[deleted_at]=1` (is null), `?filter[deleted_at]=0` (is not null)
+**Request:** `?filter[deleted_at]=true` (IS NULL), `?filter[deleted_at]=false` (IS NOT NULL)
 
 #### JSON Contains Filter
 
 Filter JSON columns.
 
 ```php
-FilterDefinition::jsonContains('meta.tags')
-FilterDefinition::jsonContains('settings.roles')->withOptions([
-    'matchAll' => false,  // Match any vs match all
-])
+EloquentFilter::jsonContains('meta.tags')
+
+// Match any value (OR) instead of all (AND)
+EloquentFilter::jsonContains('settings.roles')->matchAny()
 ```
 
 **Request:** `?filter[meta.tags]=laravel,php`
 
 #### Passthrough Filter
 
-Capture filter values without applying them to the query. Useful when you need to handle filtering logic manually (e.g., for external services).
+Capture filter values without applying them to the query. Useful for external API calls or custom processing.
 
 ```php
-QueryWizard::for(User::class)
-    ->setAllowedFilters([
-        FilterDefinition::passthrough('external_id'),
-    ])
-    ->get();
+$wizard = EloquentQueryWizard::for(User::class)
+    ->allowedFilters(
+        EloquentFilter::passthrough('external_id'),
+    );
+
+$results = $wizard->get();
 
 // Access passthrough values
-$wizard = QueryWizard::for(User::class)
-    ->setAllowedFilters([FilterDefinition::passthrough('search')]);
-
 $passthroughFilters = $wizard->getPassthroughFilters();
-// ['search' => 'query value']
+// Collection: ['external_id' => 'value']
 ```
 
 ### Filter Options
 
-#### Default Values
+All filters support these fluent modifiers:
 
 ```php
-FilterDefinition::exact('status')->default('active')
+EloquentFilter::exact('status')
+    ->alias('state')                           // URL parameter name
+    ->default('active')                        // Default value when not in request
+    ->prepareValueWith(fn($value) => strtolower($value))  // Transform before applying
+    ->when(fn($value) => $value !== 'all')     // Conditional: skip if returns false
 ```
 
-#### Prepare Values
+#### Conditional Filtering with `when()`
 
-Transform filter values before applying:
+Skip filter application based on a condition:
 
 ```php
-FilterDefinition::exact('email')->prepareValueWith(fn($value) => strtolower($value))
+// Skip filter if value is 'all'
+EloquentFilter::exact('status')
+    ->when(fn($value) => $value !== 'all')
+
+// Only apply filter for authenticated users
+EloquentFilter::exact('user_id')
+    ->when(fn($value) => auth()->check())
+
+// Skip empty values
+EloquentFilter::partial('search')
+    ->when(fn($value) => !empty($value))
 ```
+
+**Request:** `?filter[status]=all` → filter is skipped, all results returned
 
 #### Relation Filtering
 
 Filters with dot notation automatically use `whereHas`:
 
 ```php
-FilterDefinition::exact('posts.status')  // Filters users by their posts' status
+EloquentFilter::exact('posts.status')  // Filters users by their posts' status
 ```
 
 Disable this behavior:
 
 ```php
-FilterDefinition::exact('posts.status')->withRelationConstraint(false)
+EloquentFilter::exact('posts.status')->withoutRelationConstraint()
 ```
 
 ## Sorting
@@ -326,14 +351,14 @@ Allow API consumers to sort results.
 ### Basic Sorts
 
 ```php
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\SortDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentSort;
 
-QueryWizard::for(User::class)
-    ->setAllowedSorts([
-        'name',            // Field sort (shorthand)
-        'created_at',      // Field sort (shorthand)
-        SortDefinition::field('email'),
-    ])
+EloquentQueryWizard::for(User::class)
+    ->allowedSorts(
+        'name',                            // Field sort (string shorthand)
+        'created_at',                      // Field sort (string shorthand)
+        EloquentSort::field('email'),      // Explicit field sort
+    )
     ->get();
 ```
 
@@ -346,16 +371,41 @@ QueryWizard::for(User::class)
 Sort by a database column.
 
 ```php
-SortDefinition::field('created_at')
-SortDefinition::field('created_at', 'date')  // Alias: ?sort=-date
+EloquentSort::field('created_at')
+EloquentSort::field('created_at', 'date')  // Alias: ?sort=-date
 ```
+
+#### Count Sort
+
+Sort by relationship count.
+
+```php
+EloquentSort::count('posts')                    // Sort by posts count
+EloquentSort::count('comments', 'popularity')   // Alias: ?sort=-popularity
+```
+
+**Request:** `?sort=-posts` (most posts first)
+
+#### Relation Sort
+
+Sort by a related model's aggregate value.
+
+```php
+EloquentSort::relation('posts', 'created_at', 'max')   // Newest post date
+EloquentSort::relation('orders', 'total', 'sum')        // Total order amount
+EloquentSort::relation('ratings', 'score', 'avg')       // Average rating
+```
+
+Supported aggregates: `max`, `min`, `sum`, `avg`, `count`
+
+**Request:** `?sort=-orders` (highest order total first)
 
 #### Callback Sort
 
 Custom sorting logic.
 
 ```php
-SortDefinition::callback('popularity', function ($query, $direction, $property) {
+EloquentSort::callback('popularity', function ($query, $direction, $property) {
     $query->orderByRaw("(likes_count + comments_count * 2) {$direction}");
 })
 ```
@@ -363,9 +413,9 @@ SortDefinition::callback('popularity', function ($query, $direction, $property) 
 ### Default Sorts
 
 ```php
-QueryWizard::for(User::class)
-    ->setAllowedSorts(['name', 'created_at'])
-    ->setDefaultSorts('-created_at')  // Applied when no sort in request
+EloquentQueryWizard::for(User::class)
+    ->allowedSorts('name', 'created_at')
+    ->defaultSorts('-created_at')  // Applied when no sort in request
     ->get();
 ```
 
@@ -376,16 +426,16 @@ Eager load relationships based on request parameters.
 ### Basic Includes
 
 ```php
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\IncludeDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 
-QueryWizard::for(User::class)
-    ->setAllowedIncludes([
-        'posts',           // Relationship include (shorthand)
-        'profile',         // Relationship include (shorthand)
-        'postsCount',      // Count include (auto-detected by suffix)
-        IncludeDefinition::relationship('comments'),
-        IncludeDefinition::count('followers'),
-    ])
+EloquentQueryWizard::for(User::class)
+    ->allowedIncludes(
+        'posts',                               // Relationship (string shorthand)
+        'profile',                             // Relationship (string shorthand)
+        'postsCount',                          // Count (auto-detected by suffix)
+        EloquentInclude::relationship('comments'),
+        EloquentInclude::count('followers'),
+    )
     ->get();
 ```
 
@@ -395,26 +445,32 @@ QueryWizard::for(User::class)
 
 #### Relationship Include
 
-Eager load a relationship.
+Eager load a relationship with `with()`.
 
 ```php
-IncludeDefinition::relationship('posts')
-IncludeDefinition::relationship('posts.author')  // Nested relationships
+EloquentInclude::relationship('posts')
+EloquentInclude::relationship('posts.author')  // Nested relationships
 ```
 
 #### Count Include
 
-Load relationship counts (uses `withCount`).
+Load relationship counts with `withCount()`.
 
 ```php
-IncludeDefinition::count('posts')
-IncludeDefinition::count('posts', 'postCount')  // Custom alias
+EloquentInclude::count('posts')
+EloquentInclude::count('posts', 'postCount')  // Custom alias
 ```
 
-Includes ending with "Count" (configurable) are auto-detected:
+Includes ending with "Count" (configurable suffix) are auto-detected:
 
 ```php
-->setAllowedIncludes(['posts', 'postsCount'])  // postsCount becomes count include
+->allowedIncludes('posts', 'postsCount')  // postsCount becomes count include
+```
+
+**Important:** When you allow a relationship include, its count variant is automatically allowed:
+
+```php
+->allowedIncludes('posts')  // Also allows 'postsCount'
 ```
 
 #### Callback Include
@@ -422,7 +478,7 @@ Includes ending with "Count" (configurable) are auto-detected:
 Custom include logic.
 
 ```php
-IncludeDefinition::callback('recent_posts', function ($query, $include, $fields) {
+EloquentInclude::callback('recent_posts', function ($query, $relation) {
     $query->with(['posts' => function ($q) {
         $q->where('created_at', '>', now()->subMonth())
           ->orderBy('created_at', 'desc')
@@ -434,9 +490,9 @@ IncludeDefinition::callback('recent_posts', function ($query, $include, $fields)
 ### Default Includes
 
 ```php
-QueryWizard::for(User::class)
-    ->setAllowedIncludes(['posts', 'profile', 'settings'])
-    ->setDefaultIncludes('profile')  // Always loaded unless overridden
+EloquentQueryWizard::for(User::class)
+    ->allowedIncludes('posts', 'profile', 'settings')
+    ->defaultIncludes('profile')  // Always loaded unless overridden
     ->get();
 ```
 
@@ -445,15 +501,14 @@ QueryWizard::for(User::class)
 Allow sparse fieldsets (JSON:API compatible).
 
 ```php
-QueryWizard::for(User::class)
-    ->setAllowedFields([
-        'id', 'name', 'email',      // Root model fields
-        'posts.id', 'posts.title',   // Related model fields
-    ])
+EloquentQueryWizard::for(User::class)
+    ->allowedFields('id', 'name', 'email', 'posts.id', 'posts.title')
     ->get();
 ```
 
-**Request:** `?fields[users]=id,name&fields[posts]=id,title`
+**Request:** `?fields[user]=id,name&fields[posts]=id,title`
+
+The resource key (`user` in the example) is derived from the model name in camelCase. You can customize it with schemas.
 
 ## Appending Attributes
 
@@ -470,23 +525,23 @@ class User extends Model
 }
 
 // Query Wizard
-QueryWizard::for(User::class)
-    ->setAllowedAppends(['full_name', 'posts.author_name'])
+EloquentQueryWizard::for(User::class)
+    ->allowedAppends('full_name', 'posts.reading_time')
     ->get();
 ```
 
-**Request:** `?append=full_name,posts.author_name`
+**Request:** `?append=full_name,posts.reading_time`
 
 ### Nested Appends
 
 Append attributes on related models:
 
 ```php
-->setAllowedAppends([
+->allowedAppends(
     'full_name',              // Root model
     'posts.reading_time',     // Related posts
     'posts.author.badge',     // Deeply nested
-])
+)
 ```
 
 ### Wildcard Appends
@@ -494,81 +549,8 @@ Append attributes on related models:
 Allow any appends on a relation:
 
 ```php
-->setAllowedAppends(['posts.*'])  // Any append on posts
+->allowedAppends('posts.*')  // Any append on posts
 ```
-
-## API Reference
-
-This section provides a quick reference for all available methods on filters, includes, and sorts.
-
-### Filter Methods
-
-All filters inherit these methods from `AbstractFilter`:
-
-| Method | Description | Example |
-|--------|-------------|---------|
-| `->alias(string)` | Use different name in URL | `exact('user_id', 'user')` or `->alias('user')` |
-| `->default(mixed)` | Default value when not in request | `->default('active')` |
-| `->prepareValueWith(Closure)` | Transform value before applying | `->prepareValueWith(fn($v) => strtolower($v))` |
-
-### Filter-Specific Methods
-
-| Filter | Method | Description | Example |
-|--------|--------|-------------|---------|
-| `exact`, `partial` | `->withRelationConstraint(bool)` | Enable/disable auto `whereHas` for `relation.column` | `->withRelationConstraint(false)` |
-| `scope` | `->resolveModelBindings(bool)` | Auto-resolve model bindings in scope parameters | `->resolveModelBindings(false)` |
-| `range` | `->keys(string $min, string $max)` | Custom key names (default: 'min', 'max') | `->keys('from', 'to')` |
-| `dateRange` | `->keys(string $from, string $to)` | Custom key names (default: 'from', 'to') | `->keys('start', 'end')` |
-| `dateRange` | `->dateFormat(string)` | Date format for DateTime objects | `->dateFormat('Y-m-d')` |
-| `null` | `->invertLogic(bool)` | Invert null check (true → NOT NULL) | `->invertLogic()` |
-| `jsonContains` | `->matchAll(bool)` | Match all values (AND) vs any (OR) | `->matchAll(false)` |
-
-### Filter Types Summary
-
-| Type | Factory Method | Request Format | SQL Generated |
-|------|---------------|----------------|---------------|
-| Exact | `FilterDefinition::exact('col')` | `?filter[col]=value` | `WHERE col = 'value'` |
-| Exact (array) | `FilterDefinition::exact('col')` | `?filter[col]=a,b` | `WHERE col IN ('a', 'b')` |
-| Partial | `FilterDefinition::partial('col')` | `?filter[col]=val` | `WHERE LOWER(col) LIKE '%val%'` |
-| Scope | `FilterDefinition::scope('name')` | `?filter[name]=arg` | Calls `scopeName($query, 'arg')` |
-| Callback | `FilterDefinition::callback('n', fn)` | `?filter[n]=val` | Custom logic |
-| Range | `FilterDefinition::range('col')` | `?filter[col][min]=1&[max]=10` | `WHERE col >= 1 AND col <= 10` |
-| Date Range | `FilterDefinition::dateRange('col')` | `?filter[col][from]=...&[to]=...` | `WHERE col >= ... AND col <= ...` |
-| Null | `FilterDefinition::null('col')` | `?filter[col]=true` | `WHERE col IS NULL` |
-| JSON Contains | `FilterDefinition::jsonContains('col')` | `?filter[col]=a,b` | `whereJsonContains` for each |
-| Trashed | `FilterDefinition::trashed()` | `?filter[trashed]=with` | `withTrashed()` / `onlyTrashed()` |
-| Passthrough | `FilterDefinition::passthrough('n')` | `?filter[n]=val` | No SQL (value captured) |
-
-### Include Methods
-
-All includes inherit these methods from `AbstractInclude`:
-
-| Method | Description | Example |
-|--------|-------------|---------|
-| `->alias(string)` | Use different name in URL | `relationship('posts', 'articles')` or `->alias('articles')` |
-
-### Include Types Summary
-
-| Type | Factory Method | Request Format | Eloquent Method |
-|------|---------------|----------------|-----------------|
-| Relationship | `IncludeDefinition::relationship('rel')` | `?include=rel` | `with('rel')` |
-| Count | `IncludeDefinition::count('rel')` | `?include=relCount` | `withCount('rel')` |
-| Callback | `IncludeDefinition::callback('n', fn)` | `?include=n` | Custom logic |
-
-### Sort Methods
-
-All sorts inherit these methods from `AbstractSort`:
-
-| Method | Description | Example |
-|--------|-------------|---------|
-| `->alias(string)` | Use different name in URL | `field('created_at', 'date')` or `->alias('date')` |
-
-### Sort Types Summary
-
-| Type | Factory Method | Request Format | SQL Generated |
-|------|---------------|----------------|---------------|
-| Field | `SortDefinition::field('col')` | `?sort=col` / `?sort=-col` | `ORDER BY col ASC/DESC` |
-| Callback | `SortDefinition::callback('n', fn)` | `?sort=n` / `?sort=-n` | Custom logic |
 
 ## Resource Schemas
 
@@ -578,8 +560,10 @@ For larger applications, use Resource Schemas to define all query capabilities i
 
 ```php
 use Jackardios\QueryWizard\Schema\ResourceSchema;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\SortDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Eloquent\EloquentSort;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
+use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 
 class UserSchema extends ResourceSchema
 {
@@ -588,49 +572,54 @@ class UserSchema extends ResourceSchema
         return \App\Models\User::class;
     }
 
-    public function filters(): array
+    public function type(): string
+    {
+        return 'user';  // For ?fields[user]=id,name
+    }
+
+    public function filters(QueryWizardInterface $wizard): array
     {
         return [
             'name',
-            FilterDefinition::partial('email'),
-            FilterDefinition::exact('status'),
-            FilterDefinition::scope('popular'),
-            FilterDefinition::trashed(),
+            EloquentFilter::partial('email'),
+            EloquentFilter::exact('status'),
+            EloquentFilter::scope('popular'),
+            EloquentFilter::trashed(),
         ];
     }
 
-    public function sorts(): array
+    public function sorts(QueryWizardInterface $wizard): array
     {
         return [
             'name',
             'created_at',
-            SortDefinition::callback('popularity', function ($query, $direction) {
+            EloquentSort::callback('popularity', function ($query, $direction) {
                 $query->orderBy('followers_count', $direction);
             }),
         ];
     }
 
-    public function includes(): array
+    public function includes(QueryWizardInterface $wizard): array
     {
         return ['posts', 'profile', 'postsCount'];
     }
 
-    public function fields(): array
+    public function fields(QueryWizardInterface $wizard): array
     {
         return ['id', 'name', 'email', 'status', 'created_at'];
     }
 
-    public function appends(): array
+    public function appends(QueryWizardInterface $wizard): array
     {
         return ['full_name', 'avatar_url'];
     }
 
-    public function defaultSorts(): array
+    public function defaultSorts(QueryWizardInterface $wizard): array
     {
         return ['-created_at'];
     }
 
-    public function defaultIncludes(): array
+    public function defaultIncludes(QueryWizardInterface $wizard): array
     {
         return ['profile'];
     }
@@ -640,258 +629,160 @@ class UserSchema extends ResourceSchema
 ### Using Schemas
 
 ```php
-use Jackardios\QueryWizard\QueryWizard;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 
-// List query
-$users = QueryWizard::forList(UserSchema::class)->get();
-
-// Item query (single resource)
-$user = QueryWizard::forItem(UserSchema::class, $userId)->first();
-$user = QueryWizard::forItem(UserSchema::class, $loadedUser)->first();
+$users = EloquentQueryWizard::forSchema(UserSchema::class)->get();
 ```
 
-### Context-Based Customization
+### Combining Schemas with Overrides
 
-Override schema settings for different contexts (list vs item):
+You can use a schema as a base and override specific settings:
 
 ```php
-use Jackardios\QueryWizard\Schema\SchemaContext;
-use Jackardios\QueryWizard\Contracts\SchemaContextInterface;
+EloquentQueryWizard::forSchema(UserSchema::class)
+    ->disallowedFilters('status')        // Remove filter from schema
+    ->disallowedIncludes('posts')        // Remove include from schema
+    ->allowedAppends('extra_append')     // Add additional append
+    ->get();
+```
 
-class UserSchema extends ResourceSchema
+### Context-Aware Schemas
+
+Schema methods receive the wizard instance, allowing conditional logic:
+
+```php
+use Jackardios\QueryWizard\ModelQueryWizard;
+
+public function filters(QueryWizardInterface $wizard): array
 {
-    // ... other methods
-
-    public function forList(): ?SchemaContextInterface
-    {
-        return SchemaContext::make()
-            ->setDisallowedIncludes(['sensitiveRelation'])
-            ->setDefaultSorts(['-created_at']);
+    // No filters for ModelQueryWizard (already-loaded models)
+    if ($wizard instanceof ModelQueryWizard) {
+        return [];
     }
 
-    public function forItem(): ?SchemaContextInterface
-    {
-        return SchemaContext::make()
-            ->setAllowedIncludes(['profile', 'posts', 'settings'])
-            ->setDisallowedFields(['password_hash']);
-    }
+    return [
+        EloquentFilter::exact('status'),
+        EloquentFilter::partial('name'),
+    ];
 }
 ```
 
-### SchemaContext Methods
+## ModelQueryWizard
 
-| Method | Description |
-|--------|-------------|
-| `setAllowedFilters(array)` | Override allowed filters |
-| `setAllowedSorts(array)` | Override allowed sorts |
-| `setAllowedIncludes(array)` | Override allowed includes |
-| `setAllowedFields(array)` | Override allowed fields |
-| `setAllowedAppends(array)` | Override allowed appends |
-| `setDisallowedFilters(array)` | Remove specific filters from allowed list |
-| `setDisallowedSorts(array)` | Remove specific sorts from allowed list |
-| `setDisallowedIncludes(array)` | Remove specific includes from allowed list |
-| `setDisallowedFields(array)` | Remove specific fields from allowed list |
-| `setDisallowedAppends(array)` | Remove specific appends from allowed list |
-| `setDefaultFields(array)` | Set default fields |
-| `setDefaultSorts(array)` | Set default sorts |
-| `setDefaultIncludes(array)` | Set default includes |
-| `setDefaultAppends(array)` | Set default appends |
+For processing already-loaded model instances. Handles includes (load missing), fields (hide), and appends only - **not** filters or sorts.
+
+```php
+use Jackardios\QueryWizard\ModelQueryWizard;
+
+$user = User::find(1);
+
+$processedUser = ModelQueryWizard::for($user)
+    ->allowedIncludes('posts', 'comments')
+    ->allowedFields('id', 'name', 'email')
+    ->allowedAppends('full_name')
+    ->process();
+```
+
+**Request:** `?include=posts&fields[user]=id,name&append=full_name`
+
+### With Schema
+
+```php
+$processedUser = ModelQueryWizard::for($user)
+    ->schema(UserSchema::class)
+    ->process();
+```
+
+### Behavior
+
+- **Includes:** Loads missing relationships with `loadMissing()`, counts with `loadCount()`
+- **Fields:** Hides non-requested fields with `makeHidden()`
+- **Appends:** Adds computed attributes with `append()`
+- **Filters/Sorts:** Ignored (model is already loaded)
+
+## Laravel Octane Compatibility
+
+Query Wizard is fully compatible with Laravel Octane. The package uses proper scoped bindings and avoids static state that could leak between requests.
+
+### Automatic Handling
+
+- **QueryParametersManager** uses `scoped()` binding, ensuring a fresh instance per request
+- **ScopeFilter reflection cache** uses `WeakMap`, which auto-cleans when model instances are garbage collected
+
+### Optional Cache Clearing
+
+For explicit control, you can clear the ScopeFilter reflection cache in Octane's `RequestTerminated` listener:
+
+```php
+// config/octane.php
+'listeners' => [
+    RequestTerminated::class => [
+        fn() => \Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter::clearReflectionCache(),
+    ],
+],
+```
+
+This is optional since `WeakMap` handles cleanup automatically, but may be useful in high-memory environments.
 
 ## Security
 
 ### Request Limits
 
-Query Wizard includes built-in protection against resource exhaustion attacks. Malicious users could attempt to overload your server by requesting deeply nested includes or excessive numbers of filters/sorts.
-
-#### Default Limits
+Query Wizard includes built-in protection against resource exhaustion attacks.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `max_include_depth` | 5 | Maximum nesting depth for includes (e.g., `posts.comments.author` = depth 3) |
-| `max_includes_count` | 10 | Maximum number of includes per request |
-| `max_filters_count` | 15 | Maximum number of filters per request |
-| `max_filter_depth` | 5 | Maximum nesting depth for filters |
-| `max_sorts_count` | 5 | Maximum number of sorts per request |
+| `max_include_depth` | 5 | Max nesting depth (e.g., `posts.comments.author` = 3) |
+| `max_includes_count` | 10 | Max includes per request |
+| `max_filters_count` | 15 | Max filters per request |
+| `max_filter_depth` | 5 | Max filter nesting depth |
+| `max_sorts_count` | 5 | Max sorts per request |
+| `max_append_depth` | 3 | Max append nesting depth |
 
-#### Configuring Limits
-
-In your `config/query-wizard.php`:
+Configure in `config/query-wizard.php`:
 
 ```php
 'limits' => [
     'max_include_depth' => 3,      // Stricter limit
-    'max_includes_count' => 5,     // Fewer includes allowed
+    'max_includes_count' => 5,
     'max_filters_count' => 10,
     'max_filter_depth' => 3,
     'max_sorts_count' => 3,
+    'max_append_depth' => 2,
 ],
 ```
 
-Set any limit to `null` to disable it:
+Set any limit to `null` to disable it.
+
+### ScopeFilter Model Binding
+
+By default, `ScopeFilter` passes filter values as-is to your scope methods. If your scope has type-hinted model parameters, you can enable automatic model resolution:
 
 ```php
-'limits' => [
-    'max_include_depth' => null,   // No depth limit
-],
+EloquentFilter::scope('byAuthor')->withModelBinding()
 ```
 
-### Unsupported Capability Behavior
-
-Configure how the package behaves when a driver doesn't support a requested capability (e.g., filters on a driver that only supports sorting):
+**Security Warning:** When enabled, model binding resolves instances by ID using `resolveRouteBinding()` **without authorization checks**.
 
 ```php
-// config/query-wizard.php
-'unsupported_capability_behavior' => 'exception', // default
-```
-
-| Value | Behavior |
-|-------|----------|
-| `'exception'` | Throws `UnsupportedCapability` exception |
-| `'log'` | Logs a warning and continues |
-| `'silent'` | Silently ignores the unsupported capability |
-
-## Custom Drivers
-
-The driver system allows complete customization of how queries are built. You can create drivers for different data sources (Scout, Meilisearch, etc.) or customize the Eloquent behavior.
-
-### Driver Methods Reference
-
-When extending `AbstractDriver`, you must implement these methods:
-
-| Method | Purpose |
-|--------|---------|
-| `name()` | Unique driver identifier (e.g., `'scout'`, `'meilisearch'`) |
-| `supports($subject)` | Return `true` if driver can handle this subject type |
-| `capabilities()` | Return array of supported `Capability` enum values |
-| `normalizeFilter($filter)` | Convert string to `FilterInterface` (e.g., `'name'` → `ExactFilter`) |
-| `normalizeInclude($include)` | Convert string to `IncludeInterface` |
-| `normalizeSort($sort)` | Convert string to `SortInterface` |
-| `applyFilter($subject, $filter, $value)` | Apply filter to query subject, return modified subject |
-| `applyInclude($subject, $include, $fields)` | Apply include to query subject, return modified subject |
-| `applySort($subject, $sort, $direction)` | Apply sort to query subject, return modified subject |
-| `applyFields($subject, $fields)` | Apply field selection to subject, return modified subject |
-| `applyAppends($result, $appends)` | Apply appends to **query result** (not subject!), return modified result |
-| `getResourceKey($subject)` | Return key for sparse fieldsets (e.g., `'users'` for `?fields[users]=id,name`) |
-| `prepareSubject($subject)` | Transform subject before query execution (e.g., class-string → Builder) |
-
-`AbstractDriver` automatically provides `supportsFilterType()`, `supportsSortType()`, `supportsIncludeType()` based on the `$supportedFilterTypes`, `$supportedSortTypes`, `$supportedIncludeTypes` arrays.
-
-### Creating a Custom Driver
-
-Extend `AbstractDriver` for the easiest implementation:
-
-```php
-use Jackardios\QueryWizard\Drivers\AbstractDriver;
-use Jackardios\QueryWizard\Contracts\FilterInterface;
-use Jackardios\QueryWizard\Contracts\IncludeInterface;
-use Jackardios\QueryWizard\Contracts\SortInterface;
-use Jackardios\QueryWizard\Enums\Capability;
-
-class ScoutDriver extends AbstractDriver
+// Scope accepts a User model
+public function scopeByAuthor($query, User $author)
 {
-    // Declare supported types - AbstractDriver handles supportsFilterType(), etc.
-    protected array $supportedFilterTypes = ['exact', 'callback'];
-    protected array $supportedSortTypes = ['field', 'callback'];
-    protected array $supportedIncludeTypes = ['relationship', 'count', 'callback'];
-
-    public function name(): string { return 'scout'; }
-
-    public function supports(mixed $subject): bool
-    {
-        return $subject instanceof \Laravel\Scout\Builder;
-    }
-
-    public function capabilities(): array
-    {
-        // Scout supports includes/fields/appends via query() callback
-        return Capability::values(); // All capabilities
-    }
-
-    public function normalizeFilter(FilterInterface|string $filter): FilterInterface { ... }
-    public function normalizeSort(SortInterface|string $sort): SortInterface { ... }
-    public function normalizeInclude(IncludeInterface|string $include): IncludeInterface { ... }
-
-    public function applyFilter(mixed $subject, FilterInterface $filter, mixed $value): mixed
-    {
-        // Scout filters apply directly to Scout\Builder
-        return $filter->apply($subject, $value);
-    }
-
-    public function applySort(mixed $subject, SortInterface $sort, string $direction): mixed
-    {
-        return $sort->apply($subject, $direction);
-    }
-
-    public function applyInclude(mixed $subject, IncludeInterface $include, array $fields = []): mixed
-    {
-        // Use Scout's query() to access underlying Eloquent builder
-        $subject->query(fn ($query) => $include->apply($query, $fields));
-        return $subject;
-    }
-
-    public function applyFields(mixed $subject, array $fields): mixed
-    {
-        $subject->query(fn ($query) => $query->select($fields));
-        return $subject;
-    }
-
-    public function applyAppends(mixed $result, array $appends): mixed { ... }
-    public function getResourceKey(mixed $subject): string { ... }
-    public function prepareSubject(mixed $subject): mixed { return $subject; }
+    return $query->where('author_id', $author->id);
 }
+
+// With model binding enabled:
+// Request: ?filter[by_author]=123
+// User with ID 123 is loaded automatically - ensure authorization in scope!
 ```
 
-### Creating Custom Filters
-
-Implement `FilterInterface` for custom filter types:
+If you enable model binding, add authorization checks in your scope:
 
 ```php
-use Jackardios\QueryWizard\Contracts\FilterInterface;
-use Jackardios\QueryWizard\Filters\AbstractFilter;
-
-class ScoutExactFilter extends AbstractFilter
+public function scopeByAuthor($query, User $author)
 {
-    public function getType(): string
-    {
-        return 'exact';
-    }
-
-    public function apply(mixed $subject, mixed $value): mixed
-    {
-        // $subject is Scout\Builder
-        return $subject->where($this->getProperty(), $value);
-    }
-}
-```
-
-### Registering a Custom Driver
-
-In `config/query-wizard.php`:
-
-```php
-return [
-    'drivers' => [
-        'scout' => \App\QueryWizard\Drivers\ScoutDriver::class,
-    ],
-];
-```
-
-### Using a Custom Driver
-
-```php
-// Explicit driver usage
-$results = QueryWizard::using('scout', User::search('query'))
-    ->setAllowedFilters(['category', 'status'])
-    ->setAllowedSorts(['relevance', 'created_at'])
-    ->get();
-
-// In a schema
-class UserSchema extends ResourceSchema
-{
-    public function driver(): string
-    {
-        return 'scout';
-    }
+    abort_unless(auth()->user()->can('view', $author), 403);
+    return $query->where('author_id', $author->id);
 }
 ```
 
@@ -919,10 +810,14 @@ return [
     'count_suffix' => 'Count',
 
     /*
-     * When true, invalid filters are silently ignored.
-     * When false (default), InvalidFilterQuery exception is thrown.
+     * When true, invalid filters/sorts/etc. are silently ignored.
+     * When false (default), appropriate exception is thrown.
      */
     'disable_invalid_filter_query_exception' => false,
+    'disable_invalid_sort_query_exception' => false,
+    'disable_invalid_include_query_exception' => false,
+    'disable_invalid_field_query_exception' => false,
+    'disable_invalid_append_query_exception' => false,
 
     /*
      * Where to read query parameters from.
@@ -937,15 +832,7 @@ return [
     'array_value_separator' => ',',
 
     /*
-     * Custom drivers to register.
-     */
-    'drivers' => [
-        // 'scout' => \App\QueryWizard\Drivers\ScoutDriver::class,
-    ],
-
-    /*
-     * Security limits to protect against resource exhaustion attacks.
-     * Set to null to disable a specific limit.
+     * Security limits (set to null to disable).
      */
     'limits' => [
         'max_include_depth' => 5,
@@ -953,129 +840,219 @@ return [
         'max_filters_count' => 15,
         'max_filter_depth' => 5,
         'max_sorts_count' => 5,
+        'max_append_depth' => 3,
     ],
-
-    /*
-     * Behavior when requesting a capability that the driver doesn't support.
-     * Options: 'exception' (throws), 'log' (warning), 'silent' (ignore)
-     */
-    'unsupported_capability_behavior' => 'exception',
 ];
 ```
 
 ## Error Handling
 
-Query Wizard throws descriptive exceptions for invalid queries.
+### Exception Types
 
-### Validation Exceptions
+| Exception | HTTP | Description |
+|-----------|------|-------------|
+| `InvalidFilterQuery` | 422 | Unknown filter in request |
+| `InvalidSortQuery` | 422 | Unknown sort in request |
+| `InvalidIncludeQuery` | 422 | Unknown include in request |
+| `InvalidFieldQuery` | 422 | Unknown field in request |
+| `InvalidAppendQuery` | 422 | Unknown append in request |
+| `MaxFiltersCountExceeded` | 422 | Filter count exceeds limit |
+| `MaxSortsCountExceeded` | 422 | Sort count exceeds limit |
+| `MaxIncludesCountExceeded` | 422 | Include count exceeds limit |
+| `MaxIncludeDepthExceeded` | 422 | Include nesting exceeds limit |
 
-| Exception | Description |
-|-----------|-------------|
-| `InvalidFilterQuery` | Unknown filter in request |
-| `InvalidSortQuery` | Unknown sort in request |
-| `InvalidIncludeQuery` | Unknown include in request |
-| `InvalidFieldQuery` | Unknown field in request |
-| `InvalidAppendQuery` | Unknown append in request |
-
-### Security Limit Exceptions
-
-| Exception | Description |
-|-----------|-------------|
-| `MaxIncludeDepthExceeded` | Include nesting exceeds `max_include_depth` |
-| `MaxIncludesCountExceeded` | Include count exceeds `max_includes_count` |
-| `MaxFiltersCountExceeded` | Filter count exceeds `max_filters_count` |
-| `MaxSortsCountExceeded` | Sort count exceeds `max_sorts_count` |
-
-### Capability Exceptions
-
-| Exception | Description |
-|-----------|-------------|
-| `UnsupportedCapability` | Driver doesn't support requested capability |
-
-All exceptions extend `InvalidQuery` (which extends Symfony's `HttpException` with 400 status), except `UnsupportedCapability` which extends `LogicException`.
+All exceptions extend `InvalidQuery` which extends Symfony's `HttpException`.
 
 ### Example Handling
 
 ```php
 use Jackardios\QueryWizard\Exceptions\InvalidQuery;
 use Jackardios\QueryWizard\Exceptions\QueryLimitExceeded;
-use Jackardios\QueryWizard\Exceptions\UnsupportedCapability;
 
 try {
-    $users = QueryWizard::for(User::class)
-        ->setAllowedFilters(['name'])
-        ->setAllowedSorts(['created_at'])
+    $users = EloquentQueryWizard::for(User::class)
+        ->allowedFilters('name')
         ->get();
 } catch (QueryLimitExceeded $e) {
     return response()->json([
         'error' => 'Query limit exceeded',
         'message' => $e->getMessage(),
-    ], 400);
-} catch (UnsupportedCapability $e) {
-    return response()->json([
-        'error' => 'Unsupported capability',
-        'capability' => $e->capability,
-        'driver' => $e->driverName,
-    ], 400);
+    ], 422);
 } catch (InvalidQuery $e) {
     return response()->json([
         'error' => 'Invalid query',
         'message' => $e->getMessage(),
-    ], 400);
+    ], $e->getStatusCode());
 }
 ```
 
 ### Global Exception Handler
 
-In `app/Exceptions/Handler.php`:
+In Laravel 11+ `bootstrap/app.php`:
 
 ```php
-use Jackardios\QueryWizard\Exceptions\InvalidQuery;
-
-public function register(): void
-{
-    $this->renderable(function (InvalidQuery $e) {
+->withExceptions(function (Exceptions $exceptions) {
+    $exceptions->render(function (InvalidQuery $e) {
         return response()->json([
             'error' => class_basename($e),
             'message' => $e->getMessage(),
         ], $e->getStatusCode());
     });
-}
+})
 ```
 
-## Laravel Octane Compatibility
+## Batch Processing Limitations
 
-This package is fully compatible with Laravel Octane. The architecture avoids state leakage between requests:
+Methods like `chunk()`, `lazy()`, `cursor()`, `chunkById()`, etc. are **not directly supported** for appends. These methods internally call `get()` on the underlying Builder, bypassing the wizard's append logic.
 
-- **DriverRegistry** is registered as a singleton, properly isolated per Octane worker
-- **QueryParametersManager** is created fresh per request
-- **Reflection caches** use `WeakMap` for automatic cleanup
-
-No additional configuration is required for Octane compatibility.
-
-### Best Practices for Callbacks
-
-When using callback filters, sorts, or includes, avoid capturing request-specific values in closures:
+### Why This Happens
 
 ```php
-// AVOID - captures user from first request
-$user = auth()->user();
-FilterDefinition::callback('owned', fn($q, $v) => $q->where('user_id', $user->id));
-
-// CORRECT - fetches user on each request
-FilterDefinition::callback('owned', fn($q, $v) => $q->where('user_id', auth()->id()));
+// Inside Laravel's Builder::chunk()
+$results = $this->forPage($page, $count)->get();  // Calls Builder::get(), not Wizard::get()
+$callback($results);  // Results don't have appends applied
 ```
+
+### Workaround: Manual Append Application
+
+Use `toQuery()` to get the built query, then manually apply appends:
+
+```php
+$wizard = EloquentQueryWizard::for(User::class)
+    ->allowedFilters('status')
+    ->allowedAppends('full_name', 'posts.reading_time');
+
+// Get the built query
+$query = $wizard->toQuery();
+
+// Process in chunks with manual append application
+$query->chunk(100, function ($users) use ($wizard) {
+    $wizard->applyAppendsTo($users);
+
+    foreach ($users as $user) {
+        // Process user with appends applied
+    }
+});
+```
+
+### Workaround: Using cursor() with LazyCollection
+
+```php
+$wizard = EloquentQueryWizard::for(User::class)
+    ->allowedAppends('full_name');
+
+$query = $wizard->toQuery();
+
+$query->cursor()->each(function ($user) use ($wizard) {
+    $wizard->applyAppendsTo([$user]);
+    // Process user
+});
+```
+
+### Supported vs Unsupported Methods
+
+| Method | Appends Support | Notes |
+|--------|-----------------|-------|
+| `get()` | ✅ Full | Direct support |
+| `first()` | ✅ Full | Direct support |
+| `firstOrFail()` | ✅ Full | Direct support |
+| `paginate()` | ✅ Full | Direct support |
+| `simplePaginate()` | ✅ Full | Direct support |
+| `cursorPaginate()` | ✅ Full | Direct support |
+| `chunk()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
+| `chunkById()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
+| `cursor()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
+| `lazy()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
+| `find()` | ❌ None | Use `where('id', $id)->first()` instead |
+
+## API Reference
+
+### EloquentQueryWizard Methods
+
+#### Factory Methods
+
+| Method | Description |
+|--------|-------------|
+| `for($subject)` | Create from model class, query builder, or relation |
+| `forSchema($schema)` | Create from a ResourceSchema class |
+
+#### Configuration Methods
+
+| Method | Description |
+|--------|-------------|
+| `schema($schema)` | Set ResourceSchema for configuration |
+| `allowedFilters(...$filters)` | Set allowed filters |
+| `disallowedFilters(...$names)` | Remove filters (override schema) |
+| `allowedSorts(...$sorts)` | Set allowed sorts |
+| `disallowedSorts(...$names)` | Remove sorts (override schema) |
+| `defaultSorts(...$sorts)` | Set default sorts |
+| `allowedIncludes(...$includes)` | Set allowed includes |
+| `disallowedIncludes(...$names)` | Remove includes (override schema) |
+| `defaultIncludes(...$names)` | Set default includes |
+| `allowedFields(...$fields)` | Set allowed fields |
+| `disallowedFields(...$names)` | Remove fields (override schema) |
+| `allowedAppends(...$appends)` | Set allowed appends |
+| `disallowedAppends(...$names)` | Remove appends (override schema) |
+| `defaultAppends(...$appends)` | Set default appends |
+| `tap(callable $callback)` | Add query modification callback |
+
+#### Execution Methods
+
+| Method | Description |
+|--------|-------------|
+| `get()` | Execute and return Collection |
+| `first()` | Execute and return first result |
+| `firstOrFail()` | Execute and return first result or throw exception |
+| `paginate($perPage)` | Execute with pagination |
+| `simplePaginate($perPage)` | Execute with simple pagination |
+| `cursorPaginate($perPage)` | Execute with cursor pagination |
+| `toQuery()` | Build and return query builder |
+| `getSubject()` | Get underlying query builder |
+| `applyAppendsTo($results)` | Apply appends to results (for manual batch processing) |
+| `getPassthroughFilters()` | Get passthrough filter values |
+
+### Filter Factory Methods (EloquentFilter)
+
+| Method | Description |
+|--------|-------------|
+| `exact($property, $alias)` | Exact match filter |
+| `partial($property, $alias)` | LIKE search filter |
+| `scope($scope, $alias)` | Model scope filter |
+| `trashed($alias)` | Soft delete filter |
+| `null($property, $alias)` | NULL check filter |
+| `range($property, $alias)` | Numeric range filter |
+| `dateRange($property, $alias)` | Date range filter |
+| `jsonContains($property, $alias)` | JSON contains filter |
+| `callback($name, $callback, $alias)` | Custom callback filter |
+| `passthrough($name, $alias)` | Passthrough filter |
+
+### Sort Factory Methods (EloquentSort)
+
+| Method | Description |
+|--------|-------------|
+| `field($property, $alias)` | Column sort |
+| `count($relation, $alias)` | Relationship count sort |
+| `relation($relation, $column, $aggregate, $alias)` | Relationship aggregate sort |
+| `callback($name, $callback, $alias)` | Custom callback sort |
+
+### Include Factory Methods (EloquentInclude)
+
+| Method | Description |
+|--------|-------------|
+| `relationship($relation, $alias)` | Eager load relationship |
+| `count($relation, $alias)` | Load relationship count |
+| `callback($name, $callback, $alias)` | Custom callback include |
+
+## Requirements
+
+- PHP 8.1+
+- Laravel 10, 11, or 12
 
 ## Testing
 
 ```bash
 composer test
 ```
-
-## Requirements
-
-- PHP 8.1+
-- Laravel 10, 11, or 12
 
 ## License
 
