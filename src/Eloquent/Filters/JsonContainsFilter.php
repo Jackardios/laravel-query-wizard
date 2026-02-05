@@ -54,7 +54,7 @@ final class JsonContainsFilter extends AbstractFilter
 
     public function getType(): string
     {
-        return 'jsonContains';
+        return 'json_contains';
     }
 
     /**

@@ -73,7 +73,7 @@ final class DateRangeFilter extends AbstractFilter
 
     public function getType(): string
     {
-        return 'dateRange';
+        return 'date_range';
     }
 
     /**
