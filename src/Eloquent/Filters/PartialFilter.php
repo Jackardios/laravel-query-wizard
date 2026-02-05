@@ -42,7 +42,7 @@ final class PartialFilter extends ExactFilter
             ->getGrammar()
             ->wrap($builder->qualifyColumn($column));
 
-        $sql = "LOWER({$wrappedColumn}) LIKE ?";
+        $sql = "LOWER({$wrappedColumn}) LIKE ? ESCAPE '\\'";
 
         if (is_array($value)) {
             $filteredValues = array_filter($value, static fn ($v): bool => $v !== '' && $v !== null);
@@ -53,7 +53,7 @@ final class PartialFilter extends ExactFilter
             $builder->where(function (Builder $query) use ($filteredValues, $sql): void {
                 foreach ($filteredValues as $partialValue) {
                     $partialValue = mb_strtolower((string) $partialValue, 'UTF8');
-                    $query->orWhereRaw($sql, ["%{$partialValue}%"]);
+                    $query->orWhereRaw($sql, ['%'.$this->escapeLikeValue($partialValue).'%']);
                 }
             });
 
@@ -61,8 +61,20 @@ final class PartialFilter extends ExactFilter
         }
 
         $value = mb_strtolower((string) $value, 'UTF8');
-        $builder->whereRaw($sql, ["%{$value}%"]);
+        $builder->whereRaw($sql, ['%'.$this->escapeLikeValue($value).'%']);
 
         return $builder;
+    }
+
+    /**
+     * Escape LIKE metacharacters so they are treated as literals.
+     */
+    private function escapeLikeValue(string $value): string
+    {
+        return str_replace(
+            ['\\', '%', '_'],
+            ['\\\\', '\\%', '\\_'],
+            $value
+        );
     }
 }
