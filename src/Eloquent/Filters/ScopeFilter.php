@@ -14,7 +14,6 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
 use ReflectionParameter;
-use WeakMap;
 
 /**
  * Filter by model scope.
@@ -44,27 +43,6 @@ use WeakMap;
 final class ScopeFilter extends AbstractFilter
 {
     protected bool $resolveModelBindings = false;
-
-    /**
-     * Cache for reflected scope method parameters.
-     * Uses WeakMap to automatically clean up when model instances are garbage collected.
-     *
-     * @var WeakMap<Model, array<string, array<ReflectionParameter>|null>>|null
-     */
-    protected static ?WeakMap $reflectionCache = null;
-
-    /**
-     * Clear the reflection cache.
-     *
-     * Call this method in Laravel Octane's RequestTerminated listener
-     * if you want to explicitly clear the cache between requests.
-     * Note: The WeakMap already handles cleanup automatically when
-     * model instances are garbage collected, so this is optional.
-     */
-    public static function clearReflectionCache(): void
-    {
-        self::$reflectionCache = null;
-    }
 
     /**
      * Create a new scope filter.
@@ -174,7 +152,7 @@ final class ScopeFilter extends AbstractFilter
             $result = $class->newInstance()->resolveRouteBinding($value);
 
             if ($result === null) {
-                throw InvalidFilterValue::make($value);
+                throw InvalidFilterValue::make($value, $this->getName());
             }
 
             $values[$index] = $result;
@@ -184,57 +162,19 @@ final class ScopeFilter extends AbstractFilter
     }
 
     /**
-     * Get the reflection cache WeakMap instance
-     *
-     * @return WeakMap<Model, array<string, array<ReflectionParameter>|null>>
-     */
-    protected static function getReflectionCache(): WeakMap
-    {
-        if (self::$reflectionCache === null) {
-            /** @var WeakMap<Model, array<string, array<ReflectionParameter>|null>> $cache */
-            $cache = new WeakMap;
-            self::$reflectionCache = $cache;
-        }
-
-        return self::$reflectionCache;
-    }
-
-    /**
-     * Get scope method parameters with caching
-     *
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $queryBuilder
      * @return array<ReflectionParameter>|null
      */
     protected function getScopeParameters(Builder $queryBuilder, string $scope): ?array
     {
-        $model = $queryBuilder->getModel();
-        $cache = self::getReflectionCache();
+        $className = get_class($queryBuilder->getModel());
         $scopeKey = 'scope'.ucfirst($scope);
 
-        // Initialize cache entry for this model if not exists
-        if (! isset($cache[$model])) {
-            $cache[$model] = [];
-        }
-
-        /** @var array<string, array<ReflectionParameter>|null> $modelCache */
-        $modelCache = $cache[$model];
-
-        if (array_key_exists($scopeKey, $modelCache)) {
-            return $modelCache[$scopeKey];
-        }
-
         try {
-            $parameters = (new \ReflectionObject($model))
+            return (new ReflectionClass($className))
                 ->getMethod($scopeKey)
                 ->getParameters();
-            $modelCache[$scopeKey] = $parameters;
-            $cache[$model] = $modelCache;
-
-            return $parameters;
         } catch (ReflectionException) {
-            $modelCache[$scopeKey] = null;
-            $cache[$model] = $modelCache;
-
             return null;
         }
     }

@@ -7,7 +7,6 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
-use Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -117,66 +116,6 @@ class OctaneCompatibilityTest extends TestCase
 
         // Should see manual value
         $this->assertEquals('Manual', $manager->getFilters()->get('name'));
-    }
-
-    // ========== ScopeFilter Cache Tests ==========
-
-    #[Test]
-    public function scope_filter_clear_reflection_cache_resets_static_cache(): void
-    {
-        // Create a model and apply scope filter to populate cache
-        TestModel::factory()->create(['name' => 'Test']);
-
-        $request = new Request(['filter' => ['named' => 'Test']]);
-        $this->app->instance('request', $request);
-
-        // This should populate the reflection cache
-        EloquentQueryWizard::for(TestModel::class)
-            ->allowedFilters(ScopeFilter::make('named'))
-            ->get();
-
-        // Clear the cache
-        ScopeFilter::clearReflectionCache();
-
-        // Cache should be cleared - running again should work without issues
-        $result = EloquentQueryWizard::for(TestModel::class)
-            ->allowedFilters(ScopeFilter::make('named'))
-            ->get();
-
-        $this->assertCount(1, $result);
-    }
-
-    #[Test]
-    public function scope_filter_cache_does_not_leak_between_cleared_requests(): void
-    {
-        TestModel::factory()->create(['name' => 'First']);
-        TestModel::factory()->create(['name' => 'Second']);
-
-        // First "request"
-        $request1 = new Request(['filter' => ['named' => 'First']]);
-        $this->app->instance('request', $request1);
-
-        $result1 = EloquentQueryWizard::for(TestModel::class)
-            ->allowedFilters(ScopeFilter::make('named'))
-            ->get();
-
-        $this->assertCount(1, $result1);
-        $this->assertEquals('First', $result1->first()->name);
-
-        // Simulate Octane request flush
-        ScopeFilter::clearReflectionCache();
-        $this->app->forgetScopedInstances();
-
-        // Second "request"
-        $request2 = new Request(['filter' => ['named' => 'Second']]);
-        $this->app->instance('request', $request2);
-
-        $result2 = EloquentQueryWizard::for(TestModel::class)
-            ->allowedFilters(ScopeFilter::make('named'))
-            ->get();
-
-        $this->assertCount(1, $result2);
-        $this->assertEquals('Second', $result2->first()->name);
     }
 
     // ========== Service Container Binding Tests ==========

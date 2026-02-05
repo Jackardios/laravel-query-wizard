@@ -709,21 +709,6 @@ Query Wizard is fully compatible with Laravel Octane. The package uses proper sc
 - **QueryParametersManager** uses `scoped()` binding, ensuring a fresh instance per request
 - **ScopeFilter reflection cache** uses `WeakMap`, which auto-cleans when model instances are garbage collected
 
-### Optional Cache Clearing
-
-For explicit control, you can clear the ScopeFilter reflection cache in Octane's `RequestTerminated` listener:
-
-```php
-// config/octane.php
-'listeners' => [
-    RequestTerminated::class => [
-        fn() => \Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter::clearReflectionCache(),
-    ],
-],
-```
-
-This is optional since `WeakMap` handles cleanup automatically, but may be useful in high-memory environments.
-
 ## Security
 
 ### Request Limits

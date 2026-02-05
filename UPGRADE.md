@@ -140,8 +140,7 @@ EloquentFilter::exact('user_id')
 
 The package is now fully compatible with Laravel Octane:
 - `QueryParametersManager` uses `scoped()` binding for per-request instances
-- `ScopeFilter::clearReflectionCache()` available for explicit cache clearing
-- All static state is either request-scoped or uses WeakMap for auto-cleanup
+- No static state that leaks between requests
 
 ---
 
