@@ -9,7 +9,7 @@ use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
@@ -36,7 +36,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $this->models->first()->name])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertCount(1, $models);
@@ -47,7 +47,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $this->models->first()->name])
-            ->setAllowedFilters(FilterDefinition::exact('name'))
+            ->allowedFilters(EloquentFilter::exact('name'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -57,7 +57,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['n' => $this->models->first()->name])
-            ->setAllowedFilters(FilterDefinition::exact('name', 'n'))
+            ->allowedFilters(EloquentFilter::exact('name')->alias('n'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -69,7 +69,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $names])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertCount(2, $models);
@@ -81,7 +81,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $names])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertCount(2, $models);
@@ -93,7 +93,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => strtoupper($model->name)])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         // SQLite is case-sensitive by default
@@ -106,7 +106,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedFilters(FilterDefinition::exact('name')->default('default_value'))
+            ->allowedFilters(EloquentFilter::exact('name')->default('default_value'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -120,7 +120,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'explicit_value'])
-            ->setAllowedFilters(FilterDefinition::exact('name')->default('default_value'))
+            ->allowedFilters(EloquentFilter::exact('name')->default('default_value'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -133,9 +133,9 @@ class FilterTest extends TestCase
 
         $this
             ->createEloquentWizardWithFilters(['name' => 'TRANSFORM_ME'])
-            ->setAllowedFilters(
+            ->allowedFilters(
                 // Callback receives ($query, $value, $property)
-                FilterDefinition::callback('name', function ($query, $value, $property) use (&$receivedValue) {
+                EloquentFilter::callback('name', function ($query, $value, $property) use (&$receivedValue) {
                     $receivedValue = $value;
                     // Don't actually filter - just verify the value was transformed
                 })->prepareValueWith(fn($v) => strtolower($v))
@@ -155,7 +155,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $partialName])
-            ->setAllowedFilters(FilterDefinition::partial('name'))
+            ->allowedFilters(EloquentFilter::partial('name'))
             ->get();
 
         $this->assertGreaterThanOrEqual(1, $models->count());
@@ -167,7 +167,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => strtoupper($model->name)])
-            ->setAllowedFilters(FilterDefinition::partial('name'))
+            ->allowedFilters(EloquentFilter::partial('name'))
             ->get();
 
         $this->assertGreaterThanOrEqual(1, $models->count());
@@ -179,7 +179,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $partials])
-            ->setAllowedFilters(FilterDefinition::partial('name'))
+            ->allowedFilters(EloquentFilter::partial('name'))
             ->get();
 
         $this->assertGreaterThanOrEqual(2, $models->count());
@@ -189,7 +189,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['name' => ['', null, '']])
-            ->setAllowedFilters(FilterDefinition::partial('name'))
+            ->allowedFilters(EloquentFilter::partial('name'))
             ->get();
 
         // Empty filter should return all models
@@ -204,7 +204,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['named' => $model->name])
-            ->setAllowedFilters(FilterDefinition::scope('named'))
+            ->allowedFilters(EloquentFilter::scope('named'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -216,7 +216,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['filter_name' => $model->name])
-            ->setAllowedFilters(FilterDefinition::scope('named', 'filter_name'))
+            ->allowedFilters(EloquentFilter::scope('named')->alias('filter_name'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -230,7 +230,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['created_between' => [$from->toDateTimeString(), $to->toDateTimeString()]])
-            ->setAllowedFilters(FilterDefinition::scope('createdBetween', 'created_between'))
+            ->allowedFilters(EloquentFilter::scope('createdBetween')->alias('created_between'))
             ->get();
 
         $this->assertGreaterThanOrEqual(1, $models->count());
@@ -243,8 +243,8 @@ class FilterTest extends TestCase
         // With resolveModelBindings disabled, the raw value is passed to the scope
         $models = $this
             ->createEloquentWizardWithFilters(['named' => $model->name])
-            ->setAllowedFilters(
-                FilterDefinition::scope('named')
+            ->allowedFilters(
+                EloquentFilter::scope('named')
                     ->resolveModelBindings(false)
             )
             ->get();
@@ -260,8 +260,8 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['custom' => $model->name])
-            ->setAllowedFilters(
-                FilterDefinition::callback('custom', function ($query, $value) {
+            ->allowedFilters(
+                EloquentFilter::callback('custom', function ($query, $value) {
                     $query->where('name', $value);
                 })
             )
@@ -276,10 +276,10 @@ class FilterTest extends TestCase
 
         $this
             ->createEloquentWizardWithFilters(['search' => 'test'])
-            ->setAllowedFilters(
-                FilterDefinition::callback('name', function ($query, $value, $property) use (&$receivedProperty) {
+            ->allowedFilters(
+                EloquentFilter::callback('name', function ($query, $value, $property) use (&$receivedProperty) {
                     $receivedProperty = $property;
-                }, 'search')
+                })->alias('search')
             )
             ->get();
 
@@ -292,8 +292,8 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['custom' => $model->name])
-            ->setAllowedFilters(
-                FilterDefinition::callback('custom', [$this, 'customFilterCallback'])
+            ->allowedFilters(
+                EloquentFilter::callback('custom', [$this, 'customFilterCallback'])
             )
             ->get();
 
@@ -311,7 +311,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => ['min' => 2, 'max' => 4]])
-            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->allowedFilters(EloquentFilter::range('id'))
             ->get();
 
         $this->assertCount(3, $models);
@@ -322,7 +322,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => ['min' => 3]])
-            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->allowedFilters(EloquentFilter::range('id'))
             ->get();
 
         $this->assertTrue($models->every(fn($m) => $m->id >= 3));
@@ -332,7 +332,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => ['max' => 3]])
-            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->allowedFilters(EloquentFilter::range('id'))
             ->get();
 
         $this->assertTrue($models->every(fn($m) => $m->id <= 3));
@@ -342,7 +342,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '2,4'])
-            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->allowedFilters(EloquentFilter::range('id'))
             ->get();
 
         $this->assertCount(3, $models);
@@ -357,7 +357,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['created_at' => ['from' => $from->toDateTimeString(), 'to' => $to->toDateTimeString()]])
-            ->setAllowedFilters(FilterDefinition::dateRange('created_at'))
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
             ->get();
 
         $this->assertCount(5, $models);
@@ -369,7 +369,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['created_at' => ['from' => $from->toDateTimeString()]])
-            ->setAllowedFilters(FilterDefinition::dateRange('created_at'))
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
             ->get();
 
         $this->assertCount(5, $models);
@@ -381,7 +381,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['created_at' => ['to' => $to->toDateTimeString()]])
-            ->setAllowedFilters(FilterDefinition::dateRange('created_at'))
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
             ->get();
 
         $this->assertCount(5, $models);
@@ -395,8 +395,8 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => true])
-            ->setAllowedFilters(FilterDefinition::null('name'))
-            ->build()
+            ->allowedFilters(EloquentFilter::null('name'))
+            ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('is null', strtolower($sql));
@@ -406,8 +406,8 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => false])
-            ->setAllowedFilters(FilterDefinition::null('name'))
-            ->build()
+            ->allowedFilters(EloquentFilter::null('name'))
+            ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('is not null', strtolower($sql));
@@ -417,8 +417,8 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => 'true'])
-            ->setAllowedFilters(FilterDefinition::null('name'))
-            ->build()
+            ->allowedFilters(EloquentFilter::null('name'))
+            ->toQuery()
             ->toSql();
 
         // 'true' is converted to boolean true, which checks for NULL
@@ -429,11 +429,11 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['has_name' => true])
-            ->setAllowedFilters(
-                FilterDefinition::null('name', 'has_name')
-                    ->invertLogic()
+            ->allowedFilters(
+                EloquentFilter::null('name')->alias('has_name')
+                    ->invertLogic(true)
             )
-            ->build()
+            ->toQuery()
             ->toSql();
 
         // invertLogic: true means "true" checks for NOT NULL
@@ -445,8 +445,8 @@ class FilterTest extends TestCase
         // Invalid values like 'invalid', 'random', etc. should default to false (NOT NULL)
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => 'invalid'])
-            ->setAllowedFilters(FilterDefinition::null('name'))
-            ->build()
+            ->allowedFilters(EloquentFilter::null('name'))
+            ->toQuery()
             ->toSql();
 
         // 'invalid' is not a valid boolean, so it defaults to false -> NOT NULL
@@ -458,8 +458,8 @@ class FilterTest extends TestCase
         // Numeric values like '123' should default to false (NOT NULL)
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => '123'])
-            ->setAllowedFilters(FilterDefinition::null('name'))
-            ->build()
+            ->allowedFilters(EloquentFilter::null('name'))
+            ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('is not null', strtolower($sql));
@@ -477,7 +477,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['relatedModels.name' => 'specific_name'])
-            ->setAllowedFilters(FilterDefinition::exact('relatedModels.name'))
+            ->allowedFilters(EloquentFilter::exact('relatedModels.name'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -488,11 +488,11 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['relatedModels.name' => 'test'])
-            ->setAllowedFilters(
-                FilterDefinition::exact('relatedModels.name')
+            ->allowedFilters(
+                EloquentFilter::exact('relatedModels.name')
                     ->withRelationConstraint(false)
             )
-            ->build()
+            ->toQuery()
             ->toSql();
 
         // Without relation constraint, it should NOT use whereHas
@@ -507,7 +507,7 @@ class FilterTest extends TestCase
 
         $this
             ->createEloquentWizardWithFilters(['not_allowed' => 'value'])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
     }
     #[Test]
@@ -519,7 +519,7 @@ class FilterTest extends TestCase
 
         $this
             ->createEloquentWizardWithFilters(['unknown' => 'value'])
-            ->setAllowedFilters([])
+            ->allowedFilters([])
             ->get();
     }
 
@@ -529,7 +529,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['name' => ''])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         // Empty string filter should return nothing for exact match
@@ -540,7 +540,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['name' => null])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         // Null value means filter is not applied - returns all models
@@ -551,7 +551,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'true'])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         // 'true' is parsed as boolean true by QueryParametersManager
@@ -562,7 +562,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'false'])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         // 'false' is parsed as boolean false
@@ -578,7 +578,7 @@ class FilterTest extends TestCase
                 'name' => $model->name,
                 'id' => $model->id,
             ])
-            ->setAllowedFilters('name', 'id')
+            ->allowedFilters('name', 'id')
             ->get();
 
         $this->assertCount(1, $models);
@@ -590,7 +590,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => "Test's Model"])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertCount(1, $models);
@@ -602,7 +602,7 @@ class FilterTest extends TestCase
 
         $this
             ->createEloquentWizardWithFilters(['name' => 'test'])
-            ->setAllowedFilters([])
+            ->allowedFilters([])
             ->get();
     }
     #[Test]
@@ -610,8 +610,8 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => 'test'])
-            ->setAllowedFilters('name')
-            ->build()
+            ->allowedFilters('name')
+            ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('"test_models"."name"', $sql);
@@ -626,8 +626,8 @@ class FilterTest extends TestCase
 
         $sql = $this
             ->createEloquentWizardWithFilters(['tags' => 'php'])
-            ->setAllowedFilters(FilterDefinition::jsonContains('tags'))
-            ->build()
+            ->allowedFilters(EloquentFilter::jsonContains('tags'))
+            ->toQuery()
             ->toSql();
 
         // SQLite uses json_each, MySQL uses json_contains
@@ -642,8 +642,8 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['tags' => ['php', 'laravel']])
-            ->setAllowedFilters(FilterDefinition::jsonContains('tags'))
-            ->build()
+            ->allowedFilters(EloquentFilter::jsonContains('tags'))
+            ->toQuery()
             ->toSql();
 
         // SQLite uses json_each, MySQL uses json_contains
@@ -662,7 +662,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => $model->id])
-            ->setAllowedFilters('id')
+            ->allowedFilters('id')
             ->get();
 
         $this->assertCount(1, $models);
@@ -675,7 +675,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => '0'])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertCount(1, $models);
@@ -691,9 +691,9 @@ class FilterTest extends TestCase
                 'name' => $model->name,
                 'id' => $model->id,
             ])
-            ->setAllowedFilters(
-                FilterDefinition::exact('name'),
-                FilterDefinition::exact('id')
+            ->allowedFilters(
+                EloquentFilter::exact('name'),
+                EloquentFilter::exact('id')
             )
             ->get();
 
@@ -709,9 +709,9 @@ class FilterTest extends TestCase
                 'name' => $model->name,
                 'id' => $model->id,
             ])
-            ->setAllowedFilters(
+            ->allowedFilters(
                 'name',
-                FilterDefinition::exact('id')
+                EloquentFilter::exact('id')
             )
             ->get();
 
@@ -725,10 +725,10 @@ class FilterTest extends TestCase
         // Type-safe options are now methods on the filter class itself
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => 'test'])
-            ->setAllowedFilters(
-                FilterDefinition::exact('name')->withRelationConstraint(false)
+            ->allowedFilters(
+                EloquentFilter::exact('name')->withRelationConstraint(false)
             )
-            ->build()
+            ->toQuery()
             ->toSql();
 
         // Just verify it doesn't break
@@ -750,7 +750,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['relatedModels.nestedRelatedModels.name' => 'deeply_nested'])
-            ->setAllowedFilters(FilterDefinition::exact('relatedModels.nestedRelatedModels.name'))
+            ->allowedFilters(EloquentFilter::exact('relatedModels.nestedRelatedModels.name'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -765,7 +765,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedFilters(FilterDefinition::partial('name')->default('partial'))
+            ->allowedFilters(EloquentFilter::partial('name')->default('partial'))
             ->get();
 
         $this->assertTrue($models->contains('name', 'default_partial_test'));
@@ -778,7 +778,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedFilters(FilterDefinition::exact('name')->default($names))
+            ->allowedFilters(EloquentFilter::exact('name')->default($names))
             ->get();
 
         $this->assertCount(2, $models);
@@ -792,8 +792,8 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'INPUT_' . $model->name])
-            ->setAllowedFilters(
-                FilterDefinition::exact('name')
+            ->allowedFilters(
+                EloquentFilter::exact('name')
                     ->prepareValueWith(fn($v) => str_replace('INPUT_', '', $v))
             )
             ->get();
@@ -807,8 +807,8 @@ class FilterTest extends TestCase
 
         $this
             ->createEloquentWizardWithFilters(['name' => ['a', 'b', 'c']])
-            ->setAllowedFilters(
-                FilterDefinition::exact('name')
+            ->allowedFilters(
+                EloquentFilter::exact('name')
                     ->prepareValueWith(function ($v) use (&$receivedValue) {
                         $receivedValue = $v;
                         return $v;
@@ -827,8 +827,8 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['search' => $model->name])
-            ->setAllowedFilters(
-                FilterDefinition::callback('search', function ($query, $value) {
+            ->allowedFilters(
+                EloquentFilter::callback('search', function ($query, $value) {
                     $query->where(function ($q) use ($value) {
                         $q->where('name', 'LIKE', "%{$value}%")
                             ->orWhere('id', $value);
@@ -844,8 +844,8 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['limit' => 2])
-            ->setAllowedFilters(
-                FilterDefinition::callback('limit', function ($query, $value) {
+            ->allowedFilters(
+                EloquentFilter::callback('limit', function ($query, $value) {
                     $query->limit((int) $value);
                 })
             )
@@ -860,7 +860,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => ['min' => -10, 'max' => 3]])
-            ->setAllowedFilters(FilterDefinition::range('id'))
+            ->allowedFilters(EloquentFilter::range('id'))
             ->get();
 
         $this->assertTrue($models->every(fn($m) => $m->id >= -10 && $m->id <= 3));
@@ -870,8 +870,8 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['id' => ['min' => 1.5, 'max' => 3.5]])
-            ->setAllowedFilters(FilterDefinition::range('id'))
-            ->build()
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('>=', $sql);
@@ -882,7 +882,7 @@ class FilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['model_id' => ['min' => 2, 'max' => 4]])
-            ->setAllowedFilters(FilterDefinition::range('id', 'model_id'))
+            ->allowedFilters(EloquentFilter::range('id')->alias('model_id'))
             ->get();
 
         $this->assertCount(3, $models);
@@ -897,7 +897,7 @@ class FilterTest extends TestCase
                 'from' => '2020-01-01',
                 'to' => '2030-12-31 23:59:59',
             ]])
-            ->setAllowedFilters(FilterDefinition::dateRange('created_at'))
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
             ->get();
 
         $this->assertCount(5, $models);
@@ -913,7 +913,7 @@ class FilterTest extends TestCase
                 'from' => $from->toDateTimeString(),
                 'to' => $to->toDateTimeString(),
             ]])
-            ->setAllowedFilters(FilterDefinition::dateRange('created_at', 'date'))
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->alias('date'))
             ->get();
 
         $this->assertCount(5, $models);
@@ -927,7 +927,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'Тест'])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertCount(1, $models);
@@ -940,7 +940,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'Test 🎉'])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertCount(1, $models);
@@ -953,7 +953,7 @@ class FilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $longName])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertCount(1, $models);
@@ -970,7 +970,7 @@ class FilterTest extends TestCase
             ->createEloquentWizardWithFilters([
                 'name' => 'unique_combo',
             ])
-            ->setAllowedFilters('name', 'id')
+            ->allowedFilters('name', 'id')
             ->get();
 
         $this->assertCount(1, $models);
@@ -985,9 +985,9 @@ class FilterTest extends TestCase
                 'name' => 'test',
                 'custom' => 'foo',
             ])
-            ->setAllowedFilters(
+            ->allowedFilters(
                 'name',
-                FilterDefinition::passthrough('custom')
+                EloquentFilter::passthrough('custom')
             );
 
         $wizard->get();
@@ -1001,8 +1001,8 @@ class FilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['custom' => 'value'])
-            ->setAllowedFilters(FilterDefinition::passthrough('custom'))
-            ->build()
+            ->allowedFilters(EloquentFilter::passthrough('custom'))
+            ->toQuery()
             ->toSql();
 
         // Should NOT contain WHERE clause for passthrough filter
@@ -1018,9 +1018,9 @@ class FilterTest extends TestCase
                 'name' => $this->models->first()->name,
                 'custom' => 'foo',
             ])
-            ->setAllowedFilters(
+            ->allowedFilters(
                 'name',
-                FilterDefinition::passthrough('custom')
+                EloquentFilter::passthrough('custom')
             );
 
         $result = $wizard->get();
@@ -1034,8 +1034,8 @@ class FilterTest extends TestCase
     {
         $wizard = $this
             ->createEloquentWizardFromQuery()  // No filters in request
-            ->setAllowedFilters(
-                FilterDefinition::passthrough('custom')->default('default_value')
+            ->allowedFilters(
+                EloquentFilter::passthrough('custom')->default('default_value')
             );
 
         $passthrough = $wizard->getPassthroughFilters();
@@ -1047,8 +1047,8 @@ class FilterTest extends TestCase
     {
         $wizard = $this
             ->createEloquentWizardWithFilters(['custom' => 'UPPERCASE'])
-            ->setAllowedFilters(
-                FilterDefinition::passthrough('custom')
+            ->allowedFilters(
+                EloquentFilter::passthrough('custom')
                     ->prepareValueWith(fn($v) => strtolower($v))
             );
 
@@ -1061,9 +1061,9 @@ class FilterTest extends TestCase
     {
         $wizard = $this
             ->createEloquentWizardWithFilters(['name' => 'test'])
-            ->setAllowedFilters(
+            ->allowedFilters(
                 'name',
-                FilterDefinition::passthrough('custom')
+                EloquentFilter::passthrough('custom')
             );
 
         $passthrough = $wizard->getPassthroughFilters();
@@ -1079,10 +1079,10 @@ class FilterTest extends TestCase
                 'b' => '2',
                 'c' => '3',
             ])
-            ->setAllowedFilters(
-                FilterDefinition::passthrough('a'),
-                FilterDefinition::passthrough('b'),
-                FilterDefinition::passthrough('c')
+            ->allowedFilters(
+                EloquentFilter::passthrough('a'),
+                EloquentFilter::passthrough('b'),
+                EloquentFilter::passthrough('c')
             );
 
         $passthrough = $wizard->getPassthroughFilters();
@@ -1101,9 +1101,9 @@ class FilterTest extends TestCase
                 'name' => $targetModel->name,
                 'custom' => 'passthrough_value',
             ])
-            ->setAllowedFilters(
-                FilterDefinition::exact('name'),
-                FilterDefinition::passthrough('custom')
+            ->allowedFilters(
+                EloquentFilter::exact('name'),
+                EloquentFilter::passthrough('custom')
             );
 
         $result = $wizard->get();

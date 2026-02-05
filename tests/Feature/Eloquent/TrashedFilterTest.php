@@ -9,7 +9,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 
@@ -50,7 +50,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'only'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(2, $models);
@@ -61,7 +61,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'with'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(5, $models);
@@ -71,7 +71,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => ''], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -82,7 +82,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'without'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -94,7 +94,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['deleted' => 'only'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed('deleted'))
+            ->allowedFilters(EloquentFilter::trashed('deleted'))
             ->get();
 
         $this->assertCount(2, $models);
@@ -104,7 +104,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['is_deleted' => 'with'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed('is_deleted'))
+            ->allowedFilters(EloquentFilter::trashed('is_deleted'))
             ->get();
 
         $this->assertCount(5, $models);
@@ -119,7 +119,7 @@ class TrashedFilterTest extends TestCase
         // Boolean true is not 'with' or 'only', so it results in withoutTrashed
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => true], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -131,7 +131,7 @@ class TrashedFilterTest extends TestCase
         // which is not 'with' or 'only', so it results in withoutTrashed
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'true'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -141,7 +141,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => false], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -151,7 +151,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'false'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -164,7 +164,7 @@ class TrashedFilterTest extends TestCase
         // '1' is not 'with' or 'only', so it results in withoutTrashed
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => '1'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -174,7 +174,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => '0'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -191,9 +191,9 @@ class TrashedFilterTest extends TestCase
                 'name' => $targetName,
                 'trashed' => 'only',
             ], SoftDeleteModel::class)
-            ->setAllowedFilters(
-                FilterDefinition::exact('name'),
-                FilterDefinition::trashed()
+            ->allowedFilters(
+                EloquentFilter::exact('name'),
+                EloquentFilter::trashed()
             )
             ->get();
 
@@ -211,9 +211,9 @@ class TrashedFilterTest extends TestCase
                 'name' => $partialName,
                 'trashed' => 'with',
             ], SoftDeleteModel::class)
-            ->setAllowedFilters(
-                FilterDefinition::partial('name'),
-                FilterDefinition::trashed()
+            ->allowedFilters(
+                EloquentFilter::partial('name'),
+                EloquentFilter::trashed()
             )
             ->get();
 
@@ -226,7 +226,7 @@ class TrashedFilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['trashed' => 'only'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->build()
             ->toSql();
 
@@ -238,7 +238,7 @@ class TrashedFilterTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['trashed' => 'with'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->build()
             ->toSql();
 
@@ -253,7 +253,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'invalid_value'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         // Invalid value should be treated as 'without' (default behavior)
@@ -264,7 +264,7 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => null], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         // Null should be treated as 'without'
@@ -276,7 +276,7 @@ class TrashedFilterTest extends TestCase
         // When trashed filter is allowed but not in request
         $models = $this
             ->createEloquentWizardFromQuery([], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -286,7 +286,7 @@ class TrashedFilterTest extends TestCase
     {
         $result = $this
             ->createEloquentWizardWithFilters(['trashed' => 'with'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->build()
             ->paginate(10);
 
@@ -297,7 +297,7 @@ class TrashedFilterTest extends TestCase
     {
         $model = $this
             ->createEloquentWizardWithFilters(['trashed' => 'only'], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->build()
             ->first();
 
@@ -325,7 +325,7 @@ class TrashedFilterTest extends TestCase
         // Wrong-case values are not recognized, so they result in withoutTrashed
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => $value], SoftDeleteModel::class)
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(3, $models);
@@ -339,7 +339,7 @@ class TrashedFilterTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'only'], SoftDeleteModel::where('name', $targetName))
-            ->setAllowedFilters(FilterDefinition::trashed())
+            ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
         $this->assertCount(1, $models);

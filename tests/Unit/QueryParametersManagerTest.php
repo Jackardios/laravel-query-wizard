@@ -553,4 +553,114 @@ class QueryParametersManagerTest extends TestCase
         $this->assertSame($manager, $manager->setFieldsParameter([]));
         $this->assertSame($manager, $manager->setAppendsParameter([]));
     }
+
+    // ========== Trim Whitespace Tests ==========
+    #[Test]
+    public function it_trims_whitespace_from_includes(): void
+    {
+        $request = new Request(['include' => ' posts , comments ']);
+        $manager = new QueryParametersManager($request);
+
+        $includes = $manager->getIncludes();
+
+        $this->assertEquals(['posts', 'comments'], $includes->all());
+    }
+
+    #[Test]
+    public function it_trims_whitespace_from_array_includes(): void
+    {
+        $request = new Request(['include' => [' posts ', ' comments ']]);
+        $manager = new QueryParametersManager($request);
+
+        $includes = $manager->getIncludes();
+
+        $this->assertEquals(['posts', 'comments'], $includes->all());
+    }
+
+    #[Test]
+    public function it_trims_whitespace_from_sorts(): void
+    {
+        $request = new Request(['sort' => ' name , -created_at ']);
+        $manager = new QueryParametersManager($request);
+
+        $sorts = $manager->getSorts();
+
+        $this->assertCount(2, $sorts);
+        $this->assertEquals('name', $sorts[0]->getField());
+        $this->assertEquals('asc', $sorts[0]->getDirection());
+        $this->assertEquals('created_at', $sorts[1]->getField());
+        $this->assertEquals('desc', $sorts[1]->getDirection());
+    }
+
+    #[Test]
+    public function it_trims_whitespace_from_array_sorts(): void
+    {
+        $request = new Request(['sort' => [' name ', ' -created_at ']]);
+        $manager = new QueryParametersManager($request);
+
+        $sorts = $manager->getSorts();
+
+        $this->assertCount(2, $sorts);
+        $this->assertEquals('name', $sorts[0]->getField());
+        $this->assertEquals('created_at', $sorts[1]->getField());
+    }
+
+    #[Test]
+    public function it_trims_whitespace_from_appends(): void
+    {
+        $request = new Request(['append' => ' fullName , avatarUrl ']);
+        $manager = new QueryParametersManager($request);
+
+        $appends = $manager->getAppends();
+
+        $this->assertEquals(['fullName', 'avatarUrl'], $appends->all());
+    }
+
+    #[Test]
+    public function it_trims_whitespace_from_array_appends(): void
+    {
+        $request = new Request(['append' => [' fullName ', ' avatarUrl ']]);
+        $manager = new QueryParametersManager($request);
+
+        $appends = $manager->getAppends();
+
+        $this->assertEquals(['fullName', 'avatarUrl'], $appends->all());
+    }
+
+    #[Test]
+    public function it_trims_whitespace_from_fields(): void
+    {
+        $request = new Request(['fields' => [
+            'users' => ' id , name , email ',
+        ]]);
+        $manager = new QueryParametersManager($request);
+
+        $fields = $manager->getFields();
+
+        $this->assertEquals(['id', 'name', 'email'], $fields->get('users'));
+    }
+
+    #[Test]
+    public function it_trims_whitespace_from_array_fields(): void
+    {
+        $request = new Request(['fields' => [
+            'users' => [' id ', ' name ', ' email '],
+        ]]);
+        $manager = new QueryParametersManager($request);
+
+        $fields = $manager->getFields();
+
+        $this->assertEquals(['id', 'name', 'email'], $fields->get('users'));
+    }
+
+    #[Test]
+    public function it_handles_nested_includes_with_whitespace(): void
+    {
+        $request = new Request(['include' => ' posts.comments , posts.author ']);
+        $manager = new QueryParametersManager($request);
+
+        $includes = $manager->getIncludes();
+
+        $this->assertEquals(['posts.comments', 'posts.author'], $includes->all());
+    }
 }

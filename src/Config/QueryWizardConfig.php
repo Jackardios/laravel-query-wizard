@@ -61,6 +61,26 @@ final class QueryWizardConfig
         return (bool) config(self::CONFIG_PREFIX . '.disable_invalid_filter_query_exception', false);
     }
 
+    public function isInvalidSortQueryExceptionDisabled(): bool
+    {
+        return (bool) config(self::CONFIG_PREFIX . '.disable_invalid_sort_query_exception', false);
+    }
+
+    public function isInvalidIncludeQueryExceptionDisabled(): bool
+    {
+        return (bool) config(self::CONFIG_PREFIX . '.disable_invalid_include_query_exception', false);
+    }
+
+    public function isInvalidFieldQueryExceptionDisabled(): bool
+    {
+        return (bool) config(self::CONFIG_PREFIX . '.disable_invalid_field_query_exception', false);
+    }
+
+    public function isInvalidAppendQueryExceptionDisabled(): bool
+    {
+        return (bool) config(self::CONFIG_PREFIX . '.disable_invalid_append_query_exception', false);
+    }
+
     public function getMaxIncludeDepth(): ?int
     {
         $value = config(self::CONFIG_PREFIX . '.limits.max_include_depth');
@@ -89,20 +109,5 @@ final class QueryWizardConfig
     {
         $value = config(self::CONFIG_PREFIX . '.limits.max_sorts_count');
         return $value !== null ? (int) $value : null;
-    }
-
-    public function getUnsupportedCapabilityBehavior(): string
-    {
-        return (string) config(self::CONFIG_PREFIX . '.unsupported_capability_behavior', 'exception');
-    }
-
-    public function shouldThrowOnUnsupportedCapability(): bool
-    {
-        return $this->getUnsupportedCapabilityBehavior() === 'exception';
-    }
-
-    public function shouldLogUnsupportedCapability(): bool
-    {
-        return $this->getUnsupportedCapabilityBehavior() === 'log';
     }
 }

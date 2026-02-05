@@ -296,7 +296,7 @@ class QueryParametersManager
 
         $this->sorts = collect($sortsParameter)
             ->filter()
-            ->map(fn($field) => new Sort((string) $field))
+            ->map(fn($field) => new Sort(trim((string) $field)))
             ->unique(fn(Sort $sort) => $sort->getField())
             ->values();
 
@@ -330,6 +330,10 @@ class QueryParametersManager
 
     protected function getRequestData(?string $key = null, mixed $default = null): mixed
     {
+        if ($this->request === null) {
+            return $default;
+        }
+
         if ($this->config->shouldUseRequestBody()) {
             return $this->request->input($key, $default);
         }
@@ -350,13 +354,14 @@ class QueryParametersManager
     }
 
     /**
-     * @param array<int, string>|null $list
+     * @param array<int, mixed>|null $list
      * @return Collection<int, string>
      */
     protected function prepareList(?array $list): Collection
     {
         /** @var Collection<int, string> $result */
         $result = collect($list)
+            ->map(fn($item) => is_string($item) ? trim($item) : $item)
             ->filter()
             ->unique()
             ->values();

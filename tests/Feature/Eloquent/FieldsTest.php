@@ -8,7 +8,6 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\IncludeDefinition;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -53,7 +52,7 @@ class FieldsTest extends TestCase
         // Resource key is camelCase of model class: TestModel -> testModel
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name'])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
 
         // Only selected fields should be present
@@ -67,7 +66,7 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'name'])
-            ->setAllowedFields('name')
+            ->allowedFields('name')
             ->get();
 
         $attributes = array_keys($models->first()->getAttributes());
@@ -78,7 +77,7 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => ['id', 'name']])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
 
         $attributes = array_keys($models->first()->getAttributes());
@@ -92,7 +91,7 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => '*'])
-            ->setAllowedFields('*')
+            ->allowedFields('*')
             ->get();
 
         $this->assertNotNull($models->first()->name);
@@ -103,7 +102,7 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name,created_at'])
-            ->setAllowedFields('*')
+            ->allowedFields('*')
             ->get();
 
         $attributes = array_keys($models->first()->getAttributes());
@@ -124,8 +123,8 @@ class FieldsTest extends TestCase
                     'relatedModels' => 'id,name',
                 ],
             ])
-            ->setAllowedIncludes('relatedModels')
-            ->setAllowedFields('id', 'name')
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -140,8 +139,8 @@ class FieldsTest extends TestCase
                     'testModel' => 'id,name',
                 ],
             ])
-            ->setAllowedIncludes('relatedModels')
-            ->setAllowedFields('id', 'name')
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name')
             ->get();
 
         // Related models should have their default fields
@@ -156,18 +155,39 @@ class FieldsTest extends TestCase
 
         $this
             ->createEloquentWizardWithFields(['testModel' => 'secret_field'])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
     }
+
     #[Test]
-    public function it_ignores_unknown_fields_when_no_allowed_set(): void
+    public function it_ignores_not_allowed_field_when_exception_disabled(): void
     {
+        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+
         $models = $this
-            ->createEloquentWizardWithFields(['testModel' => 'unknown_field'])
+            ->createEloquentWizardWithFields(['testModel' => 'id,secret_field'])
+            ->allowedFields('id', 'name')
             ->get();
 
-        // No exception, returns all models with all fields
+        // No exception, returns models with only valid fields
         $this->assertCount(3, $models);
+        $attributes = array_keys($models->first()->getAttributes());
+        $this->assertContains('id', $attributes);
+        $this->assertNotContains('secret_field', $attributes);
+    }
+
+    #[Test]
+    public function it_applies_requested_fields_when_wildcard_allowed(): void
+    {
+        // When no allowedFields() is called, defaults to ['*'] which allows all fields
+        // Unknown columns will cause database errors, so we test with valid fields
+        $models = $this
+            ->createEloquentWizardWithFields(['testModel' => 'id,name'])
+            ->get();
+
+        $attributes = array_keys($models->first()->getAttributes());
+        $this->assertContains('id', $attributes);
+        $this->assertContains('name', $attributes);
     }
     #[Test]
     public function it_ignores_fields_when_empty_allowed_array(): void
@@ -175,7 +195,7 @@ class FieldsTest extends TestCase
         // Empty allowed array means silently ignore all field requests
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'name'])
-            ->setAllowedFields([])
+            ->allowedFields([])
             ->get();
 
         // No exception, returns all models with all fields
@@ -188,7 +208,7 @@ class FieldsTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name'])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->build()
             ->toSql();
 
@@ -200,7 +220,7 @@ class FieldsTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name'])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->build()
             ->toSql();
 
@@ -213,7 +233,7 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => ''])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
 
         // Empty fields = select all
@@ -224,7 +244,7 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name,'])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
 
         $attributes = array_keys($models->first()->getAttributes());
@@ -236,22 +256,24 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name,id,name'])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
 
         $this->assertCount(3, $models);
     }
     #[Test]
-    public function it_treats_field_values_literally_with_spaces(): void
+    public function it_trims_whitespace_from_field_values(): void
     {
-        // Field values are treated literally - spaces are NOT trimmed
-        // ' id , name ' is different from 'id,name'
-        $this->expectException(InvalidFieldQuery::class);
-
-        $this
+        // Field values are trimmed - ' id , name ' becomes 'id', 'name'
+        $models = $this
             ->createEloquentWizardWithFields(['testModel' => ' id , name '])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
+
+        $this->assertNotEmpty($models);
+        $firstModel = $models->first();
+        $this->assertArrayHasKey('id', $firstModel->getAttributes());
+        $this->assertArrayHasKey('name', $firstModel->getAttributes());
     }
 
     // ========== Default Fields Tests ==========
@@ -263,7 +285,7 @@ class FieldsTest extends TestCase
         // When no fields are requested, all allowed fields are selected (or *)
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedFields('id', 'name', 'created_at')
+            ->allowedFields('id', 'name', 'created_at')
             ->get();
 
         // All fields should be present
@@ -283,8 +305,8 @@ class FieldsTest extends TestCase
                 'filter' => ['id' => $model->id],
                 'fields' => ['testModel' => 'id,name'],
             ])
-            ->setAllowedFilters('id')
-            ->setAllowedFields('id', 'name')
+            ->allowedFilters('id')
+            ->allowedFields('id', 'name')
             ->get();
 
         $this->assertCount(1, $models);
@@ -300,8 +322,8 @@ class FieldsTest extends TestCase
                 'sort' => '-name',
                 'fields' => ['testModel' => 'id,name'],
             ])
-            ->setAllowedSorts('name')
-            ->setAllowedFields('id', 'name')
+            ->allowedSorts('name')
+            ->allowedFields('id', 'name')
             ->get();
 
         $this->assertCount(3, $models);
@@ -311,7 +333,7 @@ class FieldsTest extends TestCase
     {
         $result = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name'])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->build()
             ->paginate(2);
 
@@ -324,7 +346,7 @@ class FieldsTest extends TestCase
     {
         $model = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name'])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->build()
             ->first();
 
@@ -345,8 +367,8 @@ class FieldsTest extends TestCase
                     'relatedModels' => 'id',
                 ],
             ])
-            ->setAllowedIncludes('relatedModels')
-            ->setAllowedFields('id', 'name')
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -358,7 +380,7 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields('testModel.id,testModel.name')
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
 
         $attributes = array_keys($models->first()->getAttributes());
@@ -372,7 +394,7 @@ class FieldsTest extends TestCase
             ->createEloquentWizardFromQuery([
                 'fields' => 'testModel.id,testModel.name',
             ])
-            ->setAllowedFields('id', 'name')
+            ->allowedFields('id', 'name')
             ->get();
 
         $this->assertCount(3, $models);
@@ -387,8 +409,8 @@ class FieldsTest extends TestCase
                 'include' => 'relatedModels',
                 'fields' => ['testModel' => 'name'],
             ])
-            ->setAllowedIncludes('relatedModels')
-            ->setAllowedFields('name')
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('name')
             ->get();
 
         // Relations should still work even if id wasn't explicitly requested
@@ -401,7 +423,7 @@ class FieldsTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'created_at,updated_at'])
-            ->setAllowedFields('created_at', 'updated_at')
+            ->allowedFields('created_at', 'updated_at')
             ->get();
 
         $attributes = array_keys($models->first()->getAttributes());
@@ -413,7 +435,7 @@ class FieldsTest extends TestCase
         // This depends on model configuration, but test doesn't throw
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'id'])
-            ->setAllowedFields('id')
+            ->allowedFields('id')
             ->get();
 
         $this->assertCount(3, $models);

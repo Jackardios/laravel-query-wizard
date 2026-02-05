@@ -5,56 +5,36 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Schema;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 
 /**
- * Base class for resource schemas.
+ * Interface for resource schemas.
  *
  * A schema defines what filters, sorts, includes, fields, and appends
  * are allowed for a resource. Schemas can be shared between different
  * wizard types (EloquentQueryWizard, ModelQueryWizard).
  *
- * All methods accept a $wizard parameter to allow conditional
- * logic based on the wizard type. For example:
- *
- * ```php
- * public function filters(QueryWizardInterface $wizard): array
- * {
- *     if ($wizard instanceof ModelQueryWizard) {
- *         return []; // No filters for loaded models
- *     }
- *     return [
- *         EloquentFilter::exact('status'),
- *         EloquentFilter::partial('name'),
- *     ];
- * }
- * ```
- *
- * @phpstan-consistent-constructor
+ * All methods accept a $wizard parameter to allow customization
+ * based on the wizard type being used.
  */
-abstract class ResourceSchema implements ResourceSchemaInterface
+interface ResourceSchemaInterface
 {
     /**
      * Get the model class name.
      *
      * @return class-string<Model>
      */
-    abstract public function model(): string;
+    public function model(): string;
 
     /**
      * Get the resource type for sparse fieldsets.
      *
-     * Defaults to camelCase of model basename.
      * Used as the key in ?fields[type]=id,name
      */
-    public function type(): string
-    {
-        return Str::camel(class_basename($this->model()));
-    }
+    public function type(): string;
 
     // === Common (used by ALL wizards including ModelQueryWizard) ===
 
@@ -64,10 +44,7 @@ abstract class ResourceSchema implements ResourceSchemaInterface
      * @param QueryWizardInterface $wizard The wizard requesting includes (for conditional logic)
      * @return array<IncludeInterface|string>
      */
-    public function includes(QueryWizardInterface $wizard): array
-    {
-        return [];
-    }
+    public function includes(QueryWizardInterface $wizard): array;
 
     /**
      * Get allowed fields.
@@ -75,10 +52,7 @@ abstract class ResourceSchema implements ResourceSchemaInterface
      * @param QueryWizardInterface $wizard The wizard requesting fields (for conditional logic)
      * @return array<string>
      */
-    public function fields(QueryWizardInterface $wizard): array
-    {
-        return ['*'];
-    }
+    public function fields(QueryWizardInterface $wizard): array;
 
     /**
      * Get allowed appends.
@@ -86,10 +60,7 @@ abstract class ResourceSchema implements ResourceSchemaInterface
      * @param QueryWizardInterface $wizard The wizard requesting appends (for conditional logic)
      * @return array<string>
      */
-    public function appends(QueryWizardInterface $wizard): array
-    {
-        return [];
-    }
+    public function appends(QueryWizardInterface $wizard): array;
 
     /**
      * Get default includes to always load.
@@ -97,10 +68,7 @@ abstract class ResourceSchema implements ResourceSchemaInterface
      * @param QueryWizardInterface $wizard The wizard requesting default includes (for conditional logic)
      * @return array<string>
      */
-    public function defaultIncludes(QueryWizardInterface $wizard): array
-    {
-        return [];
-    }
+    public function defaultIncludes(QueryWizardInterface $wizard): array;
 
     /**
      * Get default appends to always add.
@@ -108,10 +76,7 @@ abstract class ResourceSchema implements ResourceSchemaInterface
      * @param QueryWizardInterface $wizard The wizard requesting default appends (for conditional logic)
      * @return array<string>
      */
-    public function defaultAppends(QueryWizardInterface $wizard): array
-    {
-        return [];
-    }
+    public function defaultAppends(QueryWizardInterface $wizard): array;
 
     // === Specific to List wizards (ignored by ModelQueryWizard) ===
 
@@ -121,10 +86,7 @@ abstract class ResourceSchema implements ResourceSchemaInterface
      * @param QueryWizardInterface $wizard The wizard requesting filters (for conditional logic)
      * @return array<FilterInterface|string>
      */
-    public function filters(QueryWizardInterface $wizard): array
-    {
-        return [];
-    }
+    public function filters(QueryWizardInterface $wizard): array;
 
     /**
      * Get allowed sorts.
@@ -132,10 +94,7 @@ abstract class ResourceSchema implements ResourceSchemaInterface
      * @param QueryWizardInterface $wizard The wizard requesting sorts (for conditional logic)
      * @return array<SortInterface|string>
      */
-    public function sorts(QueryWizardInterface $wizard): array
-    {
-        return [];
-    }
+    public function sorts(QueryWizardInterface $wizard): array;
 
     /**
      * Get default sorts to apply when none requested.
@@ -143,8 +102,5 @@ abstract class ResourceSchema implements ResourceSchemaInterface
      * @param QueryWizardInterface $wizard The wizard requesting default sorts (for conditional logic)
      * @return array<string>
      */
-    public function defaultSorts(QueryWizardInterface $wizard): array
-    {
-        return [];
-    }
+    public function defaultSorts(QueryWizardInterface $wizard): array;
 }

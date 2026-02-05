@@ -7,18 +7,24 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
-use Jackardios\QueryWizard\Contracts\ResourceSchemaInterface;
-use Jackardios\QueryWizard\Contracts\SchemaContextInterface;
+use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\FilterDefinition;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\IncludeDefinition;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\SortDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
+use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
-use Jackardios\QueryWizard\Schema\SchemaContext;
 use PHPUnit\Framework\TestCase;
 
 class ResourceSchemaTest extends TestCase
 {
+    /**
+     * Create a mock wizard for testing.
+     */
+    protected function mockWizard(): QueryWizardInterface
+    {
+        return $this->createMock(QueryWizardInterface::class);
+    }
+
     // ========== Abstract Method Tests ==========
     #[Test]
     public function it_requires_model_method(): void
@@ -46,6 +52,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals('userProfile', $schema->type());
     }
+
     #[Test]
     public function it_handles_simple_model_name(): void
     {
@@ -58,6 +65,7 @@ class ResourceSchemaTest extends TestCase
 
         $this->assertEquals('user', $schema->type());
     }
+
     #[Test]
     public function it_can_override_type(): void
     {
@@ -76,37 +84,6 @@ class ResourceSchemaTest extends TestCase
         $this->assertEquals('users', $schema->type());
     }
 
-    // ========== Driver Method Tests ==========
-    #[Test]
-    public function it_defaults_to_eloquent_driver(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-        };
-
-        $this->assertEquals('eloquent', $schema->driver());
-    }
-    #[Test]
-    public function it_can_override_driver(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-
-            public function driver(): string
-            {
-                return 'custom';
-            }
-        };
-
-        $this->assertEquals('custom', $schema->driver());
-    }
-
     // ========== Filters Method Tests ==========
     #[Test]
     public function it_returns_empty_filters_by_default(): void
@@ -118,8 +95,9 @@ class ResourceSchemaTest extends TestCase
             }
         };
 
-        $this->assertEquals([], $schema->filters());
+        $this->assertEquals([], $schema->filters($this->mockWizard()));
     }
+
     #[Test]
     public function it_can_return_string_filters(): void
     {
@@ -129,16 +107,17 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function filters(): array
+            public function filters(QueryWizardInterface $wizard): array
             {
                 return ['name', 'email', 'status'];
             }
         };
 
-        $this->assertEquals(['name', 'email', 'status'], $schema->filters());
+        $this->assertEquals(['name', 'email', 'status'], $schema->filters($this->mockWizard()));
     }
+
     #[Test]
-    public function it_can_return_filter_definitions(): void
+    public function it_can_return_filter_instances(): void
     {
         $schema = new class extends ResourceSchema {
             public function model(): string
@@ -146,22 +125,22 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function filters(): array
+            public function filters(QueryWizardInterface $wizard): array
             {
                 return [
-                    FilterDefinition::exact('name'),
-                    FilterDefinition::partial('email'),
+                    EloquentFilter::exact('name'),
+                    EloquentFilter::partial('email'),
                 ];
             }
         };
 
-        $filters = $schema->filters();
+        $filters = $schema->filters($this->mockWizard());
         $this->assertCount(2, $filters);
         $this->assertInstanceOf(FilterInterface::class, $filters[0]);
     }
 
     #[Test]
-    public function it_can_mix_strings_and_filter_definitions(): void
+    public function it_can_mix_strings_and_filter_instances(): void
     {
         $schema = new class extends ResourceSchema {
             public function model(): string
@@ -169,16 +148,16 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function filters(): array
+            public function filters(QueryWizardInterface $wizard): array
             {
                 return [
                     'status',
-                    FilterDefinition::partial('name'),
+                    EloquentFilter::partial('name'),
                 ];
             }
         };
 
-        $filters = $schema->filters();
+        $filters = $schema->filters($this->mockWizard());
         $this->assertEquals('status', $filters[0]);
         $this->assertInstanceOf(FilterInterface::class, $filters[1]);
     }
@@ -194,8 +173,9 @@ class ResourceSchemaTest extends TestCase
             }
         };
 
-        $this->assertEquals([], $schema->includes());
+        $this->assertEquals([], $schema->includes($this->mockWizard()));
     }
+
     #[Test]
     public function it_can_return_string_includes(): void
     {
@@ -205,16 +185,17 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function includes(): array
+            public function includes(QueryWizardInterface $wizard): array
             {
                 return ['posts', 'comments', 'profile'];
             }
         };
 
-        $this->assertEquals(['posts', 'comments', 'profile'], $schema->includes());
+        $this->assertEquals(['posts', 'comments', 'profile'], $schema->includes($this->mockWizard()));
     }
+
     #[Test]
-    public function it_can_return_include_definitions(): void
+    public function it_can_return_include_instances(): void
     {
         $schema = new class extends ResourceSchema {
             public function model(): string
@@ -222,16 +203,16 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function includes(): array
+            public function includes(QueryWizardInterface $wizard): array
             {
                 return [
-                    IncludeDefinition::relationship('posts'),
-                    IncludeDefinition::count('comments'),
+                    EloquentInclude::relationship('posts'),
+                    EloquentInclude::count('comments'),
                 ];
             }
         };
 
-        $includes = $schema->includes();
+        $includes = $schema->includes($this->mockWizard());
         $this->assertCount(2, $includes);
         $this->assertInstanceOf(IncludeInterface::class, $includes[0]);
     }
@@ -247,8 +228,9 @@ class ResourceSchemaTest extends TestCase
             }
         };
 
-        $this->assertEquals([], $schema->sorts());
+        $this->assertEquals([], $schema->sorts($this->mockWizard()));
     }
+
     #[Test]
     public function it_can_return_string_sorts(): void
     {
@@ -258,16 +240,17 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function sorts(): array
+            public function sorts(QueryWizardInterface $wizard): array
             {
                 return ['name', 'created_at'];
             }
         };
 
-        $this->assertEquals(['name', 'created_at'], $schema->sorts());
+        $this->assertEquals(['name', 'created_at'], $schema->sorts($this->mockWizard()));
     }
+
     #[Test]
-    public function it_can_return_sort_definitions(): void
+    public function it_can_return_sort_instances(): void
     {
         $schema = new class extends ResourceSchema {
             public function model(): string
@@ -275,23 +258,23 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function sorts(): array
+            public function sorts(QueryWizardInterface $wizard): array
             {
                 return [
-                    SortDefinition::field('name'),
-                    SortDefinition::callback('custom', fn($q, $d) => $q),
+                    EloquentSort::field('name'),
+                    EloquentSort::callback('custom', fn($q, $d) => $q),
                 ];
             }
         };
 
-        $sorts = $schema->sorts();
+        $sorts = $schema->sorts($this->mockWizard());
         $this->assertCount(2, $sorts);
         $this->assertInstanceOf(SortInterface::class, $sorts[0]);
     }
 
     // ========== Fields Method Tests ==========
     #[Test]
-    public function it_returns_empty_fields_by_default(): void
+    public function it_returns_wildcard_fields_by_default(): void
     {
         $schema = new class extends ResourceSchema {
             public function model(): string
@@ -300,8 +283,9 @@ class ResourceSchemaTest extends TestCase
             }
         };
 
-        $this->assertEquals([], $schema->fields());
+        $this->assertEquals(['*'], $schema->fields($this->mockWizard()));
     }
+
     #[Test]
     public function it_can_return_fields(): void
     {
@@ -311,13 +295,13 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function fields(): array
+            public function fields(QueryWizardInterface $wizard): array
             {
                 return ['id', 'name', 'email', 'created_at'];
             }
         };
 
-        $this->assertEquals(['id', 'name', 'email', 'created_at'], $schema->fields());
+        $this->assertEquals(['id', 'name', 'email', 'created_at'], $schema->fields($this->mockWizard()));
     }
 
     // ========== Appends Method Tests ==========
@@ -331,8 +315,9 @@ class ResourceSchemaTest extends TestCase
             }
         };
 
-        $this->assertEquals([], $schema->appends());
+        $this->assertEquals([], $schema->appends($this->mockWizard()));
     }
+
     #[Test]
     public function it_can_return_appends(): void
     {
@@ -342,44 +327,13 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function appends(): array
+            public function appends(QueryWizardInterface $wizard): array
             {
                 return ['fullName', 'avatarUrl'];
             }
         };
 
-        $this->assertEquals(['fullName', 'avatarUrl'], $schema->appends());
-    }
-
-    // ========== Default Fields Tests ==========
-    #[Test]
-    public function it_returns_wildcard_as_default_fields(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-        };
-
-        $this->assertEquals(['*'], $schema->defaultFields());
-    }
-    #[Test]
-    public function it_can_override_default_fields(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-
-            public function defaultFields(): array
-            {
-                return ['id', 'name'];
-            }
-        };
-
-        $this->assertEquals(['id', 'name'], $schema->defaultFields());
+        $this->assertEquals(['fullName', 'avatarUrl'], $schema->appends($this->mockWizard()));
     }
 
     // ========== Default Includes Tests ==========
@@ -393,8 +347,9 @@ class ResourceSchemaTest extends TestCase
             }
         };
 
-        $this->assertEquals([], $schema->defaultIncludes());
+        $this->assertEquals([], $schema->defaultIncludes($this->mockWizard()));
     }
+
     #[Test]
     public function it_can_set_default_includes(): void
     {
@@ -404,13 +359,13 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function defaultIncludes(): array
+            public function defaultIncludes(QueryWizardInterface $wizard): array
             {
                 return ['profile'];
             }
         };
 
-        $this->assertEquals(['profile'], $schema->defaultIncludes());
+        $this->assertEquals(['profile'], $schema->defaultIncludes($this->mockWizard()));
     }
 
     // ========== Default Sorts Tests ==========
@@ -424,8 +379,9 @@ class ResourceSchemaTest extends TestCase
             }
         };
 
-        $this->assertEquals([], $schema->defaultSorts());
+        $this->assertEquals([], $schema->defaultSorts($this->mockWizard()));
     }
+
     #[Test]
     public function it_can_set_default_sorts(): void
     {
@@ -435,13 +391,13 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function defaultSorts(): array
+            public function defaultSorts(QueryWizardInterface $wizard): array
             {
                 return ['-created_at'];
             }
         };
 
-        $this->assertEquals(['-created_at'], $schema->defaultSorts());
+        $this->assertEquals(['-created_at'], $schema->defaultSorts($this->mockWizard()));
     }
 
     // ========== Default Appends Tests ==========
@@ -455,8 +411,9 @@ class ResourceSchemaTest extends TestCase
             }
         };
 
-        $this->assertEquals([], $schema->defaultAppends());
+        $this->assertEquals([], $schema->defaultAppends($this->mockWizard()));
     }
+
     #[Test]
     public function it_can_set_default_appends(): void
     {
@@ -466,93 +423,13 @@ class ResourceSchemaTest extends TestCase
                 return 'App\\Models\\User';
             }
 
-            public function defaultAppends(): array
+            public function defaultAppends(QueryWizardInterface $wizard): array
             {
                 return ['fullName'];
             }
         };
 
-        $this->assertEquals(['fullName'], $schema->defaultAppends());
-    }
-
-    // ========== Context Methods Tests ==========
-    #[Test]
-    public function it_returns_null_forList_by_default(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-        };
-
-        $this->assertNull($schema->forList());
-    }
-    #[Test]
-    public function it_returns_null_forItem_by_default(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-        };
-
-        $this->assertNull($schema->forItem());
-    }
-    #[Test]
-    public function it_can_return_forList_context(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-
-            public function forList(): ?SchemaContextInterface
-            {
-                return SchemaContext::make()
-                    ->setDisallowedIncludes(['secrets']);
-            }
-        };
-
-        $context = $schema->forList();
-        $this->assertInstanceOf(SchemaContextInterface::class, $context);
-        $this->assertEquals(['secrets'], $context->getDisallowedIncludes());
-    }
-    #[Test]
-    public function it_can_return_forItem_context(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-
-            public function forItem(): ?SchemaContextInterface
-            {
-                return SchemaContext::make()
-                    ->setDefaultIncludes(['profile', 'posts']);
-            }
-        };
-
-        $context = $schema->forItem();
-        $this->assertInstanceOf(SchemaContextInterface::class, $context);
-        $this->assertEquals(['profile', 'posts'], $context->getDefaultIncludes());
-    }
-
-    // ========== Interface Implementation Tests ==========
-    #[Test]
-    public function it_implements_resource_schema_interface(): void
-    {
-        $schema = new class extends ResourceSchema {
-            public function model(): string
-            {
-                return 'App\\Models\\User';
-            }
-        };
-
-        $this->assertInstanceOf(ResourceSchemaInterface::class, $schema);
+        $this->assertEquals(['fullName'], $schema->defaultAppends($this->mockWizard()));
     }
 
     // ========== Complex Schema Tests ==========
@@ -570,86 +447,72 @@ class ResourceSchemaTest extends TestCase
                 return 'users';
             }
 
-            public function filters(): array
+            public function filters(QueryWizardInterface $wizard): array
             {
                 return [
                     'status',
-                    FilterDefinition::partial('name'),
-                    FilterDefinition::exact('email'),
-                    FilterDefinition::scope('active'),
+                    EloquentFilter::partial('name'),
+                    EloquentFilter::exact('email'),
+                    EloquentFilter::scope('active'),
                 ];
             }
 
-            public function includes(): array
+            public function includes(QueryWizardInterface $wizard): array
             {
                 return [
                     'profile',
-                    IncludeDefinition::relationship('posts'),
-                    IncludeDefinition::count('comments'),
+                    EloquentInclude::relationship('posts'),
+                    EloquentInclude::count('comments'),
                 ];
             }
 
-            public function sorts(): array
+            public function sorts(QueryWizardInterface $wizard): array
             {
                 return [
                     'name',
                     '-created_at',
-                    SortDefinition::callback('popularity', fn($q, $d) => $q),
+                    EloquentSort::callback('popularity', fn($q, $d) => $q),
                 ];
             }
 
-            public function fields(): array
+            public function fields(QueryWizardInterface $wizard): array
             {
                 return ['id', 'name', 'email', 'status', 'created_at'];
             }
 
-            public function appends(): array
+            public function appends(QueryWizardInterface $wizard): array
             {
                 return ['fullName', 'avatarUrl'];
             }
 
-            public function defaultFields(): array
-            {
-                return ['id', 'name', 'email'];
-            }
-
-            public function defaultIncludes(): array
+            public function defaultIncludes(QueryWizardInterface $wizard): array
             {
                 return ['profile'];
             }
 
-            public function defaultSorts(): array
+            public function defaultSorts(QueryWizardInterface $wizard): array
             {
                 return ['-created_at'];
             }
 
-            public function forList(): ?SchemaContextInterface
+            public function defaultAppends(QueryWizardInterface $wizard): array
             {
-                return SchemaContext::make()
-                    ->setDisallowedIncludes(['posts.comments'])
-                    ->setDefaultFields(['id', 'name']);
-            }
-
-            public function forItem(): ?SchemaContextInterface
-            {
-                return SchemaContext::make()
-                    ->setDefaultIncludes(['profile', 'posts']);
+                return ['fullName'];
             }
         };
+
+        $wizard = $this->mockWizard();
 
         // Verify all methods work
         $this->assertEquals('App\\Models\\User', $schema->model());
         $this->assertEquals('users', $schema->type());
-        $this->assertEquals('eloquent', $schema->driver());
-        $this->assertCount(4, $schema->filters());
-        $this->assertCount(3, $schema->includes());
-        $this->assertCount(3, $schema->sorts());
-        $this->assertCount(5, $schema->fields());
-        $this->assertCount(2, $schema->appends());
-        $this->assertEquals(['id', 'name', 'email'], $schema->defaultFields());
-        $this->assertEquals(['profile'], $schema->defaultIncludes());
-        $this->assertEquals(['-created_at'], $schema->defaultSorts());
-        $this->assertNotNull($schema->forList());
-        $this->assertNotNull($schema->forItem());
+        $this->assertCount(4, $schema->filters($wizard));
+        $this->assertCount(3, $schema->includes($wizard));
+        $this->assertCount(3, $schema->sorts($wizard));
+        $this->assertCount(5, $schema->fields($wizard));
+        $this->assertCount(2, $schema->appends($wizard));
+        $this->assertEquals(['profile'], $schema->defaultIncludes($wizard));
+        $this->assertEquals(['-created_at'], $schema->defaultSorts($wizard));
+        $this->assertEquals(['fullName'], $schema->defaultAppends($wizard));
     }
 }

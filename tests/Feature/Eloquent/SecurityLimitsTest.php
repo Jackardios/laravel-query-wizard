@@ -37,7 +37,7 @@ class SecurityLimitsTest extends TestCase
 
         $this
             ->createEloquentWizardWithIncludes('relatedModels.nestedRelatedModels.deepNested')
-            ->setAllowedIncludes('relatedModels.nestedRelatedModels.deepNested')
+            ->allowedIncludes('relatedModels.nestedRelatedModels.deepNested')
             ->get();
     }
 
@@ -48,7 +48,7 @@ class SecurityLimitsTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels.nestedRelatedModels')
-            ->setAllowedIncludes('relatedModels.nestedRelatedModels')
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
             ->get();
 
         $this->assertNotEmpty($models);
@@ -61,7 +61,41 @@ class SecurityLimitsTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels.nestedRelatedModels')
-            ->setAllowedIncludes('relatedModels.nestedRelatedModels')
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    #[Test]
+    public function it_validates_depth_by_relation_not_alias(): void
+    {
+        Config::set('query-wizard.limits.max_include_depth', 2);
+
+        // Using alias 'simpleAlias' for deeply nested relation should still throw
+        // because depth is validated by relation 'relatedModels.nestedRelatedModels.deepNested' (depth 3)
+        $this->expectException(MaxIncludeDepthExceeded::class);
+        $this->expectExceptionMessage('has depth 3 which exceeds the maximum allowed depth of 2');
+
+        $this
+            ->createEloquentWizardWithIncludes('simpleAlias')
+            ->allowedIncludes(
+                \Jackardios\QueryWizard\Eloquent\EloquentInclude::relationship('relatedModels.nestedRelatedModels.deepNested', 'simpleAlias')
+            )
+            ->get();
+    }
+
+    #[Test]
+    public function it_allows_aliased_include_when_relation_depth_within_limit(): void
+    {
+        Config::set('query-wizard.limits.max_include_depth', 3);
+
+        // Alias 'simpleAlias' for 'relatedModels.nestedRelatedModels' (depth 2) should pass with limit 3
+        $models = $this
+            ->createEloquentWizardWithIncludes('simpleAlias')
+            ->allowedIncludes(
+                \Jackardios\QueryWizard\Eloquent\EloquentInclude::relationship('relatedModels.nestedRelatedModels', 'simpleAlias')
+            )
             ->get();
 
         $this->assertNotEmpty($models);
@@ -79,7 +113,7 @@ class SecurityLimitsTest extends TestCase
 
         $this
             ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels,morphModels')
-            ->setAllowedIncludes('relatedModels', 'otherRelatedModels', 'morphModels')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels', 'morphModels')
             ->get();
     }
 
@@ -90,7 +124,7 @@ class SecurityLimitsTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels')
-            ->setAllowedIncludes('relatedModels', 'otherRelatedModels')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
             ->get();
 
         $this->assertNotEmpty($models);
@@ -103,7 +137,7 @@ class SecurityLimitsTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels,morphModels')
-            ->setAllowedIncludes('relatedModels', 'otherRelatedModels', 'morphModels')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels', 'morphModels')
             ->get();
 
         $this->assertNotEmpty($models);
@@ -125,7 +159,7 @@ class SecurityLimitsTest extends TestCase
                 'id' => 1,
                 'created_at' => '2021-01-01',
             ])
-            ->setAllowedFilters('name', 'id', 'created_at')
+            ->allowedFilters('name', 'id', 'created_at')
             ->get();
     }
 
@@ -139,7 +173,7 @@ class SecurityLimitsTest extends TestCase
                 'name' => 'test',
                 'id' => 1,
             ])
-            ->setAllowedFilters('name', 'id')
+            ->allowedFilters('name', 'id')
             ->get();
 
         $this->assertIsIterable($models);
@@ -156,7 +190,7 @@ class SecurityLimitsTest extends TestCase
                 'id' => 1,
                 'created_at' => '2021-01-01',
             ])
-            ->setAllowedFilters('name', 'id', 'created_at')
+            ->allowedFilters('name', 'id', 'created_at')
             ->get();
 
         $this->assertIsIterable($models);
@@ -174,7 +208,7 @@ class SecurityLimitsTest extends TestCase
 
         $this
             ->createEloquentWizardWithSorts('name,-id,created_at')
-            ->setAllowedSorts('name', 'id', 'created_at')
+            ->allowedSorts('name', 'id', 'created_at')
             ->get();
     }
 
@@ -185,7 +219,7 @@ class SecurityLimitsTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithSorts('name,-id')
-            ->setAllowedSorts('name', 'id')
+            ->allowedSorts('name', 'id')
             ->get();
 
         $this->assertNotEmpty($models);
@@ -198,7 +232,7 @@ class SecurityLimitsTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithSorts('name,-id,created_at')
-            ->setAllowedSorts('name', 'id', 'created_at')
+            ->allowedSorts('name', 'id', 'created_at')
             ->get();
 
         $this->assertNotEmpty($models);
@@ -218,7 +252,7 @@ class SecurityLimitsTest extends TestCase
             ->createEloquentWizardWithFilters([
                 'name' => 'test',
             ])
-            ->setAllowedFilters('name')
+            ->allowedFilters('name')
             ->get();
 
         $this->assertIsIterable($models);
@@ -280,9 +314,9 @@ class SecurityLimitsTest extends TestCase
         // These should all pass with default limits
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels')
-            ->setAllowedIncludes('relatedModels', 'otherRelatedModels')
-            ->setAllowedFilters('name', 'id')
-            ->setAllowedSorts('name', 'id')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->allowedFilters('name', 'id')
+            ->allowedSorts('name', 'id')
             ->get();
 
         $this->assertNotEmpty($models);

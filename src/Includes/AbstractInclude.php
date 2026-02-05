@@ -7,18 +7,12 @@ namespace Jackardios\QueryWizard\Includes;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 
 /**
- * Base class for all includes.
+ * Base class for include implementations.
  *
- * Provides common functionality for includes including aliasing.
- * All include types extend this class.
+ * Provides common functionality for all includes including:
+ * - Relation/alias management
  *
- * ## Common Methods
- *
- * | Method | Description | Example |
- * |--------|-------------|---------|
- * | `alias(string)` | Use different name in URL | `->alias('articles')` |
- *
- * @phpstan-consistent-constructor
+ * All modifier methods mutate and return the same instance (fluent pattern).
  */
 abstract class AbstractInclude implements IncludeInterface
 {
@@ -28,33 +22,17 @@ abstract class AbstractInclude implements IncludeInterface
     ) {}
 
     /**
-     * Set an alias for the include name in URL parameters.
-     *
-     * Use this when you want the URL parameter name to differ from the relation name.
-     * This is useful for user-friendly URLs or API versioning.
-     *
-     * Note: Includes are immutable. This method returns a new instance.
-     *
-     * @example
-     * ```php
-     * IncludeDefinition::relationship('posts')->alias('articles')
-     * // Request: ?include=articles → loads posts relationship
-     * ```
-     *
-     * @param string $alias The URL parameter name to use
-     * @return static New include instance with the alias set
+     * Set an alias for URL parameter name.
      */
     public function alias(string $alias): static
     {
-        $clone = clone $this;
-        $clone->alias = $alias;
-        return $clone;
+        $this->alias = $alias;
+        return $this;
     }
 
     /**
-     * Get the include name used in URL parameters.
-     *
-     * Returns the alias if set, otherwise returns the relation name.
+     * Get the name used in URL parameters.
+     * Returns alias if set, otherwise relation name.
      */
     public function getName(): string
     {
@@ -62,7 +40,7 @@ abstract class AbstractInclude implements IncludeInterface
     }
 
     /**
-     * Get the alias if one was set.
+     * Get the alias.
      */
     public function getAlias(): ?string
     {
@@ -70,7 +48,7 @@ abstract class AbstractInclude implements IncludeInterface
     }
 
     /**
-     * Get the relation name this include operates on.
+     * Get the relation name.
      */
     public function getRelation(): string
     {
@@ -79,17 +57,14 @@ abstract class AbstractInclude implements IncludeInterface
 
     /**
      * Get the include type identifier.
-     *
-     * Used by drivers to determine if they support this include type.
      */
     abstract public function getType(): string;
 
     /**
-     * Apply the include to the query subject.
+     * Apply the include to the subject.
      *
-     * @param mixed $subject The query builder (type depends on driver)
-     * @param array<string> $fields Selected fields for the relation (sparse fieldsets)
+     * @param mixed $subject The query builder or other subject
      * @return mixed The modified subject
      */
-    abstract public function apply(mixed $subject, array $fields = []): mixed;
+    abstract public function apply(mixed $subject): mixed;
 }

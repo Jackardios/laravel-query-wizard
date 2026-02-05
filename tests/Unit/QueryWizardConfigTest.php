@@ -132,6 +132,66 @@ class QueryWizardConfigTest extends TestCase
         $this->assertTrue($this->config->isInvalidFilterQueryExceptionDisabled());
     }
 
+    // ========== Invalid Sort Query Exception Tests ==========
+    #[Test]
+    public function it_returns_false_for_disable_invalid_sort_query_exception_by_default(): void
+    {
+        $this->assertFalse($this->config->isInvalidSortQueryExceptionDisabled());
+    }
+
+    #[Test]
+    public function it_returns_true_when_invalid_sort_query_exception_disabled(): void
+    {
+        Config::set('query-wizard.disable_invalid_sort_query_exception', true);
+
+        $this->assertTrue($this->config->isInvalidSortQueryExceptionDisabled());
+    }
+
+    // ========== Invalid Include Query Exception Tests ==========
+    #[Test]
+    public function it_returns_false_for_disable_invalid_include_query_exception_by_default(): void
+    {
+        $this->assertFalse($this->config->isInvalidIncludeQueryExceptionDisabled());
+    }
+
+    #[Test]
+    public function it_returns_true_when_invalid_include_query_exception_disabled(): void
+    {
+        Config::set('query-wizard.disable_invalid_include_query_exception', true);
+
+        $this->assertTrue($this->config->isInvalidIncludeQueryExceptionDisabled());
+    }
+
+    // ========== Invalid Field Query Exception Tests ==========
+    #[Test]
+    public function it_returns_false_for_disable_invalid_field_query_exception_by_default(): void
+    {
+        $this->assertFalse($this->config->isInvalidFieldQueryExceptionDisabled());
+    }
+
+    #[Test]
+    public function it_returns_true_when_invalid_field_query_exception_disabled(): void
+    {
+        Config::set('query-wizard.disable_invalid_field_query_exception', true);
+
+        $this->assertTrue($this->config->isInvalidFieldQueryExceptionDisabled());
+    }
+
+    // ========== Invalid Append Query Exception Tests ==========
+    #[Test]
+    public function it_returns_false_for_disable_invalid_append_query_exception_by_default(): void
+    {
+        $this->assertFalse($this->config->isInvalidAppendQueryExceptionDisabled());
+    }
+
+    #[Test]
+    public function it_returns_true_when_invalid_append_query_exception_disabled(): void
+    {
+        Config::set('query-wizard.disable_invalid_append_query_exception', true);
+
+        $this->assertTrue($this->config->isInvalidAppendQueryExceptionDisabled());
+    }
+
     // ========== Security Limits Tests ==========
     #[Test]
     public function it_returns_default_max_include_depth(): void
@@ -209,64 +269,5 @@ class QueryWizardConfigTest extends TestCase
         Config::set('query-wizard.limits.max_sorts_count', null);
 
         $this->assertNull($this->config->getMaxSortsCount());
-    }
-
-    // ========== Unsupported Capability Behavior Tests ==========
-    #[Test]
-    public function it_returns_default_unsupported_capability_behavior(): void
-    {
-        $this->assertEquals('exception', $this->config->getUnsupportedCapabilityBehavior());
-    }
-
-    #[Test]
-    public function it_returns_custom_unsupported_capability_behavior(): void
-    {
-        Config::set('query-wizard.unsupported_capability_behavior', 'log');
-
-        $this->assertEquals('log', $this->config->getUnsupportedCapabilityBehavior());
-    }
-
-    #[Test]
-    public function should_throw_on_unsupported_capability_returns_true_by_default(): void
-    {
-        $this->assertTrue($this->config->shouldThrowOnUnsupportedCapability());
-    }
-
-    #[Test]
-    public function should_throw_on_unsupported_capability_returns_false_when_log(): void
-    {
-        Config::set('query-wizard.unsupported_capability_behavior', 'log');
-
-        $this->assertFalse($this->config->shouldThrowOnUnsupportedCapability());
-    }
-
-    #[Test]
-    public function should_throw_on_unsupported_capability_returns_false_when_silent(): void
-    {
-        Config::set('query-wizard.unsupported_capability_behavior', 'silent');
-
-        $this->assertFalse($this->config->shouldThrowOnUnsupportedCapability());
-    }
-
-    #[Test]
-    public function should_log_unsupported_capability_returns_false_by_default(): void
-    {
-        $this->assertFalse($this->config->shouldLogUnsupportedCapability());
-    }
-
-    #[Test]
-    public function should_log_unsupported_capability_returns_true_when_log(): void
-    {
-        Config::set('query-wizard.unsupported_capability_behavior', 'log');
-
-        $this->assertTrue($this->config->shouldLogUnsupportedCapability());
-    }
-
-    #[Test]
-    public function should_log_unsupported_capability_returns_false_when_silent(): void
-    {
-        Config::set('query-wizard.unsupported_capability_behavior', 'silent');
-
-        $this->assertFalse($this->config->shouldLogUnsupportedCapability());
     }
 }

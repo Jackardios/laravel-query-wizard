@@ -7,7 +7,6 @@ namespace Jackardios\QueryWizard;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
-use Jackardios\QueryWizard\Drivers\DriverRegistry;
 
 class QueryWizardServiceProvider extends ServiceProvider implements DeferrableProvider
 {
@@ -24,10 +23,6 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
 
         $this->app->singleton(QueryWizardConfig::class, function () {
             return new QueryWizardConfig();
-        });
-
-        $this->app->singleton(DriverRegistry::class, function () {
-            return new DriverRegistry();
         });
 
         // Use scoped binding for Octane compatibility - ensures fresh instance per request
@@ -47,7 +42,6 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
         return [
             QueryParametersManager::class,
             QueryWizardConfig::class,
-            DriverRegistry::class,
         ];
     }
 }

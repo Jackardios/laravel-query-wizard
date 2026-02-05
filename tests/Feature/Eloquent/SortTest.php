@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\SortDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -40,7 +40,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts('name')
+            ->allowedSorts('name')
             ->get();
 
         // Models are sorted alphabetically by name
@@ -53,7 +53,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('-name')
-            ->setAllowedSorts('name')
+            ->allowedSorts('name')
             ->get();
 
         $this->assertEquals('Gamma', $models->first()->name);
@@ -64,7 +64,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts(SortDefinition::field('name'))
+            ->allowedSorts(EloquentSort::field('name'))
             ->get();
 
         $this->assertEquals('Alpha', $models->first()->name);
@@ -74,7 +74,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('id')
-            ->setAllowedSorts('id')
+            ->allowedSorts('id')
             ->get();
 
         $this->assertEquals(1, $models->first()->id);
@@ -85,7 +85,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('-id')
-            ->setAllowedSorts('id')
+            ->allowedSorts('id')
             ->get();
 
         $this->assertEquals(5, $models->first()->id);
@@ -98,7 +98,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('fullName')
-            ->setAllowedSorts(SortDefinition::field('name', 'fullName'))
+            ->allowedSorts(EloquentSort::field('name')->alias('fullName'))
             ->get();
 
         $this->assertEquals('Alpha', $models->first()->name);
@@ -108,7 +108,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('-fullName')
-            ->setAllowedSorts(SortDefinition::field('name', 'fullName'))
+            ->allowedSorts(EloquentSort::field('name')->alias('fullName'))
             ->get();
 
         $this->assertEquals('Gamma', $models->first()->name);
@@ -118,7 +118,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('-createdAt')
-            ->setAllowedSorts(SortDefinition::field('created_at', '-createdAt'))
+            ->allowedSorts(EloquentSort::field('created_at')->alias('createdAt'))
             ->get();
 
         // Should work normally
@@ -131,8 +131,8 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('custom')
-            ->setAllowedSorts(
-                SortDefinition::callback('custom', function ($query, $direction) {
+            ->allowedSorts(
+                EloquentSort::callback('custom', function ($query, $direction) {
                     $query->orderBy('name', $direction);
                 })
             )
@@ -145,8 +145,8 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('-custom')
-            ->setAllowedSorts(
-                SortDefinition::callback('custom', function ($query, $direction) {
+            ->allowedSorts(
+                EloquentSort::callback('custom', function ($query, $direction) {
                     $query->orderBy('name', $direction);
                 })
             )
@@ -161,8 +161,8 @@ class SortTest extends TestCase
 
         $this
             ->createEloquentWizardWithSorts('-custom')
-            ->setAllowedSorts(
-                SortDefinition::callback('custom', function ($query, $direction) use (&$receivedDirection) {
+            ->allowedSorts(
+                EloquentSort::callback('custom', function ($query, $direction) use (&$receivedDirection) {
                     $receivedDirection = $direction;
                     $query->orderBy('name', $direction);
                 })
@@ -176,8 +176,8 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('multi')
-            ->setAllowedSorts(
-                SortDefinition::callback('multi', function ($query, $direction) {
+            ->allowedSorts(
+                EloquentSort::callback('multi', function ($query, $direction) {
                     $query->orderBy('name', $direction)
                           ->orderBy('id', $direction);
                 })
@@ -191,10 +191,10 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('sortName')
-            ->setAllowedSorts(
-                SortDefinition::callback('name', function ($query, $direction) {
+            ->allowedSorts(
+                EloquentSort::callback('name', function ($query, $direction) {
                     $query->orderBy('name', $direction);
-                }, 'sortName')
+                })->alias('sortName')
             )
             ->get();
 
@@ -211,7 +211,7 @@ class SortTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithSorts('name,-id')
-            ->setAllowedSorts('name', 'id')
+            ->allowedSorts('name', 'id')
             ->get();
 
         $alphas = $models->where('name', 'Alpha');
@@ -224,7 +224,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts(['name', '-id'])
-            ->setAllowedSorts('name', 'id')
+            ->allowedSorts('name', 'id')
             ->get();
 
         $this->assertEquals('Alpha', $models->first()->name);
@@ -236,7 +236,7 @@ class SortTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithSorts('name,id')
-            ->setAllowedSorts('name', 'id')
+            ->allowedSorts('name', 'id')
             ->get();
 
         $alphas = $models->where('name', 'Alpha')->values();
@@ -251,8 +251,8 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedSorts('name', 'id')
-            ->setDefaultSorts('-id')
+            ->allowedSorts('name', 'id')
+            ->defaultSorts('-id')
             ->get();
 
         $this->assertEquals(5, $models->first()->id);
@@ -262,8 +262,8 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedSorts('name', 'id')
-            ->setDefaultSorts('name', '-id')
+            ->allowedSorts('name', 'id')
+            ->defaultSorts('name', '-id')
             ->get();
 
         $this->assertEquals('Alpha', $models->first()->name);
@@ -273,8 +273,8 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts('name', 'id')
-            ->setDefaultSorts('-id')
+            ->allowedSorts('name', 'id')
+            ->defaultSorts('-id')
             ->get();
 
         // Should use name sort, not default -id
@@ -285,8 +285,8 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedSorts(SortDefinition::field('name'))
-            ->setDefaultSorts('-name')
+            ->allowedSorts(EloquentSort::field('name'))
+            ->defaultSorts('-name')
             ->get();
 
         $this->assertEquals('Gamma', $models->first()->name);
@@ -300,7 +300,7 @@ class SortTest extends TestCase
 
         $this
             ->createEloquentWizardWithSorts('not_allowed')
-            ->setAllowedSorts('name')
+            ->allowedSorts('name')
             ->get();
     }
     #[Test]
@@ -310,7 +310,7 @@ class SortTest extends TestCase
 
         $this
             ->createEloquentWizardWithSorts('-not_allowed')
-            ->setAllowedSorts('name')
+            ->allowedSorts('name')
             ->get();
     }
     #[Test]
@@ -324,15 +324,42 @@ class SortTest extends TestCase
         $this->assertCount(5, $models);
     }
     #[Test]
-    public function it_ignores_sorts_when_empty_allowed_array(): void
+    public function it_throws_exception_with_empty_allowed_sorts_array(): void
     {
-        // Empty allowed array means silently ignore all sort requests
-        $models = $this
+        // Empty allowed array means nothing is allowed - strict validation
+        $this->expectException(InvalidSortQuery::class);
+
+        $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts([])
+            ->allowedSorts([])
+            ->get();
+    }
+
+    #[Test]
+    public function it_ignores_not_allowed_sort_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+
+        $models = $this
+            ->createEloquentWizardWithSorts('not_allowed')
+            ->allowedSorts('name')
             ->get();
 
-        // No exception, returns all models (unsorted)
+        // No exception, returns all models in default order
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function it_ignores_sorts_with_empty_array_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+
+        $models = $this
+            ->createEloquentWizardWithSorts('name')
+            ->allowedSorts([])
+            ->get();
+
+        // No exception, returns all models without sorting
         $this->assertCount(5, $models);
     }
 
@@ -342,8 +369,8 @@ class SortTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts('name')
-            ->build()
+            ->allowedSorts('name')
+            ->toQuery()
             ->toSql();
 
         // Verify ORDER BY is added with qualified column name
@@ -355,8 +382,8 @@ class SortTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts('name')
-            ->build()
+            ->allowedSorts('name')
+            ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('asc', strtolower($sql));
@@ -366,8 +393,8 @@ class SortTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithSorts('-name')
-            ->setAllowedSorts('name')
-            ->build()
+            ->allowedSorts('name')
+            ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('desc', strtolower($sql));
@@ -379,7 +406,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('')
-            ->setAllowedSorts('name')
+            ->allowedSorts('name')
             ->get();
 
         // Empty sort, returns all
@@ -390,7 +417,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('name,name,-name')
-            ->setAllowedSorts('name')
+            ->allowedSorts('name')
             ->get();
 
         // Only first sort should be used
@@ -401,7 +428,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('name,')
-            ->setAllowedSorts('name')
+            ->allowedSorts('name')
             ->get();
 
         $this->assertCount(5, $models);
@@ -414,7 +441,7 @@ class SortTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts('name')
+            ->allowedSorts('name')
             ->get();
 
         // Empty string sorts first in ascending order
@@ -425,8 +452,8 @@ class SortTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithSorts('-created_at')
-            ->setAllowedSorts('created_at')
-            ->build()
+            ->allowedSorts('created_at')
+            ->toQuery()
             ->toSql();
 
         // Verify ORDER BY created_at DESC is added
@@ -442,9 +469,9 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts(
+            ->allowedSorts(
                 'id',
-                SortDefinition::field('name')
+                EloquentSort::field('name')
             )
             ->get();
 
@@ -455,23 +482,13 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('custom')
-            ->setAllowedSorts(
+            ->allowedSorts(
                 'name',
-                SortDefinition::callback('custom', fn($q, $dir) => $q->orderBy('name', $dir))
+                EloquentSort::callback('custom', fn($q, $dir) => $q->orderBy('name', $dir))
             )
             ->get();
 
         $this->assertEquals('Alpha', $models->first()->name);
-    }
-
-    // ========== Alias Tests ==========
-    #[Test]
-    public function sort_definition_alias_is_accessible(): void
-    {
-        $sort = SortDefinition::field('name')->alias('sortName');
-
-        $this->assertEquals('sortName', $sort->getAlias());
-        $this->assertEquals('sortName', $sort->getName());
     }
 
     // ========== Integration with Other Features ==========
@@ -480,8 +497,8 @@ class SortTest extends TestCase
     {
         $result = $this
             ->createEloquentWizardWithSorts('-name')
-            ->setAllowedSorts('name')
-            ->build()
+            ->allowedSorts('name')
+            ->toQuery()
             ->paginate(2);
 
         $this->assertEquals('Gamma', $result->first()->name);
@@ -492,8 +509,8 @@ class SortTest extends TestCase
     {
         $model = $this
             ->createEloquentWizardWithSorts('-id')
-            ->setAllowedSorts('id')
-            ->build()
+            ->allowedSorts('id')
+            ->toQuery()
             ->first();
 
         $this->assertEquals(5, $model->id);
@@ -503,10 +520,10 @@ class SortTest extends TestCase
     {
         $wizard = $this
             ->createEloquentWizardWithSorts('name')
-            ->setAllowedSorts('name');
+            ->allowedSorts('name');
 
-        $first = $wizard->build()->get();
-        $second = $wizard->build()->get();
+        $first = $wizard->toQuery()->get();
+        $second = $wizard->toQuery()->get();
 
         $this->assertEquals($first->first()->id, $second->first()->id);
     }
@@ -517,7 +534,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('created_at')
-            ->setAllowedSorts('created_at')
+            ->allowedSorts('created_at')
             ->get();
 
         $this->assertCount(5, $models);
@@ -527,7 +544,7 @@ class SortTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithSorts('createdAt')
-            ->setAllowedSorts(SortDefinition::field('created_at', 'createdAt'))
+            ->allowedSorts(EloquentSort::field('created_at')->alias('createdAt'))
             ->get();
 
         $this->assertCount(5, $models);

@@ -7,23 +7,12 @@ namespace Jackardios\QueryWizard\Sorts;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 
 /**
- * Base class for all sorts.
+ * Base class for sort implementations.
  *
- * Provides common functionality for sorts including aliasing.
- * All sort types extend this class.
+ * Provides common functionality for all sorts including:
+ * - Property/alias management
  *
- * ## Common Methods
- *
- * | Method | Description | Example |
- * |--------|-------------|---------|
- * | `alias(string)` | Use different name in URL | `->alias('date')` |
- *
- * ## Sort Direction
- *
- * - Ascending: `?sort=name` (no prefix)
- * - Descending: `?sort=-name` (hyphen prefix)
- *
- * @phpstan-consistent-constructor
+ * All modifier methods mutate and return the same instance (fluent pattern).
  */
 abstract class AbstractSort implements SortInterface
 {
@@ -33,33 +22,17 @@ abstract class AbstractSort implements SortInterface
     ) {}
 
     /**
-     * Set an alias for the sort name in URL parameters.
-     *
-     * Use this when you want the URL parameter name to differ from the property name.
-     * This is useful for user-friendly URLs or when the column name is verbose.
-     *
-     * Note: Sorts are immutable. This method returns a new instance.
-     *
-     * @example
-     * ```php
-     * SortDefinition::field('created_at')->alias('date')
-     * // Request: ?sort=-date → sorts by created_at DESC
-     * ```
-     *
-     * @param string $alias The URL parameter name to use
-     * @return static New sort instance with the alias set
+     * Set an alias for URL parameter name.
      */
     public function alias(string $alias): static
     {
-        $clone = clone $this;
-        $clone->alias = $alias;
-        return $clone;
+        $this->alias = $alias;
+        return $this;
     }
 
     /**
-     * Get the sort name used in URL parameters.
-     *
-     * Returns the alias if set, otherwise returns the property name.
+     * Get the name used in URL parameters.
+     * Returns alias if set, otherwise property name.
      */
     public function getName(): string
     {
@@ -67,7 +40,7 @@ abstract class AbstractSort implements SortInterface
     }
 
     /**
-     * Get the alias if one was set.
+     * Get the alias.
      */
     public function getAlias(): ?string
     {
@@ -75,7 +48,7 @@ abstract class AbstractSort implements SortInterface
     }
 
     /**
-     * Get the property/column name this sort operates on.
+     * Get the property name.
      */
     public function getProperty(): string
     {
@@ -84,16 +57,14 @@ abstract class AbstractSort implements SortInterface
 
     /**
      * Get the sort type identifier.
-     *
-     * Used by drivers to determine if they support this sort type.
      */
     abstract public function getType(): string;
 
     /**
-     * Apply the sort to the query subject.
+     * Apply the sort to the subject.
      *
-     * @param mixed $subject The query builder (type depends on driver)
-     * @param string $direction The sort direction ('asc' or 'desc')
+     * @param mixed $subject The query builder or similar
+     * @param 'asc'|'desc' $direction The sort direction
      * @return mixed The modified subject
      */
     abstract public function apply(mixed $subject, string $direction): mixed;

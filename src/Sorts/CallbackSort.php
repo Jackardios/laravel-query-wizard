@@ -7,6 +7,11 @@ namespace Jackardios\QueryWizard\Sorts;
 use Closure;
 
 /**
+ * Sort using a custom callback function.
+ *
+ * The callback receives ($subject, $direction, $property) parameters.
+ * This is a generic implementation that can be used across different query builders.
+ *
  * @phpstan-consistent-constructor
  */
 class CallbackSort extends AbstractSort
@@ -20,7 +25,11 @@ class CallbackSort extends AbstractSort
     }
 
     /**
+     * Create a new callback sort.
+     *
+     * @param string $property The sort property name
      * @param callable(mixed $subject, string $direction, string $property): void $callback
+     * @param string|null $alias Optional alias for URL parameter name
      */
     public static function make(string $property, callable $callback, ?string $alias = null): static
     {

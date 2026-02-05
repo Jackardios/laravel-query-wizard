@@ -28,9 +28,33 @@ return [
 
     /*
      * By default the package will throw an `InvalidFilterQuery` exception when a filter in the
-     * URL is not allowed in the `setAllowedFilters()` method.
+     * URL is not allowed in the `allowedFilters()` method.
      */
     'disable_invalid_filter_query_exception' => false,
+
+    /*
+     * By default the package will throw an `InvalidSortQuery` exception when a sort in the
+     * URL is not allowed in the `allowedSorts()` method.
+     */
+    'disable_invalid_sort_query_exception' => false,
+
+    /*
+     * By default the package will throw an `InvalidIncludeQuery` exception when an include in the
+     * URL is not allowed in the `allowedIncludes()` method.
+     */
+    'disable_invalid_include_query_exception' => false,
+
+    /*
+     * By default the package will throw an `InvalidFieldQuery` exception when a field in the
+     * URL is not allowed in the `allowedFields()` method.
+     */
+    'disable_invalid_field_query_exception' => false,
+
+    /*
+     * By default the package will throw an `InvalidAppendQuery` exception when an append in the
+     * URL is not allowed in the `allowedAppends()` method.
+     */
+    'disable_invalid_append_query_exception' => false,
 
     /*
      * By default the package inspects query string of request using $request->query().
@@ -44,17 +68,6 @@ return [
     'array_value_separator' => ',',
 
     /*
-     * Custom drivers to register.
-     * Key is the driver name, value is the driver class.
-     *
-     * Example:
-     * 'drivers' => [
-     *     'scout' => \App\QueryWizard\Drivers\ScoutDriver::class,
-     * ],
-     */
-    'drivers' => [],
-
-    /*
      * Security limits to protect against resource exhaustion attacks.
      * Set to null to disable a specific limit.
      */
@@ -65,10 +78,4 @@ return [
         'max_filter_depth' => 5,
         'max_sorts_count' => 5,
     ],
-
-    /*
-     * Behavior when requesting a capability that the driver doesn't support.
-     * Options: 'exception' (throws), 'log' (warning), 'silent' (ignore)
-     */
-    'unsupported_capability_behavior' => 'exception',
 ];

@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Jackardios\QueryWizard\Drivers\Eloquent\Definitions\IncludeDefinition;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
@@ -56,7 +56,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels')
-            ->setAllowedIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -67,7 +67,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels')
-            ->setAllowedIncludes(IncludeDefinition::relationship('relatedModels'))
+            ->allowedIncludes(EloquentInclude::relationship('relatedModels'))
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -77,7 +77,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels')
-            ->setAllowedIncludes('relatedModels', 'otherRelatedModels')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -88,7 +88,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes(['relatedModels', 'otherRelatedModels'])
-            ->setAllowedIncludes('relatedModels', 'otherRelatedModels')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -101,7 +101,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels.nestedRelatedModels')
-            ->setAllowedIncludes('relatedModels.nestedRelatedModels')
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -112,7 +112,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels.nestedRelatedModels')
-            ->setAllowedIncludes('relatedModels.nestedRelatedModels')
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -122,7 +122,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,relatedModels.nestedRelatedModels')
-            ->setAllowedIncludes('relatedModels', 'relatedModels.nestedRelatedModels')
+            ->allowedIncludes('relatedModels', 'relatedModels.nestedRelatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -135,7 +135,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('related')
-            ->setAllowedIncludes(IncludeDefinition::relationship('relatedModels', 'related'))
+            ->allowedIncludes(EloquentInclude::relationship('relatedModels')->alias('related'))
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -145,8 +145,8 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('related.nested')
-            ->setAllowedIncludes(
-                IncludeDefinition::relationship('relatedModels.nestedRelatedModels', 'related.nested')
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels.nestedRelatedModels')->alias('related.nested')
             )
             ->get();
 
@@ -160,7 +160,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModelsCount')
-            ->setAllowedIncludes(IncludeDefinition::count('relatedModels'))
+            ->allowedIncludes(EloquentInclude::count('relatedModels'))
             ->get();
 
         $this->assertEquals(2, $models->first()->related_models_count);
@@ -170,7 +170,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('totalRelated')
-            ->setAllowedIncludes(IncludeDefinition::count('relatedModels', 'totalRelated'))
+            ->allowedIncludes(EloquentInclude::count('relatedModels')->alias('totalRelated'))
             ->get();
 
         $this->assertEquals(2, $models->first()->related_models_count);
@@ -180,9 +180,9 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModelsCount,otherRelatedModelsCount')
-            ->setAllowedIncludes(
-                IncludeDefinition::count('relatedModels'),
-                IncludeDefinition::count('otherRelatedModels')
+            ->allowedIncludes(
+                EloquentInclude::count('relatedModels'),
+                EloquentInclude::count('otherRelatedModels')
             )
             ->get();
 
@@ -194,52 +194,58 @@ class IncludeTest extends TestCase
     #[Test]
     public function it_can_include_with_callback(): void
     {
+        $callbackExecuted = false;
+
         $models = $this
-            ->createEloquentWizardWithIncludes('custom')
-            ->setAllowedIncludes(
-                IncludeDefinition::callback('relatedModels', function ($query) {
+            ->createEloquentWizardWithIncludes('customInclude')
+            ->allowedIncludes(
+                EloquentInclude::callback('customInclude', function ($query, $relation) use (&$callbackExecuted) {
+                    $callbackExecuted = true;
                     $query->with('relatedModels');
-                }, 'custom')
+                })
             )
             ->get();
 
+        $this->assertTrue($callbackExecuted);
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
     #[Test]
-    public function callback_include_receives_fields_parameter(): void
+    public function callback_include_receives_relation_name(): void
     {
-        $receivedFields = null;
+        $receivedRelation = null;
 
         $models = $this
-            ->createEloquentWizardFromQuery([
-                'include' => 'custom',
-                'fields' => ['relatedModels' => 'id,name'],
-            ])
-            ->setAllowedIncludes(
-                IncludeDefinition::callback('relatedModels', function ($query, $relation, $fields) use (&$receivedFields) {
-                    $receivedFields = $fields;
-                    $query->with('relatedModels');
-                }, 'custom')
+            ->createEloquentWizardWithIncludes('customInclude')
+            ->allowedIncludes(
+                EloquentInclude::callback('customInclude', function ($query, $relation) use (&$receivedRelation) {
+                    $receivedRelation = $relation;
+                })
             )
             ->get();
 
-        $this->assertNotNull($receivedFields);
+        $this->assertEquals('customInclude', $receivedRelation);
     }
     #[Test]
     public function callback_include_can_apply_constraints(): void
     {
+        // Create related models with different names
+        RelatedModel::factory()->count(2)->create(['test_model_id' => $this->models->first()->id, 'name' => 'Filtered']);
+        RelatedModel::factory()->count(1)->create(['test_model_id' => $this->models->first()->id, 'name' => 'NotFiltered']);
+
         $models = $this
-            ->createEloquentWizardWithIncludes('limitedRelated')
-            ->setAllowedIncludes(
-                IncludeDefinition::callback('relatedModels', function ($query) {
+            ->createEloquentWizardWithIncludes('filteredRelations')
+            ->allowedIncludes(
+                EloquentInclude::callback('filteredRelations', function ($query) {
                     $query->with(['relatedModels' => function ($q) {
-                        $q->limit(1);
+                        $q->where('name', 'Filtered');
                     }]);
-                }, 'limitedRelated')
+                })
             )
             ->get();
 
-        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $relatedModels = $models->first()->relatedModels;
+        $this->assertCount(2, $relatedModels);
+        $this->assertTrue($relatedModels->every(fn ($m) => $m->name === 'Filtered'));
     }
 
     // ========== Default Includes Tests ==========
@@ -248,8 +254,8 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedIncludes('relatedModels')
-            ->setDefaultIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
+            ->defaultIncludes('relatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -259,8 +265,8 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedIncludes('relatedModels', 'otherRelatedModels')
-            ->setDefaultIncludes('relatedModels', 'otherRelatedModels')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->defaultIncludes('relatedModels', 'otherRelatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -272,8 +278,8 @@ class IncludeTest extends TestCase
         // Explicit includes are MERGED with default includes, not replacing them
         $models = $this
             ->createEloquentWizardWithIncludes('otherRelatedModels')
-            ->setAllowedIncludes('relatedModels', 'otherRelatedModels')
-            ->setDefaultIncludes('relatedModels')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->defaultIncludes('relatedModels')
             ->get();
 
         // Both default (relatedModels) and explicit (otherRelatedModels) should be loaded
@@ -285,8 +291,8 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->setAllowedIncludes(IncludeDefinition::relationship('relatedModels'))
-            ->setDefaultIncludes('relatedModels')
+            ->allowedIncludes(EloquentInclude::relationship('relatedModels'))
+            ->defaultIncludes('relatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -300,7 +306,7 @@ class IncludeTest extends TestCase
 
         $this
             ->createEloquentWizardWithIncludes('notAllowed')
-            ->setAllowedIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
             ->get();
     }
     #[Test]
@@ -310,7 +316,7 @@ class IncludeTest extends TestCase
 
         $this
             ->createEloquentWizardWithIncludes('relatedModels.notAllowed')
-            ->setAllowedIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
             ->get();
     }
     #[Test]
@@ -322,7 +328,7 @@ class IncludeTest extends TestCase
 
         $this
             ->createEloquentWizardWithIncludes('unknown')
-            ->setAllowedIncludes([])
+            ->allowedIncludes([])
             ->get();
     }
     #[Test]
@@ -332,8 +338,37 @@ class IncludeTest extends TestCase
 
         $this
             ->createEloquentWizardWithIncludes('relatedModels')
-            ->setAllowedIncludes([])
+            ->allowedIncludes([])
             ->get();
+    }
+
+    #[Test]
+    public function it_ignores_not_allowed_include_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_include_query_exception', true);
+
+        $models = $this
+            ->createEloquentWizardWithIncludes('notAllowed')
+            ->allowedIncludes('relatedModels')
+            ->get();
+
+        // No exception, returns all models without the invalid include
+        $this->assertCount(3, $models);
+        $this->assertFalse($models->first()->relationLoaded('notAllowed'));
+    }
+
+    #[Test]
+    public function it_ignores_includes_with_empty_array_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_include_query_exception', true);
+
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModels')
+            ->allowedIncludes([])
+            ->get();
+
+        // No exception, returns all models without any includes
+        $this->assertCount(3, $models);
     }
 
     // ========== Edge Cases ==========
@@ -342,7 +377,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('')
-            ->setAllowedIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
             ->get();
 
         $this->assertFalse($models->first()->relationLoaded('relatedModels'));
@@ -352,7 +387,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,')
-            ->setAllowedIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -362,22 +397,21 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,relatedModels')
-            ->setAllowedIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
     #[Test]
-    public function it_treats_include_values_literally_with_spaces(): void
+    public function it_trims_whitespace_from_include_values(): void
     {
-        // Include values are treated literally - spaces are NOT trimmed
-        // ' relatedModels ' is different from 'relatedModels'
-        $this->expectException(InvalidIncludeQuery::class);
-
-        $this
+        // Include values are trimmed - ' relatedModels ' becomes 'relatedModels'
+        $models = $this
             ->createEloquentWizardWithIncludes(' relatedModels ')
-            ->setAllowedIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
             ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
 
     // ========== SQL Verification Tests ==========
@@ -388,7 +422,7 @@ class IncludeTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels')
-            ->setAllowedIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
             ->get();
 
         // Should be 2 queries: one for test_models, one for related_models
@@ -400,8 +434,8 @@ class IncludeTest extends TestCase
     {
         $sql = $this
             ->createEloquentWizardWithIncludes('relatedModelsCount')
-            ->setAllowedIncludes(IncludeDefinition::count('relatedModels'))
-            ->build()
+            ->allowedIncludes(EloquentInclude::count('relatedModels'))
+            ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('select count', strtolower($sql));
@@ -413,9 +447,9 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels')
-            ->setAllowedIncludes(
+            ->allowedIncludes(
                 'relatedModels',
-                IncludeDefinition::relationship('otherRelatedModels')
+                EloquentInclude::relationship('otherRelatedModels')
             )
             ->get();
 
@@ -427,9 +461,9 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModelsCount')
-            ->setAllowedIncludes(
-                IncludeDefinition::relationship('relatedModels'),
-                IncludeDefinition::count('otherRelatedModels')
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels'),
+                EloquentInclude::count('otherRelatedModels')
             )
             ->get();
 
@@ -443,8 +477,8 @@ class IncludeTest extends TestCase
     {
         $result = $this
             ->createEloquentWizardWithIncludes('relatedModels')
-            ->setAllowedIncludes('relatedModels')
-            ->build()
+            ->allowedIncludes('relatedModels')
+            ->toQuery()
             ->paginate(2);
 
         $this->assertTrue($result->first()->relationLoaded('relatedModels'));
@@ -454,8 +488,8 @@ class IncludeTest extends TestCase
     {
         $model = $this
             ->createEloquentWizardWithIncludes('relatedModels')
-            ->setAllowedIncludes('relatedModels')
-            ->build()
+            ->allowedIncludes('relatedModels')
+            ->toQuery()
             ->first();
 
         $this->assertTrue($model->relationLoaded('relatedModels'));
@@ -468,8 +502,8 @@ class IncludeTest extends TestCase
                 'include' => 'relatedModels',
                 'sort' => '-id',
             ])
-            ->setAllowedIncludes('relatedModels')
-            ->setAllowedSorts('id')
+            ->allowedIncludes('relatedModels')
+            ->allowedSorts('id')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
@@ -485,8 +519,8 @@ class IncludeTest extends TestCase
                 'include' => 'relatedModels',
                 'filter' => ['id' => $model->id],
             ])
-            ->setAllowedIncludes('relatedModels')
-            ->setAllowedFilters('id')
+            ->allowedIncludes('relatedModels')
+            ->allowedFilters('id')
             ->get();
 
         $this->assertCount(1, $models);
@@ -499,32 +533,10 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('morphModels')
-            ->setAllowedIncludes('morphModels')
+            ->allowedIncludes('morphModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('morphModels'));
-    }
-
-    // ========== Alias Tests ==========
-    #[Test]
-    public function include_definition_alias_is_accessible(): void
-    {
-        $include = IncludeDefinition::relationship('relatedModels')
-            ->alias('related');
-
-        $this->assertEquals('related', $include->getAlias());
-        $this->assertEquals('related', $include->getName());
-    }
-
-    #[Test]
-    public function alias_is_set_immutably(): void
-    {
-        $original = IncludeDefinition::relationship('relatedModels');
-        $withAlias = $original->alias('related');
-
-        $this->assertNull($original->getAlias());
-        $this->assertEquals('related', $withAlias->getAlias());
-        $this->assertNotSame($original, $withAlias);
     }
 
     // ========== BelongsToMany / Through Pivot Tests ==========
@@ -533,7 +545,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedThroughPivotModels')
-            ->setAllowedIncludes('relatedThroughPivotModels')
+            ->allowedIncludes('relatedThroughPivotModels')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedThroughPivotModels'));
@@ -543,7 +555,7 @@ class IncludeTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithIncludes('relatedThroughPivotModelsWithPivot')
-            ->setAllowedIncludes('relatedThroughPivotModelsWithPivot')
+            ->allowedIncludes('relatedThroughPivotModelsWithPivot')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedThroughPivotModelsWithPivot'));
