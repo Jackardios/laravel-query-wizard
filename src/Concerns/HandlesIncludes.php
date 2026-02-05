@@ -72,9 +72,9 @@ trait HandlesIncludes
                 $include = $this->normalizeStringToInclude($include);
             }
 
-            // For count includes without alias, auto-apply count suffix
+            // For count includes without alias, auto-apply count suffix (clone to avoid mutating original)
             if ($include->getType() === 'count' && $include->getAlias() === null) {
-                $include = $include->alias($include->getRelation().$countSuffix);
+                $include = (clone $include)->alias($include->getRelation().$countSuffix);
             }
 
             $name = $include->getName();
