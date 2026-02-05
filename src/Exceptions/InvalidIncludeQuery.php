@@ -10,10 +10,10 @@ use Symfony\Component\HttpFoundation\Response;
 class InvalidIncludeQuery extends InvalidQuery
 {
     /** @var Collection<int, string> */
-    public Collection $unknownIncludes;
+    public readonly Collection $unknownIncludes;
 
     /** @var Collection<int, string> */
-    public Collection $allowedIncludes;
+    public readonly Collection $allowedIncludes;
 
     /**
      * @param  Collection<int, string>  $unknownIncludes
@@ -32,7 +32,7 @@ class InvalidIncludeQuery extends InvalidQuery
             $joinedAllowedIncludes = $allowedIncludes->implode(', ');
             $message .= "Allowed include(s) are `{$joinedAllowedIncludes}`.";
         } else {
-            $message .= 'There are no allowed includes.';
+            $message .= 'No includes are allowed.';
         }
 
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);

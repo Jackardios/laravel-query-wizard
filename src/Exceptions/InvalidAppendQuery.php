@@ -10,10 +10,10 @@ use Symfony\Component\HttpFoundation\Response;
 class InvalidAppendQuery extends InvalidQuery
 {
     /** @var Collection<int, string> */
-    public Collection $unknownAppends;
+    public readonly Collection $unknownAppends;
 
     /** @var Collection<int, string> */
-    public Collection $allowedAppends;
+    public readonly Collection $allowedAppends;
 
     /**
      * @param  Collection<int, string>  $unknownAppends
@@ -25,8 +25,13 @@ class InvalidAppendQuery extends InvalidQuery
         $this->allowedAppends = $allowedAppends;
 
         $joinedUnknownAppends = $unknownAppends->implode(', ');
-        $joinedAllowedAppends = $allowedAppends->implode(', ');
-        $message = "Requested append(s) `{$joinedUnknownAppends}` are not allowed. Allowed append(s) are `{$joinedAllowedAppends}`.";
+
+        if ($allowedAppends->isEmpty()) {
+            $message = "Requested append(s) `{$joinedUnknownAppends}` are not allowed. No appends are allowed.";
+        } else {
+            $joinedAllowedAppends = $allowedAppends->implode(', ');
+            $message = "Requested append(s) `{$joinedUnknownAppends}` are not allowed. Allowed append(s) are `{$joinedAllowedAppends}`.";
+        }
 
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
     }

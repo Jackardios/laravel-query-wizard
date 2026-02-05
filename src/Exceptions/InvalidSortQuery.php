@@ -10,10 +10,10 @@ use Symfony\Component\HttpFoundation\Response;
 class InvalidSortQuery extends InvalidQuery
 {
     /** @var Collection<int, string> */
-    public Collection $unknownSorts;
+    public readonly Collection $unknownSorts;
 
     /** @var Collection<int, string> */
-    public Collection $allowedSorts;
+    public readonly Collection $allowedSorts;
 
     /**
      * @param  Collection<int, string>  $unknownSorts
@@ -24,9 +24,14 @@ class InvalidSortQuery extends InvalidQuery
         $this->unknownSorts = $unknownSorts;
         $this->allowedSorts = $allowedSorts;
 
-        $joinedAllowedSorts = $allowedSorts->implode(', ');
         $joinedUnknownSorts = $unknownSorts->implode(', ');
-        $message = "Requested sort(s) `{$joinedUnknownSorts}` is not allowed. Allowed sort(s) are `{$joinedAllowedSorts}`.";
+
+        if ($allowedSorts->isEmpty()) {
+            $message = "Requested sort(s) `{$joinedUnknownSorts}` are not allowed. No sorts are allowed.";
+        } else {
+            $joinedAllowedSorts = $allowedSorts->implode(', ');
+            $message = "Requested sort(s) `{$joinedUnknownSorts}` are not allowed. Allowed sort(s) are `{$joinedAllowedSorts}`.";
+        }
 
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
     }

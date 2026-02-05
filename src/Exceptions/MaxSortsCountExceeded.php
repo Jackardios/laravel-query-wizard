@@ -6,9 +6,9 @@ namespace Jackardios\QueryWizard\Exceptions;
 
 class MaxSortsCountExceeded extends QueryLimitExceeded
 {
-    public int $count;
+    public readonly int $count;
 
-    public int $maxCount;
+    public readonly int $maxCount;
 
     public function __construct(int $count, int $maxCount)
     {

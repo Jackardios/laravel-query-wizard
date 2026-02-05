@@ -10,10 +10,10 @@ use Symfony\Component\HttpFoundation\Response;
 class InvalidFilterQuery extends InvalidQuery
 {
     /** @var Collection<int, string> */
-    public Collection $unknownFilters;
+    public readonly Collection $unknownFilters;
 
     /** @var Collection<int, string> */
-    public Collection $allowedFilters;
+    public readonly Collection $allowedFilters;
 
     /**
      * @param  Collection<int, string>  $unknownFilters
@@ -25,8 +25,13 @@ class InvalidFilterQuery extends InvalidQuery
         $this->allowedFilters = $allowedFilters;
 
         $joinedUnknownFilters = $this->unknownFilters->implode(', ');
-        $joinedAllowedFilters = $this->allowedFilters->implode(', ');
-        $message = "Requested filter(s) `{$joinedUnknownFilters}` are not allowed. Allowed filter(s) are `{$joinedAllowedFilters}`.";
+
+        if ($allowedFilters->isEmpty()) {
+            $message = "Requested filter(s) `{$joinedUnknownFilters}` are not allowed. No filters are allowed.";
+        } else {
+            $joinedAllowedFilters = $this->allowedFilters->implode(', ');
+            $message = "Requested filter(s) `{$joinedUnknownFilters}` are not allowed. Allowed filter(s) are `{$joinedAllowedFilters}`.";
+        }
 
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
     }

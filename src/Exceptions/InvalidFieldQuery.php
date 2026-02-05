@@ -10,10 +10,10 @@ use Symfony\Component\HttpFoundation\Response;
 class InvalidFieldQuery extends InvalidQuery
 {
     /** @var Collection<int, string> */
-    public Collection $unknownFields;
+    public readonly Collection $unknownFields;
 
     /** @var Collection<int, string> */
-    public Collection $allowedFields;
+    public readonly Collection $allowedFields;
 
     /**
      * @param  Collection<int, string>  $unknownFields
@@ -25,8 +25,13 @@ class InvalidFieldQuery extends InvalidQuery
         $this->allowedFields = $allowedFields;
 
         $joinedUnknownFields = $unknownFields->implode(', ');
-        $joinedAllowedFields = $allowedFields->implode(', ');
-        $message = "Requested field(s) `{$joinedUnknownFields}` are not allowed. Allowed field(s) are `{$joinedAllowedFields}`.";
+
+        if ($allowedFields->isEmpty()) {
+            $message = "Requested field(s) `{$joinedUnknownFields}` are not allowed. No fields are allowed.";
+        } else {
+            $joinedAllowedFields = $allowedFields->implode(', ');
+            $message = "Requested field(s) `{$joinedUnknownFields}` are not allowed. Allowed field(s) are `{$joinedAllowedFields}`.";
+        }
 
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
     }
