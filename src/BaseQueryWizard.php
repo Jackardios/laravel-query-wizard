@@ -29,8 +29,6 @@ use Jackardios\QueryWizard\Values\Sort;
  *
  * Provides common configuration API and query building logic.
  * Subclasses implement filter/sort/include application and query execution.
- *
- * @phpstan-consistent-constructor
  */
 abstract class BaseQueryWizard implements QueryWizardInterface
 {
