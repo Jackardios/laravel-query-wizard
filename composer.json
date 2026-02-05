@@ -34,6 +34,7 @@
     "require-dev": {
         "ext-json": "*",
         "larastan/larastan": "^2.0 || ^3.0",
+        "laravel/pint": "^1.27",
         "orchestra/testbench": "^8.21 || ^9.0 || ^10.0",
         "phpunit/phpunit": "^10.5 || ^11.0",
         "roave/security-advisories": "dev-latest"
@@ -51,7 +52,9 @@
     "scripts": {
         "test": "vendor/bin/phpunit --testdox",
         "test-coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit --testdox --coverage-text",
-        "phpstan": "vendor/bin/phpstan analyse --memory-limit=512M"
+        "phpstan": "vendor/bin/phpstan analyse --memory-limit=512M",
+        "format": "vendor/bin/pint",
+        "format-check": "vendor/bin/pint --test"
     },
     "config": {
         "sort-packages": true
