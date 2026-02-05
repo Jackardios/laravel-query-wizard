@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
-use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
@@ -13,6 +12,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class ResourceSchemaTest extends TestCase
@@ -29,7 +29,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_requires_model_method(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -43,7 +44,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_generates_type_from_model_name(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\UserProfile';
@@ -56,7 +58,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_handles_simple_model_name(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -69,7 +72,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_override_type(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -88,7 +92,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_returns_empty_filters_by_default(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -101,7 +106,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_return_string_filters(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -119,7 +125,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_return_filter_instances(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -142,7 +149,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_mix_strings_and_filter_instances(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -166,7 +174,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_returns_empty_includes_by_default(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -179,7 +188,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_return_string_includes(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -197,7 +207,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_return_include_instances(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -221,7 +232,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_returns_empty_sorts_by_default(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -234,7 +246,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_return_string_sorts(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -252,7 +265,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_return_sort_instances(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -262,7 +276,7 @@ class ResourceSchemaTest extends TestCase
             {
                 return [
                     EloquentSort::field('name'),
-                    EloquentSort::callback('custom', fn($q, $d) => $q),
+                    EloquentSort::callback('custom', fn ($q, $d) => $q),
                 ];
             }
         };
@@ -274,22 +288,25 @@ class ResourceSchemaTest extends TestCase
 
     // ========== Fields Method Tests ==========
     #[Test]
-    public function it_returns_wildcard_fields_by_default(): void
+    public function it_returns_empty_fields_by_default(): void
     {
-        $schema = new class extends ResourceSchema {
+        // Default is empty = forbid all fields unless explicitly allowed
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
             }
         };
 
-        $this->assertEquals(['*'], $schema->fields($this->mockWizard()));
+        $this->assertEquals([], $schema->fields($this->mockWizard()));
     }
 
     #[Test]
     public function it_can_return_fields(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -308,7 +325,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_returns_empty_appends_by_default(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -321,7 +339,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_return_appends(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -340,7 +359,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_returns_empty_default_includes(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -353,7 +373,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_set_default_includes(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -372,7 +393,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_returns_empty_default_sorts(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -385,7 +407,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_set_default_sorts(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -404,7 +427,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_returns_empty_default_appends(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -417,7 +441,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_set_default_appends(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -436,7 +461,8 @@ class ResourceSchemaTest extends TestCase
     #[Test]
     public function it_can_create_complex_schema(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return 'App\\Models\\User';
@@ -471,7 +497,7 @@ class ResourceSchemaTest extends TestCase
                 return [
                     'name',
                     '-created_at',
-                    EloquentSort::callback('popularity', fn($q, $d) => $q),
+                    EloquentSort::callback('popularity', fn ($q, $d) => $q),
                 ];
             }
 

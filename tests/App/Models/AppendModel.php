@@ -14,6 +14,7 @@ class AppendModel extends Model
     {
         return AppendModelFactory::new();
     }
+
     protected $guarded = [];
 
     public $timestamps = false;

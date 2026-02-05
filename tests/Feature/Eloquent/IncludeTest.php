@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
-use PHPUnit\Framework\Attributes\Group;
-use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
@@ -14,6 +12,8 @@ use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 
 #[Group('eloquent')]
 #[Group('include')]
@@ -21,7 +21,7 @@ class IncludeTest extends TestCase
 {
     protected Collection $models;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -51,6 +51,7 @@ class IncludeTest extends TestCase
 
         $this->assertFalse($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_can_include_relationship(): void
     {
@@ -62,6 +63,7 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertCount(2, $models->first()->relatedModels);
     }
+
     #[Test]
     public function it_can_include_relationship_with_definition(): void
     {
@@ -72,6 +74,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_can_include_multiple_relationships(): void
     {
@@ -83,6 +86,7 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertTrue($models->first()->relationLoaded('otherRelatedModels'));
     }
+
     #[Test]
     public function it_can_include_relationships_as_array(): void
     {
@@ -107,6 +111,7 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertTrue($models->first()->relatedModels->first()->relationLoaded('nestedRelatedModels'));
     }
+
     #[Test]
     public function nested_include_also_loads_parent(): void
     {
@@ -117,6 +122,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_can_include_both_parent_and_nested(): void
     {
@@ -140,6 +146,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_can_include_nested_with_alias(): void
     {
@@ -165,6 +172,7 @@ class IncludeTest extends TestCase
 
         $this->assertEquals(2, $models->first()->related_models_count);
     }
+
     #[Test]
     public function it_can_include_count_with_alias(): void
     {
@@ -175,6 +183,7 @@ class IncludeTest extends TestCase
 
         $this->assertEquals(2, $models->first()->related_models_count);
     }
+
     #[Test]
     public function it_can_include_multiple_counts(): void
     {
@@ -209,6 +218,7 @@ class IncludeTest extends TestCase
         $this->assertTrue($callbackExecuted);
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function callback_include_receives_relation_name(): void
     {
@@ -225,6 +235,7 @@ class IncludeTest extends TestCase
 
         $this->assertEquals('customInclude', $receivedRelation);
     }
+
     #[Test]
     public function callback_include_can_apply_constraints(): void
     {
@@ -260,6 +271,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_uses_multiple_default_includes(): void
     {
@@ -272,6 +284,7 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertTrue($models->first()->relationLoaded('otherRelatedModels'));
     }
+
     #[Test]
     public function explicit_include_merges_with_default(): void
     {
@@ -286,6 +299,7 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertTrue($models->first()->relationLoaded('otherRelatedModels'));
     }
+
     #[Test]
     public function default_includes_with_definition(): void
     {
@@ -309,6 +323,7 @@ class IncludeTest extends TestCase
             ->allowedIncludes('relatedModels')
             ->get();
     }
+
     #[Test]
     public function it_throws_exception_for_nested_not_allowed_include(): void
     {
@@ -319,6 +334,7 @@ class IncludeTest extends TestCase
             ->allowedIncludes('relatedModels')
             ->get();
     }
+
     #[Test]
     public function it_throws_exception_for_unknown_includes_when_no_allowed_set(): void
     {
@@ -331,6 +347,7 @@ class IncludeTest extends TestCase
             ->allowedIncludes([])
             ->get();
     }
+
     #[Test]
     public function it_throws_exception_with_empty_allowed_includes_array(): void
     {
@@ -382,6 +399,7 @@ class IncludeTest extends TestCase
 
         $this->assertFalse($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_handles_include_with_trailing_comma(): void
     {
@@ -392,6 +410,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_removes_duplicate_includes(): void
     {
@@ -402,6 +421,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_trims_whitespace_from_include_values(): void
     {
@@ -429,8 +449,9 @@ class IncludeTest extends TestCase
         $queryLog = DB::getQueryLog();
         $this->assertCount(2, $queryLog);
     }
+
     #[Test]
-    public function it_uses_withCount_for_count_includes(): void
+    public function it_uses_with_count_for_count_includes(): void
     {
         $sql = $this
             ->createEloquentWizardWithIncludes('relatedModelsCount')
@@ -456,6 +477,7 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertTrue($models->first()->relationLoaded('otherRelatedModels'));
     }
+
     #[Test]
     public function it_can_mix_relationship_and_count_includes(): void
     {
@@ -483,6 +505,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($result->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_works_with_first(): void
     {
@@ -494,6 +517,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($model->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function it_works_with_sorting(): void
     {
@@ -509,6 +533,7 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertEquals(3, $models->first()->id);
     }
+
     #[Test]
     public function it_works_with_filtering(): void
     {
@@ -550,6 +575,7 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedThroughPivotModels'));
     }
+
     #[Test]
     public function it_can_include_belongs_to_many_with_pivot(): void
     {

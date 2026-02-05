@@ -20,6 +20,7 @@ class TestModel extends Model
     {
         return TestModelFactory::new();
     }
+
     protected $guarded = [];
 
     public function relatedModels(): HasMany
@@ -75,5 +76,19 @@ class TestModel extends Model
         return $query->whereBetween('created_at', [
             Carbon::parse($from), Carbon::parse($to),
         ]);
+    }
+
+    public function getFullnameAttribute(): string
+    {
+        return 'Full: '.$this->name;
+    }
+
+    /**
+     * Method that throws an exception when called.
+     * Used for testing isRelationProperty() exception handling.
+     */
+    public function throwingMethod(): never
+    {
+        throw new \RuntimeException('This method always throws');
     }
 }

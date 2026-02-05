@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Unit;
 
 use Illuminate\Support\Facades\Config;
-use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class QueryWizardConfigTest extends TestCase
 {
@@ -16,7 +16,7 @@ class QueryWizardConfigTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->config = new QueryWizardConfig();
+        $this->config = new QueryWizardConfig;
     }
 
     // ========== Count Suffix Tests ==========
@@ -232,7 +232,7 @@ class QueryWizardConfigTest extends TestCase
     #[Test]
     public function it_returns_default_max_filters_count(): void
     {
-        $this->assertEquals(15, $this->config->getMaxFiltersCount());
+        $this->assertEquals(20, $this->config->getMaxFiltersCount());
     }
 
     #[Test]
@@ -269,5 +269,27 @@ class QueryWizardConfigTest extends TestCase
         Config::set('query-wizard.limits.max_sorts_count', null);
 
         $this->assertNull($this->config->getMaxSortsCount());
+    }
+
+    #[Test]
+    public function it_returns_default_max_append_depth(): void
+    {
+        $this->assertEquals(3, $this->config->getMaxAppendDepth());
+    }
+
+    #[Test]
+    public function it_returns_null_when_max_append_depth_disabled(): void
+    {
+        Config::set('query-wizard.limits.max_append_depth', null);
+
+        $this->assertNull($this->config->getMaxAppendDepth());
+    }
+
+    #[Test]
+    public function it_returns_custom_max_append_depth(): void
+    {
+        Config::set('query-wizard.limits.max_append_depth', 5);
+
+        $this->assertEquals(5, $this->config->getMaxAppendDepth());
     }
 }

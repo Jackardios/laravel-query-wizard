@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
-use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\Includes\CountInclude;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Includes\CallbackInclude;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class IncludeDefinitionTest extends TestCase
@@ -50,7 +50,7 @@ class IncludeDefinitionTest extends TestCase
     #[Test]
     public function it_creates_callback_include_with_make(): void
     {
-        $cb = fn($query, $relation) => $query->with($relation);
+        $cb = fn ($query, $relation) => $query->with($relation);
         $include = CallbackInclude::make('custom', $cb);
 
         $this->assertEquals('custom', $include->getRelation());
@@ -125,7 +125,7 @@ class IncludeDefinitionTest extends TestCase
     #[Test]
     public function it_creates_callback_include(): void
     {
-        $callback = fn($query, $relation) => $query->with($relation);
+        $callback = fn ($query, $relation) => $query->with($relation);
         $include = EloquentInclude::callback('custom', $callback);
 
         $this->assertInstanceOf(CallbackInclude::class, $include);
@@ -137,7 +137,7 @@ class IncludeDefinitionTest extends TestCase
     #[Test]
     public function it_creates_callback_include_with_alias(): void
     {
-        $callback = fn($query, $relation) => $query->with($relation);
+        $callback = fn ($query, $relation) => $query->with($relation);
         $include = EloquentInclude::callback('customRelation', $callback, 'custom');
 
         $this->assertEquals('customRelation', $include->getRelation());
@@ -181,7 +181,7 @@ class IncludeDefinitionTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_camelCase_relation(): void
+    public function it_handles_camel_case_relation(): void
     {
         $include = EloquentInclude::relationship('relatedModels');
 

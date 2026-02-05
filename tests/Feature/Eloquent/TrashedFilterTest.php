@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\Group;
-use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 
 #[Group('eloquent')]
 #[Group('filter')]
@@ -19,9 +19,10 @@ use Jackardios\QueryWizard\Tests\TestCase;
 class TrashedFilterTest extends TestCase
 {
     protected Collection $models;
+
     protected Collection $trashedModels;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -45,6 +46,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_can_filter_only_trashed(): void
     {
@@ -54,8 +56,9 @@ class TrashedFilterTest extends TestCase
             ->get();
 
         $this->assertCount(2, $models);
-        $this->assertTrue($models->every(fn($m) => $m->trashed()));
+        $this->assertTrue($models->every(fn ($m) => $m->trashed()));
     }
+
     #[Test]
     public function it_can_include_trashed_with_all(): void
     {
@@ -66,6 +69,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertCount(5, $models);
     }
+
     #[Test]
     public function it_excludes_trashed_when_filter_is_empty(): void
     {
@@ -75,8 +79,9 @@ class TrashedFilterTest extends TestCase
             ->get();
 
         $this->assertCount(3, $models);
-        $this->assertTrue($models->every(fn($m) => !$m->trashed()));
+        $this->assertTrue($models->every(fn ($m) => ! $m->trashed()));
     }
+
     #[Test]
     public function it_excludes_trashed_with_explicit_value(): void
     {
@@ -99,6 +104,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertCount(2, $models);
     }
+
     #[Test]
     public function it_works_with_is_deleted_alias(): void
     {
@@ -124,6 +130,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_defaults_to_without_for_string_true(): void
     {
@@ -136,6 +143,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_defaults_to_without_for_boolean_false(): void
     {
@@ -146,6 +154,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_defaults_to_without_for_string_false(): void
     {
@@ -169,6 +178,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_defaults_to_without_for_zero(): void
     {
@@ -200,15 +210,15 @@ class TrashedFilterTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals($targetName, $models->first()->name);
     }
+
     #[Test]
     public function it_can_combine_with_partial_filter(): void
     {
         $firstTrashed = $this->trashedModels->first();
-        $partialName = substr($firstTrashed->name, 0, 3);
 
         $models = $this
             ->createEloquentWizardWithFilters([
-                'name' => $partialName,
+                'name' => $firstTrashed->name,
                 'trashed' => 'with',
             ], SoftDeleteModel::class)
             ->allowedFilters(
@@ -217,7 +227,8 @@ class TrashedFilterTest extends TestCase
             )
             ->get();
 
-        $this->assertGreaterThanOrEqual(1, $models->count());
+        $this->assertTrue($models->contains('id', $firstTrashed->id));
+        $this->assertNotEmpty($models);
     }
 
     // ========== SQL Query Verification Tests ==========
@@ -233,6 +244,7 @@ class TrashedFilterTest extends TestCase
         $this->assertStringContainsString('deleted_at', $sql);
         $this->assertStringContainsString('is not null', strtolower($sql));
     }
+
     #[Test]
     public function it_uses_with_trashed_scope_correctly(): void
     {
@@ -259,6 +271,7 @@ class TrashedFilterTest extends TestCase
         // Invalid value should be treated as 'without' (default behavior)
         $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_handles_null_trashed_value(): void
     {
@@ -270,6 +283,7 @@ class TrashedFilterTest extends TestCase
         // Null should be treated as 'without'
         $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_works_without_filter_value_provided(): void
     {
@@ -281,6 +295,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_can_filter_trashed_with_pagination(): void
     {
@@ -292,6 +307,7 @@ class TrashedFilterTest extends TestCase
 
         $this->assertEquals(5, $result->total());
     }
+
     #[Test]
     public function it_can_filter_only_trashed_with_first(): void
     {

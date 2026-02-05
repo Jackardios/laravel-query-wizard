@@ -15,6 +15,7 @@ class NestedRelatedModel extends Model
     {
         return NestedRelatedModelFactory::new();
     }
+
     protected $guarded = [];
 
     public $timestamps = false;

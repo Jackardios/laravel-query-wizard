@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
-use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
@@ -13,8 +12,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSubject;
-use Jackardios\QueryWizard\Exceptions\RootFieldsKeyIsNotDefined;
-use Illuminate\Support\Collection;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
@@ -49,7 +47,7 @@ class ExceptionsTest extends TestCase
     #[Test]
     public function invalid_subject_formats_object_class_correctly(): void
     {
-        $exception = InvalidSubject::make(new stdClass());
+        $exception = InvalidSubject::make(new stdClass);
 
         $this->assertStringContainsString('class `stdClass`', $exception->getMessage());
     }
@@ -57,8 +55,7 @@ class ExceptionsTest extends TestCase
     #[Test]
     public function invalid_subject_formats_custom_object_correctly(): void
     {
-        $customObject = new class {
-        };
+        $customObject = new class {};
         $exception = InvalidSubject::make($customObject);
 
         $this->assertStringContainsString('class `', $exception->getMessage());
@@ -79,7 +76,7 @@ class ExceptionsTest extends TestCase
     {
         $exception = InvalidFilterValue::make('invalid_value');
 
-        $this->assertEquals("Filter value `invalid_value` is invalid.", $exception->getMessage());
+        $this->assertEquals('Filter value `invalid_value` is invalid.', $exception->getMessage());
     }
 
     #[Test]
@@ -96,23 +93,6 @@ class ExceptionsTest extends TestCase
         $exception = InvalidFilterValue::make('test');
 
         $this->assertInstanceOf(\Exception::class, $exception);
-    }
-
-    // ========== RootFieldsKeyIsNotDefined Tests ==========
-    #[Test]
-    public function root_fields_key_not_defined_has_correct_message(): void
-    {
-        $exception = new RootFieldsKeyIsNotDefined();
-
-        $this->assertEquals('`rootFieldsKey` is not defined in QueryWizard.', $exception->getMessage());
-    }
-
-    #[Test]
-    public function root_fields_key_not_defined_is_logic_exception(): void
-    {
-        $exception = new RootFieldsKeyIsNotDefined();
-
-        $this->assertInstanceOf(\LogicException::class, $exception);
     }
 
     // ========== InvalidQuery Base Tests ==========

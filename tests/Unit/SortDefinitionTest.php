@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
-use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\Sorts\CallbackSort;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class SortDefinitionTest extends TestCase
@@ -49,7 +49,7 @@ class SortDefinitionTest extends TestCase
     #[Test]
     public function it_creates_callback_sort_with_make(): void
     {
-        $cb = fn($query, $direction, $property) => $query->orderBy('name', $direction);
+        $cb = fn ($query, $direction, $property) => $query->orderBy('name', $direction);
         $sort = CallbackSort::make('name', $cb);
 
         $this->assertEquals('callback', $sort->getType());
@@ -85,7 +85,7 @@ class SortDefinitionTest extends TestCase
     #[Test]
     public function it_creates_callback_sort(): void
     {
-        $callback = fn($query, $direction, $property) => $query->orderBy('name', $direction);
+        $callback = fn ($query, $direction, $property) => $query->orderBy('name', $direction);
         $sort = EloquentSort::callback('name', $callback);
 
         $this->assertInstanceOf(CallbackSort::class, $sort);
@@ -97,7 +97,7 @@ class SortDefinitionTest extends TestCase
     #[Test]
     public function it_creates_callback_sort_with_alias(): void
     {
-        $callback = fn($query, $direction, $property) => $query->orderBy('popularity_score', $direction);
+        $callback = fn ($query, $direction, $property) => $query->orderBy('popularity_score', $direction);
         $sort = EloquentSort::callback('popularity_score', $callback, 'popularity');
 
         $this->assertEquals('popularity_score', $sort->getProperty());
@@ -149,7 +149,7 @@ class SortDefinitionTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_camelCase_property(): void
+    public function it_handles_camel_case_property(): void
     {
         $sort = EloquentSort::field('createdAt');
 

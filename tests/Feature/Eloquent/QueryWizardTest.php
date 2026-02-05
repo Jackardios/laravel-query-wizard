@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
-use PHPUnit\Framework\Attributes\Group;
-use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -20,6 +18,8 @@ use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 
 #[Group('eloquent')]
 #[Group('wizard')]
@@ -27,7 +27,7 @@ class QueryWizardTest extends TestCase
 {
     protected Collection $models;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -51,6 +51,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertInstanceOf(EloquentQueryWizard::class, $wizard);
     }
+
     #[Test]
     public function it_creates_wizard_with_builder(): void
     {
@@ -58,6 +59,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertInstanceOf(EloquentQueryWizard::class, $wizard);
     }
+
     #[Test]
     public function it_creates_wizard_with_custom_parameters(): void
     {
@@ -66,6 +68,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertInstanceOf(EloquentQueryWizard::class, $wizard);
     }
+
     #[Test]
     public function for_wizard_can_get_results(): void
     {
@@ -73,6 +76,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertCount(5, $models);
     }
+
     #[Test]
     public function for_wizard_can_use_filters(): void
     {
@@ -86,6 +90,7 @@ class QueryWizardTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertEquals($targetModel->id, $models->first()->id);
     }
+
     #[Test]
     public function for_wizard_can_use_sorts(): void
     {
@@ -97,6 +102,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals(5, $models->first()->id);
     }
+
     #[Test]
     public function for_wizard_can_use_includes(): void
     {
@@ -113,7 +119,8 @@ class QueryWizardTest extends TestCase
     #[Test]
     public function it_creates_wizard_from_schema_class(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return TestModel::class;
@@ -124,10 +131,12 @@ class QueryWizardTest extends TestCase
 
         $this->assertInstanceOf(EloquentQueryWizard::class, $wizard);
     }
+
     #[Test]
     public function wizard_uses_schema_filters(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return TestModel::class;
@@ -146,10 +155,12 @@ class QueryWizardTest extends TestCase
 
         $this->assertCount(1, $models);
     }
+
     #[Test]
     public function wizard_uses_schema_sorts(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return TestModel::class;
@@ -166,10 +177,12 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals(5, $models->first()->id);
     }
+
     #[Test]
     public function wizard_uses_schema_includes(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return TestModel::class;
@@ -186,10 +199,12 @@ class QueryWizardTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
     }
+
     #[Test]
     public function wizard_uses_schema_defaults(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return TestModel::class;
@@ -216,19 +231,21 @@ class QueryWizardTest extends TestCase
     public function wizard_tap_applies_callback(): void
     {
         $models = EloquentQueryWizard::for(TestModel::class)
-            ->tap(fn(Builder $query) => $query->where('id', '<', 3))
+            ->tap(fn (Builder $query) => $query->where('id', '<', 3))
             ->get();
 
         $this->assertCount(2, $models);
     }
+
     #[Test]
-    public function wizard_toQuery_returns_builder(): void
+    public function wizard_to_query_returns_builder(): void
     {
         $wizard = EloquentQueryWizard::for(TestModel::class);
         $builder = $wizard->toQuery();
 
         $this->assertInstanceOf(Builder::class, $builder);
     }
+
     #[Test]
     public function wizard_first_returns_single_model(): void
     {
@@ -240,6 +257,29 @@ class QueryWizardTest extends TestCase
         $this->assertInstanceOf(TestModel::class, $model);
         $this->assertEquals(1, $model->id);
     }
+
+    #[Test]
+    public function wizard_first_or_fail_returns_single_model(): void
+    {
+        $params = new QueryParametersManager(new Request(['sort' => 'id']));
+        $model = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedSorts('id')
+            ->firstOrFail();
+
+        $this->assertInstanceOf(TestModel::class, $model);
+        $this->assertEquals(1, $model->id);
+    }
+
+    #[Test]
+    public function wizard_first_or_fail_throws_exception_when_not_found(): void
+    {
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+
+        EloquentQueryWizard::for(TestModel::class)
+            ->where('id', 99999)
+            ->firstOrFail();
+    }
+
     #[Test]
     public function wizard_paginate_works(): void
     {
@@ -248,20 +288,23 @@ class QueryWizardTest extends TestCase
         $this->assertEquals(5, $result->total());
         $this->assertCount(2, $result->items());
     }
+
     #[Test]
-    public function wizard_simplePaginate_works(): void
+    public function wizard_simple_paginate_works(): void
     {
         $result = EloquentQueryWizard::for(TestModel::class)->simplePaginate(2);
 
         $this->assertCount(2, $result->items());
     }
+
     #[Test]
-    public function wizard_cursorPaginate_works(): void
+    public function wizard_cursor_paginate_works(): void
     {
         $result = EloquentQueryWizard::for(TestModel::class)->cursorPaginate(2);
 
         $this->assertCount(2, $result->items());
     }
+
     #[Test]
     public function parameters_manager_returns_filters(): void
     {
@@ -272,6 +315,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals('test', $filters->get('name'));
     }
+
     #[Test]
     public function parameters_manager_returns_includes(): void
     {
@@ -281,6 +325,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals(['relatedModels', 'otherRelatedModels'], $includes->all());
     }
+
     #[Test]
     public function parameters_manager_returns_sorts(): void
     {
@@ -297,7 +342,8 @@ class QueryWizardTest extends TestCase
     #[Test]
     public function schema_can_use_filter_instances(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return TestModel::class;
@@ -314,17 +360,20 @@ class QueryWizardTest extends TestCase
 
         $targetModel = $this->models->first();
         $params = new QueryParametersManager(new Request([
-            'filter' => ['name' => substr($targetModel->name, 0, 3)],
+            'filter' => ['name' => $targetModel->name],
         ]));
 
         $models = (new EloquentQueryWizard(TestModel::query(), $params, null, $schema))->get();
 
-        $this->assertGreaterThanOrEqual(1, $models->count());
+        $this->assertTrue($models->contains('id', $targetModel->id));
+        $this->assertNotEmpty($models);
     }
+
     #[Test]
     public function schema_can_use_include_instances(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return TestModel::class;
@@ -348,10 +397,12 @@ class QueryWizardTest extends TestCase
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
         $this->assertTrue(isset($models->first()->other_related_models_count));
     }
+
     #[Test]
     public function schema_can_use_sort_instances(): void
     {
-        $schema = new class extends ResourceSchema {
+        $schema = new class extends ResourceSchema
+        {
             public function model(): string
             {
                 return TestModel::class;
@@ -361,7 +412,7 @@ class QueryWizardTest extends TestCase
             {
                 return [
                     EloquentSort::field('name'),
-                    EloquentSort::callback('custom', fn($q, $dir) => $q->orderBy('id', $dir)),
+                    EloquentSort::callback('custom', fn ($q, $dir) => $q->orderBy('id', $dir)),
                 ];
             }
         };
@@ -380,6 +431,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertEquals(5, $count);
     }
+
     #[Test]
     public function wizard_proxies_where_clauses(): void
     {
@@ -392,7 +444,7 @@ class QueryWizardTest extends TestCase
 
     // ========== Idempotency Tests ==========
     #[Test]
-    public function wizard_toQuery_is_idempotent(): void
+    public function wizard_to_query_is_idempotent(): void
     {
         $params = new QueryParametersManager(new Request([
             'filter' => ['id' => 1],
@@ -457,7 +509,7 @@ class QueryWizardTest extends TestCase
 
         $models = (new EloquentQueryWizard(TestModel::query(), $params))
             ->allowedSorts('id')
-            ->tap(fn($query) => $query->where('id', '<=', 3))
+            ->tap(fn ($query) => $query->where('id', '<=', 3))
             ->get();
 
         $this->assertCount(3, $models);
@@ -553,5 +605,159 @@ class QueryWizardTest extends TestCase
         $wizard->get();
         $wizard->defaultSorts('-id');
         $this->assertFalse($builtProperty->getValue($wizard));
+    }
+
+    // ========== schema() Method Tests ==========
+
+    #[Test]
+    public function wizard_can_set_schema_fluently(): void
+    {
+        $schema = new class extends ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function filters(QueryWizardInterface $wizard): array
+            {
+                return ['name'];
+            }
+        };
+
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request(['filter' => ['name' => $targetModel->name]]));
+
+        $models = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->schema($schema)
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($targetModel->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function schema_method_is_equivalent_to_for_schema(): void
+    {
+        $schema = new class extends ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function sorts(QueryWizardInterface $wizard): array
+            {
+                return ['id'];
+            }
+
+            public function defaultSorts(QueryWizardInterface $wizard): array
+            {
+                return ['-id'];
+            }
+        };
+
+        // Using forSchema()
+        $resultsFromForSchema = EloquentQueryWizard::forSchema($schema)->get();
+
+        // Using for() + schema()
+        $resultsFromSchemaMethod = EloquentQueryWizard::for(TestModel::class)
+            ->schema($schema)
+            ->get();
+
+        $this->assertEquals(
+            $resultsFromForSchema->pluck('id')->toArray(),
+            $resultsFromSchemaMethod->pluck('id')->toArray()
+        );
+    }
+
+    #[Test]
+    public function schema_method_invalidates_build_state(): void
+    {
+        $schema = new class extends ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+        };
+
+        $wizard = EloquentQueryWizard::for(TestModel::class);
+        $wizard->get(); // First build
+
+        $reflection = new \ReflectionClass($wizard);
+        $builtProperty = $reflection->getProperty('built');
+        $builtProperty->setAccessible(true);
+
+        $this->assertTrue($builtProperty->getValue($wizard));
+
+        $wizard->schema($schema);
+
+        $this->assertFalse($builtProperty->getValue($wizard), 'schema() should invalidate build state');
+    }
+
+    #[Test]
+    public function schema_method_accepts_class_string(): void
+    {
+        // Create a named schema class for this test
+        $schemaClass = get_class(new class extends ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function filters(QueryWizardInterface $wizard): array
+            {
+                return ['name'];
+            }
+        });
+
+        // Bind to container
+        app()->bind($schemaClass, fn () => new class extends ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function filters(QueryWizardInterface $wizard): array
+            {
+                return ['name'];
+            }
+        });
+
+        $wizard = EloquentQueryWizard::for(TestModel::class)->schema($schemaClass);
+
+        $this->assertInstanceOf(EloquentQueryWizard::class, $wizard);
+    }
+
+    #[Test]
+    public function explicit_allowed_filters_override_schema(): void
+    {
+        $schema = new class extends ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function filters(QueryWizardInterface $wizard): array
+            {
+                return ['name', 'id'];
+            }
+        };
+
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request(['filter' => ['id' => $targetModel->id]]));
+
+        // Schema allows 'name' and 'id', but explicit call only allows 'name'
+        // So filtering by 'id' should throw exception
+        $this->expectException(\Jackardios\QueryWizard\Exceptions\InvalidFilterQuery::class);
+
+        (new EloquentQueryWizard(TestModel::query(), $params))
+            ->schema($schema)
+            ->allowedFilters('name') // Override schema - only 'name' allowed
+            ->get();
     }
 }

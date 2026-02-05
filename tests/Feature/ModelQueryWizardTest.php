@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature;
 
-use PHPUnit\Framework\Attributes\Group;
-use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
@@ -14,14 +12,17 @@ use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 
 #[Group('model-wizard')]
 class ModelQueryWizardTest extends TestCase
 {
     protected TestModel $model;
+
     protected Collection $models;
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -222,8 +223,10 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function it_can_disallow_fields(): void
     {
+        // Request only fields that are allowed (after disallowed processing)
+        // created_at is disallowed, so we can't request it
         $result = $this
-            ->createModelWizardWithFields(['testModel' => 'id,name,created_at'], $this->model)
+            ->createModelWizardWithFields(['testModel' => 'id,name'], $this->model)
             ->allowedFields('id', 'name', 'created_at')
             ->disallowedFields('created_at')
             ->process();
@@ -231,6 +234,7 @@ class ModelQueryWizardTest extends TestCase
         $array = $result->toArray();
         $this->assertArrayHasKey('id', $array);
         $this->assertArrayHasKey('name', $array);
+        $this->assertArrayNotHasKey('created_at', $array);
     }
 
     // ========== Append Tests ==========
@@ -377,5 +381,108 @@ class ModelQueryWizardTest extends TestCase
         $result = $wizard->getModel();
 
         $this->assertSame($this->model, $result);
+    }
+
+    // ========== schema() Method Tests ==========
+
+    #[Test]
+    public function it_can_set_schema_fluently(): void
+    {
+        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function includes(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            {
+                return ['relatedModels'];
+            }
+        };
+
+        $result = \Jackardios\QueryWizard\ModelQueryWizard::for($this->model)
+            ->schema($schema)
+            ->process();
+
+        // Schema allows relatedModels, but no include requested - should not load
+        $this->assertFalse($result->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
+    public function schema_method_provides_includes_configuration(): void
+    {
+        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function includes(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            {
+                return ['relatedModels'];
+            }
+        };
+
+        $result = $this
+            ->createModelWizardWithIncludes('relatedModels', $this->model)
+            ->schema($schema)
+            ->process();
+
+        $this->assertTrue($result->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
+    public function schema_method_provides_appends_configuration(): void
+    {
+        $appendModel = AppendModel::factory()->create();
+
+        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        {
+            public function model(): string
+            {
+                return AppendModel::class;
+            }
+
+            public function appends(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            {
+                return ['fullname'];
+            }
+        };
+
+        $result = $this
+            ->createModelWizardWithAppends('fullname', $appendModel)
+            ->schema($schema)
+            ->process();
+
+        $this->assertArrayHasKey('fullname', $result->toArray());
+    }
+
+    #[Test]
+    public function explicit_allowed_includes_override_schema(): void
+    {
+        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function includes(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            {
+                return ['relatedModels', 'nestedRelatedModels'];
+            }
+        };
+
+        // Schema allows both, but explicit call only allows 'relatedModels'
+        // So requesting 'nestedRelatedModels' should throw exception
+        $this->expectException(InvalidIncludeQuery::class);
+
+        $this
+            ->createModelWizardWithIncludes('nestedRelatedModels', $this->model)
+            ->schema($schema)
+            ->allowedIncludes('relatedModels') // Override schema
+            ->process();
     }
 }

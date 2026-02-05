@@ -17,6 +17,7 @@ class RelatedModel extends Model
     {
         return RelatedModelFactory::new();
     }
+
     protected $guarded = [];
 
     public $timestamps = false;
@@ -26,7 +27,7 @@ class RelatedModel extends Model
      */
     public function getFormattedNameAttribute(): string
     {
-        return 'Formatted: ' . $this->name;
+        return 'Formatted: '.$this->name;
     }
 
     /**

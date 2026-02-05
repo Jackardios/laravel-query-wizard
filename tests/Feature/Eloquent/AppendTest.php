@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
-use PHPUnit\Framework\Attributes\Group;
-use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
@@ -13,6 +11,8 @@ use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 
 #[Group('eloquent')]
 #[Group('append')]
@@ -20,13 +20,24 @@ class AppendTest extends TestCase
 {
     protected Collection $models;
 
-    public function setUp(): void
+    protected Collection $testModels;
+
+    protected function setUp(): void
     {
         parent::setUp();
 
         DB::enableQueryLog();
 
+        // Create AppendModels for basic tests
         $this->models = AppendModel::factory()->count(3)->create();
+
+        // Create TestModels with RelatedModels for nested appends tests
+        $this->testModels = TestModel::factory()->count(3)->create();
+        $this->testModels->each(function (TestModel $model) {
+            RelatedModel::factory()->count(2)->create([
+                'test_model_id' => $model->id,
+            ]);
+        });
     }
 
     // ========== Basic Append Tests ==========
@@ -39,6 +50,7 @@ class AppendTest extends TestCase
 
         $this->assertFalse(array_key_exists('fullname', $models->first()->toArray()));
     }
+
     #[Test]
     public function it_can_append_attribute(): void
     {
@@ -49,6 +61,7 @@ class AppendTest extends TestCase
 
         $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
     }
+
     #[Test]
     public function it_can_append_multiple_attributes(): void
     {
@@ -61,6 +74,7 @@ class AppendTest extends TestCase
         $this->assertTrue(array_key_exists('fullname', $array));
         $this->assertTrue(array_key_exists('reversename', $array));
     }
+
     #[Test]
     public function it_can_append_attributes_as_array(): void
     {
@@ -85,16 +99,18 @@ class AppendTest extends TestCase
             ->allowedAppends('fullname')
             ->get();
     }
+
     #[Test]
-    public function it_ignores_unknown_appends_when_no_allowed_set(): void
+    public function it_throws_exception_when_no_allowed_appends_set(): void
     {
-        $models = $this
+        // When no allowed appends are set (and no schema), treat as "forbid all"
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
             ->createEloquentWizardWithAppends('unknown')
             ->get();
-
-        // No exception, returns all models
-        $this->assertCount(3, $models);
     }
+
     #[Test]
     public function it_throws_exception_with_empty_allowed_appends_array(): void
     {
@@ -166,6 +182,7 @@ class AppendTest extends TestCase
         // Empty append = no appends
         $this->assertFalse(array_key_exists('fullname', $models->first()->toArray()));
     }
+
     #[Test]
     public function it_handles_append_with_trailing_comma(): void
     {
@@ -176,6 +193,7 @@ class AppendTest extends TestCase
 
         $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
     }
+
     #[Test]
     public function it_removes_duplicate_appends(): void
     {
@@ -186,6 +204,7 @@ class AppendTest extends TestCase
 
         $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
     }
+
     // ========== Integration with Other Features ==========
     #[Test]
     public function it_works_with_filtering(): void
@@ -204,6 +223,7 @@ class AppendTest extends TestCase
         $this->assertCount(1, $models);
         $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
     }
+
     #[Test]
     public function it_works_with_sorting(): void
     {
@@ -218,6 +238,7 @@ class AppendTest extends TestCase
 
         $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
     }
+
     #[Test]
     public function it_works_with_fields(): void
     {
@@ -233,6 +254,7 @@ class AppendTest extends TestCase
         $array = $models->first()->toArray();
         $this->assertTrue(array_key_exists('fullname', $array));
     }
+
     #[Test]
     public function it_works_with_pagination(): void
     {
@@ -245,6 +267,7 @@ class AppendTest extends TestCase
         $this->assertTrue(array_key_exists('fullname', $result->first()->toArray()));
         $this->assertEquals(3, $result->total());
     }
+
     #[Test]
     public function it_works_with_first(): void
     {
@@ -253,6 +276,18 @@ class AppendTest extends TestCase
             ->createEloquentWizardWithAppends('fullname')
             ->allowedAppends('fullname')
             ->first();
+
+        $this->assertTrue(array_key_exists('fullname', $model->toArray()));
+    }
+
+    #[Test]
+    public function it_works_with_first_or_fail(): void
+    {
+        // Use wizard's firstOrFail() method to get appends applied
+        $model = $this
+            ->createEloquentWizardWithAppends('fullname')
+            ->allowedAppends('fullname')
+            ->firstOrFail();
 
         $this->assertTrue(array_key_exists('fullname', $model->toArray()));
     }
@@ -268,9 +303,10 @@ class AppendTest extends TestCase
             ->allowedAppends('fullname')
             ->get();
 
-        $expected = $model->firstname . ' ' . $model->lastname;
+        $expected = $model->firstname.' '.$model->lastname;
         $this->assertEquals($expected, $result->first()->fullname);
     }
+
     #[Test]
     public function appended_reversename_combines_last_and_first_name(): void
     {
@@ -281,7 +317,7 @@ class AppendTest extends TestCase
             ->allowedAppends('reversename')
             ->get();
 
-        $expected = $model->lastname . ' ' . $model->firstname;
+        $expected = $model->lastname.' '.$model->firstname;
         $this->assertEquals($expected, $result->first()->reversename);
     }
 
@@ -294,8 +330,9 @@ class AppendTest extends TestCase
             ->allowedAppends('fullname')
             ->get();
 
-        $this->assertTrue($models->every(fn($m) => array_key_exists('fullname', $m->toArray())));
+        $this->assertTrue($models->every(fn ($m) => array_key_exists('fullname', $m->toArray())));
     }
+
     #[Test]
     public function all_models_have_correct_appended_values(): void
     {
@@ -305,14 +342,15 @@ class AppendTest extends TestCase
             ->get();
 
         $this->assertTrue($models->every(function ($m) {
-            $expected = $m->firstname . ' ' . $m->lastname;
+            $expected = $m->firstname.' '.$m->lastname;
+
             return $m->fullname === $expected;
         }));
     }
 
     // ========== Case Sensitivity Tests ==========
     #[Test]
-    public function it_handles_camelCase_appends(): void
+    public function it_handles_camel_case_appends(): void
     {
         $models = $this
             ->createEloquentWizardWithAppends('fullname')
@@ -321,6 +359,7 @@ class AppendTest extends TestCase
 
         $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
     }
+
     #[Test]
     public function it_handles_allowed_appends_with_different_case(): void
     {
@@ -363,43 +402,242 @@ class AppendTest extends TestCase
     #[Test]
     public function it_can_append_to_relation_with_dot_notation(): void
     {
-        // Nested appends (dot notation for relations) are not supported in the new architecture
-        $this->markTestSkipped('Nested appends are not supported in the current architecture');
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('related_models', $array);
+        $this->assertNotEmpty($array['related_models']);
+        // Dynamic append() keeps the key name as provided (camelCase)
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
     }
+
     #[Test]
     public function it_can_append_multiple_attributes_to_relation(): void
     {
-        // Nested appends (dot notation for relations) are not supported in the new architecture
-        $this->markTestSkipped('Nested appends are not supported in the current architecture');
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName,relatedModels.upperName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName', 'relatedModels.upperName')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
+        $this->assertArrayHasKey('upperName', $array['related_models'][0]);
     }
+
     #[Test]
     public function it_can_combine_root_and_relation_appends(): void
     {
-        // Nested appends (dot notation for relations) are not supported in the new architecture
-        $this->markTestSkipped('Nested appends are not supported in the current architecture');
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'fullname,relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('fullname', 'relatedModels.formattedName')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('fullname', $array);
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
     }
+
     #[Test]
     public function it_validates_nested_appends_correctly(): void
     {
-        // Nested appends (dot notation for relations) are not supported in the new architecture
-        $this->markTestSkipped('Nested appends are not supported in the current architecture');
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'append' => 'relatedModels.unknownAttr',
+            ], TestModel::class)
+            ->allowedAppends('relatedModels.formattedName')
+            ->get();
     }
+
     #[Test]
     public function wildcard_allows_all_relation_appends(): void
     {
-        // Nested appends (dot notation for relations) are not supported in the new architecture
-        $this->markTestSkipped('Nested appends are not supported in the current architecture');
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName,relatedModels.upperName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.*')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
+        $this->assertArrayHasKey('upperName', $array['related_models'][0]);
     }
+
     #[Test]
     public function it_ignores_relation_append_when_relation_not_loaded(): void
     {
-        // Nested appends (dot notation for relations) are not supported in the new architecture
-        $this->markTestSkipped('Nested appends are not supported in the current architecture');
+        // No include, so relation is not loaded
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedAppends('relatedModels.formattedName')
+            ->first();
+
+        $array = $result->toArray();
+        // Relation not loaded, so no related_models key
+        $this->assertArrayNotHasKey('related_models', $array);
     }
+
     #[Test]
     public function nested_append_applies_to_all_models_in_collection(): void
     {
-        // Nested appends (dot notation for relations) are not supported in the new architecture
-        $this->markTestSkipped('Nested appends are not supported in the current architecture');
+        $results = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->get();
+
+        $this->assertCount(3, $results);
+
+        foreach ($results as $model) {
+            $array = $model->toArray();
+            if (! empty($array['related_models'])) {
+                foreach ($array['related_models'] as $related) {
+                    $this->assertArrayHasKey('formattedName', $related);
+                }
+            }
+        }
+    }
+
+    #[Test]
+    public function nested_append_respects_depth_limit(): void
+    {
+        // Set depth limit to 1 (only root appends allowed)
+        config()->set('query-wizard.limits.max_append_depth', 1);
+
+        $results = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->get();
+
+        // Nested append should be silently filtered due to depth limit
+        foreach ($results as $model) {
+            $array = $model->toArray();
+            if (! empty($array['related_models'])) {
+                // formattedName should NOT be present because depth > 1
+                $this->assertArrayNotHasKey('formattedName', $array['related_models'][0]);
+            }
+        }
+    }
+
+    #[Test]
+    public function nested_append_works_with_belongs_to_relation(): void
+    {
+        // Create a RelatedModel with a parent TestModel
+        $testModel = TestModel::factory()->create();
+        $relatedModel = RelatedModel::factory()->create(['test_model_id' => $testModel->id]);
+
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'testModel',
+                'append' => 'testModel.fullname',
+            ], RelatedModel::class)
+            ->allowedIncludes('testModel')
+            ->allowedAppends('testModel.fullname')
+            ->where('id', $relatedModel->id)
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('test_model', $array);
+        $this->assertArrayHasKey('fullname', $array['test_model']);
+    }
+
+    #[Test]
+    public function nested_append_handles_empty_relation(): void
+    {
+        // Create a TestModel without any RelatedModels
+        $testModel = TestModel::factory()->create();
+
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->where('id', $testModel->id)
+            ->first();
+
+        $array = $result->toArray();
+        // Relation should be loaded but empty
+        $this->assertArrayHasKey('related_models', $array);
+        $this->assertEmpty($array['related_models']);
+    }
+
+    // ========== Circular Reference Protection Tests ==========
+    #[Test]
+    public function it_handles_circular_references_in_appends(): void
+    {
+        // Create TestModel with RelatedModels that have back-references
+        $testModel = TestModel::factory()->create();
+        $relatedModel = RelatedModel::factory()->create(['test_model_id' => $testModel->id]);
+
+        // Load circular relations: testModel -> relatedModels -> testModel
+        $testModel->load(['relatedModels.testModel']);
+
+        // Manually set up a circular reference by setting the loaded testModel
+        // on the relatedModel's relation (simulating what would happen with eager loading)
+        $testModel->relatedModels->first()->setRelation('testModel', $testModel);
+
+        // This should not cause infinite recursion
+        $wizard = $this->createModelWizardFromQuery([
+            'append' => 'fullname,relatedModels.formattedName',
+        ], $testModel);
+
+        $result = $wizard
+            ->allowedAppends('fullname', 'relatedModels.formattedName', 'relatedModels.testModel.fullname')
+            ->process();
+
+        // Should complete without stack overflow
+        $this->assertArrayHasKey('fullname', $result->toArray());
+    }
+
+    #[Test]
+    public function it_prevents_infinite_loop_with_self_referencing_models(): void
+    {
+        // Create a TestModel
+        $testModel = TestModel::factory()->create();
+
+        // Manually set up a self-referential relation (model points to itself)
+        $testModel->setRelation('relatedModels', collect([$testModel]));
+
+        // This should not cause infinite recursion when applying appends
+        $wizard = $this->createModelWizardFromQuery([
+            'append' => 'relatedModels.fullname',
+        ], $testModel);
+
+        $result = $wizard
+            ->allowedAppends('relatedModels.fullname')
+            ->process();
+
+        // Should complete without stack overflow
+        $this->assertInstanceOf(TestModel::class, $result);
     }
 }

@@ -11,9 +11,7 @@ use Jackardios\QueryWizard\Tests\TestCase;
 trait AssertsCollectionSorting
 {
     /**
-     * @param Collection $collection
-     * @param callable|array|string $key
-     * @return void
+     * @param  callable|array|string  $key
      */
     protected function assertSortedAscending(Collection $collection, $key): void
     {
@@ -21,9 +19,7 @@ trait AssertsCollectionSorting
     }
 
     /**
-     * @param Collection $collection
-     * @param callable|array|string $key
-     * @return void
+     * @param  callable|array|string  $key
      */
     protected function assertSortedDescending(Collection $collection, $key): void
     {
@@ -31,10 +27,7 @@ trait AssertsCollectionSorting
     }
 
     /**
-     * @param Collection $collection
-     * @param callable|array|string $key
-     * @param bool  $descending
-     * @return void
+     * @param  callable|array|string  $key
      */
     protected function assertSorted(Collection $collection, $key, bool $descending = false): void
     {
@@ -44,10 +37,7 @@ trait AssertsCollectionSorting
     }
 
     /**
-     * @param Collection $collection
-     * @param callable|array|string $key
-     * @param bool  $descending
-     * @return void
+     * @param  callable|array|string  $key
      */
     protected function assertNotSorted(Collection $collection, $key, bool $descending = false): void
     {

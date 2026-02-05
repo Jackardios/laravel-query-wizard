@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
-use PHPUnit\Framework\Attributes\Test;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\DateRangeFilter;
@@ -17,6 +16,7 @@ use Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\TrashedFilter;
 use Jackardios\QueryWizard\Filters\CallbackFilter;
 use Jackardios\QueryWizard\Filters\PassthroughFilter;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 class FilterDefinitionTest extends TestCase
@@ -109,7 +109,7 @@ class FilterDefinitionTest extends TestCase
     public function it_sets_prepare_value_callback(): void
     {
         $filter = ExactFilter::make('status')
-            ->prepareValueWith(fn($value) => strtoupper($value));
+            ->prepareValueWith(fn ($value) => strtoupper($value));
 
         $this->assertEquals('ACTIVE', $filter->prepareValue('active'));
     }
@@ -120,7 +120,7 @@ class FilterDefinitionTest extends TestCase
         $filter = ExactFilter::make('status')
             ->alias('state')
             ->default('pending')
-            ->prepareValueWith(fn($v) => strtolower($v));
+            ->prepareValueWith(fn ($v) => strtolower($v));
 
         $this->assertEquals('status', $filter->getProperty());
         $this->assertEquals('state', $filter->getName());
@@ -213,7 +213,7 @@ class FilterDefinitionTest extends TestCase
     #[Test]
     public function it_creates_callback_filter(): void
     {
-        $callback = fn($query, $value) => $query->where('name', $value);
+        $callback = fn ($query, $value) => $query->where('name', $value);
         $filter = EloquentFilter::callback('name', $callback);
 
         $this->assertInstanceOf(CallbackFilter::class, $filter);
@@ -224,7 +224,7 @@ class FilterDefinitionTest extends TestCase
     #[Test]
     public function it_creates_callback_filter_with_alias(): void
     {
-        $callback = fn($query, $value) => $query->where('name', $value);
+        $callback = fn ($query, $value) => $query->where('name', $value);
         $filter = EloquentFilter::callback('full_name', $callback, 'name');
 
         $this->assertEquals('full_name', $filter->getProperty());
@@ -284,28 +284,55 @@ class FilterDefinitionTest extends TestCase
     // ========== Filter-specific Options Tests ==========
 
     #[Test]
-    public function exact_filter_can_set_with_relation_constraint(): void
+    public function exact_filter_can_enable_relation_constraint(): void
     {
         $filter = ExactFilter::make('posts.title')
-            ->withRelationConstraint(false);
+            ->withRelationConstraint();
 
         $this->assertInstanceOf(ExactFilter::class, $filter);
     }
 
     #[Test]
-    public function scope_filter_can_set_resolve_model_bindings(): void
+    public function exact_filter_can_disable_relation_constraint(): void
+    {
+        $filter = ExactFilter::make('posts.title')
+            ->withoutRelationConstraint();
+
+        $this->assertInstanceOf(ExactFilter::class, $filter);
+    }
+
+    #[Test]
+    public function scope_filter_can_enable_model_binding(): void
     {
         $filter = ScopeFilter::make('active')
-            ->resolveModelBindings(false);
+            ->withModelBinding();
 
         $this->assertInstanceOf(ScopeFilter::class, $filter);
     }
 
     #[Test]
-    public function null_filter_can_set_invert_logic(): void
+    public function scope_filter_can_disable_model_binding(): void
+    {
+        $filter = ScopeFilter::make('active')
+            ->withoutModelBinding();
+
+        $this->assertInstanceOf(ScopeFilter::class, $filter);
+    }
+
+    #[Test]
+    public function null_filter_can_enable_inverted_logic(): void
     {
         $filter = NullFilter::make('deleted_at')
-            ->invertLogic(true);
+            ->withInvertedLogic();
+
+        $this->assertInstanceOf(NullFilter::class, $filter);
+    }
+
+    #[Test]
+    public function null_filter_can_disable_inverted_logic(): void
+    {
+        $filter = NullFilter::make('deleted_at')
+            ->withoutInvertedLogic();
 
         $this->assertInstanceOf(NullFilter::class, $filter);
     }
@@ -340,10 +367,10 @@ class FilterDefinitionTest extends TestCase
     }
 
     #[Test]
-    public function json_contains_filter_can_set_match_all(): void
+    public function json_contains_filter_can_use_match_all(): void
     {
         $filter = JsonContainsFilter::make('tags')
-            ->matchAll(false);
+            ->matchAll();
 
         $this->assertInstanceOf(JsonContainsFilter::class, $filter);
     }
