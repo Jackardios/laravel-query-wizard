@@ -236,6 +236,10 @@ final class ModelQueryWizard implements QueryWizardInterface
 
     protected function cleanUnwantedRelations(): void
     {
+        if (! $this->allowedIncludesExplicitlySet && $this->schema === null) {
+            return;
+        }
+
         $allowedIncludes = $this->getEffectiveIncludes();
         $allowedTree = $this->buildAllowedTree($allowedIncludes);
         $this->cleanRelationsWithTree($this->model, $allowedTree);
