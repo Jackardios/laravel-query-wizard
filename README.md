@@ -395,7 +395,7 @@ EloquentSort::relation('orders', 'total', 'sum')        // Total order amount
 EloquentSort::relation('ratings', 'score', 'avg')       // Average rating
 ```
 
-Supported aggregates: `max`, `min`, `sum`, `avg`, `count`
+Supported aggregates: `max`, `min`, `sum`, `avg`, `count`, `exists`
 
 **Request:** `?sort=-orders` (highest order total first)
 
@@ -709,7 +709,7 @@ Query Wizard includes built-in protection against resource exhaustion attacks.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `max_include_depth` | 5 | Max nesting depth (e.g., `posts.comments.author` = 3) |
+| `max_include_depth` | 3 | Max nesting depth (e.g., `posts.comments.author` = 3) |
 | `max_includes_count` | 10 | Max includes per request |
 | `max_filters_count` | 20 | Max filters per request |
 | `max_appends_count` | 10 | Max appends per request |
