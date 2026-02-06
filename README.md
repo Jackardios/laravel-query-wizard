@@ -76,6 +76,7 @@ GET /users?filter[name]=John&filter[status]=active&sort=-created_at&include=post
 - [Error Handling](#error-handling)
 - [Batch Processing Limitations](#batch-processing-limitations)
 - [API Reference](#api-reference)
+- [Comparison with spatie/laravel-query-builder](#comparison-with-spatielaravel-query-builder)
 
 ## Basic Usage
 
@@ -1055,6 +1056,58 @@ EloquentQueryWizard::for(
 | `count($relation, $alias)` | Load relationship count |
 | `callback($name, $callback, $alias)` | Custom callback include |
 
+## Comparison with spatie/laravel-query-builder
+
+This package is inspired by [spatie/laravel-query-builder](https://github.com/spatie/laravel-query-builder). Spatie's package is a well-established solution for building Eloquent queries from API requests. Query Wizard builds on the same idea and extends it with additional capabilities.
+
+### Feature Comparison
+
+| Feature | Query Wizard | spatie/laravel-query-builder |
+|---------|:---:|:---:|
+| **Filters** | | |
+| Exact, Partial, Scope, Trashed, Callback | ✅ | ✅ |
+| Range (min/max) | ✅ | ❌ |
+| Date Range (from/to) | ✅ | ❌ |
+| Null (IS NULL / IS NOT NULL) | ✅ | ❌ |
+| JSON Contains | ✅ | ❌ |
+| Passthrough (capture without applying) | ✅ | ❌ |
+| Conditional filters (`when()`) | ✅ | ❌ |
+| Value transformation (`prepareValueWith()`) | ✅ | ❌ |
+| Operator filter (>, <, >=, <=) | ❌ | ✅ |
+| BelongsTo filter | ❌ | ✅ |
+| BeginsWith / EndsWith | ❌ | ✅ |
+| Ignored filter values | ❌ | ✅ |
+| Default filter values | ✅ | ✅ |
+| Filter aliases | ✅ | ✅ |
+| Relation filters (dot notation) | ✅ | ✅ |
+| **Sorts** | | |
+| Field, Custom/Callback | ✅ | ✅ |
+| Relationship count sort | ✅ | ❌ |
+| Relationship aggregate sort (sum, avg, max, min) | ✅ | ❌ |
+| Default sorts | ✅ | ✅ |
+| **Includes** | | |
+| Relationship, Count, Custom/Callback | ✅ | ✅ |
+| Exists includes | ❌ | ✅ |
+| Default includes | ✅ | ❌ |
+| Count auto-allowed with relationship | ❌ | ✅ |
+| **Fields** | | |
+| Field selection | ✅ | ✅ |
+| **Appends** | | |
+| Appends (computed attributes) | ✅ | ❌ |
+| Nested appends (e.g. `posts.reading_time`) | ✅ | ❌ |
+| Default appends | ✅ | ❌ |
+| **Architecture** | | |
+| Resource Schemas (reusable config) | ✅ | ❌ |
+| `disallowed*()` methods (schema overrides) | ✅ | ❌ |
+| ModelQueryWizard (for loaded models) | ✅ | ❌ |
+| `tap()` query modification callbacks | ✅ | ❌ |
+| Batch processing support (`applyAppendsTo()`) | ✅ | ❌ |
+| **Security** | | |
+| Max include depth | ✅ | ❌ |
+| Max count limits (filters, sorts, includes, appends) | ✅ | ❌ |
+| **Compatibility** | | |
+| Laravel Octane | ✅ | ✅ |
+
 ## Requirements
 
 - PHP 8.1+
@@ -1073,3 +1126,4 @@ The MIT License (MIT). Please see [License File](LICENSE) for more information.
 ## Credits
 
 - [Salavat Salakhutdinov](https://github.com/jackardios)
+- Inspired by [spatie/laravel-query-builder](https://github.com/spatie/laravel-query-builder) by [Spatie](https://spatie.be)
