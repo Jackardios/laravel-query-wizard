@@ -19,6 +19,8 @@ use Jackardios\QueryWizard\Sorts\AbstractSort;
  */
 final class RelationSort extends AbstractSort
 {
+    private const ALLOWED_AGGREGATES = ['min', 'max', 'sum', 'avg', 'count', 'exists'];
+
     protected string $column;
 
     protected string $aggregate;
@@ -28,7 +30,7 @@ final class RelationSort extends AbstractSort
      *
      * @param  string  $relation  The relationship name
      * @param  string  $column  The column on the related model
-     * @param  string  $aggregate  The aggregate function (max, min, sum, avg, count)
+     * @param  string  $aggregate  The aggregate function (max, min, sum, avg, count, exists)
      * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(
@@ -37,6 +39,12 @@ final class RelationSort extends AbstractSort
         string $aggregate = 'max',
         ?string $alias = null
     ): static {
+        if (! in_array($aggregate, self::ALLOWED_AGGREGATES, true)) {
+            throw new \InvalidArgumentException(
+                "Invalid aggregate `{$aggregate}`. Allowed: ".implode(', ', self::ALLOWED_AGGREGATES).'.'
+            );
+        }
+
         $instance = new self($relation, $alias);
         $instance->column = $column;
         $instance->aggregate = $aggregate;
