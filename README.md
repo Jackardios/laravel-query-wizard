@@ -74,6 +74,8 @@ GET /users?filter[name]=John&filter[status]=active&sort=-created_at&include=post
 - [Security](#security)
 - [Configuration](#configuration)
 - [Error Handling](#error-handling)
+- [Batch Processing Limitations](#batch-processing-limitations)
+- [API Reference](#api-reference)
 
 ## Basic Usage
 
@@ -241,7 +243,7 @@ EloquentFilter::range('price')->minKey('from')->maxKey('to')
 
 #### Date Range Filter
 
-Filter by date ranges with Carbon parsing.
+Filter by date ranges.
 
 ```php
 EloquentFilter::dateRange('created_at')
@@ -707,7 +709,6 @@ Query Wizard is fully compatible with Laravel Octane. The package uses proper sc
 ### Automatic Handling
 
 - **QueryParametersManager** uses `scoped()` binding, ensuring a fresh instance per request
-- **ScopeFilter reflection cache** uses `WeakMap`, which auto-cleans when model instances are garbage collected
 
 ## Security
 
@@ -719,8 +720,9 @@ Query Wizard includes built-in protection against resource exhaustion attacks.
 |---------|---------|-------------|
 | `max_include_depth` | 5 | Max nesting depth (e.g., `posts.comments.author` = 3) |
 | `max_includes_count` | 10 | Max includes per request |
-| `max_filters_count` | 15 | Max filters per request |
+| `max_filters_count` | 20 | Max filters per request |
 | `max_filter_depth` | 5 | Max filter nesting depth |
+| `max_appends_count` | 10 | Max appends per request |
 | `max_sorts_count` | 5 | Max sorts per request |
 | `max_append_depth` | 3 | Max append nesting depth |
 
@@ -822,8 +824,9 @@ return [
     'limits' => [
         'max_include_depth' => 5,
         'max_includes_count' => 10,
-        'max_filters_count' => 15,
+        'max_filters_count' => 20,
         'max_filter_depth' => 5,
+        'max_appends_count' => 10,
         'max_sorts_count' => 5,
         'max_append_depth' => 3,
     ],
@@ -844,6 +847,7 @@ return [
 | `MaxFiltersCountExceeded` | 422 | Filter count exceeds limit |
 | `MaxSortsCountExceeded` | 422 | Sort count exceeds limit |
 | `MaxIncludesCountExceeded` | 422 | Include count exceeds limit |
+| `MaxAppendsCountExceeded` | 422 | Append count exceeds limit |
 | `MaxIncludeDepthExceeded` | 422 | Include nesting exceeds limit |
 
 All exceptions extend `InvalidQuery` which extends Symfony's `HttpException`.
@@ -1041,7 +1045,7 @@ composer test
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The MIT License (MIT). Please see [License File](LICENSE) for more information.
 
 ## Credits
 
