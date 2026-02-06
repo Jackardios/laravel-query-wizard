@@ -81,7 +81,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         /** @var class-string<Model> $modelClass */
         $modelClass = $schema->model();
 
-        return new static(
+        return new self(
             $modelClass::query(),
             app(QueryParametersManager::class),
             app(QueryWizardConfig::class),

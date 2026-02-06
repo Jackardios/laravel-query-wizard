@@ -13,13 +13,19 @@ use Jackardios\QueryWizard\Contracts\IncludeInterface;
  * - Relation/alias management
  *
  * All modifier methods mutate and return the same instance (fluent pattern).
+ *
+ * @phpstan-consistent-constructor
  */
 abstract class AbstractInclude implements IncludeInterface
 {
     protected function __construct(
         protected string $relation,
         protected ?string $alias = null,
-    ) {}
+    ) {
+        if (trim($relation) === '') {
+            throw new \InvalidArgumentException('Include relation name cannot be empty.');
+        }
+    }
 
     /**
      * Set an alias for URL parameter name.

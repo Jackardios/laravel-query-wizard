@@ -31,7 +31,11 @@ abstract class AbstractFilter implements FilterInterface
     protected function __construct(
         protected string $property,
         protected ?string $alias = null,
-    ) {}
+    ) {
+        if (trim($property) === '') {
+            throw new \InvalidArgumentException('Filter property name cannot be empty.');
+        }
+    }
 
     /**
      * Set an alias for URL parameter name.

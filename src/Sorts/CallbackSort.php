@@ -16,24 +16,22 @@ use Closure;
  */
 class CallbackSort extends AbstractSort
 {
-    protected function __construct(
-        string $property,
-        protected Closure $callback,
-        ?string $alias = null,
-    ) {
-        parent::__construct($property, $alias);
-    }
+    /** @var Closure(mixed, string, string): mixed */
+    protected Closure $callback;
 
     /**
      * Create a new callback sort.
      *
      * @param  string  $property  The sort property name
-     * @param  callable(mixed $subject, string $direction, string $property): void  $callback
+     * @param  callable(mixed $subject, string $direction, string $property): mixed  $callback
      * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function make(string $property, callable $callback, ?string $alias = null): static
     {
-        return new static($property, $callback(...), $alias);
+        $instance = new static($property, $alias);
+        $instance->callback = $callback(...);
+
+        return $instance;
     }
 
     public function getType(): string
@@ -43,8 +41,6 @@ class CallbackSort extends AbstractSort
 
     public function apply(mixed $subject, string $direction): mixed
     {
-        ($this->callback)($subject, $direction, $this->property);
-
-        return $subject;
+        return ($this->callback)($subject, $direction, $this->property) ?? $subject;
     }
 }

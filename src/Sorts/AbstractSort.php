@@ -13,13 +13,19 @@ use Jackardios\QueryWizard\Contracts\SortInterface;
  * - Property/alias management
  *
  * All modifier methods mutate and return the same instance (fluent pattern).
+ *
+ * @phpstan-consistent-constructor
  */
 abstract class AbstractSort implements SortInterface
 {
     protected function __construct(
         protected string $property,
         protected ?string $alias = null,
-    ) {}
+    ) {
+        if (trim($property) === '') {
+            throw new \InvalidArgumentException('Sort property name cannot be empty.');
+        }
+    }
 
     /**
      * Set an alias for URL parameter name.

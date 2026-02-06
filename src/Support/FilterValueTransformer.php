@@ -72,12 +72,13 @@ final class FilterValueTransformer
             return $this->splitToArray($value);
         }
 
-        // Check for boolean strings
-        if ($value === 'true') {
+        // Check for boolean strings (case-insensitive)
+        $lower = strtolower($value);
+        if ($lower === 'true') {
             return true;
         }
 
-        if ($value === 'false') {
+        if ($lower === 'false') {
             return false;
         }
 
@@ -88,11 +89,11 @@ final class FilterValueTransformer
      * Split a string into array by separator.
      *
      * Empty strings are filtered out from the result.
-     * If all values are empty, returns null instead of empty array.
+     * If all values are empty, returns empty array.
      *
-     * @return array<int, string>|null
+     * @return array<int, string>
      */
-    private function splitToArray(string $value): ?array
+    private function splitToArray(string $value): array
     {
         if ($this->arraySeparator === '') {
             return [$value];
@@ -103,7 +104,6 @@ final class FilterValueTransformer
             static fn ($v) => $v !== ''
         );
 
-        // Return null if all parts were empty (e.g., ",,," → null)
-        return empty($parts) ? null : array_values($parts);
+        return array_values($parts);
     }
 }

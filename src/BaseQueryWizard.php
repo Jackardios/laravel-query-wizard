@@ -493,8 +493,18 @@ abstract class BaseQueryWizard implements QueryWizardInterface
                 continue;
             }
 
-            $this->subject = $filter->apply($this->subject, $preparedValue);
+            $this->applyFilter($filter, $preparedValue);
         }
+    }
+
+    /**
+     * Apply a single filter to the subject.
+     *
+     * Override this method to customize how individual filters are applied.
+     */
+    protected function applyFilter(FilterInterface $filter, mixed $preparedValue): void
+    {
+        $this->subject = $filter->apply($this->subject, $preparedValue);
     }
 
     /**
@@ -620,6 +630,19 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         }
 
         // Apply includes
+        $this->applyValidatedIncludes($validRequestedIncludes, $includesIndex);
+    }
+
+    /**
+     * Apply validated includes to the subject.
+     *
+     * Override this method to customize how includes are applied.
+     *
+     * @param  array<int, string>  $validRequestedIncludes
+     * @param  array<string, IncludeInterface>  $includesIndex
+     */
+    protected function applyValidatedIncludes(array $validRequestedIncludes, array $includesIndex): void
+    {
         foreach ($validRequestedIncludes as $includeName) {
             $include = $includesIndex[$includeName];
             $this->subject = $include->apply($this->subject);
