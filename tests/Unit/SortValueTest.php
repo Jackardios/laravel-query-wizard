@@ -32,14 +32,6 @@ class SortValueTest extends TestCase
     }
 
     #[Test]
-    public function it_strips_minus_prefix_from_field(): void
-    {
-        $sort = new Sort('-created_at');
-
-        $this->assertEquals('created_at', $sort->getField());
-    }
-
-    #[Test]
     public function it_accepts_explicit_direction(): void
     {
         $sort = new Sort('name', SortDirection::Descending);
@@ -66,14 +58,6 @@ class SortValueTest extends TestCase
         $this->assertEquals('name', $sort->getField());
         // Still desc because it starts with -
         $this->assertEquals('desc', $sort->getDirection());
-    }
-
-    #[Test]
-    public function it_handles_underscore_field_names(): void
-    {
-        $sort = new Sort('-created_at');
-
-        $this->assertEquals('created_at', $sort->getField());
     }
 
     #[Test]

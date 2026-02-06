@@ -11,59 +11,51 @@ use PHPUnit\Framework\Attributes\Test;
 
 class FilterValueTransformerTest extends TestCase
 {
-    // ========== Boolean Transformation Tests ==========
+    // ========== String Passthrough Tests ==========
 
     #[Test]
-    public function it_transforms_true_string_to_boolean(): void
+    public function it_preserves_true_string(): void
     {
         $transformer = new FilterValueTransformer;
 
         $result = $transformer->transform('true');
 
-        $this->assertTrue($result);
-        $this->assertIsBool($result);
+        $this->assertSame('true', $result);
     }
 
     #[Test]
-    public function it_transforms_false_string_to_boolean(): void
+    public function it_preserves_false_string(): void
     {
         $transformer = new FilterValueTransformer;
 
         $result = $transformer->transform('false');
 
-        $this->assertFalse($result);
-        $this->assertIsBool($result);
+        $this->assertSame('false', $result);
     }
 
     #[Test]
-    public function it_transforms_uppercase_true(): void
+    public function it_preserves_uppercase_true(): void
     {
         $transformer = new FilterValueTransformer;
 
-        $result = $transformer->transform('TRUE');
-
-        $this->assertTrue($result);
-        $this->assertIsBool($result);
+        $this->assertSame('TRUE', $transformer->transform('TRUE'));
     }
 
     #[Test]
-    public function it_transforms_uppercase_false(): void
+    public function it_preserves_uppercase_false(): void
     {
         $transformer = new FilterValueTransformer;
 
-        $result = $transformer->transform('FALSE');
-
-        $this->assertFalse($result);
-        $this->assertIsBool($result);
+        $this->assertSame('FALSE', $transformer->transform('FALSE'));
     }
 
     #[Test]
-    public function it_transforms_mixed_case_boolean(): void
+    public function it_preserves_mixed_case_boolean_strings(): void
     {
         $transformer = new FilterValueTransformer;
 
-        $this->assertTrue($transformer->transform('True'));
-        $this->assertFalse($transformer->transform('False'));
+        $this->assertSame('True', $transformer->transform('True'));
+        $this->assertSame('False', $transformer->transform('False'));
     }
 
     // ========== Empty String Tests ==========
@@ -174,7 +166,7 @@ class FilterValueTransformerTest extends TestCase
         ]);
 
         $this->assertEquals([
-            'bool' => true,
+            'bool' => 'true',
             'string' => 'value',
             'array' => ['a', 'b', 'c'],
         ], $result);
@@ -194,7 +186,7 @@ class FilterValueTransformerTest extends TestCase
 
         $this->assertEquals([
             'level1' => [
-                'level2' => true,
+                'level2' => 'true',
                 'values' => ['a', 'b'],
             ],
         ], $result);
@@ -347,9 +339,9 @@ class FilterValueTransformerTest extends TestCase
                 ['a' => '', 'b' => 'value'],
                 ['a' => null, 'b' => 'value'],
             ],
-            'array with booleans' => [
+            'array with boolean strings' => [
                 ['active' => 'true', 'deleted' => 'false'],
-                ['active' => true, 'deleted' => false],
+                ['active' => 'true', 'deleted' => 'false'],
             ],
             'mixed depth array' => [
                 [
@@ -359,7 +351,7 @@ class FilterValueTransformerTest extends TestCase
                 ],
                 [
                     'simple' => 'value',
-                    'nested' => ['deep' => true],
+                    'nested' => ['deep' => 'true'],
                     'list' => ['a', 'b'],
                 ],
             ],
@@ -384,5 +376,37 @@ class FilterValueTransformerTest extends TestCase
         $result = $transformer->transform([]);
 
         $this->assertEquals([], $result);
+    }
+
+    // ========== Split-to-Array String Preservation Tests ==========
+
+    #[Test]
+    public function it_preserves_boolean_strings_in_comma_separated_string(): void
+    {
+        $transformer = new FilterValueTransformer;
+
+        $result = $transformer->transform('true,false');
+
+        $this->assertSame(['true', 'false'], $result);
+    }
+
+    #[Test]
+    public function it_preserves_all_strings_in_comma_separated_string(): void
+    {
+        $transformer = new FilterValueTransformer;
+
+        $result = $transformer->transform('1,true,hello');
+
+        $this->assertSame(['1', 'true', 'hello'], $result);
+    }
+
+    #[Test]
+    public function it_filters_empty_parts_and_preserves_remaining(): void
+    {
+        $transformer = new FilterValueTransformer;
+
+        $result = $transformer->transform(',,true,');
+
+        $this->assertSame(['true'], $result);
     }
 }

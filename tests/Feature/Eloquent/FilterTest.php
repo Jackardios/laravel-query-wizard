@@ -42,17 +42,6 @@ class FilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function it_throws_exception_for_unknown_filters_when_no_allowed_set(): void
-    {
-        $this->expectException(InvalidFilterQuery::class);
-
-        $this
-            ->createEloquentWizardWithFilters(['unknown' => 'value'])
-            ->allowedFilters([])
-            ->get();
-    }
-
-    #[Test]
     public function it_throws_exception_with_empty_allowed_filters_array(): void
     {
         $this->expectException(InvalidFilterQuery::class);
@@ -97,7 +86,7 @@ class FilterTest extends EloquentFilterTestCase
             ->allowedFilters('name')
             ->get();
 
-        // 'true' is parsed as boolean true by QueryParametersManager
+        // 'true' stays as string - no model has name 'true'
         $this->assertCount(0, $models);
     }
 
@@ -109,7 +98,7 @@ class FilterTest extends EloquentFilterTestCase
             ->allowedFilters('name')
             ->get();
 
-        // 'false' is parsed as boolean false
+        // 'false' stays as string - no model has name 'false'
         $this->assertCount(0, $models);
     }
 

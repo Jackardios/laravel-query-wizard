@@ -138,6 +138,21 @@ abstract class AbstractFilter implements FilterInterface
     }
 
     /**
+     * Treat the filter value as boolean.
+     *
+     * Converts string values like 'true', 'false', '1', '0', 'yes', 'no'
+     * to PHP booleans using filter_var(). Useful for boolean database columns.
+     *
+     * Non-boolean values become null (filter skipped).
+     */
+    public function asBoolean(): static
+    {
+        return $this->prepareValueWith(
+            static fn (mixed $value) => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+        );
+    }
+
+    /**
      * Get the filter type identifier.
      */
     abstract public function getType(): string;

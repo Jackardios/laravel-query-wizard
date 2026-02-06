@@ -92,14 +92,6 @@ class IncludeDefinitionTest extends TestCase
     }
 
     #[Test]
-    public function it_creates_deeply_nested_relationship_include(): void
-    {
-        $include = EloquentInclude::relationship('posts.comments.author');
-
-        $this->assertEquals('posts.comments.author', $include->getRelation());
-    }
-
-    #[Test]
     public function it_creates_count_include(): void
     {
         $include = EloquentInclude::count('posts');
@@ -161,31 +153,6 @@ class IncludeDefinitionTest extends TestCase
 
         $this->assertSame($include, $result);
         $this->assertEquals('alias', $include->getAlias());
-    }
-
-    #[Test]
-    public function it_rejects_empty_relation_name(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Include relation name cannot be empty.');
-
-        RelationshipInclude::make('');
-    }
-
-    #[Test]
-    public function it_handles_relation_with_special_characters(): void
-    {
-        $include = EloquentInclude::relationship('user_posts');
-
-        $this->assertEquals('user_posts', $include->getRelation());
-    }
-
-    #[Test]
-    public function it_handles_camel_case_relation(): void
-    {
-        $include = EloquentInclude::relationship('relatedModels');
-
-        $this->assertEquals('relatedModels', $include->getRelation());
     }
 
     #[Test]

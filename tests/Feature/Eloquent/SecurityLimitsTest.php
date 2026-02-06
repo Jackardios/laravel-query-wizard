@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Facades\Config;
+use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
@@ -322,6 +323,68 @@ class SecurityLimitsTest extends TestCase
         $this->assertNotEmpty($models);
     }
 
+    // ========== Append Depth Limit Tests ==========
+
+    #[Test]
+    public function it_throws_exception_when_append_depth_exceeds_limit(): void
+    {
+        Config::set('query-wizard.limits.max_append_depth', 1);
+
+        $this->expectException(MaxAppendDepthExceeded::class);
+        $this->expectExceptionMessage('has depth 2 which exceeds the maximum allowed depth of 1');
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->get();
+    }
+
+    #[Test]
+    public function it_allows_appends_within_depth_limit(): void
+    {
+        Config::set('query-wizard.limits.max_append_depth', 3);
+
+        $models = $this
+            ->createEloquentWizardWithAppends('fullname', AppendModel::class)
+            ->allowedAppends('fullname')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    #[Test]
+    public function it_allows_any_append_depth_when_limit_is_null(): void
+    {
+        Config::set('query-wizard.limits.max_append_depth', null);
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    // ========== Append Depth Exception Properties Tests ==========
+
+    #[Test]
+    public function max_append_depth_exceeded_exception_has_correct_properties(): void
+    {
+        $exception = MaxAppendDepthExceeded::create('posts.comments.body', 3, 2);
+
+        $this->assertEquals('posts.comments.body', $exception->append);
+        $this->assertEquals(3, $exception->depth);
+        $this->assertEquals(2, $exception->maxDepth);
+    }
+
     // ========== Append Count Exception Properties Tests ==========
 
     #[Test]
@@ -331,6 +394,133 @@ class SecurityLimitsTest extends TestCase
 
         $this->assertEquals(12, $exception->count);
         $this->assertEquals(10, $exception->maxCount);
+    }
+
+    // ========== Default Sorts Validation Tests ==========
+
+    #[Test]
+    public function it_silently_skips_default_sorts_not_in_allowed_list(): void
+    {
+        $models = TestModel::factory()->count(3)->create();
+
+        $result = $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedSorts('name')
+            ->defaultSorts('-id')
+            ->get();
+
+        $this->assertNotEmpty($result);
+        // -id is not in allowed list, so it should be skipped — models NOT sorted by id desc
+        $ids = $result->pluck('id')->toArray();
+        // The result should be in default DB order, not sorted by -id
+        $this->assertNotEquals(
+            $models->sortByDesc('id')->pluck('id')->values()->toArray(),
+            $ids,
+            'Default sort -id should have been skipped since it is not in allowed list'
+        );
+    }
+
+    #[Test]
+    public function it_applies_default_sorts_that_are_in_allowed_list(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedSorts('name', 'id')
+            ->defaultSorts('-id')
+            ->get();
+
+        $this->assertNotEmpty($result);
+        // -id IS in allowed list, so models should be sorted by id desc
+        $ids = $result->pluck('id')->toArray();
+        $sorted = $ids;
+        rsort($sorted);
+        $this->assertEquals($sorted, $ids);
+    }
+
+    // ========== Default Appends Validation Tests ==========
+
+    #[Test]
+    public function it_silently_skips_default_appends_not_in_allowed_list(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery([], AppendModel::class)
+            ->allowedAppends('fullname')
+            ->defaultAppends('fullname', 'nonexistent')
+            ->get();
+
+        $this->assertNotEmpty($result);
+        $this->assertArrayHasKey('fullname', $result->first()->toArray());
+    }
+
+    #[Test]
+    public function it_throws_when_default_appends_exceed_depth(): void
+    {
+        Config::set('query-wizard.limits.max_append_depth', 1);
+
+        $this->expectException(MaxAppendDepthExceeded::class);
+
+        $this
+            ->createEloquentWizardFromQuery([], AppendModel::class)
+            ->allowedAppends('fullname', 'relatedModels.formattedName')
+            ->defaultAppends('relatedModels.formattedName')
+            ->get();
+    }
+
+    #[Test]
+    public function it_validates_total_appends_count_including_defaults(): void
+    {
+        Config::set('query-wizard.limits.max_appends_count', 1);
+
+        $this->expectException(MaxAppendsCountExceeded::class);
+
+        $this
+            ->createEloquentWizardWithAppends('reversename', AppendModel::class)
+            ->allowedAppends('fullname', 'reversename')
+            ->defaultAppends('fullname')
+            ->get();
+    }
+
+    // ========== Default Includes Validation Tests ==========
+
+    #[Test]
+    public function it_silently_skips_default_includes_not_in_allowed_list(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->defaultIncludes('relatedModels', 'nonExistent')
+            ->get();
+
+        $this->assertNotEmpty($result);
+        $this->assertTrue($result->first()->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
+    public function it_silently_skips_default_includes_with_empty_allowed_list(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedIncludes([])
+            ->defaultIncludes('relatedModels')
+            ->get();
+
+        $this->assertNotEmpty($result);
+        $this->assertFalse($result->first()->relationLoaded('relatedModels'));
+    }
+
+    // ========== ModelQueryWizard Includes Count Validation ==========
+
+    #[Test]
+    public function it_validates_model_wizard_includes_count_before_filtering(): void
+    {
+        Config::set('query-wizard.limits.max_includes_count', 2);
+
+        $this->expectException(MaxIncludesCountExceeded::class);
+
+        $this
+            ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels,morphModels,invalid1,invalid2')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels', 'morphModels')
+            ->get();
     }
 
     // ========== Default Config Values Tests ==========

@@ -340,6 +340,18 @@ class SortTest extends TestCase
         $this->assertEquals('Gamma', $models->first()->name);
     }
 
+    #[Test]
+    public function default_sorts_work_without_allowed_sorts(): void
+    {
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->defaultSorts('-id')
+            ->get();
+
+        $this->assertCount(5, $models);
+        $this->assertEquals(5, $models->first()->id);
+    }
+
     // ========== Validation Tests ==========
     #[Test]
     public function it_throws_exception_for_not_allowed_sort(): void
@@ -677,6 +689,30 @@ class SortTest extends TestCase
             ->get();
 
         $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function count_sort_does_not_duplicate_with_count_when_already_added_on_builder(): void
+    {
+        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->count(3)->create([
+            'test_model_id' => $this->models->get(0)->id,
+        ]);
+
+        // Pre-add withCount on the builder before CountSort runs
+        $query = TestModel::query()->withCount('relatedModels');
+
+        DB::flushQueryLog();
+
+        $this
+            ->createEloquentWizardWithSorts('-relatedModels', $query)
+            ->allowedSorts(EloquentSort::count('relatedModels'))
+            ->get();
+
+        $queries = DB::getQueryLog();
+        $selectQuery = collect($queries)->first(fn ($q) => str_contains($q['query'], 'select'));
+        $subqueryCount = substr_count($selectQuery['query'], 'select count(*)');
+
+        $this->assertEquals(1, $subqueryCount, 'withCount should not be duplicated when already present on builder');
     }
 
     // ========== Relation Sort Tests ==========

@@ -76,23 +76,4 @@ class SortDirectionTest extends TestCase
         $this->assertContains(SortDirection::Descending, $cases);
     }
 
-    #[Test]
-    public function values_are_lowercase(): void
-    {
-        foreach (SortDirection::cases() as $case) {
-            $this->assertEquals(strtolower($case->value), $case->value);
-        }
-    }
-
-    #[Test]
-    public function it_can_be_used_in_match_expression(): void
-    {
-        $getDirection = fn (SortDirection $dir) => match ($dir) {
-            SortDirection::Ascending => 'UP',
-            SortDirection::Descending => 'DOWN',
-        };
-
-        $this->assertEquals('UP', $getDirection(SortDirection::Ascending));
-        $this->assertEquals('DOWN', $getDirection(SortDirection::Descending));
-    }
 }

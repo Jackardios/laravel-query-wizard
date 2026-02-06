@@ -204,4 +204,49 @@ class RangeFilterTest extends EloquentFilterTestCase
 
         $this->assertCount(5, $models);
     }
+
+    #[Test]
+    public function date_range_filter_ignores_invalid_from_date(): void
+    {
+        $to = Carbon::now()->addDays(1);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => 'not-a-date',
+                'to' => $to->toDateTimeString(),
+            ]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function date_range_filter_ignores_invalid_to_date(): void
+    {
+        $from = Carbon::now()->subDays(1);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => $from->toDateTimeString(),
+                'to' => 'not-a-date',
+            ]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function date_range_filter_allows_numeric_timestamps(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => 0,
+            ]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
 }

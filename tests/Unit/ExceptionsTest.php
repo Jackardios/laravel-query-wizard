@@ -11,7 +11,6 @@ use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
-use Jackardios\QueryWizard\Exceptions\InvalidSubject;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
@@ -19,62 +18,9 @@ use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use stdClass;
 
 class ExceptionsTest extends TestCase
 {
-    // ========== InvalidSubject Tests ==========
-    #[Test]
-    public function invalid_subject_formats_string_type_correctly(): void
-    {
-        $exception = InvalidSubject::make('some_string');
-
-        $this->assertStringContainsString('type `string`', $exception->getMessage());
-        $this->assertStringContainsString('is invalid', $exception->getMessage());
-    }
-
-    #[Test]
-    public function invalid_subject_formats_integer_type_correctly(): void
-    {
-        $exception = InvalidSubject::make(123);
-
-        $this->assertStringContainsString('type `integer`', $exception->getMessage());
-    }
-
-    #[Test]
-    public function invalid_subject_formats_array_type_correctly(): void
-    {
-        $exception = InvalidSubject::make(['array']);
-
-        $this->assertStringContainsString('type `array`', $exception->getMessage());
-    }
-
-    #[Test]
-    public function invalid_subject_formats_object_class_correctly(): void
-    {
-        $exception = InvalidSubject::make(new stdClass);
-
-        $this->assertStringContainsString('class `stdClass`', $exception->getMessage());
-    }
-
-    #[Test]
-    public function invalid_subject_formats_custom_object_correctly(): void
-    {
-        $customObject = new class {};
-        $exception = InvalidSubject::make($customObject);
-
-        $this->assertStringContainsString('class `', $exception->getMessage());
-        $this->assertStringContainsString('is invalid', $exception->getMessage());
-    }
-
-    #[Test]
-    public function invalid_subject_is_invalid_argument_exception(): void
-    {
-        $exception = InvalidSubject::make('test');
-
-        $this->assertInstanceOf(\InvalidArgumentException::class, $exception);
-    }
-
     // ========== InvalidFilterValue Tests ==========
     #[Test]
     public function invalid_filter_value_has_correct_message(): void

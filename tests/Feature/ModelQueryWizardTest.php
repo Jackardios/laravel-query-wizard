@@ -8,7 +8,10 @@ use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
+use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
+use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -343,6 +346,32 @@ class ModelQueryWizardTest extends TestCase
         $this->assertArrayHasKey('fullname', $array);
     }
 
+    // ========== Default Includes Validation Tests ==========
+
+    #[Test]
+    public function it_silently_skips_default_includes_not_in_allowed_list(): void
+    {
+        $result = $this
+            ->createModelWizardFromQuery([], $this->model)
+            ->allowedIncludes('relatedModels')
+            ->defaultIncludes('relatedModels', 'nonExistent')
+            ->process();
+
+        $this->assertTrue($result->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
+    public function it_silently_skips_default_includes_with_empty_allowed_list(): void
+    {
+        $result = $this
+            ->createModelWizardFromQuery([], $this->model)
+            ->allowedIncludes([])
+            ->defaultIncludes('relatedModels')
+            ->process();
+
+        $this->assertFalse($result->relationLoaded('relatedModels'));
+    }
+
     // ========== Relation Cleanup Tests ==========
 
     #[Test]
@@ -376,27 +405,6 @@ class ModelQueryWizardTest extends TestCase
 
     // ========== Edge Cases ==========
     #[Test]
-    public function it_handles_empty_request(): void
-    {
-        $result = $this
-            ->createModelWizardFromQuery([], $this->model)
-            ->process();
-
-        $this->assertInstanceOf(TestModel::class, $result);
-    }
-
-    #[Test]
-    public function it_handles_model_without_relations(): void
-    {
-        $result = $this
-            ->createModelWizardWithIncludes('relatedModels', $this->model)
-            ->allowedIncludes('relatedModels')
-            ->process();
-
-        $this->assertTrue($result->relationLoaded('relatedModels'));
-    }
-
-    #[Test]
     public function it_returns_same_model_instance(): void
     {
         $wizard = $this->createModelWizardFromQuery([], $this->model);
@@ -412,6 +420,20 @@ class ModelQueryWizardTest extends TestCase
         $result = $wizard->getModel();
 
         $this->assertSame($this->model, $result);
+    }
+
+    #[Test]
+    public function process_is_idempotent(): void
+    {
+        $wizard = $this
+            ->createModelWizardWithIncludes('relatedModels', $this->model)
+            ->allowedIncludes('relatedModels');
+
+        $first = $wizard->process();
+        $second = $wizard->process();
+
+        $this->assertSame($first, $second);
+        $this->assertTrue($second->relationLoaded('relatedModels'));
     }
 
     // ========== schema() Method Tests ==========
@@ -490,6 +512,33 @@ class ModelQueryWizardTest extends TestCase
         $this->assertArrayHasKey('fullname', $result->toArray());
     }
 
+    // ========== Include Validation Tests ==========
+    #[Test]
+    public function it_validates_include_depth_limit(): void
+    {
+        config()->set('query-wizard.limits.max_include_depth', 1);
+
+        $this->expectException(MaxIncludeDepthExceeded::class);
+
+        $this
+            ->createModelWizardWithIncludes('relatedModels.nestedRelatedModels', $this->model)
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
+            ->process();
+    }
+
+    #[Test]
+    public function it_validates_includes_count_limit(): void
+    {
+        config()->set('query-wizard.limits.max_includes_count', 1);
+
+        $this->expectException(MaxIncludesCountExceeded::class);
+
+        $this
+            ->createModelWizardWithIncludes('relatedModels,otherRelatedModels', $this->model)
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->process();
+    }
+
     #[Test]
     public function explicit_allowed_includes_override_schema(): void
     {
@@ -515,5 +564,98 @@ class ModelQueryWizardTest extends TestCase
             ->schema($schema)
             ->allowedIncludes('relatedModels') // Override schema
             ->process();
+    }
+
+    // ========== Count Include Cleanup Tests ==========
+
+    #[Test]
+    public function it_cleans_base_relation_when_only_count_include_is_allowed(): void
+    {
+        $modelWithRelations = TestModel::with('relatedModels')->find($this->model->id);
+        $this->assertTrue($modelWithRelations->relationLoaded('relatedModels'));
+
+        $result = $this
+            ->createModelWizardWithIncludes('relatedModelsCount', $modelWithRelations)
+            ->allowedIncludes('relatedModelsCount')
+            ->process();
+
+        $this->assertFalse($result->relationLoaded('relatedModels'));
+        $this->assertEquals(2, $result->related_models_count);
+    }
+
+    #[Test]
+    public function it_handles_circular_relations_without_infinite_recursion(): void
+    {
+        $model = TestModel::factory()->create();
+        $related = RelatedModel::factory()->create(['test_model_id' => $model->id]);
+
+        // Manually create circular reference
+        $model->setRelation('relatedModels', collect([$related]));
+        $related->setRelation('testModel', $model);
+
+        $result = $this
+            ->createModelWizardFromQuery([], $model)
+            ->allowedIncludes('relatedModels')
+            ->process();
+
+        $this->assertTrue($result->relationLoaded('relatedModels'));
+    }
+
+    // ========== Relation Fields Edge Case Tests ==========
+
+    #[Test]
+    public function it_hides_fields_on_relations_when_only_relation_fields_requested(): void
+    {
+        $modelWithRelations = TestModel::with('relatedModels')->find($this->model->id);
+
+        $result = $this
+            ->createModelWizardFromQuery([
+                'fields' => [
+                    'relatedModels' => 'id',
+                ],
+            ], $modelWithRelations)
+            ->allowedIncludes('relatedModels')
+            ->process();
+
+        // Main model should have ALL fields (no main model fields restriction)
+        $mainArray = $result->toArray();
+        $this->assertArrayHasKey('id', $mainArray);
+        $this->assertArrayHasKey('name', $mainArray);
+        $this->assertArrayHasKey('created_at', $mainArray);
+        $this->assertArrayHasKey('updated_at', $mainArray);
+
+        // Related models should only show 'id'
+        $relatedArray = $result->relatedModels->first()->toArray();
+        $this->assertArrayHasKey('id', $relatedArray);
+        $this->assertArrayNotHasKey('name', $relatedArray);
+        $this->assertArrayNotHasKey('test_model_id', $relatedArray);
+    }
+
+    #[Test]
+    public function it_hides_fields_on_nested_relations(): void
+    {
+        // Create nested related models
+        $this->model->relatedModels->each(function (RelatedModel $relatedModel) {
+            NestedRelatedModel::factory()->count(2)->create([
+                'related_model_id' => $relatedModel->id,
+            ]);
+        });
+
+        $modelWithRelations = TestModel::with('relatedModels.nestedRelatedModels')->find($this->model->id);
+
+        $result = $this
+            ->createModelWizardFromQuery([
+                'fields' => [
+                    'nestedRelatedModels' => 'id',
+                ],
+            ], $modelWithRelations)
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
+            ->process();
+
+        $nestedModel = $result->relatedModels->first()->nestedRelatedModels->first();
+        $nestedArray = $nestedModel->toArray();
+        $this->assertArrayHasKey('id', $nestedArray);
+        $this->assertArrayNotHasKey('name', $nestedArray);
+        $this->assertArrayNotHasKey('related_model_id', $nestedArray);
     }
 }

@@ -154,20 +154,46 @@ class AppendTest extends TestCase
     }
 
     // ========== Default Appends Tests ==========
-    // Note: Default appends are configured via schema, not via setDefaultAppends() method
-    // These tests verify that schema-based defaults work correctly
     #[Test]
     public function it_applies_default_appends_from_schema(): void
     {
-        // Default appends come from the schema, not from wizard methods
-        // This test verifies the schema-based default appends flow
+        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        {
+            public function model(): string
+            {
+                return AppendModel::class;
+            }
+
+            public function appends(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            {
+                return ['fullname', 'reversename'];
+            }
+
+            public function defaultAppends(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            {
+                return ['fullname'];
+            }
+        };
+
         $models = $this
-            ->createEloquentWizardWithAppends('fullname')
-            ->allowedAppends('fullname', 'reversename')
+            ->createEloquentWizardFromQuery([], AppendModel::class)
+            ->schema($schema)
             ->get();
 
-        $array = $models->first()->toArray();
-        $this->assertTrue(array_key_exists('fullname', $array));
+        $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
+        $this->assertFalse(array_key_exists('reversename', $models->first()->toArray()));
+    }
+
+    // ========== Case Sensitivity Tests ==========
+    #[Test]
+    public function it_rejects_append_with_wrong_case(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createEloquentWizardWithAppends('Fullname')
+            ->allowedAppends('fullname')
+            ->get();
     }
 
     // ========== Edge Cases ==========
@@ -348,31 +374,6 @@ class AppendTest extends TestCase
         }));
     }
 
-    // ========== Case Sensitivity Tests ==========
-    #[Test]
-    public function it_handles_camel_case_appends(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithAppends('fullname')
-            ->allowedAppends('fullname')
-            ->get();
-
-        $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
-    }
-
-    #[Test]
-    public function it_handles_allowed_appends_with_different_case(): void
-    {
-        // The model accessor is getFullnameAttribute (lowercase)
-        // So 'fullname' should work
-        $models = $this
-            ->createEloquentWizardWithAppends('fullname')
-            ->allowedAppends('fullname')
-            ->get();
-
-        $this->assertTrue(array_key_exists('fullname', $models->first()->toArray()));
-    }
-
     // ========== Combining Multiple Operations ==========
     #[Test]
     public function it_works_with_all_features_combined(): void
@@ -483,6 +484,35 @@ class AppendTest extends TestCase
     }
 
     #[Test]
+    public function global_wildcard_allows_all_appends(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithAppends('fullname,reversename')
+            ->allowedAppends('*')
+            ->get();
+
+        $array = $models->first()->toArray();
+        $this->assertTrue(array_key_exists('fullname', $array));
+        $this->assertTrue(array_key_exists('reversename', $array));
+    }
+
+    #[Test]
+    public function global_wildcard_allows_nested_appends(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('*')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
+    }
+
+    #[Test]
     public function it_ignores_relation_append_when_relation_not_loaded(): void
     {
         // No include, so relation is not loaded
@@ -525,10 +555,11 @@ class AppendTest extends TestCase
     #[Test]
     public function nested_append_respects_depth_limit(): void
     {
-        // Set depth limit to 1 (only root appends allowed)
         config()->set('query-wizard.limits.max_append_depth', 1);
 
-        $results = $this
+        $this->expectException(\Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded::class);
+
+        $this
             ->createEloquentWizardFromQuery([
                 'include' => 'relatedModels',
                 'append' => 'relatedModels.formattedName',
@@ -536,15 +567,6 @@ class AppendTest extends TestCase
             ->allowedIncludes('relatedModels')
             ->allowedAppends('relatedModels.formattedName')
             ->get();
-
-        // Nested append should be silently filtered due to depth limit
-        foreach ($results as $model) {
-            $array = $model->toArray();
-            if (! empty($array['related_models'])) {
-                // formattedName should NOT be present because depth > 1
-                $this->assertArrayNotHasKey('formattedName', $array['related_models'][0]);
-            }
-        }
     }
 
     #[Test]

@@ -87,25 +87,25 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
-    public function it_converts_true_string_to_boolean(): void
+    public function it_preserves_true_string_in_filter(): void
     {
         $request = new Request(['filter' => ['active' => 'true']]);
         $manager = new QueryParametersManager($request);
 
         $filters = $manager->getFilters();
 
-        $this->assertTrue($filters->get('active'));
+        $this->assertSame('true', $filters->get('active'));
     }
 
     #[Test]
-    public function it_converts_false_string_to_boolean(): void
+    public function it_preserves_false_string_in_filter(): void
     {
         $request = new Request(['filter' => ['active' => 'false']]);
         $manager = new QueryParametersManager($request);
 
         $filters = $manager->getFilters();
 
-        $this->assertFalse($filters->get('active'));
+        $this->assertSame('false', $filters->get('active'));
     }
 
     #[Test]
@@ -120,12 +120,12 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_string_filter_parameter_as_empty(): void
+    public function it_throws_exception_for_string_filter_parameter(): void
     {
+        $this->expectException(\InvalidArgumentException::class);
+
         $manager = new QueryParametersManager(new Request);
         $manager->setFiltersParameter('invalid_string');
-
-        $this->assertTrue($manager->getFilters()->isEmpty());
     }
 
     #[Test]

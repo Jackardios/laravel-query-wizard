@@ -80,9 +80,11 @@ final class RelationSort extends AbstractSort
      */
     public function apply(mixed $subject, string $direction): mixed
     {
-        $aggregateColumn = Str::snake($this->property).'_'.$this->aggregate.'_'.$this->column;
+        $aggregateColumn = str_replace('.', '_', Str::snake($this->property)).'_'.$this->aggregate.'_'.$this->column;
 
-        $subject->withAggregate($this->property, $this->column, $this->aggregate);
+        // Use "relation as alias" syntax to control the aggregate column name,
+        // avoiding mismatch with Laravel's internal naming for nested relations
+        $subject->withAggregate("{$this->property} as {$aggregateColumn}", $this->column, $this->aggregate);
         $subject->orderBy($aggregateColumn, $direction);
 
         return $subject;

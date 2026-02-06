@@ -10,7 +10,7 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
 /**
  * Filter for soft-deleted models.
  *
- * Values: 'with' (include trashed), 'only' (only trashed), 'without' (exclude trashed)
+ * Values: 'with'/'true' (include trashed), 'only' (only trashed), 'without'/'false' (exclude trashed)
  * Invalid values leave the query unmodified.
  */
 final class TrashedFilter extends AbstractFilter
@@ -37,7 +37,19 @@ final class TrashedFilter extends AbstractFilter
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
+        if ($value === true) {
+            $value = 'with';
+        } elseif ($value === false) {
+            $value = 'without';
+        }
+
         $normalized = is_string($value) ? strtolower($value) : $value;
+
+        if ($normalized === 'true') {
+            $normalized = 'with';
+        } elseif ($normalized === 'false') {
+            $normalized = 'without';
+        }
 
         if ($normalized === 'with') {
             /** @phpstan-ignore method.notFound */

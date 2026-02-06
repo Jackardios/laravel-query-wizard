@@ -115,25 +115,22 @@ $query = $wizard->toQuery();
 
 ### Modifying the Query
 
-Use `tap()` to add custom query modifications:
+You can call query builder methods directly — they're proxied to the underlying builder. **Configuration methods must be called before query builder methods:**
 
 ```php
 EloquentQueryWizard::for(User::class)
-    ->allowedFilters('name')
-    ->tap(function ($query) {
-        $query->where('active', true)
-              ->whereNotNull('email_verified_at');
-    })
-    ->get();
+    ->allowedFilters('name')                // 1. configuration
+    ->where('active', true)                 // 2. builder methods
+    ->whereNotNull('email_verified_at')
+    ->get();                                // 3. execution
 ```
 
-You can also call query builder methods directly - they're proxied to the underlying builder:
+For base query scopes, pass a pre-configured query to `for()`:
 
 ```php
-EloquentQueryWizard::for(User::class)
-    ->where('active', true)
-    ->whereNotNull('email_verified_at')
+EloquentQueryWizard::for(User::where('active', true))
     ->allowedFilters('name')
+    ->allowedSorts('created_at')
     ->get();
 ```
 
@@ -467,12 +464,6 @@ Includes ending with "Count" (configurable suffix) are auto-detected:
 
 ```php
 ->allowedIncludes('posts', 'postsCount')  // postsCount becomes count include
-```
-
-**Important:** When you allow a relationship include, its count variant is automatically allowed:
-
-```php
-->allowedIncludes('posts')  // Also allows 'postsCount'
 ```
 
 #### Callback Include
@@ -820,7 +811,7 @@ return [
      * Security limits (set to null to disable).
      */
     'limits' => [
-        'max_include_depth' => 5,
+        'max_include_depth' => 3,
         'max_includes_count' => 10,
         'max_filters_count' => 20,
         'max_appends_count' => 10,
@@ -836,16 +827,17 @@ return [
 
 | Exception | HTTP | Description |
 |-----------|------|-------------|
-| `InvalidFilterQuery` | 422 | Unknown filter in request |
-| `InvalidSortQuery` | 422 | Unknown sort in request |
-| `InvalidIncludeQuery` | 422 | Unknown include in request |
-| `InvalidFieldQuery` | 422 | Unknown field in request |
-| `InvalidAppendQuery` | 422 | Unknown append in request |
-| `MaxFiltersCountExceeded` | 422 | Filter count exceeds limit |
-| `MaxSortsCountExceeded` | 422 | Sort count exceeds limit |
-| `MaxIncludesCountExceeded` | 422 | Include count exceeds limit |
-| `MaxAppendsCountExceeded` | 422 | Append count exceeds limit |
-| `MaxIncludeDepthExceeded` | 422 | Include nesting exceeds limit |
+| `InvalidFilterQuery` | 400 | Unknown filter in request |
+| `InvalidSortQuery` | 400 | Unknown sort in request |
+| `InvalidIncludeQuery` | 400 | Unknown include in request |
+| `InvalidFieldQuery` | 400 | Unknown field in request |
+| `InvalidAppendQuery` | 400 | Unknown append in request |
+| `MaxFiltersCountExceeded` | 400 | Filter count exceeds limit |
+| `MaxSortsCountExceeded` | 400 | Sort count exceeds limit |
+| `MaxIncludesCountExceeded` | 400 | Include count exceeds limit |
+| `MaxAppendsCountExceeded` | 400 | Append count exceeds limit |
+| `MaxIncludeDepthExceeded` | 400 | Include nesting exceeds limit |
+| `MaxAppendDepthExceeded` | 400 | Append nesting exceeds limit |
 
 All exceptions extend `InvalidQuery` which extends Symfony's `HttpException`.
 
@@ -950,6 +942,40 @@ $query->cursor()->each(function ($user) use ($wizard) {
 | `cursor()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
 | `lazy()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
 | `find()` | ❌ None | Use `where('id', $id)->first()` instead |
+
+## Configuration Order
+
+`EloquentQueryWizard` proxies unknown method calls to the underlying query builder. Configuration methods (`allowedFilters`, `allowedSorts`, etc.) **must be called before** query builder methods (`where`, `orderBy`, etc.). Violating this order throws a `LogicException`:
+
+```php
+// ❌ Throws LogicException
+EloquentQueryWizard::for(User::class)
+    ->where('active', true)
+    ->allowedFilters('name');  // LogicException!
+```
+
+The correct order is always: **configuration → builder methods → execution:**
+
+```php
+// ✅ Correct
+EloquentQueryWizard::for(User::class)
+    ->allowedFilters('name')        // configuration
+    ->allowedSorts('created_at')    // configuration
+    ->where('active', true)         // builder method
+    ->get();                        // execution
+```
+
+For base query scopes (tenant filtering, soft deletes, etc.), pass a pre-configured query to `for()`:
+
+```php
+// ✅ Base scopes via for()
+EloquentQueryWizard::for(
+    User::where('tenant_id', $tenantId)->withoutGlobalScopes()
+)
+    ->allowedFilters('name')
+    ->allowedSorts('created_at')
+    ->get();
+```
 
 ## API Reference
 

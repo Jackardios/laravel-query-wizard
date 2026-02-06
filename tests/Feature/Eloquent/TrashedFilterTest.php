@@ -161,33 +161,31 @@ class TrashedFilterTest extends TestCase
         $this->assertCount(5, $models);
     }
 
-    // ========== Invalid Value Tests ==========
+    // ========== Boolean Value Tests ==========
     #[Test]
-    public function it_leaves_query_unmodified_for_non_matching_boolean_value(): void
+    public function it_treats_boolean_true_as_with_trashed(): void
     {
-        // Boolean true is not 'with', 'only', or 'without' — query unmodified
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => true], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
-        $this->assertCount(3, $models);
+        $this->assertCount(5, $models);
     }
 
     #[Test]
-    public function it_leaves_query_unmodified_for_string_true(): void
+    public function it_treats_string_true_as_with_trashed(): void
     {
-        // Note: 'true' may be converted to boolean true by QueryParametersManager
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'true'], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
-        $this->assertCount(3, $models);
+        $this->assertCount(5, $models);
     }
 
     #[Test]
-    public function it_leaves_query_unmodified_for_boolean_false(): void
+    public function it_treats_boolean_false_as_without_trashed(): void
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => false], SoftDeleteModel::class)
@@ -198,7 +196,7 @@ class TrashedFilterTest extends TestCase
     }
 
     #[Test]
-    public function it_leaves_query_unmodified_for_string_false(): void
+    public function it_treats_string_false_as_without_trashed(): void
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'false'], SoftDeleteModel::class)

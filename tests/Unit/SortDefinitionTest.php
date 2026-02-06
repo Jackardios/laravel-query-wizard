@@ -141,22 +141,6 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals('author.name', $sort->getProperty());
     }
 
-    #[Test]
-    public function it_handles_snake_case_property(): void
-    {
-        $sort = EloquentSort::field('created_at');
-
-        $this->assertEquals('created_at', $sort->getProperty());
-    }
-
-    #[Test]
-    public function it_handles_camel_case_property(): void
-    {
-        $sort = EloquentSort::field('createdAt');
-
-        $this->assertEquals('createdAt', $sort->getProperty());
-    }
-
     // ========== RelationSort Aggregate Validation Tests ==========
 
     #[Test]

@@ -8,6 +8,64 @@ This document describes how to upgrade Laravel Query Wizard between versions.
 
 This section covers internal refactoring changes that may affect advanced usage.
 
+### Configuration After Builder Methods Now Throws LogicException
+
+**Breaking Change:** Calling configuration methods (`allowedFilters`, `allowedSorts`, etc.) **after** query builder methods (`where`, `orderBy`, etc.) now throws a `LogicException`. Previously, this silently lost the builder modifications.
+
+**Before:**
+```php
+// Silently lost where() — bug
+$wizard = EloquentQueryWizard::for(User::class);
+$wizard->where('active', true);
+$wizard->allowedFilters('name');
+$wizard->get(); // where('active', true) was lost!
+```
+
+**After:**
+```php
+// Now throws LogicException with a descriptive message
+$wizard = EloquentQueryWizard::for(User::class);
+$wizard->where('active', true);
+$wizard->allowedFilters('name'); // LogicException!
+```
+
+**Migration:** Ensure all configuration methods are called before query builder methods:
+```php
+// Option 1: Configuration first, builder methods last
+EloquentQueryWizard::for(User::class)
+    ->allowedFilters('name')
+    ->where('active', true)
+    ->get();
+
+// Option 2: Base scopes via for()
+EloquentQueryWizard::for(User::where('active', true))
+    ->allowedFilters('name')
+    ->get();
+```
+
+**Rationale:** The previous behavior silently discarded query conditions, leading to hard-to-debug data leaks. The exception makes the incorrect ordering immediately visible and suggests correct alternatives.
+
+### Count Includes No Longer Auto-Allowed
+
+**Breaking Change:** Allowing a relationship include no longer automatically allows its count variant.
+
+**Before:**
+```php
+->allowedIncludes('posts')  // Implicitly allowed ?include=postsCount too
+```
+
+**After:**
+```php
+->allowedIncludes('posts')                // Only allows ?include=posts
+->allowedIncludes('posts', 'postsCount')  // Explicitly allow both
+// Or using the factory:
+->allowedIncludes('posts', EloquentInclude::count('posts'))
+```
+
+Similarly, `disallowedIncludes('posts')` no longer automatically blocks `postsCount`. Each must be disallowed explicitly.
+
+**Rationale:** Implicit auto-allowing violates the whitelist principle and can lead to unintended data exposure. Each allowed include should be explicitly declared.
+
 ### Filter Modifier Methods Now Mutate
 
 **Breaking Change:** Filter modifier methods now **mutate** the original object instead of returning clones.
@@ -462,11 +520,12 @@ Protection against resource exhaustion attacks:
 ```php
 // config/query-wizard.php
 'limits' => [
-    'max_include_depth' => 5,      // Max nesting (posts.comments.author)
     'max_includes_count' => 10,    // Max includes per request
-    'max_filters_count' => 15,     // Max filters per request
-    'max_sorts_count' => 5,        // Max sorts per request
+    'max_include_depth' => 3,      // Max nesting (posts.comments.author)
+    'max_filters_count' => 20,     // Max filters per request
+    'max_appends_count' => 10,     // Max appends per request
     'max_append_depth' => 3,       // Max append nesting
+    'max_sorts_count' => 5,        // Max sorts per request
 ],
 ```
 
@@ -504,15 +563,15 @@ EloquentFilter::exact('status')
 - `Jackardios\QueryWizard\Model\ModelInclude` - Consolidated into includes
 - All handler classes in `Model\Includes\*`
 
-### Traits Removed
+### Traits Restructured
 
-- `Jackardios\QueryWizard\Concerns\HandlesFilters`
-- `Jackardios\QueryWizard\Concerns\HandlesSorts`
-- `Jackardios\QueryWizard\Concerns\HandlesIncludes`
-- `Jackardios\QueryWizard\Concerns\HandlesFields`
-- `Jackardios\QueryWizard\Concerns\HandlesAppends`
+The following traits still exist but are now internal shared traits with different responsibilities than in v2:
 
-These are now consolidated into `BaseQueryWizard` and `ModelQueryWizard`.
+- `Jackardios\QueryWizard\Concerns\HandlesFilters` — filter validation
+- `Jackardios\QueryWizard\Concerns\HandlesSorts` — sort validation
+- `Jackardios\QueryWizard\Concerns\HandlesIncludes` — include handling and validation
+- `Jackardios\QueryWizard\Concerns\HandlesFields` — field handling
+- `Jackardios\QueryWizard\Concerns\HandlesAppends` — append handling and validation
 
 ### Methods Changed/Removed
 
@@ -541,11 +600,12 @@ return [
 
     // NEW: Security limits
     'limits' => [
-        'max_include_depth' => 5,
         'max_includes_count' => 10,
-        'max_filters_count' => 15,
-        'max_sorts_count' => 5,
+        'max_include_depth' => 3,
+        'max_filters_count' => 20,
+        'max_appends_count' => 10,
         'max_append_depth' => 3,
+        'max_sorts_count' => 5,
     ],
 ];
 ```
@@ -556,6 +616,8 @@ return [
 - `MaxSortsCountExceeded`
 - `MaxIncludesCountExceeded`
 - `MaxIncludeDepthExceeded`
+- `MaxAppendsCountExceeded`
+- `MaxAppendDepthExceeded`
 
 All extend `QueryLimitExceeded` which extends `InvalidQuery`.
 

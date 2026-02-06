@@ -42,35 +42,7 @@ final class ModelQueryWizard implements QueryWizardInterface
 
     protected ?ResourceSchemaInterface $schema = null;
 
-    /** @var array<IncludeInterface|string> */
-    protected array $allowedIncludes = [];
-
-    protected bool $allowedIncludesExplicitlySet = false;
-
-    /** @var array<string> */
-    protected array $disallowedIncludes = [];
-
-    /** @var array<string> */
-    protected array $defaultIncludes = [];
-
-    /** @var array<string> */
-    protected array $allowedFields = [];
-
-    protected bool $allowedFieldsExplicitlySet = false;
-
-    /** @var array<string> */
-    protected array $disallowedFields = [];
-
-    /** @var array<string> */
-    protected array $allowedAppends = [];
-
-    protected bool $allowedAppendsExplicitlySet = false;
-
-    /** @var array<string> */
-    protected array $disallowedAppends = [];
-
-    /** @var array<string> */
-    protected array $defaultAppends = [];
+    protected bool $processed = false;
 
     public function __construct(
         Model $model,
@@ -100,6 +72,8 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function schema(string|ResourceSchemaInterface $schema): static
     {
         $this->schema = is_string($schema) ? app($schema) : $schema;
+        $this->invalidateIncludeCache();
+        $this->processed = false;
 
         return $this;
     }
@@ -113,6 +87,8 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         $this->allowedIncludes = $this->flattenDefinitions($includes);
         $this->allowedIncludesExplicitlySet = true;
+        $this->invalidateIncludeCache();
+        $this->processed = false;
 
         return $this;
     }
@@ -125,6 +101,8 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function disallowedIncludes(string|array ...$names): static
     {
         $this->disallowedIncludes = $this->flattenStringArray($names);
+        $this->invalidateIncludeCache();
+        $this->processed = false;
 
         return $this;
     }
@@ -137,6 +115,8 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function defaultIncludes(string|array ...$names): static
     {
         $this->defaultIncludes = $this->flattenStringArray($names);
+        $this->invalidateIncludeCache();
+        $this->processed = false;
 
         return $this;
     }
@@ -153,6 +133,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         $this->allowedFields = $this->flattenStringArray($fields);
         $this->allowedFieldsExplicitlySet = true;
+        $this->processed = false;
 
         return $this;
     }
@@ -165,6 +146,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function disallowedFields(string|array ...$names): static
     {
         $this->disallowedFields = $this->flattenStringArray($names);
+        $this->processed = false;
 
         return $this;
     }
@@ -178,6 +160,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         $this->allowedAppends = $this->flattenStringArray($appends);
         $this->allowedAppendsExplicitlySet = true;
+        $this->processed = false;
 
         return $this;
     }
@@ -190,6 +173,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function disallowedAppends(string|array ...$names): static
     {
         $this->disallowedAppends = $this->flattenStringArray($names);
+        $this->processed = false;
 
         return $this;
     }
@@ -202,6 +186,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function defaultAppends(string|array ...$appends): static
     {
         $this->defaultAppends = $this->flattenStringArray($appends);
+        $this->processed = false;
 
         return $this;
     }
@@ -211,10 +196,18 @@ final class ModelQueryWizard implements QueryWizardInterface
      */
     public function process(): Model
     {
-        $this->cleanUnwantedRelations();
-        $this->loadMissingIncludes();
+        if ($this->processed) {
+            return $this->model;
+        }
+
+        $effectiveIncludes = $this->getEffectiveIncludes();
+        $this->cleanUnwantedRelations($effectiveIncludes);
+        $this->loadMissingIncludes($effectiveIncludes);
         $this->hideDisallowedFields();
+        $this->hideFieldsOnRelations();
         $this->applyAppends();
+
+        $this->processed = true;
 
         return $this->model;
     }
@@ -227,15 +220,18 @@ final class ModelQueryWizard implements QueryWizardInterface
         return $this->model;
     }
 
-    protected function cleanUnwantedRelations(): void
+    /**
+     * @param  array<IncludeInterface>  $effectiveIncludes
+     */
+    protected function cleanUnwantedRelations(array $effectiveIncludes): void
     {
         if (! $this->allowedIncludesExplicitlySet && $this->schema === null) {
             return;
         }
 
-        $allowedIncludes = $this->getEffectiveIncludes();
-        $allowedTree = $this->buildAllowedTree($allowedIncludes);
-        $this->cleanRelationsWithTree($this->model, $allowedTree);
+        $allowedTree = $this->buildAllowedTree($effectiveIncludes);
+        $visited = [];
+        $this->cleanRelationsWithTree($this->model, $allowedTree, $visited);
     }
 
     /**
@@ -249,6 +245,10 @@ final class ModelQueryWizard implements QueryWizardInterface
         /** @var array<string, mixed> $tree */
         $tree = [];
         foreach ($includes as $include) {
+            if ($include->getType() === 'count') {
+                continue;
+            }
+
             $name = $include->getRelation();
             $parts = explode('.', $name);
             /** @var array<string, mixed> $current */
@@ -269,10 +269,19 @@ final class ModelQueryWizard implements QueryWizardInterface
     /**
      * Recursively clean relations using allowed tree.
      *
+     * Uses $visited to prevent infinite recursion with circular references.
+     *
      * @param  array<string, mixed>  $allowedTree
+     * @param  array<int, bool>  $visited
      */
-    protected function cleanRelationsWithTree(Model $model, array $allowedTree): void
+    protected function cleanRelationsWithTree(Model $model, array $allowedTree, array &$visited): void
     {
+        $objectId = spl_object_id($model);
+        if (isset($visited[$objectId])) {
+            return;
+        }
+        $visited[$objectId] = true;
+
         foreach (array_keys($model->getRelations()) as $relationName) {
             if (! isset($allowedTree[$relationName])) {
                 $model->unsetRelation($relationName);
@@ -283,25 +292,41 @@ final class ModelQueryWizard implements QueryWizardInterface
             $nestedAllowed = $allowedTree[$relationName];
             $relatedData = $model->getRelation($relationName);
 
-            if ($relatedData instanceof Collection) {
-                $relatedData->each(fn ($item) => $this->cleanRelationsWithTree($item, $nestedAllowed));
-            } elseif ($relatedData instanceof Model) {
-                $this->cleanRelationsWithTree($relatedData, $nestedAllowed);
+            if ($relatedData instanceof Model) {
+                $this->cleanRelationsWithTree($relatedData, $nestedAllowed, $visited);
+            } elseif (is_iterable($relatedData)) {
+                foreach ($relatedData as $item) {
+                    if ($item instanceof Model) {
+                        $this->cleanRelationsWithTree($item, $nestedAllowed, $visited);
+                    }
+                }
             }
         }
     }
 
-    protected function loadMissingIncludes(): void
+    /**
+     * @param  array<IncludeInterface>  $effectiveIncludes
+     */
+    protected function loadMissingIncludes(array $effectiveIncludes): void
     {
         $requested = $this->getMergedRequestedIncludes();
-        $allowedIncludes = $this->getEffectiveIncludes();
         $loaded = array_keys($this->model->getRelations());
 
-        $allowedIndex = $this->buildIncludesIndex($allowedIncludes);
+        $this->validateIncludesLimit(count($requested));
+
+        $allowedIndex = $this->buildIncludesIndex($effectiveIncludes);
 
         if (! empty($requested)) {
             $allowedIncludeNames = array_keys($allowedIndex);
-            $invalidIncludes = array_diff($requested, $allowedIncludeNames);
+
+            $defaults = $this->getEffectiveDefaultIncludes();
+            $defaultsIndex = array_flip($defaults);
+
+            $invalidIncludes = array_filter(
+                array_diff($requested, $allowedIncludeNames),
+                fn ($name) => ! isset($defaultsIndex[$name])
+            );
+
             if (! empty($invalidIncludes) && ! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
                 throw InvalidIncludeQuery::includesNotAllowed(
                     collect($invalidIncludes),
@@ -313,6 +338,7 @@ final class ModelQueryWizard implements QueryWizardInterface
 
         $relationsToLoad = [];
         $countsToLoad = [];
+        $callbackIncludes = [];
 
         foreach ($requested as $includeName) {
             if (in_array($includeName, $loaded)) {
@@ -324,8 +350,12 @@ final class ModelQueryWizard implements QueryWizardInterface
                 continue;
             }
 
+            $this->validateIncludeDepth($include);
+
             if ($include->getType() === 'count') {
                 $countsToLoad[] = $include->getRelation();
+            } elseif ($include->getType() === 'callback') {
+                $callbackIncludes[] = $include;
             } elseif ($include->getType() === 'relationship') {
                 $relationsToLoad[] = $include->getRelation();
             }
@@ -336,6 +366,9 @@ final class ModelQueryWizard implements QueryWizardInterface
         }
         if (! empty($countsToLoad)) {
             $this->model->loadCount($countsToLoad);
+        }
+        foreach ($callbackIncludes as $include) {
+            $include->apply($this->model);
         }
     }
 
@@ -380,35 +413,57 @@ final class ModelQueryWizard implements QueryWizardInterface
         if (! empty($fieldsToHide)) {
             $this->model->makeHidden(array_values($fieldsToHide));
         }
-
-        $this->hideFieldsOnRelations();
     }
 
     /**
      * Hide fields on loaded relations based on requested fields.
-     *
-     * Only processes relations that are:
-     * 1. Already loaded on the model
-     * 2. Have field restrictions defined in the request
-     *
-     * Relations not matching these criteria are silently skipped.
-     * Wildcard ('*') in fields means all fields are visible.
+     * Recursively processes nested relations with circular reference protection.
      */
     protected function hideFieldsOnRelations(): void
     {
         $allFields = $this->parameters->getFields();
+        if ($allFields->isEmpty()) {
+            return;
+        }
 
-        foreach ($this->model->getRelations() as $relationName => $relatedData) {
+        $visited = [];
+        $this->hideFieldsOnRelationsRecursively($this->model, $allFields, $visited);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<string, array<string>>  $allFields
+     * @param  array<int, bool>  $visited
+     */
+    protected function hideFieldsOnRelationsRecursively(
+        Model $model,
+        Collection $allFields,
+        array &$visited
+    ): void {
+        $objectId = spl_object_id($model);
+        if (isset($visited[$objectId])) {
+            return;
+        }
+        $visited[$objectId] = true;
+
+        foreach ($model->getRelations() as $relationName => $relatedData) {
             $relationFields = $allFields->get($relationName, []);
+            $shouldHideFields = ! empty($relationFields) && ! in_array('*', $relationFields);
 
-            if (empty($relationFields) || in_array('*', $relationFields)) {
-                continue;
-            }
-
-            if ($relatedData instanceof Collection) {
-                $relatedData->each(fn (Model $item) => $this->hideFieldsOnModel($item, $relationFields));
-            } elseif ($relatedData instanceof Model) {
-                $this->hideFieldsOnModel($relatedData, $relationFields);
+            if ($relatedData instanceof Model) {
+                if ($shouldHideFields) {
+                    $this->hideFieldsOnModel($relatedData, $relationFields);
+                }
+                $this->hideFieldsOnRelationsRecursively($relatedData, $allFields, $visited);
+            } elseif (is_iterable($relatedData)) {
+                foreach ($relatedData as $item) {
+                    if (! $item instanceof Model) {
+                        continue;
+                    }
+                    if ($shouldHideFields) {
+                        $this->hideFieldsOnModel($item, $relationFields);
+                    }
+                    $this->hideFieldsOnRelationsRecursively($item, $allFields, $visited);
+                }
             }
         }
     }

@@ -65,28 +65,4 @@ class EmptyNameValidationTest extends TestCase
 
         RelationshipInclude::make('   ');
     }
-
-    #[Test]
-    public function filter_accepts_valid_name(): void
-    {
-        $filter = ExactFilter::make('name');
-
-        $this->assertEquals('name', $filter->getProperty());
-    }
-
-    #[Test]
-    public function sort_accepts_valid_name(): void
-    {
-        $sort = FieldSort::make('created_at');
-
-        $this->assertEquals('created_at', $sort->getProperty());
-    }
-
-    #[Test]
-    public function include_accepts_valid_name(): void
-    {
-        $include = RelationshipInclude::make('posts');
-
-        $this->assertEquals('posts', $include->getRelation());
-    }
 }

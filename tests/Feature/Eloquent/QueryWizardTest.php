@@ -433,6 +433,35 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function terminal_method_count_applies_filters(): void
+    {
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['name' => $targetModel->name],
+        ]));
+
+        $count = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name')
+            ->count();
+
+        $this->assertEquals(1, $count);
+    }
+
+    #[Test]
+    public function terminal_method_exists_applies_filters(): void
+    {
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['name' => 'nonexistent_name_xyz'],
+        ]));
+
+        $exists = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name')
+            ->exists();
+
+        $this->assertFalse($exists);
+    }
+
+    #[Test]
     public function wizard_proxies_where_clauses(): void
     {
         $models = EloquentQueryWizard::for(TestModel::class)
@@ -440,6 +469,179 @@ class QueryWizardTest extends TestCase
             ->get();
 
         $this->assertCount(2, $models);
+    }
+
+    #[Test]
+    public function proxied_where_with_filters_applies_both(): void
+    {
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['name' => $targetModel->name],
+        ]));
+
+        $count = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name')
+            ->where('id', '<=', 3)
+            ->count();
+
+        $this->assertEquals(1, $count);
+    }
+
+    #[Test]
+    public function multiple_proxied_wheres_build_only_once(): void
+    {
+        $models = EloquentQueryWizard::for(TestModel::class)
+            ->where('id', '>', 1)
+            ->where('id', '<', 4)
+            ->get();
+
+        $this->assertCount(2, $models);
+    }
+
+    #[Test]
+    public function proxied_to_sql_applies_build(): void
+    {
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['name' => $targetModel->name],
+        ]));
+
+        $sql = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name')
+            ->toSql();
+
+        $this->assertStringContainsString('where', strtolower($sql));
+    }
+
+    #[Test]
+    public function proxied_doesnt_exist_applies_filters(): void
+    {
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['name' => $targetModel->name],
+        ]));
+
+        $doesntExist = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name')
+            ->doesntExist();
+
+        $this->assertFalse($doesntExist);
+    }
+
+    #[Test]
+    public function proxied_value_applies_filters(): void
+    {
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['name' => $targetModel->name],
+        ]));
+
+        $name = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name')
+            ->value('name');
+
+        $this->assertEquals($targetModel->name, $name);
+    }
+
+    #[Test]
+    public function proxied_pluck_applies_filters(): void
+    {
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['name' => $targetModel->name],
+        ]));
+
+        $names = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name')
+            ->pluck('name');
+
+        $this->assertCount(1, $names);
+        $this->assertEquals($targetModel->name, $names->first());
+    }
+
+    #[Test]
+    public function config_after_proxied_where_throws_logic_exception(): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after calling query builder methods (e.g. where(), orderBy())');
+
+        EloquentQueryWizard::for(TestModel::class)
+            ->where('id', 1)
+            ->allowedFilters('name');
+    }
+
+    #[Test]
+    public function config_before_proxied_where_works_correctly(): void
+    {
+        $models = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name')
+            ->where('id', '<', 3)
+            ->get();
+
+        $this->assertCount(2, $models);
+    }
+
+    #[Test]
+    public function multiple_config_calls_before_proxy_work(): void
+    {
+        $models = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name')
+            ->allowedSorts('created_at')
+            ->allowedIncludes('relatedModels')
+            ->where('id', '<', 3)
+            ->get();
+
+        $this->assertCount(2, $models);
+    }
+
+    #[Test]
+    public function terminal_methods_do_not_taint_subject(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class);
+        $wizard->count(); // terminal — returns int, not builder
+
+        // Should NOT throw — terminal methods don't set the flag
+        $wizard->allowedFilters('name');
+
+        $this->assertInstanceOf(EloquentQueryWizard::class, $wizard);
+    }
+
+    #[Test]
+    public function clone_clears_tainted_flag(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name')
+            ->where('id', '<', 3);
+
+        $clone = clone $wizard;
+
+        // Clone should not be tainted
+        $clone->allowedSorts('name');
+
+        $this->assertInstanceOf(EloquentQueryWizard::class, $clone);
+    }
+
+    #[Test]
+    public function tap_does_not_taint_subject(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->tap(fn ($q) => $q->where('id', '<', 3));
+
+        // tap() does not go through __call, so config after tap() is fine
+        $wizard->allowedFilters('name');
+
+        $models = $wizard->get();
+        $this->assertCount(2, $models);
+    }
+
+    #[Test]
+    public function config_after_proxied_sort_throws_logic_exception(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        EloquentQueryWizard::for(TestModel::class)
+            ->orderBy('name')
+            ->allowedSorts('name');
     }
 
     // ========== Idempotency Tests ==========

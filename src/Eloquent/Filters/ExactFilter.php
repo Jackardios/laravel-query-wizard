@@ -19,8 +19,6 @@ class ExactFilter extends AbstractFilter
 {
     use HandlesRelationFiltering;
 
-    protected bool $withRelationConstraint = true;
-
     /**
      * Create a new exact filter.
      *

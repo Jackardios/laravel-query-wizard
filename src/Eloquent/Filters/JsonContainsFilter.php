@@ -12,6 +12,10 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
  *
  * By default, all values must match (AND logic).
  * Set matchAll to false for OR logic.
+ *
+ * Note: Dot notation in the column name is always interpreted as JSON path
+ * (e.g., "data.tags" becomes "data->tags"). Relation-based filtering
+ * (e.g., "relation.jsonColumn") is not supported for this filter type.
  */
 final class JsonContainsFilter extends AbstractFilter
 {
@@ -64,7 +68,7 @@ final class JsonContainsFilter extends AbstractFilter
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
-        $column = $this->resolveJsonColumn($this->property);
+        $column = $this->resolveQualifiedJsonColumn($subject, $this->property);
         $values = is_array($value) ? $value : [$value];
 
         if ($this->matchAll) {
@@ -83,18 +87,21 @@ final class JsonContainsFilter extends AbstractFilter
     }
 
     /**
-     * Convert dot notation to JSON arrow notation.
-     * e.g., 'meta.roles' becomes 'meta->roles'
+     * Qualify base column and convert dot notation to JSON arrow notation.
+     * e.g., 'meta.roles' becomes 'table.meta->roles'
+     *
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
      */
-    protected function resolveJsonColumn(string $propertyName): string
+    protected function resolveQualifiedJsonColumn(mixed $subject, string $propertyName): string
     {
         if (! str_contains($propertyName, '.')) {
-            return $propertyName;
+            return $subject->qualifyColumn($propertyName);
         }
 
         $parts = explode('.', $propertyName);
-        $column = array_shift($parts);
+        $baseColumn = array_shift($parts);
+        $qualifiedBase = $subject->qualifyColumn($baseColumn);
 
-        return $column.'->'.implode('->', $parts);
+        return $qualifiedBase.'->'.implode('->', $parts);
     }
 }

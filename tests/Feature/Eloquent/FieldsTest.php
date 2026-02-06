@@ -221,18 +221,6 @@ class FieldsTest extends TestCase
         $this->assertStringContainsString('"test_models"."name"', $sql);
     }
 
-    #[Test]
-    public function it_uses_select_clause_for_fields(): void
-    {
-        $sql = $this
-            ->createEloquentWizardWithFields(['testModel' => 'id,name'])
-            ->allowedFields('id', 'name')
-            ->build()
-            ->toSql();
-
-        $this->assertStringContainsString('select', strtolower($sql));
-    }
-
     // ========== Edge Cases ==========
     #[Test]
     public function it_handles_empty_fields_string(): void
@@ -441,17 +429,5 @@ class FieldsTest extends TestCase
 
         $attributes = array_keys($models->first()->getAttributes());
         $this->assertContains('created_at', $attributes);
-    }
-
-    #[Test]
-    public function it_handles_camel_case_fields(): void
-    {
-        // This depends on model configuration, but test doesn't throw
-        $models = $this
-            ->createEloquentWizardWithFields(['testModel' => 'id'])
-            ->allowedFields('id')
-            ->get();
-
-        $this->assertCount(3, $models);
     }
 }

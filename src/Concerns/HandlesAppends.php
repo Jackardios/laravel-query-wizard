@@ -4,40 +4,41 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
+use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
 /**
  * Shared append handling logic for query wizards.
- *
- * This trait contains methods used by both BaseQueryWizard
- * and ModelQueryWizard for handling appends functionality.
- *
- * Classes using this trait must provide:
- * - getConfig(): QueryWizardConfig
- * - $parameters: QueryParametersManager property
- * - $schema: ?ResourceSchemaInterface property
- * - $allowedAppends: array property
- * - $disallowedAppends: array property
- * - $defaultAppends: array property
- * - $allowedAppendsExplicitlySet: bool property
  */
 trait HandlesAppends
 {
+    /** @var array<string> */
+    protected array $allowedAppends = [];
+
+    protected bool $allowedAppendsExplicitlySet = false;
+
+    /** @var array<string> */
+    protected array $disallowedAppends = [];
+
+    /** @var array<string> */
+    protected array $defaultAppends = [];
+
     /**
      * Get the configuration instance.
      */
     abstract protected function getConfig(): QueryWizardConfig;
 
     /**
-     * Apply appends to a collection of results.
+     * Apply appends to a collection of results or a single model.
      *
      * Call this after executing the query to apply allowed appends.
      *
-     * @template T of \Traversable<mixed>|array<mixed>
+     * @template T of Model|\Traversable<mixed>|array<mixed>
      *
      * @param  T  $results
      * @return T
@@ -46,6 +47,12 @@ trait HandlesAppends
     {
         $appends = $this->getValidRequestedAppends();
         if (empty($appends)) {
+            return $results;
+        }
+
+        if ($results instanceof Model) {
+            $this->applyAppendsRecursively($results, $appends);
+
             return $results;
         }
 
@@ -124,6 +131,10 @@ trait HandlesAppends
      */
     protected function isAppendAllowed(string $append, array $allowed): bool
     {
+        if (in_array('*', $allowed, true)) {
+            return true;
+        }
+
         if (in_array($append, $allowed, true)) {
             return true;
         }
@@ -163,23 +174,37 @@ trait HandlesAppends
         }
 
         $maxDepth = $this->getConfig()->getMaxAppendDepth();
+        $filterValid = fn (string $append): bool => $this->isValidAppend($append, $allowed, $maxDepth);
 
-        $validRequested = array_values(array_filter($requested, function ($append) use ($allowed, $maxDepth) {
-            if (! $this->isAppendAllowed($append, $allowed)) {
-                return false;
+        $validRequested = array_values(array_filter($requested, $filterValid));
+        $validDefaults = array_values(array_filter($defaults, $filterValid));
+
+        $merged = array_unique(array_merge($validDefaults, $validRequested));
+
+        $this->validateAppendsLimit(count($merged));
+
+        return $merged;
+    }
+
+    /**
+     * Check if an append passes allowed list and depth limit.
+     *
+     * @param  array<string>  $allowed
+     */
+    protected function isValidAppend(string $append, array $allowed, ?int $maxDepth): bool
+    {
+        if (! $this->isAppendAllowed($append, $allowed)) {
+            return false;
+        }
+
+        if ($maxDepth !== null) {
+            $depth = substr_count($append, '.') + 1;
+            if ($depth > $maxDepth) {
+                throw MaxAppendDepthExceeded::create($append, $depth, $maxDepth);
             }
+        }
 
-            if ($maxDepth !== null) {
-                $depth = substr_count($append, '.') + 1;
-                if ($depth > $maxDepth) {
-                    return false;
-                }
-            }
-
-            return true;
-        }));
-
-        return array_unique(array_merge($defaults, $validRequested));
+        return true;
     }
 
     /**

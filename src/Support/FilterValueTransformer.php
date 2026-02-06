@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
  * Transforms filter values from request data.
  *
  * Handles:
- * - Boolean string conversion ('true' -> true, 'false' -> false)
+ * - Empty string to null conversion (filter not applied)
  * - Comma-separated string to array conversion
  * - Recursive array transformation
  */
@@ -56,8 +56,6 @@ final class FilterValueTransformer
      * Transform a string filter value.
      *
      * - Empty string → null (filter not applied)
-     * - 'true' → true
-     * - 'false' → false
      * - 'a,b,c' → ['a', 'b', 'c']
      */
     private function transformString(string $value): mixed
@@ -67,16 +65,7 @@ final class FilterValueTransformer
         }
 
         if ($this->arraySeparator !== '' && Str::contains($value, $this->arraySeparator)) {
-            return $this->splitToArray($value);
-        }
-
-        $lower = strtolower($value);
-        if ($lower === 'true') {
-            return true;
-        }
-
-        if ($lower === 'false') {
-            return false;
+            return $this->transformArray($this->splitToArray($value));
         }
 
         return $value;

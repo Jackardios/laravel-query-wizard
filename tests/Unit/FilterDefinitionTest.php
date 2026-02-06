@@ -284,60 +284,6 @@ class FilterDefinitionTest extends TestCase
     // ========== Filter-specific Options Tests ==========
 
     #[Test]
-    public function exact_filter_can_enable_relation_constraint(): void
-    {
-        $filter = ExactFilter::make('posts.title')
-            ->withRelationConstraint();
-
-        $this->assertInstanceOf(ExactFilter::class, $filter);
-    }
-
-    #[Test]
-    public function exact_filter_can_disable_relation_constraint(): void
-    {
-        $filter = ExactFilter::make('posts.title')
-            ->withoutRelationConstraint();
-
-        $this->assertInstanceOf(ExactFilter::class, $filter);
-    }
-
-    #[Test]
-    public function scope_filter_can_enable_model_binding(): void
-    {
-        $filter = ScopeFilter::make('active')
-            ->withModelBinding();
-
-        $this->assertInstanceOf(ScopeFilter::class, $filter);
-    }
-
-    #[Test]
-    public function scope_filter_can_disable_model_binding(): void
-    {
-        $filter = ScopeFilter::make('active')
-            ->withoutModelBinding();
-
-        $this->assertInstanceOf(ScopeFilter::class, $filter);
-    }
-
-    #[Test]
-    public function null_filter_can_enable_inverted_logic(): void
-    {
-        $filter = NullFilter::make('deleted_at')
-            ->withInvertedLogic();
-
-        $this->assertInstanceOf(NullFilter::class, $filter);
-    }
-
-    #[Test]
-    public function null_filter_can_disable_inverted_logic(): void
-    {
-        $filter = NullFilter::make('deleted_at')
-            ->withoutInvertedLogic();
-
-        $this->assertInstanceOf(NullFilter::class, $filter);
-    }
-
-    #[Test]
     public function range_filter_can_set_keys(): void
     {
         $filter = RangeFilter::make('price')

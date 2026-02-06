@@ -98,6 +98,27 @@ final class DateRangeFilter extends AbstractFilter
         return $subject;
     }
 
+    protected function normalizeRangeValue(mixed $value): mixed
+    {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && strtotime($value) === false) {
+            return null;
+        }
+
+        return $value;
+    }
+
     /**
      * @param  DateTimeInterface|mixed  $value
      */

@@ -13,6 +13,7 @@ return new class extends Migration
             $table->timestamps();
             $table->string('name');
             $table->boolean('is_visible')->default(true);
+            $table->json('tags')->nullable();
         });
     }
 

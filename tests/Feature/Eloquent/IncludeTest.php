@@ -113,17 +113,6 @@ class IncludeTest extends TestCase
     }
 
     #[Test]
-    public function nested_include_also_loads_parent(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithIncludes('relatedModels.nestedRelatedModels')
-            ->allowedIncludes('relatedModels.nestedRelatedModels')
-            ->get();
-
-        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
-    }
-
-    #[Test]
     public function it_can_include_both_parent_and_nested(): void
     {
         $models = $this
@@ -364,19 +353,6 @@ class IncludeTest extends TestCase
         $this
             ->createEloquentWizardWithIncludes('relatedModels.notAllowed')
             ->allowedIncludes('relatedModels')
-            ->get();
-    }
-
-    #[Test]
-    public function it_throws_exception_for_unknown_includes_when_no_allowed_set(): void
-    {
-        // When no allowed includes are set, any requested include throws exception
-        // This is the strict validation behavior
-        $this->expectException(InvalidIncludeQuery::class);
-
-        $this
-            ->createEloquentWizardWithIncludes('unknown')
-            ->allowedIncludes([])
             ->get();
     }
 

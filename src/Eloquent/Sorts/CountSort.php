@@ -44,9 +44,30 @@ final class CountSort extends AbstractSort
     {
         $countColumn = Str::snake($this->property).'_count';
 
-        $subject->withCount($this->property);
+        if (! $this->hasCountColumn($subject, $countColumn)) {
+            $subject->withCount($this->property);
+        }
+
         $subject->orderBy($countColumn, $direction);
 
         return $subject;
+    }
+
+    private function hasCountColumn(mixed $subject, string $alias): bool
+    {
+        if (! $subject instanceof Builder) {
+            return false;
+        }
+
+        foreach ($subject->getQuery()->columns ?? [] as $column) {
+            if ($column instanceof \Illuminate\Database\Query\Expression) {
+                $sql = $column->getValue($subject->getQuery()->getGrammar());
+                if (is_string($sql) && str_ends_with($sql, " as \"{$alias}\"")) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

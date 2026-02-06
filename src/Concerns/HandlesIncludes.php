@@ -6,27 +6,30 @@ namespace Jackardios\QueryWizard\Concerns;
 
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
+use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
 /**
  * Shared include handling logic for query wizards.
- *
- * This trait contains methods used by both BaseQueryWizard
- * and ModelQueryWizard for handling includes functionality.
- *
- * Classes using this trait must provide:
- * - getConfig(): QueryWizardConfig
- * - getParametersManager(): QueryParametersManager
- * - getSchema(): ?ResourceSchemaInterface
- * - normalizeStringToInclude(string $name): IncludeInterface
- * - $allowedIncludes: array property
- * - $allowedIncludesExplicitlySet: bool property
- * - $disallowedIncludes: array property
- * - $defaultIncludes: array property
  */
 trait HandlesIncludes
 {
+    /** @var array<IncludeInterface|string> */
+    protected array $allowedIncludes = [];
+
+    protected bool $allowedIncludesExplicitlySet = false;
+
+    /** @var array<string> */
+    protected array $disallowedIncludes = [];
+
+    /** @var array<string> */
+    protected array $defaultIncludes = [];
+
+    /** @var array<IncludeInterface>|null */
+    protected ?array $cachedEffectiveIncludes = null;
+
     /**
      * Get the configuration instance.
      */
@@ -58,6 +61,10 @@ trait HandlesIncludes
      */
     protected function getEffectiveIncludes(): array
     {
+        if ($this->cachedEffectiveIncludes !== null) {
+            return $this->cachedEffectiveIncludes;
+        }
+
         $includes = $this->allowedIncludesExplicitlySet
             ? $this->allowedIncludes
             : ($this->getSchema()?->includes($this) ?? []);
@@ -77,14 +84,14 @@ trait HandlesIncludes
 
             $name = $include->getName();
 
-            if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed, $countSuffix)) {
+            if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed)) {
                 continue;
             }
 
             $result[] = $include;
         }
 
-        return $result;
+        return $this->cachedEffectiveIncludes = $result;
     }
 
     /**
@@ -113,7 +120,7 @@ trait HandlesIncludes
     }
 
     /**
-     * Build includes index with implicit count includes.
+     * Build includes index.
      *
      * @param  array<IncludeInterface>  $includes
      * @return array<string, IncludeInterface>
@@ -125,17 +132,35 @@ trait HandlesIncludes
             $index[$include->getName()] = $include;
         }
 
-        $countSuffix = $this->getConfig()->getCountSuffix();
-        foreach ($includes as $include) {
-            if ($include->getType() === 'relationship') {
-                $countName = $include->getRelation().$countSuffix;
-                if (! isset($index[$countName])) {
-                    $countInclude = $this->normalizeStringToInclude($countName);
-                    $index[$countName] = $countInclude;
-                }
-            }
-        }
-
         return $index;
+    }
+
+    protected function validateIncludesLimit(int $count): void
+    {
+        $limit = $this->getConfig()->getMaxIncludesCount();
+        if ($limit !== null && $count > $limit) {
+            throw MaxIncludesCountExceeded::create($count, $limit);
+        }
+    }
+
+    /**
+     * Validate include depth based on relation name (not alias).
+     *
+     * This prevents bypassing depth limits by using a simple alias
+     * for a deeply nested relation.
+     */
+    protected function validateIncludeDepth(IncludeInterface $include): void
+    {
+        $relation = $include->getRelation();
+        $depth = substr_count($relation, '.') + 1;
+        $limit = $this->getConfig()->getMaxIncludeDepth();
+        if ($limit !== null && $depth > $limit) {
+            throw MaxIncludeDepthExceeded::create($include->getName(), $depth, $limit);
+        }
+    }
+
+    protected function invalidateIncludeCache(): void
+    {
+        $this->cachedEffectiveIncludes = null;
     }
 }

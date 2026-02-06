@@ -35,6 +35,8 @@ final class EloquentQueryWizard extends BaseQueryWizard
     /** @var Builder<Model>|Relation<Model, Model, mixed> */
     protected mixed $subject;
 
+    private bool $proxyModified = false;
+
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
      */
@@ -45,6 +47,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         ?ResourceSchemaInterface $schema = null
     ) {
         $this->subject = $subject;
+        $this->originalSubject = clone $subject;
         $this->parameters = $parameters ?? app(QueryParametersManager::class);
         $this->config = $config ?? app(QueryWizardConfig::class);
         $this->schema = $schema;
@@ -111,7 +114,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $result = $this->subject->first();
         if ($result !== null) {
-            $this->applyAppendsTo([$result]);
+            $this->applyAppendsTo($result);
         }
 
         return $result;
@@ -126,7 +129,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
     {
         $this->build();
         $result = $this->subject->firstOrFail();
-        $this->applyAppendsTo([$result]);
+        $this->applyAppendsTo($result);
 
         return $result;
     }
@@ -138,7 +141,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
     {
         $this->build();
         $paginator = $this->subject->paginate($perPage);
-        $this->applyAppendsTo($paginator->getCollection());
+        $this->applyAppendsTo($paginator->items());
 
         return $paginator;
     }
@@ -187,6 +190,24 @@ final class EloquentQueryWizard extends BaseQueryWizard
     public function getSubject(): Builder|Relation
     {
         return $this->subject;
+    }
+
+    protected function invalidateBuild(): void
+    {
+        if ($this->proxyModified) {
+            throw new \LogicException(
+                'Cannot modify query wizard configuration after calling query builder methods (e.g. where(), orderBy()). '
+                .'Call all configuration methods (allowedFilters, allowedSorts, etc.) before query builder methods.'
+            );
+        }
+
+        parent::invalidateBuild();
+    }
+
+    public function __clone(): void
+    {
+        parent::__clone();
+        $this->proxyModified = false;
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
@@ -246,14 +267,19 @@ final class EloquentQueryWizard extends BaseQueryWizard
      */
     public function __call(string $name, array $arguments): mixed
     {
+        $this->build();
+
         $result = $this->subject->$name(...$arguments);
 
         if ($result === $this->subject) {
+            $this->proxyModified = true;
+
             return $this;
         }
 
         if ($result instanceof Builder || $result instanceof Relation) {
             $this->subject = $result;
+            $this->proxyModified = true;
 
             return $this;
         }
@@ -261,14 +287,4 @@ final class EloquentQueryWizard extends BaseQueryWizard
         return $result;
     }
 
-    /**
-     * Clone the wizard.
-     *
-     * Creates an independent copy with the same build state.
-     * The query builder is cloned to ensure independent state.
-     */
-    public function __clone(): void
-    {
-        parent::__clone();
-    }
 }

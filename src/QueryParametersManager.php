@@ -19,6 +19,13 @@ use Jackardios\QueryWizard\Values\Sort;
  */
 class QueryParametersManager
 {
+    private static ?object $missing = null;
+
+    private static function missing(): object
+    {
+        return self::$missing ??= new \stdClass;
+    }
+
     /** @var Collection<int, string>|null */
     protected ?Collection $appends = null;
 
@@ -176,9 +183,10 @@ class QueryParametersManager
     public function setFiltersParameter(mixed $filtersParameter): static
     {
         if (is_string($filtersParameter)) {
-            $this->filters = collect();
-
-            return $this;
+            throw new \InvalidArgumentException(
+                'Filters parameter must be an array or null, string given. '
+                .'Use ?filter[name]=value format in the query string.'
+            );
         }
 
         $this->filters = collect($filtersParameter)->map(function ($value) {
@@ -206,7 +214,7 @@ class QueryParametersManager
         }
 
         $value = $this->getNestedFilterValue($filters->all(), $name);
-        if ($value !== null) {
+        if ($value !== self::missing()) {
             return $value;
         }
 
@@ -215,6 +223,9 @@ class QueryParametersManager
 
     /**
      * Recursively look for a filter value in nested array structure.
+     *
+     * Returns the sentinel missing() object when the key is not found,
+     * to distinguish "not found" from "found with null value".
      *
      * @param  array<string, mixed>  $data
      */
@@ -239,14 +250,14 @@ class QueryParametersManager
 
                 if (is_array($value)) {
                     $nested = $this->getNestedFilterValue($value, $remainder);
-                    if ($nested !== null) {
+                    if ($nested !== self::missing()) {
                         return $nested;
                     }
                 }
             }
         }
 
-        return null;
+        return self::missing();
     }
 
     /**

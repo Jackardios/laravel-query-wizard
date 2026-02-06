@@ -88,45 +88,14 @@ trait HandlesConfiguration
     }
 
     /**
-     * Remove disallowed items from array by name.
-     *
-     * @template T
-     *
-     * @param  array<T>  $items
-     * @param  array<string>  $disallowed
-     * @param  callable(T): string  $getName
-     * @param  string|null  $countSuffix  Optional suffix for count variants (e.g., 'Count')
-     * @return array<T>
-     */
-    protected function removeDisallowedByName(
-        array $items,
-        array $disallowed,
-        callable $getName,
-        ?string $countSuffix = null
-    ): array {
-        if (empty($disallowed)) {
-            return $items;
-        }
-
-        return array_values(array_filter($items, function ($item) use ($disallowed, $getName, $countSuffix) {
-            $name = $getName($item);
-
-            return ! $this->isNameDisallowed($name, $disallowed, $countSuffix);
-        }));
-    }
-
-    /**
      * Check if a name is disallowed.
      *
      * @param  array<string>  $disallowed
      */
-    protected function isNameDisallowed(string $name, array $disallowed, ?string $countSuffix = null): bool
+    protected function isNameDisallowed(string $name, array $disallowed): bool
     {
         foreach ($disallowed as $d) {
             if ($name === $d || str_starts_with($name, $d.'.')) {
-                return true;
-            }
-            if ($countSuffix !== null && $name === $d.$countSuffix) {
                 return true;
             }
         }

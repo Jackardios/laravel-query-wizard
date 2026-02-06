@@ -10,21 +10,17 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
 /**
  * Shared field handling logic for query wizards.
- *
- * This trait contains methods used by both BaseQueryWizard
- * and ModelQueryWizard for handling fields functionality.
- *
- * Classes using this trait must provide:
- * - getConfig(): QueryWizardConfig
- * - getParametersManager(): QueryParametersManager
- * - getSchema(): ?ResourceSchemaInterface
- * - getResourceKey(): string
- * - $allowedFields: array property
- * - $allowedFieldsExplicitlySet: bool property
- * - $disallowedFields: array property
  */
 trait HandlesFields
 {
+    /** @var array<string> */
+    protected array $allowedFields = [];
+
+    protected bool $allowedFieldsExplicitlySet = false;
+
+    /** @var array<string> */
+    protected array $disallowedFields = [];
+
     /**
      * Get the configuration instance.
      */
@@ -64,25 +60,4 @@ trait HandlesFields
         return $this->removeDisallowedStrings($fields, $this->disallowedFields);
     }
 
-    /**
-     * Get requested fields for this resource.
-     *
-     * @return array<string>
-     */
-    protected function getRequestedFields(): array
-    {
-        $resourceKey = $this->getResourceKey();
-
-        return $this->getParametersManager()->getFields()->get($resourceKey, []);
-    }
-
-    /**
-     * Check if fields are using wildcard (allow any).
-     *
-     * @param  array<string>  $fields
-     */
-    protected function isFieldsWildcard(array $fields): bool
-    {
-        return in_array('*', $fields, true);
-    }
 }
