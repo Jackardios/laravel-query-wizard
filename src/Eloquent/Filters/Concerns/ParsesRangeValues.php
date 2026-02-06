@@ -39,8 +39,9 @@ trait ParsesRangeValues
 
     /**
      * Normalize range value - empty strings become null.
+     * Subclasses can override to add type-specific validation.
      */
-    private function normalizeRangeValue(mixed $value): mixed
+    protected function normalizeRangeValue(mixed $value): mixed
     {
         if ($value === '' || $value === null) {
             return null;

@@ -90,6 +90,10 @@ class ExactFilter extends AbstractFilter
         $qualifiedColumn = $builder->qualifyColumn($column);
 
         if (is_array($value)) {
+            if (empty($value)) {
+                return $builder;
+            }
+
             $builder->whereIn($qualifiedColumn, $value);
 
             return $builder;

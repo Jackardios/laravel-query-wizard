@@ -10,7 +10,8 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
 /**
  * Filter for soft-deleted models.
  *
- * Values: 'with' (include trashed), 'only' (only trashed), anything else (exclude trashed)
+ * Values: 'with' (include trashed), 'only' (only trashed), 'without' (exclude trashed)
+ * Invalid values leave the query unmodified.
  */
 final class TrashedFilter extends AbstractFilter
 {
@@ -31,28 +32,35 @@ final class TrashedFilter extends AbstractFilter
 
     /**
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
-     * @param  'with'|'only'|mixed  $value
+     * @param  'with'|'only'|'without'|mixed  $value
      * @return Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
-        if ($value === 'with') {
+        $normalized = is_string($value) ? strtolower($value) : $value;
+
+        if ($normalized === 'with') {
             /** @phpstan-ignore method.notFound */
             $subject->withTrashed();
 
             return $subject;
         }
 
-        if ($value === 'only') {
+        if ($normalized === 'only') {
             /** @phpstan-ignore method.notFound */
             $subject->onlyTrashed();
 
             return $subject;
         }
 
-        /** @phpstan-ignore method.notFound */
-        $subject->withoutTrashed();
+        if ($normalized === 'without') {
+            /** @phpstan-ignore method.notFound */
+            $subject->withoutTrashed();
 
+            return $subject;
+        }
+
+        // Invalid values leave the query unmodified
         return $subject;
     }
 }

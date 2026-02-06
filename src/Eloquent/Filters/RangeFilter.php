@@ -82,4 +82,20 @@ final class RangeFilter extends AbstractFilter
 
         return $subject;
     }
+
+    /**
+     * Reject non-numeric values for range boundaries.
+     */
+    protected function normalizeRangeValue(mixed $value): mixed
+    {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        return $value;
+    }
 }

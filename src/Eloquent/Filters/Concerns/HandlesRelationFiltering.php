@@ -36,7 +36,7 @@ trait HandlesRelationFiltering
             $relation = $builder->getModel()->{$firstRelation}();
 
             return $relation instanceof Relation;
-        } catch (\Throwable) {
+        } catch (\BadMethodCallException|\Error) {
             return false;
         }
     }
