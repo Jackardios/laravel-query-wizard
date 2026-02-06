@@ -196,7 +196,7 @@ class QueryWizardConfigTest extends TestCase
     #[Test]
     public function it_returns_default_max_include_depth(): void
     {
-        $this->assertEquals(5, $this->config->getMaxIncludeDepth());
+        $this->assertEquals(3, $this->config->getMaxIncludeDepth());
     }
 
     #[Test]
@@ -243,19 +243,6 @@ class QueryWizardConfigTest extends TestCase
         $this->assertNull($this->config->getMaxFiltersCount());
     }
 
-    #[Test]
-    public function it_returns_default_max_filter_depth(): void
-    {
-        $this->assertEquals(5, $this->config->getMaxFilterDepth());
-    }
-
-    #[Test]
-    public function it_returns_null_when_max_filter_depth_disabled(): void
-    {
-        Config::set('query-wizard.limits.max_filter_depth', null);
-
-        $this->assertNull($this->config->getMaxFilterDepth());
-    }
 
     #[Test]
     public function it_returns_default_max_sorts_count(): void

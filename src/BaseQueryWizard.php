@@ -762,7 +762,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      */
     protected function extractRequestedFilterNames(): array
     {
-        $maxFilterDepth = $this->config->getMaxFilterDepth();
         $filters = $this->getEffectiveFilters();
         $allowedFilterNamesIndex = array_flip(array_keys($filters));
 
@@ -770,7 +769,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $this->parameters->getFilters()->all(),
             '',
             $allowedFilterNamesIndex,
-            $maxFilterDepth
         );
     }
 
@@ -785,8 +783,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         array $filters,
         string $prefix = '',
         array $allowedFilterNamesIndex = [],
-        ?int $maxDepth = null,
-        int $currentDepth = 1
     ): array {
         $names = [];
 
@@ -798,16 +794,13 @@ abstract class BaseQueryWizard implements QueryWizardInterface
                 continue;
             }
 
-            $canRecurse = $maxDepth === null || $currentDepth < $maxDepth;
-            if ($canRecurse && is_array($value) && ! empty($value) && $this->isAssociativeArray($value)) {
+            if (is_array($value) && ! empty($value) && $this->isAssociativeArray($value)) {
                 $names = array_merge(
                     $names,
                     $this->extractAllRequestedFilterNames(
                         $value,
                         $fullKey,
                         $allowedFilterNamesIndex,
-                        $maxDepth,
-                        $currentDepth + 1
                     )
                 );
             }

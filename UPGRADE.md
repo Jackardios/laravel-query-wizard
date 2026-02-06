@@ -465,7 +465,6 @@ Protection against resource exhaustion attacks:
     'max_include_depth' => 5,      // Max nesting (posts.comments.author)
     'max_includes_count' => 10,    // Max includes per request
     'max_filters_count' => 15,     // Max filters per request
-    'max_filter_depth' => 5,       // Max filter nesting
     'max_sorts_count' => 5,        // Max sorts per request
     'max_append_depth' => 3,       // Max append nesting
 ],
@@ -545,7 +544,6 @@ return [
         'max_include_depth' => 5,
         'max_includes_count' => 10,
         'max_filters_count' => 15,
-        'max_filter_depth' => 5,
         'max_sorts_count' => 5,
         'max_append_depth' => 3,
     ],

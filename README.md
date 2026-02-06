@@ -721,7 +721,6 @@ Query Wizard includes built-in protection against resource exhaustion attacks.
 | `max_include_depth` | 5 | Max nesting depth (e.g., `posts.comments.author` = 3) |
 | `max_includes_count` | 10 | Max includes per request |
 | `max_filters_count` | 20 | Max filters per request |
-| `max_filter_depth` | 5 | Max filter nesting depth |
 | `max_appends_count` | 10 | Max appends per request |
 | `max_sorts_count` | 5 | Max sorts per request |
 | `max_append_depth` | 3 | Max append nesting depth |
@@ -733,7 +732,6 @@ Configure in `config/query-wizard.php`:
     'max_include_depth' => 3,      // Stricter limit
     'max_includes_count' => 5,
     'max_filters_count' => 10,
-    'max_filter_depth' => 3,
     'max_sorts_count' => 3,
     'max_append_depth' => 2,
 ],
@@ -825,7 +823,6 @@ return [
         'max_include_depth' => 5,
         'max_includes_count' => 10,
         'max_filters_count' => 20,
-        'max_filter_depth' => 5,
         'max_appends_count' => 10,
         'max_sorts_count' => 5,
         'max_append_depth' => 3,

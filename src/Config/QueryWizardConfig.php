@@ -102,13 +102,6 @@ final class QueryWizardConfig
         return $value !== null ? (int) $value : null;
     }
 
-    public function getMaxFilterDepth(): ?int
-    {
-        $value = config(self::CONFIG_PREFIX.'.limits.max_filter_depth');
-
-        return $value !== null ? (int) $value : null;
-    }
-
     public function getMaxSortsCount(): ?int
     {
         $value = config(self::CONFIG_PREFIX.'.limits.max_sorts_count');

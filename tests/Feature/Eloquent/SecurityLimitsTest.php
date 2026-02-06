@@ -241,26 +241,6 @@ class SecurityLimitsTest extends TestCase
         $this->assertNotEmpty($models);
     }
 
-    // ========== Filter Depth Limit Tests ==========
-
-    #[Test]
-    public function it_respects_filter_depth_limit(): void
-    {
-        Config::set('query-wizard.limits.max_filter_depth', 2);
-        Config::set('query-wizard.disable_invalid_filter_query_exception', true);
-
-        // With max_filter_depth=2, filters like 'name' (depth 1) and 'relatedModels.id' (depth 2)
-        // are extracted, but 'relatedModels.nested.deep' (depth 3) would be truncated
-        $models = $this
-            ->createEloquentWizardWithFilters([
-                'name' => 'test',
-            ])
-            ->allowedFilters('name')
-            ->get();
-
-        $this->assertIsIterable($models);
-    }
-
     // ========== Exception Properties Tests ==========
 
     #[Test]
@@ -363,7 +343,6 @@ class SecurityLimitsTest extends TestCase
             'max_include_depth' => 5,
             'max_includes_count' => 10,
             'max_filters_count' => 15,
-            'max_filter_depth' => 5,
             'max_sorts_count' => 5,
         ]);
 
