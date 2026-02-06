@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('pivot_models', static function (Blueprint $table) {
             $table->increments('id');
-            $table->string('test_model_id');
+            $table->integer('test_model_id');
             $table->integer('related_through_pivot_model_id');
             $table->string('location')->nullable();
         });
