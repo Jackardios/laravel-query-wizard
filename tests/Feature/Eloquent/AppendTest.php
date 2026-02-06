@@ -657,7 +657,7 @@ class AppendTest extends TestCase
             ->process();
 
         // Should complete without stack overflow
-        $this->assertArrayHasKey('fullname', $result->toArray());
+        $this->assertContains('fullname', $result->getAppends());
     }
 
     #[Test]
