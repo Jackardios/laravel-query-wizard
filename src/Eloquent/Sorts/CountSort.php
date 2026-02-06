@@ -59,10 +59,14 @@ final class CountSort extends AbstractSort
             return false;
         }
 
+        $grammar = $subject->getQuery()->getGrammar();
+        $wrappedAlias = $grammar->wrap($alias);
+        $suffix = ' as '.$wrappedAlias;
+
         foreach ($subject->getQuery()->columns ?? [] as $column) {
             if ($column instanceof \Illuminate\Database\Query\Expression) {
-                $sql = $column->getValue($subject->getQuery()->getGrammar());
-                if (is_string($sql) && str_ends_with($sql, " as \"{$alias}\"")) {
+                $sql = $column->getValue($grammar);
+                if (is_string($sql) && str_ends_with($sql, $suffix)) {
                     return true;
                 }
             }
