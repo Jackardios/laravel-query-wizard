@@ -128,7 +128,6 @@ abstract class AbstractFilter implements FilterInterface
      */
     public function prepareValue(mixed $value): mixed
     {
-        // Check when() condition - if false, return null to skip filter
         if ($this->whenCallback !== null && ! ($this->whenCallback)($value)) {
             return null;
         }

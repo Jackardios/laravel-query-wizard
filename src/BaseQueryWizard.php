@@ -45,7 +45,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
     protected ?ResourceSchemaInterface $schema = null;
 
-    // Configuration (instance level)
     /** @var array<FilterInterface|string> */
     protected array $allowedFilters = [];
 
@@ -98,7 +97,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /** @var array<callable> */
     protected array $tapCallbacks = [];
 
-    // Build state
     protected bool $built = false;
 
     /**
@@ -111,8 +109,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     {
         $this->built = false;
     }
-
-    // === ABSTRACT: Subclass MUST implement ===
 
     /**
      * Normalize a string filter to a FilterInterface instance.
@@ -164,8 +160,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     {
         return $this->schema;
     }
-
-    // === Configuration API ===
 
     /**
      * Set the resource schema for configuration.
@@ -387,8 +381,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         return $this;
     }
 
-    // === Build API ===
-
     /**
      * Build the query (apply filters, sorts, includes, fields).
      *
@@ -441,8 +433,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         return $result;
     }
 
-    // === Protected: Build Logic ===
-
     protected function applyTapCallbacks(): void
     {
         foreach ($this->tapCallbacks as $callback) {
@@ -455,17 +445,12 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $filters = $this->getEffectiveFilters();
         $requestedFilterNames = $this->extractRequestedFilterNames();
 
-        // Validate filter count limit
         $this->validateFiltersLimit(count($requestedFilterNames));
 
-        // Build allowed filter names index for validation
         $allowedFilterNames = array_keys($filters);
         $allowedFilterNamesIndex = array_flip($allowedFilterNames);
-
-        // Build prefix index for dot notation support
         $prefixIndex = $this->buildPrefixIndex($allowedFilterNames);
 
-        // Validate requested filters
         foreach ($requestedFilterNames as $filterName) {
             if (! $this->isValidFilterName($filterName, $allowedFilterNamesIndex, $prefixIndex)) {
                 if (! $this->config->isInvalidFilterQueryExceptionDisabled()) {
@@ -477,7 +462,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             }
         }
 
-        // Apply filters
         foreach ($filters as $filter) {
             $name = $filter->getName();
             $value = $this->getFilterValueFromRequest($name) ?? $filter->getDefault();
@@ -488,7 +472,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
             $preparedValue = $filter->prepareValue($value);
 
-            // Skip if when() condition returned false (prepareValue returns null)
             if ($preparedValue === null) {
                 continue;
             }
@@ -526,7 +509,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             ? collect($defaultSorts)->map(fn ($s) => new Sort($s))
             : $requestedSorts;
 
-        // If no allowed sorts but some are requested/default, throw exception
         if (empty($sorts) && $effectiveSorts->isNotEmpty()) {
             if (! $this->config->isInvalidSortQueryExceptionDisabled()) {
                 throw InvalidSortQuery::sortsNotAllowed(
@@ -542,10 +524,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return;
         }
 
-        // Validate sort count limit
         $this->validateSortsLimit($effectiveSorts->count());
 
-        // Build sorts index
         $sortsIndex = [];
         foreach ($sorts as $sort) {
             $name = $sort->getName();
@@ -553,7 +533,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $sortsIndex[$normalizedName] = $sort;
         }
 
-        // Validate and apply sorts
         $allowedSortNames = array_keys($sortsIndex);
         $appliedFields = [];
 
@@ -569,7 +548,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
                 continue;
             }
 
-            // Skip duplicate sorts
             if (isset($appliedFields[$field])) {
                 continue;
             }
@@ -585,10 +563,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $includes = $this->getEffectiveIncludes();
         $requestedIncludes = $this->getMergedRequestedIncludes();
 
-        // Validate include limits
         $this->validateIncludesLimit(count($requestedIncludes));
 
-        // If no allowed includes but some are requested, throw exception
         if (empty($includes) && ! empty($requestedIncludes)) {
             if (! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
                 throw InvalidIncludeQuery::includesNotAllowed(
@@ -604,10 +580,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return;
         }
 
-        // Build includes index (with implicit count includes)
         $includesIndex = $this->buildIncludesIndex($includes);
 
-        // Validate requested includes
         $allowedIncludeNames = array_keys($includesIndex);
         $validRequestedIncludes = [];
         foreach ($requestedIncludes as $includeName) {
@@ -624,12 +598,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
             $include = $includesIndex[$includeName];
 
-            // Validate depth based on relation (not alias) to prevent bypass
             $this->validateIncludeDepth($include);
             $validRequestedIncludes[] = $includeName;
         }
 
-        // Apply includes
         $this->applyValidatedIncludes($validRequestedIncludes, $includesIndex);
     }
 
@@ -655,10 +627,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $requestedFields = $this->parameters->getFields();
         $resourceKey = $this->getResourceKey();
 
-        // Get requested fields for this resource
         $fields = $requestedFields->get($resourceKey, []);
 
-        // Wildcard - allow any fields requested by client
         if (in_array('*', $allowedFields, true)) {
             if (! empty($fields) && ! in_array('*', $fields, true)) {
                 $this->applyFields($fields);
@@ -667,10 +637,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return;
         }
 
-        // Empty allowed fields - client cannot request specific fields
         if (empty($allowedFields)) {
             if (! empty($fields) && ! in_array('*', $fields, true)) {
-                // Client requested fields but none are allowed
                 if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
                     throw \Jackardios\QueryWizard\Exceptions\InvalidFieldQuery::fieldsNotAllowed(
                         collect($fields),
@@ -682,12 +650,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return;
         }
 
-        // No fields requested - nothing to apply
         if (empty($fields) || in_array('*', $fields, true)) {
             return;
         }
 
-        // Validate requested fields against allowed list
         $invalidFields = array_diff($fields, $allowedFields);
         if (! empty($invalidFields)) {
             if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
@@ -696,7 +662,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
                     collect($allowedFields)
                 );
             }
-            // Filter out invalid fields and continue
             $fields = array_intersect($fields, $allowedFields);
         }
 
@@ -704,8 +669,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $this->applyFields($fields);
         }
     }
-
-    // === Protected: Resolution ===
 
     protected function getFilterValueFromRequest(string $name): mixed
     {
@@ -727,7 +690,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             ? $this->allowedFilters
             : ($this->schema?->filters($this) ?? []);
 
-        // Single pass: normalize, filter disallowed, and index by name
         $disallowed = $this->disallowedFilters;
         $result = [];
 
@@ -737,7 +699,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             }
             $name = $filter->getName();
 
-            // Skip if disallowed (check name and prefix match)
             if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed)) {
                 continue;
             }
@@ -763,7 +724,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             ? $this->allowedSorts
             : ($this->schema?->sorts($this) ?? []);
 
-        // Single pass: normalize, filter disallowed, and index by name
         $disallowed = $this->disallowedSorts;
         $result = [];
 
@@ -773,7 +733,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             }
             $name = $sort->getName();
 
-            // Skip if disallowed (check name and prefix match)
             if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed)) {
                 continue;
             }
@@ -795,8 +754,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             ? $this->defaultSorts
             : ($this->schema?->defaultSorts($this) ?? []);
     }
-
-    // === Protected: Validation ===
 
     /**
      * Extract all requested filter names from request.
@@ -938,8 +895,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         }
     }
 
-    // === Protected: Helper Methods ===
-
     /**
      * Extract sort name from Sort object or string.
      */
@@ -968,8 +923,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         if (is_object($this->subject)) {
             $this->subject = clone $this->subject;
         }
-        // Preserve built state to avoid double-applying operations
-        // If you need to reconfigure the clone, call resetBuild()
     }
 
     /**

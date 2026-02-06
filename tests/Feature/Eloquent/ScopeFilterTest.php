@@ -6,7 +6,6 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
-use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -119,5 +118,4 @@ class ScopeFilterTest extends EloquentFilterTestCase
             $this->assertStringContainsString('user', $e->getMessage());
         }
     }
-
 }

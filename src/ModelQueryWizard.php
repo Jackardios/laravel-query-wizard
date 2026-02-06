@@ -42,7 +42,6 @@ final class ModelQueryWizard implements QueryWizardInterface
 
     protected ?ResourceSchemaInterface $schema = null;
 
-    // Configuration
     /** @var array<IncludeInterface|string> */
     protected array $allowedIncludes = [];
 
@@ -104,8 +103,6 @@ final class ModelQueryWizard implements QueryWizardInterface
 
         return $this;
     }
-
-    // === Configuration API ===
 
     /**
      * Set allowed includes.
@@ -209,8 +206,6 @@ final class ModelQueryWizard implements QueryWizardInterface
         return $this;
     }
 
-    // === Execution ===
-
     /**
      * Process the model (apply includes, fields, appends).
      */
@@ -231,8 +226,6 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         return $this->model;
     }
-
-    // === Protected: Clean Relations ===
 
     protected function cleanUnwantedRelations(): void
     {
@@ -298,18 +291,14 @@ final class ModelQueryWizard implements QueryWizardInterface
         }
     }
 
-    // === Protected: Load Missing ===
-
     protected function loadMissingIncludes(): void
     {
         $requested = $this->getMergedRequestedIncludes();
         $allowedIncludes = $this->getEffectiveIncludes();
         $loaded = array_keys($this->model->getRelations());
 
-        // Build index for lookup (with implicit count includes)
         $allowedIndex = $this->buildIncludesIndex($allowedIncludes);
 
-        // Validate includes - if none allowed but some requested, throw exception
         if (! empty($requested)) {
             $allowedIncludeNames = array_keys($allowedIndex);
             $invalidIncludes = array_diff($requested, $allowedIncludeNames);
@@ -319,7 +308,6 @@ final class ModelQueryWizard implements QueryWizardInterface
                     collect($allowedIncludeNames)
                 );
             }
-            // Filter out invalid includes
             $requested = array_intersect($requested, $allowedIncludeNames);
         }
 
@@ -351,25 +339,20 @@ final class ModelQueryWizard implements QueryWizardInterface
         }
     }
 
-    // === Protected: Hide Fields ===
-
     protected function hideDisallowedFields(): void
     {
         $resourceKey = $this->getResourceKey();
         $requestedFields = $this->parameters->getFields()->get($resourceKey, []);
 
-        // No requested fields = allow all (no hiding)
         if (empty($requestedFields) || in_array('*', $requestedFields)) {
             return;
         }
 
         $allowedFields = $this->getEffectiveFields();
 
-        // Wildcard - allow any fields
         if (in_array('*', $allowedFields, true)) {
             $visibleFields = $requestedFields;
         } elseif (empty($allowedFields)) {
-            // Empty allowed - client cannot request specific fields
             if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
                 throw InvalidFieldQuery::fieldsNotAllowed(
                     collect($requestedFields),
@@ -379,7 +362,6 @@ final class ModelQueryWizard implements QueryWizardInterface
 
             return;
         } else {
-            // Validate requested fields against allowed list
             $invalidFields = array_diff($requestedFields, $allowedFields);
             if (! empty($invalidFields)) {
                 if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
@@ -444,8 +426,6 @@ final class ModelQueryWizard implements QueryWizardInterface
         }
     }
 
-    // === Protected: Apply Appends ===
-
     protected function applyAppends(): void
     {
         $appends = $this->getValidRequestedAppends();
@@ -453,8 +433,6 @@ final class ModelQueryWizard implements QueryWizardInterface
             $this->applyAppendsRecursively($this->model, $appends);
         }
     }
-
-    // === Protected: Resolution ===
 
     /**
      * Get the configuration instance.

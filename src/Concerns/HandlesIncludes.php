@@ -62,7 +62,6 @@ trait HandlesIncludes
             ? $this->allowedIncludes
             : ($this->getSchema()?->includes($this) ?? []);
 
-        // Single pass: normalize and filter disallowed
         $countSuffix = $this->getConfig()->getCountSuffix();
         $disallowed = $this->disallowedIncludes;
         $result = [];
@@ -72,14 +71,12 @@ trait HandlesIncludes
                 $include = $this->normalizeStringToInclude($include);
             }
 
-            // For count includes without alias, auto-apply count suffix (clone to avoid mutating original)
             if ($include->getType() === 'count' && $include->getAlias() === null) {
                 $include = (clone $include)->alias($include->getRelation().$countSuffix);
             }
 
             $name = $include->getName();
 
-            // Skip if disallowed (check name, prefix match, and count suffix)
             if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed, $countSuffix)) {
                 continue;
             }
@@ -128,7 +125,6 @@ trait HandlesIncludes
             $index[$include->getName()] = $include;
         }
 
-        // Add implicit count includes for relationships
         $countSuffix = $this->getConfig()->getCountSuffix();
         foreach ($includes as $include) {
             if ($include->getType() === 'relationship') {

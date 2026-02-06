@@ -89,8 +89,6 @@ final class EloquentQueryWizard extends BaseQueryWizard
         );
     }
 
-    // === Execution API ===
-
     /**
      * Build and execute query, returning all results.
      *
@@ -191,17 +189,13 @@ final class EloquentQueryWizard extends BaseQueryWizard
         return $this->subject;
     }
 
-    // === Abstract implementations ===
-
     protected function normalizeStringToFilter(string $name): FilterInterface
     {
-        // String = exact filter by default
         return ExactFilter::make($name);
     }
 
     protected function normalizeStringToSort(string $name): SortInterface
     {
-        // String = field sort by default, strip leading '-' for property
         $property = ltrim($name, '-');
 
         return FieldSort::make($property);
@@ -229,8 +223,6 @@ final class EloquentQueryWizard extends BaseQueryWizard
         return Str::camel(class_basename($this->subject->getModel()));
     }
 
-    // === Helpers ===
-
     /**
      * Qualify column names with table prefix.
      *
@@ -256,19 +248,16 @@ final class EloquentQueryWizard extends BaseQueryWizard
     {
         $result = $this->subject->$name(...$arguments);
 
-        // If the method returns the same builder instance, return $this for chaining
         if ($result === $this->subject) {
             return $this;
         }
 
-        // If the method returns a new Builder/Relation, update subject and return $this
         if ($result instanceof Builder || $result instanceof Relation) {
             $this->subject = $result;
 
             return $this;
         }
 
-        // For terminal methods (count, exists, etc.), return the result directly
         return $result;
     }
 
@@ -280,7 +269,6 @@ final class EloquentQueryWizard extends BaseQueryWizard
      */
     public function __clone(): void
     {
-        // Parent handles subject cloning and build state preservation
         parent::__clone();
     }
 }

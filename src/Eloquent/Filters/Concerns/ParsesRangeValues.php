@@ -23,7 +23,6 @@ trait ParsesRangeValues
             return [null, null];
         }
 
-        // Check for indexed array (comma-separated was parsed)
         if (array_is_list($value) && count($value) >= 2) {
             return [
                 $this->normalizeRangeValue($value[0]),

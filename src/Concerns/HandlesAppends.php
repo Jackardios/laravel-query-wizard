@@ -66,7 +66,6 @@ trait HandlesAppends
      */
     protected function applyAppendsRecursively(object $model, array $appends, array &$visited = []): void
     {
-        // Prevent circular reference infinite loops
         $objectId = spl_object_id($model);
         if (isset($visited[$objectId])) {
             return;
@@ -86,12 +85,10 @@ trait HandlesAppends
             }
         }
 
-        // Apply root appends
         if (! empty($rootAppends) && method_exists($model, 'append')) {
             $model->append($rootAppends);
         }
 
-        // Apply nested appends to loaded relations
         foreach ($nestedAppends as $relation => $relationAppends) {
             if (! method_exists($model, 'relationLoaded') || ! $model->relationLoaded($relation)) {
                 continue;
@@ -127,12 +124,10 @@ trait HandlesAppends
      */
     protected function isAppendAllowed(string $append, array $allowed): bool
     {
-        // Exact match
         if (in_array($append, $allowed, true)) {
             return true;
         }
 
-        // Wildcard support: if 'relation.*' is allowed, allow 'relation.anything'
         $parts = explode('.', $append);
         for ($i = count($parts) - 1; $i > 0; $i--) {
             $wildcardPattern = implode('.', array_slice($parts, 0, $i)).'.*';
@@ -155,10 +150,8 @@ trait HandlesAppends
         $requested = $this->getParametersManager()->getAppends()->all();
         $defaults = $this->getEffectiveDefaultAppends();
 
-        // Validate appends count limit
         $this->validateAppendsLimit(count($requested));
 
-        // Validate requested appends - if none allowed but some requested, throw exception
         if (! empty($requested)) {
             $invalidAppends = array_filter($requested, fn ($r) => ! $this->isAppendAllowed($r, $allowed));
             if (! empty($invalidAppends) && ! $this->getConfig()->isInvalidAppendQueryExceptionDisabled()) {
@@ -169,15 +162,13 @@ trait HandlesAppends
             }
         }
 
-        // Filter by allowed and depth
         $maxDepth = $this->getConfig()->getMaxAppendDepth();
 
         $validRequested = array_values(array_filter($requested, function ($append) use ($allowed, $maxDepth) {
-            // Check allowed
             if (! $this->isAppendAllowed($append, $allowed)) {
                 return false;
             }
-            // Check depth
+
             if ($maxDepth !== null) {
                 $depth = substr_count($append, '.') + 1;
                 if ($depth > $maxDepth) {

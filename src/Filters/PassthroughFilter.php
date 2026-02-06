@@ -30,7 +30,6 @@ final class PassthroughFilter extends AbstractFilter
 
     public function apply(mixed $subject, mixed $value): mixed
     {
-        // Intentionally does nothing - just return subject unchanged
         return $subject;
     }
 }

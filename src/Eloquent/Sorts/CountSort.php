@@ -42,7 +42,6 @@ final class CountSort extends AbstractSort
      */
     public function apply(mixed $subject, string $direction): mixed
     {
-        // Laravel uses snake_case for count columns
         $countColumn = Str::snake($this->property).'_count';
 
         $subject->withCount($this->property);

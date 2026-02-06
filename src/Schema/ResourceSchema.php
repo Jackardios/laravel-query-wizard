@@ -56,8 +56,6 @@ abstract class ResourceSchema implements ResourceSchemaInterface
         return Str::camel(class_basename($this->model()));
     }
 
-    // === Common (used by ALL wizards including ModelQueryWizard) ===
-
     /**
      * Get allowed includes.
      *
@@ -116,8 +114,6 @@ abstract class ResourceSchema implements ResourceSchemaInterface
     {
         return [];
     }
-
-    // === Specific to List wizards (ignored by ModelQueryWizard) ===
 
     /**
      * Get allowed filters.

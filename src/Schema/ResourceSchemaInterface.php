@@ -36,8 +36,6 @@ interface ResourceSchemaInterface
      */
     public function type(): string;
 
-    // === Common (used by ALL wizards including ModelQueryWizard) ===
-
     /**
      * Get allowed includes.
      *
@@ -77,8 +75,6 @@ interface ResourceSchemaInterface
      * @return array<string>
      */
     public function defaultAppends(QueryWizardInterface $wizard): array;
-
-    // === Specific to List wizards (ignored by ModelQueryWizard) ===
 
     /**
      * Get allowed filters.

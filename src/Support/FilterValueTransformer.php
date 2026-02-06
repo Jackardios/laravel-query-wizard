@@ -62,17 +62,14 @@ final class FilterValueTransformer
      */
     private function transformString(string $value): mixed
     {
-        // Empty string is treated as "no value" (null)
         if ($value === '') {
             return null;
         }
 
-        // Check for comma-separated values first
         if ($this->arraySeparator !== '' && Str::contains($value, $this->arraySeparator)) {
             return $this->splitToArray($value);
         }
 
-        // Check for boolean strings (case-insensitive)
         $lower = strtolower($value);
         if ($lower === 'true') {
             return true;

@@ -25,7 +25,7 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
             return new QueryWizardConfig;
         });
 
-        // Use scoped binding for Octane compatibility - ensures fresh instance per request
+        // Scoped binding for Octane compatibility
         $this->app->scoped(QueryParametersManager::class, function ($app) {
             return new QueryParametersManager(
                 $app['request'],

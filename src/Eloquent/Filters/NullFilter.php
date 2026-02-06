@@ -70,10 +70,8 @@ final class NullFilter extends AbstractFilter
     {
         $column = $subject->qualifyColumn($this->property);
 
-        // Use FILTER_NULL_ON_FAILURE to properly handle invalid values
         $isTruthy = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
-        // Skip filter for values that can't be interpreted as boolean
         if ($isTruthy === null) {
             return $subject;
         }

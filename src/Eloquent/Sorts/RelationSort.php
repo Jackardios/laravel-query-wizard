@@ -80,7 +80,6 @@ final class RelationSort extends AbstractSort
      */
     public function apply(mixed $subject, string $direction): mixed
     {
-        // Laravel uses snake_case for aggregate columns: {relation}_{aggregate}_{column}
         $aggregateColumn = Str::snake($this->property).'_'.$this->aggregate.'_'.$this->column;
 
         $subject->withAggregate($this->property, $this->column, $this->aggregate);

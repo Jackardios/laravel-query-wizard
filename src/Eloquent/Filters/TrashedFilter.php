@@ -60,7 +60,6 @@ final class TrashedFilter extends AbstractFilter
             return $subject;
         }
 
-        // Invalid values leave the query unmodified
         return $subject;
     }
 }
