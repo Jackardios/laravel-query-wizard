@@ -71,24 +71,36 @@ class RelationFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function it_handles_method_that_throws_exception_in_relation_check(): void
+    public function it_propagates_runtime_exception_from_non_relation_method(): void
     {
-        // TestModel has a method 'throwingMethod' that throws an exception when called.
-        // The isRelationProperty check should catch this and return false.
-        $relationCheckCalled = false;
+        // TestModel has a method 'throwingMethod' that throws RuntimeException.
+        // The narrowed catch in isRelationProperty (BadMethodCallException|Error)
+        // should NOT catch RuntimeException, so it propagates.
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('This method always throws');
 
-        $sql = $this
+        $this
             ->createEloquentWizardWithFilters(['throwingMethod.name' => 'test'])
             ->allowedFilters(
-                EloquentFilter::callback('throwingMethod.name', function ($query, $value) use (&$relationCheckCalled) {
-                    // If we reach here, the relation check didn't throw
-                    $relationCheckCalled = true;
-                })
+                EloquentFilter::exact('throwingMethod.name')
+            )
+            ->get();
+    }
+
+    #[Test]
+    public function it_treats_non_existent_method_as_non_relation(): void
+    {
+        // A dot-notation property where the first part is not a method on the model
+        // should be treated as a direct column filter (not a relation).
+        $sql = $this
+            ->createEloquentWizardWithFilters(['nonExistent.name' => 'test'])
+            ->allowedFilters(
+                EloquentFilter::exact('nonExistent.name')
             )
             ->toQuery()
             ->toSql();
 
-        // The callback was invoked, meaning the relation check didn't throw
-        $this->assertTrue($relationCheckCalled);
+        // No whereHas — treated as direct column reference
+        $this->assertStringNotContainsString('exists', strtolower($sql));
     }
 }

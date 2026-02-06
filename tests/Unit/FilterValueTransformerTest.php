@@ -36,32 +36,34 @@ class FilterValueTransformerTest extends TestCase
     }
 
     #[Test]
-    public function it_does_not_transform_uppercase_true(): void
+    public function it_transforms_uppercase_true(): void
     {
         $transformer = new FilterValueTransformer;
 
         $result = $transformer->transform('TRUE');
 
-        $this->assertEquals('TRUE', $result);
+        $this->assertTrue($result);
+        $this->assertIsBool($result);
     }
 
     #[Test]
-    public function it_does_not_transform_uppercase_false(): void
+    public function it_transforms_uppercase_false(): void
     {
         $transformer = new FilterValueTransformer;
 
         $result = $transformer->transform('FALSE');
 
-        $this->assertEquals('FALSE', $result);
+        $this->assertFalse($result);
+        $this->assertIsBool($result);
     }
 
     #[Test]
-    public function it_does_not_transform_mixed_case_boolean(): void
+    public function it_transforms_mixed_case_boolean(): void
     {
         $transformer = new FilterValueTransformer;
 
-        $this->assertEquals('True', $transformer->transform('True'));
-        $this->assertEquals('False', $transformer->transform('False'));
+        $this->assertTrue($transformer->transform('True'));
+        $this->assertFalse($transformer->transform('False'));
     }
 
     // ========== Empty String Tests ==========
@@ -109,13 +111,23 @@ class FilterValueTransformerTest extends TestCase
     }
 
     #[Test]
-    public function it_returns_null_for_only_commas(): void
+    public function it_returns_empty_array_for_only_commas(): void
     {
         $transformer = new FilterValueTransformer;
 
         $result = $transformer->transform(',,,');
 
-        $this->assertNull($result);
+        $this->assertEquals([], $result);
+    }
+
+    #[Test]
+    public function it_returns_empty_array_for_single_comma(): void
+    {
+        $transformer = new FilterValueTransformer;
+
+        $result = $transformer->transform(',');
+
+        $this->assertEquals([], $result);
     }
 
     #[Test]

@@ -51,6 +51,30 @@ class NullFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function null_filter_with_string_one_is_truthy(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => '1'])
+            ->allowedFilters(EloquentFilter::null('name'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('is null', strtolower($sql));
+    }
+
+    #[Test]
+    public function null_filter_with_string_zero_is_falsy(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => '0'])
+            ->allowedFilters(EloquentFilter::null('name'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('is not null', strtolower($sql));
+    }
+
+    #[Test]
     public function null_filter_with_inverted_logic_sql(): void
     {
         $sql = $this
@@ -67,29 +91,31 @@ class NullFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function null_filter_with_invalid_value_defaults_to_false(): void
+    public function null_filter_with_invalid_value_skips_filter(): void
     {
-        // Invalid values like 'invalid', 'random', etc. should default to false (NOT NULL)
+        // Invalid values that can't be interpreted as boolean should skip the filter
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => 'invalid'])
             ->allowedFilters(EloquentFilter::null('name'))
             ->toQuery()
             ->toSql();
 
-        // 'invalid' is not a valid boolean, so it defaults to false -> NOT NULL
-        $this->assertStringContainsString('is not null', strtolower($sql));
+        // 'invalid' is not a valid boolean — filter should be skipped entirely
+        $this->assertStringNotContainsString('is null', strtolower($sql));
+        $this->assertStringNotContainsString('is not null', strtolower($sql));
     }
 
     #[Test]
-    public function null_filter_with_numeric_value_defaults_to_false(): void
+    public function null_filter_with_numeric_value_skips_filter(): void
     {
-        // Numeric values like '123' should default to false (NOT NULL)
+        // Numeric values like '123' can't be parsed as boolean — filter should be skipped
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => '123'])
             ->allowedFilters(EloquentFilter::null('name'))
             ->toQuery()
             ->toSql();
 
-        $this->assertStringContainsString('is not null', strtolower($sql));
+        $this->assertStringNotContainsString('is null', strtolower($sql));
+        $this->assertStringNotContainsString('is not null', strtolower($sql));
     }
 }

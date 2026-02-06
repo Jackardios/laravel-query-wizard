@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
+use Jackardios\QueryWizard\Eloquent\Sorts\RelationSort;
 use Jackardios\QueryWizard\Sorts\CallbackSort;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -154,5 +155,33 @@ class SortDefinitionTest extends TestCase
         $sort = EloquentSort::field('createdAt');
 
         $this->assertEquals('createdAt', $sort->getProperty());
+    }
+
+    // ========== RelationSort Aggregate Validation Tests ==========
+
+    #[Test]
+    public function relation_sort_accepts_valid_aggregates(): void
+    {
+        foreach (['min', 'max', 'sum', 'avg', 'count', 'exists'] as $aggregate) {
+            $sort = RelationSort::make('posts', 'created_at', $aggregate);
+            $this->assertEquals($aggregate, $sort->getAggregate());
+        }
+    }
+
+    #[Test]
+    public function relation_sort_rejects_invalid_aggregate(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid aggregate');
+
+        RelationSort::make('posts', 'created_at', 'invalid');
+    }
+
+    #[Test]
+    public function relation_sort_rejects_sql_injection_aggregate(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        RelationSort::make('posts', 'created_at', 'max; DROP TABLE users');
     }
 }

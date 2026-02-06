@@ -248,7 +248,7 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(DateRangeFilter::class, $filter);
         $this->assertEquals('created_at', $filter->getProperty());
-        $this->assertEquals('dateRange', $filter->getType());
+        $this->assertEquals('date_range', $filter->getType());
     }
 
     #[Test]
@@ -268,7 +268,7 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(JsonContainsFilter::class, $filter);
         $this->assertEquals('meta.roles', $filter->getProperty());
-        $this->assertEquals('jsonContains', $filter->getType());
+        $this->assertEquals('json_contains', $filter->getType());
     }
 
     #[Test]

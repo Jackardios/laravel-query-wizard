@@ -86,6 +86,42 @@ class RangeFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function range_filter_ignores_non_numeric_min(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => 'abc', 'max' => 3]])
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->get();
+
+        // Only max should be applied (no min constraint)
+        $this->assertTrue($models->every(fn ($m) => $m->id <= 3));
+    }
+
+    #[Test]
+    public function range_filter_ignores_non_numeric_max(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => 2, 'max' => 'xyz']])
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->get();
+
+        // Only min should be applied (no max constraint)
+        $this->assertTrue($models->every(fn ($m) => $m->id >= 2));
+    }
+
+    #[Test]
+    public function range_filter_ignores_both_non_numeric_values(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => 'abc', 'max' => 'xyz']])
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->get();
+
+        // Both non-numeric — no range constraint applied
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
     public function range_filter_with_alias(): void
     {
         $models = $this

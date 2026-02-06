@@ -259,6 +259,38 @@ class IncludeTest extends TestCase
         $this->assertTrue($relatedModels->every(fn ($m) => $m->name === 'Filtered'));
     }
 
+    #[Test]
+    public function callback_include_return_value_is_used(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithIncludes('customInclude')
+            ->allowedIncludes(
+                EloquentInclude::callback('customInclude', function ($query, $relation) {
+                    return $query->with('relatedModels');
+                })
+            )
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
+    public function callback_include_null_return_falls_back_to_subject(): void
+    {
+        // When callback returns null (void), the original subject is used
+        $models = $this
+            ->createEloquentWizardWithIncludes('customInclude')
+            ->allowedIncludes(
+                EloquentInclude::callback('customInclude', function ($query, $relation) {
+                    $query->with('relatedModels');
+                    // implicitly returns null
+                })
+            )
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+    }
+
     // ========== Default Includes Tests ==========
     #[Test]
     public function it_uses_default_includes_when_none_requested(): void

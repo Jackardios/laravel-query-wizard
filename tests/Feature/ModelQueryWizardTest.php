@@ -343,6 +343,37 @@ class ModelQueryWizardTest extends TestCase
         $this->assertArrayHasKey('fullname', $array);
     }
 
+    // ========== Relation Cleanup Tests ==========
+
+    #[Test]
+    public function it_preserves_loaded_relations_when_no_includes_configured(): void
+    {
+        $modelWithRelations = TestModel::with(['relatedModels', 'otherRelatedModels'])->find($this->model->id);
+
+        // No allowedIncludes() call and no schema — should preserve all loaded relations
+        $result = $this
+            ->createModelWizardFromQuery([], $modelWithRelations)
+            ->process();
+
+        $this->assertTrue($result->relationLoaded('relatedModels'));
+        $this->assertTrue($result->relationLoaded('otherRelatedModels'));
+    }
+
+    #[Test]
+    public function it_cleans_relations_when_includes_explicitly_set_to_empty(): void
+    {
+        $modelWithRelations = TestModel::with(['relatedModels', 'otherRelatedModels'])->find($this->model->id);
+
+        // Explicitly set empty includes — should clean all relations
+        $result = $this
+            ->createModelWizardFromQuery([], $modelWithRelations)
+            ->allowedIncludes([])
+            ->process();
+
+        $this->assertFalse($result->relationLoaded('relatedModels'));
+        $this->assertFalse($result->relationLoaded('otherRelatedModels'));
+    }
+
     // ========== Edge Cases ==========
     #[Test]
     public function it_handles_empty_request(): void

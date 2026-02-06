@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Facades\Config;
+use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
+use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -23,6 +25,7 @@ class SecurityLimitsTest extends TestCase
         parent::setUp();
 
         TestModel::factory()->count(3)->create();
+        AppendModel::factory()->count(3)->create();
     }
 
     // ========== Include Depth Limit Tests ==========
@@ -295,6 +298,59 @@ class SecurityLimitsTest extends TestCase
 
         $this->assertEquals(10, $exception->count);
         $this->assertEquals(5, $exception->maxCount);
+    }
+
+    // ========== Append Count Limit Tests ==========
+
+    #[Test]
+    public function it_throws_exception_when_append_count_exceeds_limit(): void
+    {
+        Config::set('query-wizard.limits.max_appends_count', 1);
+
+        $this->expectException(MaxAppendsCountExceeded::class);
+        $this->expectExceptionMessage('The number of requested appends (2) exceeds the maximum allowed (1)');
+
+        $this
+            ->createEloquentWizardWithAppends('fullname,reversename', AppendModel::class)
+            ->allowedAppends('fullname', 'reversename')
+            ->get();
+    }
+
+    #[Test]
+    public function it_allows_appends_within_count_limit(): void
+    {
+        Config::set('query-wizard.limits.max_appends_count', 5);
+
+        $models = $this
+            ->createEloquentWizardWithAppends('fullname', AppendModel::class)
+            ->allowedAppends('fullname')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    #[Test]
+    public function it_allows_any_append_count_when_limit_is_null(): void
+    {
+        Config::set('query-wizard.limits.max_appends_count', null);
+
+        $models = $this
+            ->createEloquentWizardWithAppends('fullname,reversename', AppendModel::class)
+            ->allowedAppends('fullname', 'reversename')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    // ========== Append Count Exception Properties Tests ==========
+
+    #[Test]
+    public function max_appends_count_exceeded_exception_has_correct_properties(): void
+    {
+        $exception = MaxAppendsCountExceeded::create(12, 10);
+
+        $this->assertEquals(12, $exception->count);
+        $this->assertEquals(10, $exception->maxCount);
     }
 
     // ========== Default Config Values Tests ==========

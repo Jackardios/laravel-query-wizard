@@ -164,12 +164,12 @@ class IncludeDefinitionTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_empty_relation_name(): void
+    public function it_rejects_empty_relation_name(): void
     {
-        $include = RelationshipInclude::make('');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Include relation name cannot be empty.');
 
-        $this->assertEquals('', $include->getRelation());
-        $this->assertEquals('', $include->getName());
+        RelationshipInclude::make('');
     }
 
     #[Test]
@@ -195,5 +195,27 @@ class IncludeDefinitionTest extends TestCase
 
         $this->assertEquals('posts.comments', $include->getRelation());
         $this->assertEquals('count', $include->getType());
+    }
+
+    #[Test]
+    public function count_include_alias_not_mutated_by_get_effective_includes(): void
+    {
+        // CountInclude without alias should not have its original mutated
+        // when getEffectiveIncludes auto-applies the count suffix
+        $include = EloquentInclude::count('posts');
+
+        $this->assertNull($include->getAlias());
+        $this->assertEquals('posts', $include->getName());
+
+        // Simulate what getEffectiveIncludes does: clone + alias
+        $cloned = (clone $include)->alias('postsCount');
+
+        // Original should be unchanged
+        $this->assertNull($include->getAlias());
+        $this->assertEquals('posts', $include->getName());
+
+        // Clone should have the alias
+        $this->assertEquals('postsCount', $cloned->getAlias());
+        $this->assertEquals('postsCount', $cloned->getName());
     }
 }

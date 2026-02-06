@@ -83,6 +83,68 @@ class PartialFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function partial_filter_escapes_percent_metacharacter(): void
+    {
+        $target = TestModel::factory()->create(['name' => '100% complete']);
+        TestModel::factory()->create(['name' => '100 units complete']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => '100%'])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($target->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function partial_filter_escapes_underscore_metacharacter(): void
+    {
+        $target = TestModel::factory()->create(['name' => 'test_value']);
+        TestModel::factory()->create(['name' => 'testXvalue']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'test_val'])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($target->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function partial_filter_escapes_backslash_metacharacter(): void
+    {
+        $target = TestModel::factory()->create(['name' => 'back\\slash']);
+        TestModel::factory()->create(['name' => 'backAslash']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'back\\'])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($target->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function partial_filter_escapes_metacharacters_in_array_values(): void
+    {
+        $target1 = TestModel::factory()->create(['name' => '100% done']);
+        $target2 = TestModel::factory()->create(['name' => 'test_item']);
+        TestModel::factory()->create(['name' => '100 done']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => ['100%', 'test_item']])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->get();
+
+        $this->assertCount(2, $models);
+        $this->assertTrue($models->contains('id', $target1->id));
+        $this->assertTrue($models->contains('id', $target2->id));
+    }
+
+    #[Test]
     public function partial_filter_with_alias(): void
     {
         $uniqueModel = TestModel::factory()->create(['name' => 'AliasPartialTest']);

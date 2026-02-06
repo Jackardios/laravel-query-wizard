@@ -211,6 +211,39 @@ class SortTest extends TestCase
         $this->assertEquals('Alpha', $models->first()->name);
     }
 
+    #[Test]
+    public function callback_sort_return_value_is_used(): void
+    {
+        // When callback returns the query, it should be used
+        $models = $this
+            ->createEloquentWizardWithSorts('custom')
+            ->allowedSorts(
+                EloquentSort::callback('custom', function ($query, $direction) {
+                    return $query->orderBy('name', $direction);
+                })
+            )
+            ->get();
+
+        $this->assertEquals('Alpha', $models->first()->name);
+    }
+
+    #[Test]
+    public function callback_sort_null_return_falls_back_to_subject(): void
+    {
+        // When callback returns null (void), the original subject is used
+        $models = $this
+            ->createEloquentWizardWithSorts('custom')
+            ->allowedSorts(
+                EloquentSort::callback('custom', function ($query, $direction) {
+                    $query->orderBy('name', $direction);
+                    // implicitly returns null
+                })
+            )
+            ->get();
+
+        $this->assertEquals('Alpha', $models->first()->name);
+    }
+
     // ========== Multiple Sorts Tests ==========
     #[Test]
     public function it_can_sort_by_multiple_fields(): void

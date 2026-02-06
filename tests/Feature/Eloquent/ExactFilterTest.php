@@ -234,6 +234,31 @@ class ExactFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function it_returns_all_models_for_empty_array_value(): void
+    {
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->allowedFilters(EloquentFilter::exact('name')->default([]))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function it_returns_all_models_when_prepare_value_returns_empty_array(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'anything'])
+            ->allowedFilters(
+                EloquentFilter::exact('name')
+                    ->prepareValueWith(fn () => [])
+            )
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
     public function it_qualifies_column_names(): void
     {
         $sql = $this

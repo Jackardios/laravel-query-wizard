@@ -104,6 +104,41 @@ class CallbackFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function callback_filter_uses_return_value(): void
+    {
+        $model = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['custom' => $model->name])
+            ->allowedFilters(
+                EloquentFilter::callback('custom', function ($query, $value) {
+                    return $query->where('name', $value);
+                })
+            )
+            ->get();
+
+        $this->assertCount(1, $models);
+    }
+
+    #[Test]
+    public function callback_filter_falls_back_to_subject_when_null_returned(): void
+    {
+        $model = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['custom' => $model->name])
+            ->allowedFilters(
+                EloquentFilter::callback('custom', function ($query, $value) {
+                    $query->where('name', $value);
+                    // returns null implicitly
+                })
+            )
+            ->get();
+
+        $this->assertCount(1, $models);
+    }
+
+    #[Test]
     public function it_prepares_filter_value_with_callback(): void
     {
         $receivedValue = null;

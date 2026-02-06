@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
 use Jackardios\QueryWizard\Tests\TestCase;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -71,15 +70,15 @@ class TrashedFilterTest extends TestCase
     }
 
     #[Test]
-    public function it_excludes_trashed_when_filter_is_empty(): void
+    public function it_leaves_query_unmodified_for_empty_filter_value(): void
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => ''], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
+        // Empty string is not 'with', 'only', or 'without' — query unmodified
         $this->assertCount(3, $models);
-        $this->assertTrue($models->every(fn ($m) => ! $m->trashed()));
     }
 
     #[Test]
@@ -87,6 +86,52 @@ class TrashedFilterTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'without'], SoftDeleteModel::class)
+            ->allowedFilters(EloquentFilter::trashed())
+            ->get();
+
+        $this->assertCount(3, $models);
+    }
+
+    // ========== Case-Insensitive Tests ==========
+    #[Test]
+    public function it_accepts_uppercase_only(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['trashed' => 'ONLY'], SoftDeleteModel::class)
+            ->allowedFilters(EloquentFilter::trashed())
+            ->get();
+
+        $this->assertCount(2, $models);
+        $this->assertTrue($models->every(fn ($m) => $m->trashed()));
+    }
+
+    #[Test]
+    public function it_accepts_uppercase_with(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['trashed' => 'WITH'], SoftDeleteModel::class)
+            ->allowedFilters(EloquentFilter::trashed())
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function it_accepts_mixed_case_only(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['trashed' => 'Only'], SoftDeleteModel::class)
+            ->allowedFilters(EloquentFilter::trashed())
+            ->get();
+
+        $this->assertCount(2, $models);
+    }
+
+    #[Test]
+    public function it_accepts_uppercase_without(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['trashed' => 'WITHOUT'], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
@@ -116,13 +161,11 @@ class TrashedFilterTest extends TestCase
         $this->assertCount(5, $models);
     }
 
-    // ========== Value Tests ==========
-    // Note: TrashedFilterStrategy only matches exact strings 'with' and 'only' (lowercase)
-    // Any other value (including booleans, uppercase, etc.) results in 'withoutTrashed()'
+    // ========== Invalid Value Tests ==========
     #[Test]
-    public function it_defaults_to_without_for_non_matching_values(): void
+    public function it_leaves_query_unmodified_for_non_matching_boolean_value(): void
     {
-        // Boolean true is not 'with' or 'only', so it results in withoutTrashed
+        // Boolean true is not 'with', 'only', or 'without' — query unmodified
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => true], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
@@ -132,10 +175,9 @@ class TrashedFilterTest extends TestCase
     }
 
     #[Test]
-    public function it_defaults_to_without_for_string_true(): void
+    public function it_leaves_query_unmodified_for_string_true(): void
     {
-        // Note: 'true' string is converted to boolean true by QueryParametersManager
-        // which is not 'with' or 'only', so it results in withoutTrashed
+        // Note: 'true' may be converted to boolean true by QueryParametersManager
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'true'], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
@@ -145,7 +187,7 @@ class TrashedFilterTest extends TestCase
     }
 
     #[Test]
-    public function it_defaults_to_without_for_boolean_false(): void
+    public function it_leaves_query_unmodified_for_boolean_false(): void
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => false], SoftDeleteModel::class)
@@ -156,7 +198,7 @@ class TrashedFilterTest extends TestCase
     }
 
     #[Test]
-    public function it_defaults_to_without_for_string_false(): void
+    public function it_leaves_query_unmodified_for_string_false(): void
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => 'false'], SoftDeleteModel::class)
@@ -166,11 +208,9 @@ class TrashedFilterTest extends TestCase
         $this->assertCount(3, $models);
     }
 
-    // ========== Numeric Value Tests ==========
     #[Test]
-    public function it_defaults_to_without_for_numeric_values(): void
+    public function it_leaves_query_unmodified_for_numeric_values(): void
     {
-        // '1' is not 'with' or 'only', so it results in withoutTrashed
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => '1'], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
@@ -180,10 +220,33 @@ class TrashedFilterTest extends TestCase
     }
 
     #[Test]
-    public function it_defaults_to_without_for_zero(): void
+    public function it_leaves_query_unmodified_for_zero(): void
     {
         $models = $this
             ->createEloquentWizardWithFilters(['trashed' => '0'], SoftDeleteModel::class)
+            ->allowedFilters(EloquentFilter::trashed())
+            ->get();
+
+        $this->assertCount(3, $models);
+    }
+
+    #[Test]
+    public function it_handles_invalid_trashed_value_gracefully(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['trashed' => 'invalid_value'], SoftDeleteModel::class)
+            ->allowedFilters(EloquentFilter::trashed())
+            ->get();
+
+        // Invalid value leaves query unmodified — default soft delete scope still applies
+        $this->assertCount(3, $models);
+    }
+
+    #[Test]
+    public function it_handles_null_trashed_value(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['trashed' => null], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
             ->get();
 
@@ -261,33 +324,8 @@ class TrashedFilterTest extends TestCase
 
     // ========== Edge Cases ==========
     #[Test]
-    public function it_handles_invalid_trashed_value_gracefully(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => 'invalid_value'], SoftDeleteModel::class)
-            ->allowedFilters(EloquentFilter::trashed())
-            ->get();
-
-        // Invalid value should be treated as 'without' (default behavior)
-        $this->assertCount(3, $models);
-    }
-
-    #[Test]
-    public function it_handles_null_trashed_value(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => null], SoftDeleteModel::class)
-            ->allowedFilters(EloquentFilter::trashed())
-            ->get();
-
-        // Null should be treated as 'without'
-        $this->assertCount(3, $models);
-    }
-
-    #[Test]
     public function it_works_without_filter_value_provided(): void
     {
-        // When trashed filter is allowed but not in request
         $models = $this
             ->createEloquentWizardFromQuery([], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
@@ -319,32 +357,6 @@ class TrashedFilterTest extends TestCase
 
         $this->assertNotNull($model);
         $this->assertTrue($model->trashed());
-    }
-
-    // ========== Case Sensitivity Tests ==========
-    // Note: TrashedFilterStrategy is case-sensitive, only exact 'with' and 'only' work
-    public static function caseSensitivityDataProvider(): array
-    {
-        return [
-            'uppercase ONLY' => ['ONLY'],
-            'uppercase WITH' => ['WITH'],
-            'mixed case Only' => ['Only'],
-            'mixed case With' => ['With'],
-            'uppercase WITHOUT' => ['WITHOUT'],
-        ];
-    }
-
-    #[Test]
-    #[DataProvider('caseSensitivityDataProvider')]
-    public function it_is_case_sensitive(string $value): void
-    {
-        // Wrong-case values are not recognized, so they result in withoutTrashed
-        $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => $value], SoftDeleteModel::class)
-            ->allowedFilters(EloquentFilter::trashed())
-            ->get();
-
-        $this->assertCount(3, $models);
     }
 
     // ========== Integration with Query Builder ==========

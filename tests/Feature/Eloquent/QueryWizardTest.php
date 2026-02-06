@@ -696,6 +696,53 @@ class QueryWizardTest extends TestCase
         $this->assertFalse($builtProperty->getValue($wizard), 'schema() should invalidate build state');
     }
 
+    // ========== Disallowed Filters/Sorts Tests ==========
+
+    #[Test]
+    public function disallowed_filters_are_rejected(): void
+    {
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['name' => $targetModel->name],
+        ]));
+
+        $this->expectException(\Jackardios\QueryWizard\Exceptions\InvalidFilterQuery::class);
+
+        (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name', 'id')
+            ->disallowedFilters('name')
+            ->get();
+    }
+
+    #[Test]
+    public function disallowed_sorts_are_rejected(): void
+    {
+        $params = new QueryParametersManager(new Request(['sort' => 'name']));
+
+        $this->expectException(\Jackardios\QueryWizard\Exceptions\InvalidSortQuery::class);
+
+        (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedSorts('name', 'id')
+            ->disallowedSorts('name')
+            ->get();
+    }
+
+    #[Test]
+    public function disable_invalid_sort_query_exception_ignores_invalid_sorts(): void
+    {
+        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+
+        $params = new QueryParametersManager(new Request(['sort' => 'nonexistent']));
+
+        $models = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedSorts('name')
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    // ========== schema() Method Tests ==========
+
     #[Test]
     public function schema_method_accepts_class_string(): void
     {
