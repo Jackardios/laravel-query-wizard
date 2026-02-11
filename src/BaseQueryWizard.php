@@ -365,7 +365,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
         foreach ($this->getEffectiveFilters() as $name => $filter) {
             if ($filter->getType() === 'passthrough') {
-                $value = $this->getFilterValueFromRequest($name) ?? $filter->getDefault();
+                $value = $this->resolveFilterValue($filter);
 
                 if ($value !== null) {
                     $result[$name] = $filter->prepareValue($value);
@@ -406,8 +406,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         }
 
         foreach ($filters as $filter) {
-            $name = $filter->getName();
-            $value = $this->getFilterValueFromRequest($name) ?? $filter->getDefault();
+            $value = $this->resolveFilterValue($filter);
 
             if ($value === null) {
                 continue;
@@ -421,6 +420,24 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
             $this->applyFilter($filter, $preparedValue);
         }
+    }
+
+    /**
+     * Resolve raw filter value from request/default according to filter presence rules.
+     */
+    protected function resolveFilterValue(FilterInterface $filter): mixed
+    {
+        $name = $filter->getName();
+        $hasFilterInRequest = $this->getParametersManager()->hasFilter($name);
+        $value = $hasFilterInRequest
+            ? $this->getFilterValueFromRequest($name)
+            : $filter->getDefault();
+
+        if ($value === null && $hasFilterInRequest && $this->config->shouldApplyFilterDefaultOnNull()) {
+            return $filter->getDefault();
+        }
+
+        return $value;
     }
 
     /**
@@ -595,10 +612,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     protected function applyFieldsToSubject(): void
     {
         $allowedFields = $this->getEffectiveFields();
-        $requestedFields = $this->parameters->getFields();
         $resourceKey = $this->getResourceKey();
-
-        $fields = $requestedFields->get($resourceKey, []);
+        $fields = $this->getRequestedFieldsForResource($resourceKey);
 
         if (in_array('*', $allowedFields, true)) {
             if (! empty($fields) && ! in_array('*', $fields, true)) {
@@ -640,7 +655,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $this->applyFields($fields);
         }
     }
-
 
     public function __clone(): void
     {

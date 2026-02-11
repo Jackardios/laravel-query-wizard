@@ -37,6 +37,11 @@ final class EloquentQueryWizard extends BaseQueryWizard
 
     private bool $proxyModified = false;
 
+    /** @var array<string, array<string>> */
+    private array $relationFieldMap = [];
+
+    private bool $relationFieldMapPrepared = false;
+
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
      */
@@ -102,6 +107,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $results = $this->subject->get();
         $this->applyAppendsTo($results);
+        $this->applyRelationFieldMapToResults($results);
 
         return $results;
     }
@@ -115,6 +121,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $result = $this->subject->first();
         if ($result !== null) {
             $this->applyAppendsTo($result);
+            $this->applyRelationFieldMapToResults($result);
         }
 
         return $result;
@@ -130,6 +137,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $result = $this->subject->firstOrFail();
         $this->applyAppendsTo($result);
+        $this->applyRelationFieldMapToResults($result);
 
         return $result;
     }
@@ -142,6 +150,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $paginator = $this->subject->paginate($perPage);
         $this->applyAppendsTo($paginator->items());
+        $this->applyRelationFieldMapToResults($paginator->items());
 
         return $paginator;
     }
@@ -154,6 +163,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $paginator = $this->subject->simplePaginate($perPage);
         $this->applyAppendsTo($paginator->items());
+        $this->applyRelationFieldMapToResults($paginator->items());
 
         return $paginator;
     }
@@ -166,8 +176,22 @@ final class EloquentQueryWizard extends BaseQueryWizard
         $this->build();
         $paginator = $this->subject->cursorPaginate($perPage);
         $this->applyAppendsTo($paginator->items());
+        $this->applyRelationFieldMapToResults($paginator->items());
 
         return $paginator;
+    }
+
+    /**
+     * Build the query and prepare relation field map used after execution.
+     *
+     * @return Builder<Model>|Relation<Model, Model, mixed>
+     */
+    public function build(): mixed
+    {
+        $subject = parent::build();
+        $this->prepareRelationFieldMap();
+
+        return $subject;
     }
 
     /**
@@ -201,6 +225,8 @@ final class EloquentQueryWizard extends BaseQueryWizard
             );
         }
 
+        $this->relationFieldMap = [];
+        $this->relationFieldMapPrepared = false;
         parent::invalidateBuild();
     }
 
@@ -208,6 +234,8 @@ final class EloquentQueryWizard extends BaseQueryWizard
     {
         parent::__clone();
         $this->proxyModified = false;
+        $this->relationFieldMap = [];
+        $this->relationFieldMapPrepared = false;
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
@@ -261,6 +289,105 @@ final class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
+     * Build a map of relation paths to requested sparse fields.
+     *
+     * The map is only built when relation field filtering is explicitly configured
+     * through dotted allowed fields (e.g. "posts.id") or wildcard allowed fields.
+     */
+    private function prepareRelationFieldMap(): void
+    {
+        if ($this->relationFieldMapPrepared) {
+            return;
+        }
+
+        $this->relationFieldMapPrepared = true;
+        $this->relationFieldMap = $this->buildValidatedRelationFieldMap();
+    }
+
+    /**
+     * Apply relation sparse fieldsets to query results.
+     */
+    private function applyRelationFieldMapToResults(mixed $results): void
+    {
+        if (empty($this->relationFieldMap)) {
+            return;
+        }
+
+        $visited = [];
+
+        if ($results instanceof Model) {
+            $this->applyRelationFieldMapRecursively($results, $visited);
+
+            return;
+        }
+
+        foreach ($results as $item) {
+            if ($item instanceof Model) {
+                $this->applyRelationFieldMapRecursively($item, $visited);
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, bool>  $visited
+     */
+    private function applyRelationFieldMapRecursively(Model $model, array &$visited, string $prefix = ''): void
+    {
+        $objectId = spl_object_id($model);
+        if (isset($visited[$objectId])) {
+            return;
+        }
+        $visited[$objectId] = true;
+
+        foreach ($model->getRelations() as $relationName => $relatedData) {
+            $relationPath = $prefix === '' ? $relationName : $prefix.'.'.$relationName;
+            $visibleFields = $this->relationFieldMap[$relationPath] ?? [];
+
+            if (! empty($visibleFields) && ! in_array('*', $visibleFields, true)) {
+                $this->applyVisibleFieldsToRelated($relatedData, $visibleFields);
+            }
+
+            if ($relatedData instanceof Model) {
+                $this->applyRelationFieldMapRecursively($relatedData, $visited, $relationPath);
+
+                continue;
+            }
+
+            if (! is_iterable($relatedData)) {
+                continue;
+            }
+
+            foreach ($relatedData as $item) {
+                if ($item instanceof Model) {
+                    $this->applyRelationFieldMapRecursively($item, $visited, $relationPath);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param  array<string>  $visibleFields
+     */
+    private function applyVisibleFieldsToRelated(mixed $relatedData, array $visibleFields): void
+    {
+        if ($relatedData instanceof Model) {
+            $this->hideModelAttributesExcept($relatedData, $visibleFields);
+
+            return;
+        }
+
+        if (! is_iterable($relatedData)) {
+            return;
+        }
+
+        foreach ($relatedData as $item) {
+            if ($item instanceof Model) {
+                $this->hideModelAttributesExcept($item, $visibleFields);
+            }
+        }
+    }
+
+    /**
      * Proxy method calls to the underlying query builder.
      *
      * @param  array<int, mixed>  $arguments
@@ -286,5 +413,4 @@ final class EloquentQueryWizard extends BaseQueryWizard
 
         return $result;
     }
-
 }

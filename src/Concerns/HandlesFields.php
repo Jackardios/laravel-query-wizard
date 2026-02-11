@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
+use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
@@ -42,6 +46,11 @@ trait HandlesFields
     abstract public function getResourceKey(): string;
 
     /**
+     * @return array<IncludeInterface>
+     */
+    abstract protected function getEffectiveIncludes(): array;
+
+    /**
      * Get effective fields.
      *
      * If allowedFields() was called explicitly, use those (even if empty).
@@ -60,4 +69,304 @@ trait HandlesFields
         return $this->removeDisallowedStrings($fields, $this->disallowedFields);
     }
 
+    /**
+     * Get requested fields for the current resource.
+     *
+     * Supports both:
+     * - Resource-keyed format: ?fields[user]=id,name
+     * - Root shorthand: ?fields=id,name
+     *
+     * If both are present, the resource-keyed value takes precedence.
+     *
+     * @return array<string>
+     */
+    protected function getRequestedFieldsForResource(string $resourceKey): array
+    {
+        $requestedFields = $this->getParametersManager()->getFields();
+
+        $resourceFields = $requestedFields->get($resourceKey);
+        if (is_array($resourceFields)) {
+            return $resourceFields;
+        }
+
+        $rootFields = $requestedFields->get('');
+
+        return is_array($rootFields) ? $rootFields : [];
+    }
+
+    /**
+     * Build validated relation field map from request.
+     *
+     * @return array<string, array<string>>
+     */
+    protected function buildValidatedRelationFieldMap(): array
+    {
+        $requestedRelationFields = $this->getRequestedRelationFields();
+        if (empty($requestedRelationFields)) {
+            return [];
+        }
+
+        $allowedFields = $this->getEffectiveFields();
+        $allFieldsAllowed = in_array('*', $allowedFields, true);
+        $relationshipAliasMap = $this->buildRelationshipAliasMap();
+        $allowedGroups = $this->buildAllowedRelationFieldGroups($allowedFields, $relationshipAliasMap);
+        $exceptionsDisabled = $this->getConfig()->isInvalidFieldQueryExceptionDisabled();
+
+        if (! $allFieldsAllowed && empty($allowedGroups)) {
+            if (! $exceptionsDisabled) {
+                throw InvalidFieldQuery::fieldsNotAllowed(
+                    collect($this->flattenRelationFieldGroups($requestedRelationFields)),
+                    collect([])
+                );
+            }
+
+            return [];
+        }
+
+        $allowedRelationFields = $allFieldsAllowed
+            ? []
+            : $this->flattenRelationFieldGroups($allowedGroups);
+        $relationFieldMap = [];
+
+        foreach ($requestedRelationFields as $requestedKey => $requestedFields) {
+            $normalizedRequestedFields = array_values(array_unique($requestedFields));
+            $relationPath = $this->resolveRelationKeyToPath(
+                $requestedKey,
+                $allowedGroups,
+                $relationshipAliasMap,
+                $allFieldsAllowed
+            );
+
+            if ($relationPath === null) {
+                if (! $exceptionsDisabled) {
+                    throw InvalidFieldQuery::fieldsNotAllowed(
+                        collect($this->prefixGroupFields($requestedKey, $normalizedRequestedFields)),
+                        collect($allowedRelationFields)
+                    );
+                }
+
+                continue;
+            }
+
+            if (! $allFieldsAllowed) {
+                $allowedForPath = $allowedGroups[$relationPath] ?? [];
+
+                if (empty($allowedForPath)) {
+                    if (! $exceptionsDisabled) {
+                        throw InvalidFieldQuery::fieldsNotAllowed(
+                            collect($this->prefixGroupFields($requestedKey, $normalizedRequestedFields)),
+                            collect([])
+                        );
+                    }
+
+                    continue;
+                }
+
+                $invalidFields = array_values(array_diff($normalizedRequestedFields, $allowedForPath));
+
+                if (! empty($invalidFields)) {
+                    if (! $exceptionsDisabled) {
+                        throw InvalidFieldQuery::fieldsNotAllowed(
+                            collect($this->prefixGroupFields($requestedKey, $invalidFields)),
+                            collect($this->prefixGroupFields($requestedKey, $allowedForPath)),
+                        );
+                    }
+
+                    $normalizedRequestedFields = array_values(array_intersect($normalizedRequestedFields, $allowedForPath));
+                }
+            }
+
+            if (in_array('*', $normalizedRequestedFields, true)) {
+                $relationFieldMap[$relationPath] = ['*'];
+
+                continue;
+            }
+
+            if (empty($normalizedRequestedFields)) {
+                continue;
+            }
+
+            $current = $relationFieldMap[$relationPath] ?? [];
+            if (in_array('*', $current, true)) {
+                continue;
+            }
+
+            $relationFieldMap[$relationPath] = array_values(array_unique(array_merge(
+                $current,
+                $normalizedRequestedFields
+            )));
+        }
+
+        return $relationFieldMap;
+    }
+
+    /**
+     * @return array<string, array<string>>
+     */
+    protected function getRequestedRelationFields(): array
+    {
+        $requestedFields = $this->getParametersManager()
+            ->getFields()
+            ->except([$this->getResourceKey(), '']);
+
+        $result = [];
+
+        foreach ($requestedFields as $requestedKey => $fields) {
+            $normalized = array_values(array_filter(
+                $fields,
+                static fn (mixed $field): bool => is_string($field) && $field !== ''
+            ));
+
+            if (! empty($normalized)) {
+                $result[(string) $requestedKey] = $normalized;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function buildRelationshipAliasMap(): array
+    {
+        $map = [];
+
+        foreach ($this->getEffectiveIncludes() as $include) {
+            if ($include->getType() !== 'relationship') {
+                continue;
+            }
+
+            $map[$include->getName()] = $include->getRelation();
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array<string>  $allowedFields
+     * @param  array<string, string>  $relationshipAliasMap
+     * @return array<string, array<string>>
+     */
+    protected function buildAllowedRelationFieldGroups(array $allowedFields, array $relationshipAliasMap): array
+    {
+        $groups = [];
+
+        foreach ($allowedFields as $allowedField) {
+            if (! str_contains($allowedField, '.')) {
+                continue;
+            }
+
+            $group = Str::beforeLast($allowedField, '.');
+            $field = Str::afterLast($allowedField, '.');
+
+            if ($field === '') {
+                continue;
+            }
+
+            if (isset($relationshipAliasMap[$group])) {
+                $group = $relationshipAliasMap[$group];
+            }
+
+            $groups[$group][] = $field;
+        }
+
+        foreach ($groups as $group => $fields) {
+            $groups[$group] = array_values(array_unique($fields));
+        }
+
+        return $groups;
+    }
+
+    /**
+     * Resolve request key (relation name/path/alias) to canonical relation path.
+     *
+     * @param  array<string, array<string>>  $allowedGroups
+     * @param  array<string, string>  $relationshipAliasMap
+     */
+    protected function resolveRelationKeyToPath(
+        string $requestedKey,
+        array $allowedGroups,
+        array $relationshipAliasMap,
+        bool $allFieldsAllowed
+    ): ?string {
+        if (isset($relationshipAliasMap[$requestedKey])) {
+            return $relationshipAliasMap[$requestedKey];
+        }
+
+        if (isset($allowedGroups[$requestedKey])) {
+            return $requestedKey;
+        }
+
+        $matchedAllowedGroups = array_values(array_filter(
+            array_keys($allowedGroups),
+            static fn (string $group): bool => Str::afterLast($group, '.') === $requestedKey
+        ));
+        $matchedAllowedGroups = array_values(array_unique($matchedAllowedGroups));
+
+        if (count($matchedAllowedGroups) === 1) {
+            return $matchedAllowedGroups[0];
+        }
+
+        $mappedRelationPaths = array_values(array_unique(array_values($relationshipAliasMap)));
+        $matchedRelationPaths = array_values(array_filter(
+            $mappedRelationPaths,
+            static fn (string $path): bool => Str::afterLast($path, '.') === $requestedKey
+        ));
+        $matchedRelationPaths = array_values(array_unique($matchedRelationPaths));
+
+        if (count($matchedRelationPaths) === 1) {
+            return $matchedRelationPaths[0];
+        }
+
+        if ($allFieldsAllowed) {
+            return $requestedKey;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string>  $fields
+     * @return array<string>
+     */
+    protected function prefixGroupFields(string $group, array $fields): array
+    {
+        return array_map(
+            static fn (string $field): string => $group.'.'.$field,
+            $fields
+        );
+    }
+
+    /**
+     * Flatten grouped relation fields to dotted notation list.
+     *
+     * @param  array<string, array<string>>  $groups
+     * @return array<string>
+     */
+    protected function flattenRelationFieldGroups(array $groups): array
+    {
+        $flattened = [];
+
+        foreach ($groups as $group => $fields) {
+            $flattened = array_merge($flattened, $this->prefixGroupFields($group, $fields));
+        }
+
+        return array_values(array_unique($flattened));
+    }
+
+    /**
+     * Hide all model attributes except explicitly visible ones.
+     *
+     * @param  array<string>  $visibleFields
+     */
+    protected function hideModelAttributesExcept(Model $model, array $visibleFields): void
+    {
+        $allAttributes = array_keys($model->getAttributes());
+        $fieldsToHide = array_diff($allAttributes, $visibleFields);
+
+        if (! empty($fieldsToHide)) {
+            $model->makeHidden(array_values($fieldsToHide));
+        }
+    }
 }

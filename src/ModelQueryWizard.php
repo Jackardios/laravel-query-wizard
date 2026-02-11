@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Concerns\HandlesAppends;
 use Jackardios\QueryWizard\Concerns\HandlesConfiguration;
@@ -375,7 +374,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     protected function hideDisallowedFields(): void
     {
         $resourceKey = $this->getResourceKey();
-        $requestedFields = $this->parameters->getFields()->get($resourceKey, []);
+        $requestedFields = $this->getRequestedFieldsForResource($resourceKey);
 
         if (empty($requestedFields) || in_array('*', $requestedFields)) {
             return;
@@ -407,12 +406,7 @@ final class ModelQueryWizard implements QueryWizardInterface
             $visibleFields = array_intersect($requestedFields, $allowedFields);
         }
 
-        $allAttributes = array_keys($this->model->getAttributes());
-        $fieldsToHide = array_diff($allAttributes, $visibleFields);
-
-        if (! empty($fieldsToHide)) {
-            $this->model->makeHidden(array_values($fieldsToHide));
-        }
+        $this->hideModelAttributesExcept($this->model, $visibleFields);
     }
 
     /**
@@ -421,23 +415,24 @@ final class ModelQueryWizard implements QueryWizardInterface
      */
     protected function hideFieldsOnRelations(): void
     {
-        $allFields = $this->parameters->getFields();
-        if ($allFields->isEmpty()) {
+        $relationFieldMap = $this->buildValidatedRelationFieldMap();
+        if (empty($relationFieldMap)) {
             return;
         }
 
         $visited = [];
-        $this->hideFieldsOnRelationsRecursively($this->model, $allFields, $visited);
+        $this->hideFieldsOnRelationsRecursively($this->model, $relationFieldMap, $visited);
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<string, array<string>>  $allFields
+     * @param  array<string, array<string>>  $relationFieldMap
      * @param  array<int, bool>  $visited
      */
     protected function hideFieldsOnRelationsRecursively(
         Model $model,
-        Collection $allFields,
-        array &$visited
+        array $relationFieldMap,
+        array &$visited,
+        string $prefix = ''
     ): void {
         $objectId = spl_object_id($model);
         if (isset($visited[$objectId])) {
@@ -446,38 +441,33 @@ final class ModelQueryWizard implements QueryWizardInterface
         $visited[$objectId] = true;
 
         foreach ($model->getRelations() as $relationName => $relatedData) {
-            $relationFields = $allFields->get($relationName, []);
-            $shouldHideFields = ! empty($relationFields) && ! in_array('*', $relationFields);
+            $relationPath = $prefix === '' ? $relationName : $prefix.'.'.$relationName;
+            $relationFields = $relationFieldMap[$relationPath] ?? [];
+            $shouldHideFields = ! empty($relationFields) && ! in_array('*', $relationFields, true);
 
             if ($relatedData instanceof Model) {
                 if ($shouldHideFields) {
-                    $this->hideFieldsOnModel($relatedData, $relationFields);
+                    $this->hideModelAttributesExcept($relatedData, $relationFields);
                 }
-                $this->hideFieldsOnRelationsRecursively($relatedData, $allFields, $visited);
-            } elseif (is_iterable($relatedData)) {
-                foreach ($relatedData as $item) {
-                    if (! $item instanceof Model) {
-                        continue;
-                    }
-                    if ($shouldHideFields) {
-                        $this->hideFieldsOnModel($item, $relationFields);
-                    }
-                    $this->hideFieldsOnRelationsRecursively($item, $allFields, $visited);
-                }
+
+                $this->hideFieldsOnRelationsRecursively($relatedData, $relationFieldMap, $visited, $relationPath);
+
+                continue;
             }
-        }
-    }
 
-    /**
-     * @param  array<string>  $visibleFields
-     */
-    protected function hideFieldsOnModel(Model $model, array $visibleFields): void
-    {
-        $allAttributes = array_keys($model->getAttributes());
-        $fieldsToHide = array_diff($allAttributes, $visibleFields);
+            if (! is_iterable($relatedData)) {
+                continue;
+            }
 
-        if (! empty($fieldsToHide)) {
-            $model->makeHidden(array_values($fieldsToHide));
+            foreach ($relatedData as $item) {
+                if (! $item instanceof Model) {
+                    continue;
+                }
+                if ($shouldHideFields) {
+                    $this->hideModelAttributesExcept($item, $relationFields);
+                }
+                $this->hideFieldsOnRelationsRecursively($item, $relationFieldMap, $visited, $relationPath);
+            }
         }
     }
 

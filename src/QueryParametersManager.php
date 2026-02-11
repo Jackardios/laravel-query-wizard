@@ -222,6 +222,24 @@ class QueryParametersManager
     }
 
     /**
+     * Check whether a filter key exists in the request payload.
+     *
+     * Unlike getFilterValue(), this distinguishes between:
+     * - missing key
+     * - existing key with null value
+     */
+    public function hasFilter(string $name): bool
+    {
+        $filters = $this->getFilters();
+
+        if ($filters->has($name)) {
+            return true;
+        }
+
+        return $this->getNestedFilterValue($filters->all(), $name) !== self::missing();
+    }
+
+    /**
      * Recursively look for a filter value in nested array structure.
      *
      * Returns the sentinel missing() object when the key is not found,

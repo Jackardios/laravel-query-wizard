@@ -56,6 +56,11 @@ final class QueryWizardConfig
         return $this->getRequestDataSource() === 'body';
     }
 
+    public function shouldApplyFilterDefaultOnNull(): bool
+    {
+        return (bool) config(self::CONFIG_PREFIX.'.apply_filter_default_on_null', false);
+    }
+
     public function isInvalidFilterQueryExceptionDisabled(): bool
     {
         return (bool) config(self::CONFIG_PREFIX.'.disable_invalid_filter_query_exception', false);

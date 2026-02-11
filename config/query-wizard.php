@@ -65,6 +65,12 @@ return [
      */
     'request_data_source' => 'query_string',
 
+    /*
+     * By default, explicit null/empty filter values skip the filter and do NOT use default().
+     * Set this to true to apply filter default() even when request contains null/empty value.
+     */
+    'apply_filter_default_on_null' => false,
+
     'array_value_separator' => ',',
 
     /*
