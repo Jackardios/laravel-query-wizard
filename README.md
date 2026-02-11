@@ -67,6 +67,7 @@ GET /users?filter[name]=John&filter[status]=active&sort=-created_at&include=post
 - [Sorting](#sorting)
 - [Including Relationships](#including-relationships)
 - [Selecting Fields](#selecting-fields)
+  - [Relation Field Modes](#relation-field-modes)
 - [Appending Attributes](#appending-attributes)
 - [Resource Schemas](#resource-schemas)
 - [ModelQueryWizard](#modelquerywizard)
@@ -511,6 +512,90 @@ The resource key (`user` in the example) is derived from the model name in camel
 
 If both formats are provided, the resource-keyed format takes precedence for the root resource.
 
+### Relation Field Modes
+
+When using sparse fieldsets with relationships, the package offers two modes for handling relation field selection:
+
+```php
+// config/query-wizard.php
+'optimizations' => [
+    'relation_select_mode' => 'safe',  // 'safe' (recommended) or 'off'
+],
+```
+
+#### Safe Mode (`'safe'`) — Recommended
+
+Automatically handles foreign keys and protects accessors:
+
+```php
+// Request: ?include=posts&fields[user]=id,name&fields[posts]=title
+
+// What happens:
+// 1. Root query: SELECT id, name, user_id FROM users
+//                                  ^^^^^^^^ auto-injected for eager loading
+// 2. Relation query: SELECT title, user_id FROM posts
+//                           ^^^^^^^^ auto-injected for matching
+// 3. If relation has appends: SELECT * + makeHidden() (protects accessors)
+```
+
+**Benefits:**
+- Automatic FK injection for eager loading to work correctly
+- Accessor protection: relations with appends use `SELECT *` + `makeHidden()` to ensure accessors have access to required fields
+- Works with: `BelongsTo`, `HasOne`, `HasMany`, `MorphOne`, `MorphMany`
+
+#### Off Mode (`'off'`)
+
+No automatic handling — you must include all required fields manually:
+
+```php
+// Request: ?include=posts&fields[user]=id,name&fields[posts]=title
+
+// What happens:
+// 1. Root query: SELECT id, name FROM users  (NO user_id!)
+// 2. Eager loading fails silently — posts collection is empty!
+```
+
+**When to use:**
+- Maximum performance when you know exactly which fields are needed
+- Backwards compatibility with existing code
+- When you don't use relation fields
+
+> **Warning:** With `'off'` mode, if you request `?fields[user]=id,name` and `?include=posts`, the posts won't load because the foreign key (`user_id`) is missing from the SELECT. You must manually include all required FK columns.
+
+#### Mode Comparison
+
+| Feature | `'safe'` | `'off'` |
+|---------|:--------:|:-------:|
+| FK auto-injection (root) | Yes | No |
+| FK auto-injection (relations) | Yes | No |
+| Accessor protection | Yes | No |
+| Performance overhead | Minimal (~0.004ms/model) | None |
+| Manual FK management | Not needed | Required |
+
+#### Model-level `$appends` Support
+
+Safe mode automatically detects models with built-in `$appends` and uses `SELECT *` + `makeHidden()` to ensure accessors have access to all required attributes:
+
+```php
+class Post extends Model
+{
+    protected $appends = ['reading_time'];  // Always serialized
+
+    public function getReadingTimeAttribute(): int
+    {
+        return ceil(str_word_count($this->content) / 200);
+    }
+}
+
+// Request: ?include=posts&fields[posts]=id,title
+// Safe mode detects $appends → uses SELECT * → reading_time works correctly!
+```
+
+This protection applies to:
+- Explicitly requested appends (`?append=posts.reading_time`)
+- Default appends (`defaultAppends()`)
+- Model-level `$appends` property
+
 ## Appending Attributes
 
 Append computed model attributes (accessors) to results.
@@ -820,6 +905,14 @@ return [
      * Example: ?filter[status]=active,pending
      */
     'array_value_separator' => ',',
+
+    /*
+     * Runtime optimizations for relation field handling.
+     * See "Relation Field Modes" section in README for details.
+     */
+    'optimizations' => [
+        'relation_select_mode' => 'safe',  // Recommended: 'safe' or 'off'
+    ],
 
     /*
      * Security limits (set to null to disable).

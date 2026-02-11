@@ -7,7 +7,9 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
+use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\QueryParametersManager;
+use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -181,6 +183,82 @@ class OctaneCompatibilityTest extends TestCase
     }
 
     #[Test]
+    public function same_eloquent_wizard_instance_refreshes_scoped_parameters_across_requests(): void
+    {
+        TestModel::factory()->count(5)->create();
+
+        $request1 = new Request(['filter' => ['name' => 'NonExistent']]);
+        $this->app->instance('request', $request1);
+
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name');
+
+        $result1 = $wizard->get();
+        $this->assertCount(0, $result1);
+
+        $this->app->forgetScopedInstances();
+
+        $request2 = new Request([]);
+        $this->app->instance('request', $request2);
+
+        $result2 = $wizard->get();
+        $this->assertCount(5, $result2);
+    }
+
+    #[Test]
+    public function eloquent_for_schema_refreshes_scoped_parameters_across_requests(): void
+    {
+        TestModel::factory()->count(5)->create();
+
+        $schema = new class extends ResourceSchema
+        {
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+        };
+
+        $request1 = new Request(['filter' => ['name' => 'NonExistent']]);
+        $this->app->instance('request', $request1);
+
+        $wizard = EloquentQueryWizard::forSchema($schema)
+            ->allowedFilters('name');
+
+        $result1 = $wizard->get();
+        $this->assertCount(0, $result1);
+
+        $this->app->forgetScopedInstances();
+
+        $request2 = new Request([]);
+        $this->app->instance('request', $request2);
+
+        $result2 = $wizard->get();
+        $this->assertCount(5, $result2);
+    }
+
+    #[Test]
+    public function model_wizard_reuse_across_request_boundaries_throws_logic_exception(): void
+    {
+        $model = TestModel::factory()->create();
+
+        $request1 = new Request(['fields' => ['testModel' => 'id']]);
+        $this->app->instance('request', $request1);
+
+        $wizard = ModelQueryWizard::for($model)->allowedFields('id', 'name');
+        $wizard->process();
+
+        $this->app->forgetScopedInstances();
+
+        $request2 = new Request(['fields' => ['testModel' => 'name']]);
+        $this->app->instance('request', $request2);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('ModelQueryWizard instance cannot be reused across request boundaries');
+
+        $wizard->process();
+    }
+
+    #[Test]
     public function cloned_wizards_do_not_share_state(): void
     {
         TestModel::factory()->count(3)->create();
@@ -248,5 +326,32 @@ class OctaneCompatibilityTest extends TestCase
         unset($wizard);
 
         $this->assertCount(1, $result);
+    }
+
+    #[Test]
+    public function wizard_field_hiding_works_correctly_across_requests(): void
+    {
+        TestModel::factory()->count(2)->create();
+
+        // First request - only id
+        $request1 = new Request(['fields' => ['testModel' => 'id']]);
+        $this->app->instance('request', $request1);
+
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFields('id', 'name');
+
+        $result1 = $wizard->get();
+        $this->assertArrayHasKey('id', $result1->first()->getAttributes());
+        $this->assertArrayNotHasKey('name', $result1->first()->getAttributes());
+
+        // Flush scoped instances (as Octane does between requests)
+        $this->app->forgetScopedInstances();
+
+        // Second request - only name
+        $request2 = new Request(['fields' => ['testModel' => 'name']]);
+        $this->app->instance('request', $request2);
+        $result2 = $wizard->get();
+        $this->assertArrayHasKey('name', $result2->first()->getAttributes());
+        $this->assertArrayNotHasKey('id', $result2->first()->getAttributes());
     }
 }

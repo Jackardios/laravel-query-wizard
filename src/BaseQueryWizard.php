@@ -10,6 +10,7 @@ use Jackardios\QueryWizard\Concerns\HandlesConfiguration;
 use Jackardios\QueryWizard\Concerns\HandlesFields;
 use Jackardios\QueryWizard\Concerns\HandlesFilters;
 use Jackardios\QueryWizard\Concerns\HandlesIncludes;
+use Jackardios\QueryWizard\Concerns\HandlesParameterScope;
 use Jackardios\QueryWizard\Concerns\HandlesSorts;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
@@ -36,6 +37,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     use HandlesFields;
     use HandlesFilters;
     use HandlesIncludes;
+    use HandlesParameterScope;
     use HandlesSorts;
 
     protected mixed $subject;
@@ -54,6 +56,12 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     protected bool $built = false;
 
     /**
+     * Build-scope signature (parameters manager + request identity) used to
+     * detect stale build cache when a wizard instance crosses request boundary.
+     */
+    protected ?string $builtScopeSignature = null;
+
+    /**
      * Invalidate the build state when configuration changes.
      *
      * This ensures that calling build() after configuration changes
@@ -68,6 +76,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         }
 
         $this->built = false;
+        $this->builtScopeSignature = null;
         $this->invalidateFilterCache();
         $this->invalidateSortCache();
         $this->invalidateIncludeCache();
@@ -93,7 +102,14 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      */
     protected function getParametersManager(): QueryParametersManager
     {
+        $this->parameters = $this->syncParametersManager($this->parameters);
+
         return $this->parameters;
+    }
+
+    protected function resolveBuildScopeSignature(): string
+    {
+        return $this->resolveParametersScopeSignature($this->getParametersManager());
     }
 
     /**
@@ -331,8 +347,14 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      */
     public function build(): mixed
     {
+        $currentScopeSignature = $this->resolveBuildScopeSignature();
+
         if ($this->built) {
-            return $this->subject;
+            if ($this->builtScopeSignature === $currentScopeSignature) {
+                return $this->subject;
+            }
+
+            $this->invalidateBuild();
         }
 
         $this->applyTapCallbacks();
@@ -342,6 +364,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $this->applyFieldsToSubject();
 
         $this->built = true;
+        $this->builtScopeSignature = $currentScopeSignature;
 
         return $this->subject;
     }
@@ -462,7 +485,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     protected function applySortsToSubject(): void
     {
         $sorts = $this->getEffectiveSorts();
-        $requestedSorts = $this->parameters->getSorts();
+        $requestedSorts = $this->getParametersManager()->getSorts();
         $defaultSorts = $this->getEffectiveDefaultSorts();
 
         $usingDefaults = $requestedSorts->isEmpty();

@@ -10,6 +10,9 @@ use Jackardios\QueryWizard\Concerns\HandlesAppends;
 use Jackardios\QueryWizard\Concerns\HandlesConfiguration;
 use Jackardios\QueryWizard\Concerns\HandlesFields;
 use Jackardios\QueryWizard\Concerns\HandlesIncludes;
+use Jackardios\QueryWizard\Concerns\HandlesParameterScope;
+use Jackardios\QueryWizard\Concerns\HandlesRelationPostProcessing;
+use Jackardios\QueryWizard\Concerns\HandlesSafeRelationSelect;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
@@ -32,6 +35,9 @@ final class ModelQueryWizard implements QueryWizardInterface
     use HandlesConfiguration;
     use HandlesFields;
     use HandlesIncludes;
+    use HandlesParameterScope;
+    use HandlesRelationPostProcessing;
+    use HandlesSafeRelationSelect;
 
     protected Model $model;
 
@@ -43,6 +49,11 @@ final class ModelQueryWizard implements QueryWizardInterface
 
     protected bool $processed = false;
 
+    /**
+     * Processing scope signature (parameters manager + request identity).
+     */
+    protected ?string $processedScopeSignature = null;
+
     public function __construct(
         Model $model,
         ?QueryParametersManager $parameters = null,
@@ -50,6 +61,7 @@ final class ModelQueryWizard implements QueryWizardInterface
         ?ResourceSchemaInterface $schema = null
     ) {
         $this->model = $model;
+        $this->resolveParametersFromContainer = $parameters === null;
         $this->parameters = $parameters ?? app(QueryParametersManager::class);
         $this->config = $config ?? app(QueryWizardConfig::class);
         $this->schema = $schema;
@@ -71,8 +83,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function schema(string|ResourceSchemaInterface $schema): static
     {
         $this->schema = is_string($schema) ? app($schema) : $schema;
-        $this->invalidateIncludeCache();
-        $this->processed = false;
+        $this->invalidateProcessedState(true);
 
         return $this;
     }
@@ -86,8 +97,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         $this->allowedIncludes = $this->flattenDefinitions($includes);
         $this->allowedIncludesExplicitlySet = true;
-        $this->invalidateIncludeCache();
-        $this->processed = false;
+        $this->invalidateProcessedState(true);
 
         return $this;
     }
@@ -100,8 +110,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function disallowedIncludes(string|array ...$names): static
     {
         $this->disallowedIncludes = $this->flattenStringArray($names);
-        $this->invalidateIncludeCache();
-        $this->processed = false;
+        $this->invalidateProcessedState(true);
 
         return $this;
     }
@@ -114,8 +123,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function defaultIncludes(string|array ...$names): static
     {
         $this->defaultIncludes = $this->flattenStringArray($names);
-        $this->invalidateIncludeCache();
-        $this->processed = false;
+        $this->invalidateProcessedState(true);
 
         return $this;
     }
@@ -132,7 +140,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         $this->allowedFields = $this->flattenStringArray($fields);
         $this->allowedFieldsExplicitlySet = true;
-        $this->processed = false;
+        $this->invalidateProcessedState();
 
         return $this;
     }
@@ -145,7 +153,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function disallowedFields(string|array ...$names): static
     {
         $this->disallowedFields = $this->flattenStringArray($names);
-        $this->processed = false;
+        $this->invalidateProcessedState();
 
         return $this;
     }
@@ -159,7 +167,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         $this->allowedAppends = $this->flattenStringArray($appends);
         $this->allowedAppendsExplicitlySet = true;
-        $this->processed = false;
+        $this->invalidateProcessedState();
 
         return $this;
     }
@@ -172,7 +180,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function disallowedAppends(string|array ...$names): static
     {
         $this->disallowedAppends = $this->flattenStringArray($names);
-        $this->processed = false;
+        $this->invalidateProcessedState();
 
         return $this;
     }
@@ -185,17 +193,30 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function defaultAppends(string|array ...$appends): static
     {
         $this->defaultAppends = $this->flattenStringArray($appends);
-        $this->processed = false;
+        $this->invalidateProcessedState();
 
         return $this;
     }
 
     /**
      * Process the model (apply includes, fields, appends).
+     *
+     * The wizard is request-bound after processing because it mutates
+     * an in-memory model graph; reusing the same instance across requests
+     * is considered invalid and throws a LogicException.
      */
     public function process(): Model
     {
+        $currentScopeSignature = $this->resolveProcessingScopeSignature();
+
         if ($this->processed) {
+            if ($this->processedScopeSignature !== $currentScopeSignature) {
+                throw new \LogicException(
+                    'ModelQueryWizard instance cannot be reused across request boundaries. '
+                    .'Create a new wizard instance per request.'
+                );
+            }
+
             return $this->model;
         }
 
@@ -203,10 +224,10 @@ final class ModelQueryWizard implements QueryWizardInterface
         $this->cleanUnwantedRelations($effectiveIncludes);
         $this->loadMissingIncludes($effectiveIncludes);
         $this->hideDisallowedFields();
-        $this->hideFieldsOnRelations();
-        $this->applyAppends();
+        $this->applyRelationPostProcessing();
 
         $this->processed = true;
+        $this->processedScopeSignature = $currentScopeSignature;
 
         return $this->model;
     }
@@ -335,7 +356,8 @@ final class ModelQueryWizard implements QueryWizardInterface
             $requested = array_intersect($requested, $allowedIncludeNames);
         }
 
-        $relationsToLoad = [];
+        /** @var array<int, string> $relationshipRequests */
+        $relationshipRequests = [];
         $countsToLoad = [];
         $callbackIncludes = [];
 
@@ -356,8 +378,26 @@ final class ModelQueryWizard implements QueryWizardInterface
             } elseif ($include->getType() === 'callback') {
                 $callbackIncludes[] = $include;
             } elseif ($include->getType() === 'relationship') {
-                $relationsToLoad[] = $include->getRelation();
+                $relationshipRequests[] = $include->getRelation();
             }
+        }
+
+        $relationshipPaths = array_values(array_unique($relationshipRequests));
+        $this->prepareSafeRelationSelectPlan($this->model, $relationshipPaths);
+
+        $relationsToLoad = [];
+        foreach ($relationshipRequests as $relationPath) {
+            $columns = $this->getSafeRelationSelectColumns($relationPath);
+
+            if ($columns === null) {
+                $relationsToLoad[] = $relationPath;
+
+                continue;
+            }
+
+            $relationsToLoad[$relationPath] = static function ($query) use ($columns): void {
+                $query->select($columns);
+            };
         }
 
         if (! empty($relationsToLoad)) {
@@ -410,76 +450,18 @@ final class ModelQueryWizard implements QueryWizardInterface
     }
 
     /**
-     * Hide fields on loaded relations based on requested fields.
-     * Recursively processes nested relations with circular reference protection.
+     * Apply relation sparse fields and appends in a single recursive traversal.
      */
-    protected function hideFieldsOnRelations(): void
+    protected function applyRelationPostProcessing(): void
     {
-        $relationFieldMap = $this->buildValidatedRelationFieldMap();
-        if (empty($relationFieldMap)) {
-            return;
-        }
+        $relationFieldTree = $this->buildRelationFieldTree($this->buildValidatedRelationFieldMap());
 
-        $visited = [];
-        $this->hideFieldsOnRelationsRecursively($this->model, $relationFieldMap, $visited);
-    }
-
-    /**
-     * @param  array<string, array<string>>  $relationFieldMap
-     * @param  array<int, bool>  $visited
-     */
-    protected function hideFieldsOnRelationsRecursively(
-        Model $model,
-        array $relationFieldMap,
-        array &$visited,
-        string $prefix = ''
-    ): void {
-        $objectId = spl_object_id($model);
-        if (isset($visited[$objectId])) {
-            return;
-        }
-        $visited[$objectId] = true;
-
-        foreach ($model->getRelations() as $relationName => $relatedData) {
-            $relationPath = $prefix === '' ? $relationName : $prefix.'.'.$relationName;
-            $relationFields = $relationFieldMap[$relationPath] ?? [];
-            $shouldHideFields = ! empty($relationFields) && ! in_array('*', $relationFields, true);
-
-            if ($relatedData instanceof Model) {
-                if ($shouldHideFields) {
-                    $this->hideModelAttributesExcept($relatedData, $relationFields);
-                }
-
-                $this->hideFieldsOnRelationsRecursively($relatedData, $relationFieldMap, $visited, $relationPath);
-
-                continue;
-            }
-
-            if (! is_iterable($relatedData)) {
-                continue;
-            }
-
-            foreach ($relatedData as $item) {
-                if (! $item instanceof Model) {
-                    continue;
-                }
-                if ($shouldHideFields) {
-                    $this->hideModelAttributesExcept($item, $relationFields);
-                }
-                $this->hideFieldsOnRelationsRecursively($item, $relationFieldMap, $visited, $relationPath);
-            }
-        }
-    }
-
-    protected function applyAppends(): void
-    {
         $appends = $this->getValidRequestedAppends();
-        if (! empty($appends)) {
-            $appendTree = $this->buildAppendTree($appends);
-            if (! empty($appendTree['appends']) || ! empty($appendTree['relations'])) {
-                $this->applyAppendsRecursively($this->model, $appendTree);
-            }
-        }
+        $appendTree = empty($appends)
+            ? $this->emptyAppendTree()
+            : $this->buildAppendTree($appends);
+
+        $this->applyRelationPostProcessingToResults($this->model, $appendTree, $relationFieldTree);
     }
 
     /**
@@ -495,7 +477,25 @@ final class ModelQueryWizard implements QueryWizardInterface
      */
     protected function getParametersManager(): QueryParametersManager
     {
+        $this->parameters = $this->syncParametersManager($this->parameters);
+
         return $this->parameters;
+    }
+
+    protected function resolveProcessingScopeSignature(): string
+    {
+        return $this->resolveParametersScopeSignature($this->getParametersManager());
+    }
+
+    protected function invalidateProcessedState(bool $invalidateIncludeCache = false): void
+    {
+        if ($invalidateIncludeCache) {
+            $this->invalidateIncludeCache();
+        }
+
+        $this->resetSafeRelationSelectState();
+        $this->processed = false;
+        $this->processedScopeSignature = null;
     }
 
     /**

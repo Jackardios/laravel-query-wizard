@@ -21,6 +21,18 @@ final class QueryWizardConfig
         return (string) config(self::CONFIG_PREFIX.'.array_value_separator', ',');
     }
 
+    public function getRelationSelectMode(): string
+    {
+        $mode = strtolower((string) config(self::CONFIG_PREFIX.'.optimizations.relation_select_mode', 'safe'));
+
+        return in_array($mode, ['off', 'safe'], true) ? $mode : 'safe';
+    }
+
+    public function isSafeRelationSelectEnabled(): bool
+    {
+        return $this->getRelationSelectMode() === 'safe';
+    }
+
     public function getFieldsParameterName(): ?string
     {
         return config(self::CONFIG_PREFIX.'.parameters.fields');

@@ -13,6 +13,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\BaseQueryWizard;
+use Jackardios\QueryWizard\Concerns\HandlesRelationPostProcessing;
+use Jackardios\QueryWizard\Concerns\HandlesSafeRelationSelect;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
@@ -32,15 +34,32 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  */
 final class EloquentQueryWizard extends BaseQueryWizard
 {
+    use HandlesRelationPostProcessing;
+    use HandlesSafeRelationSelect;
+
     /** @var Builder<Model>|Relation<Model, Model, mixed> */
     protected mixed $subject;
 
     private bool $proxyModified = false;
 
-    /** @var array<string, array<string>> */
-    private array $relationFieldMap = [];
+    /** @var array{fields: array<string>, relations: array<string, mixed>} */
+    private array $relationFieldTree = [
+        'fields' => [],
+        'relations' => [],
+    ];
 
-    private bool $relationFieldMapPrepared = false;
+    private bool $relationFieldTreePrepared = false;
+
+    /** @var array{appends: array<string>, relations: array<string, mixed>} */
+    private array $appendTree = [
+        'appends' => [],
+        'relations' => [],
+    ];
+
+    private bool $appendTreePrepared = false;
+
+    /** @var array<string> */
+    private array $safeRootHiddenFields = [];
 
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
@@ -53,6 +72,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
     ) {
         $this->subject = $subject;
         $this->originalSubject = clone $subject;
+        $this->resolveParametersFromContainer = $parameters === null;
         $this->parameters = $parameters ?? app(QueryParametersManager::class);
         $this->config = $config ?? app(QueryWizardConfig::class);
         $this->schema = $schema;
@@ -89,12 +109,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         /** @var class-string<Model> $modelClass */
         $modelClass = $schema->model();
 
-        return new self(
-            $modelClass::query(),
-            app(QueryParametersManager::class),
-            app(QueryWizardConfig::class),
-            $schema
-        );
+        return new self($modelClass::query(), null, null, $schema);
     }
 
     /**
@@ -104,12 +119,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
      */
     public function get(): Collection
     {
-        $this->build();
-        $results = $this->subject->get();
-        $this->applyAppendsTo($results);
-        $this->applyRelationFieldMapToResults($results);
-
-        return $results;
+        return $this->executeCollectionQuery(fn () => $this->subject->get());
     }
 
     /**
@@ -117,14 +127,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
      */
     public function first(): ?Model
     {
-        $this->build();
-        $result = $this->subject->first();
-        if ($result !== null) {
-            $this->applyAppendsTo($result);
-            $this->applyRelationFieldMapToResults($result);
-        }
-
-        return $result;
+        return $this->executeNullableModelQuery(fn () => $this->subject->first());
     }
 
     /**
@@ -134,12 +137,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
      */
     public function firstOrFail(): Model
     {
-        $this->build();
-        $result = $this->subject->firstOrFail();
-        $this->applyAppendsTo($result);
-        $this->applyRelationFieldMapToResults($result);
-
-        return $result;
+        return $this->executeModelQuery(fn () => $this->subject->firstOrFail());
     }
 
     /**
@@ -147,12 +145,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
      */
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        $this->build();
-        $paginator = $this->subject->paginate($perPage);
-        $this->applyAppendsTo($paginator->items());
-        $this->applyRelationFieldMapToResults($paginator->items());
-
-        return $paginator;
+        return $this->executePaginatorQuery(fn () => $this->subject->paginate($perPage));
     }
 
     /**
@@ -160,12 +153,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
      */
     public function simplePaginate(int $perPage = 15): Paginator
     {
-        $this->build();
-        $paginator = $this->subject->simplePaginate($perPage);
-        $this->applyAppendsTo($paginator->items());
-        $this->applyRelationFieldMapToResults($paginator->items());
-
-        return $paginator;
+        return $this->executePaginatorQuery(fn () => $this->subject->simplePaginate($perPage));
     }
 
     /**
@@ -173,23 +161,18 @@ final class EloquentQueryWizard extends BaseQueryWizard
      */
     public function cursorPaginate(int $perPage = 15): CursorPaginator
     {
-        $this->build();
-        $paginator = $this->subject->cursorPaginate($perPage);
-        $this->applyAppendsTo($paginator->items());
-        $this->applyRelationFieldMapToResults($paginator->items());
-
-        return $paginator;
+        return $this->executePaginatorQuery(fn () => $this->subject->cursorPaginate($perPage));
     }
 
     /**
-     * Build the query and prepare relation field map used after execution.
+     * Build the query and prepare post-processing trees used after execution.
      *
      * @return Builder<Model>|Relation<Model, Model, mixed>
      */
     public function build(): mixed
     {
         $subject = parent::build();
-        $this->prepareRelationFieldMap();
+        $this->prepareRelationFieldData();
 
         return $subject;
     }
@@ -225,8 +208,12 @@ final class EloquentQueryWizard extends BaseQueryWizard
             );
         }
 
-        $this->relationFieldMap = [];
-        $this->relationFieldMapPrepared = false;
+        $this->resetSafeRelationSelectState();
+        $this->relationFieldTree = $this->emptyRelationFieldTree();
+        $this->relationFieldTreePrepared = false;
+        $this->appendTree = $this->emptyAppendTree();
+        $this->appendTreePrepared = false;
+        $this->safeRootHiddenFields = [];
         parent::invalidateBuild();
     }
 
@@ -234,8 +221,12 @@ final class EloquentQueryWizard extends BaseQueryWizard
     {
         parent::__clone();
         $this->proxyModified = false;
-        $this->relationFieldMap = [];
-        $this->relationFieldMapPrepared = false;
+        $this->resetSafeRelationSelectState();
+        $this->relationFieldTree = $this->emptyRelationFieldTree();
+        $this->relationFieldTreePrepared = false;
+        $this->appendTree = $this->emptyAppendTree();
+        $this->appendTreePrepared = false;
+        $this->safeRootHiddenFields = [];
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
@@ -257,9 +248,57 @@ final class EloquentQueryWizard extends BaseQueryWizard
 
     protected function applyFields(array $fields): void
     {
+        $requestedFields = $fields;
+        $fields = $this->applySafeRootFieldRequirements($fields);
+        $this->safeRootHiddenFields = array_values(array_diff($fields, $requestedFields));
+
         if (! empty($fields) && $fields !== ['*']) {
             $qualifiedFields = $this->qualifyColumns($fields);
             $this->subject->select($qualifiedFields);
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $validRequestedIncludes
+     * @param  array<string, IncludeInterface>  $includesIndex
+     */
+    protected function applyValidatedIncludes(array $validRequestedIncludes, array $includesIndex): void
+    {
+        $relationshipPaths = [];
+
+        foreach ($validRequestedIncludes as $includeName) {
+            $include = $includesIndex[$includeName];
+
+            if ($include->getType() === 'relationship') {
+                $relationshipPaths[] = $include->getRelation();
+            }
+        }
+
+        $this->prepareSafeRelationSelectPlan($this->subject->getModel(), $relationshipPaths);
+
+        foreach ($validRequestedIncludes as $includeName) {
+            $include = $includesIndex[$includeName];
+
+            if ($include->getType() !== 'relationship') {
+                $this->subject = $include->apply($this->subject);
+
+                continue;
+            }
+
+            $relationPath = $include->getRelation();
+            $columns = $this->getSafeRelationSelectColumns($relationPath);
+
+            if ($columns === null) {
+                $this->subject = $include->apply($this->subject);
+
+                continue;
+            }
+
+            $this->subject = $this->subject->with([
+                $relationPath => static function ($query) use ($columns): void {
+                    $query->select($columns);
+                },
+            ]);
         }
     }
 
@@ -289,102 +328,116 @@ final class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Build a map of relation paths to requested sparse fields.
-     *
-     * The map is only built when relation field filtering is explicitly configured
-     * through dotted allowed fields (e.g. "posts.id") or wildcard allowed fields.
+     * Build relation sparse-fields map/tree once per built wizard.
      */
-    private function prepareRelationFieldMap(): void
+    private function prepareRelationFieldData(): void
     {
-        if ($this->relationFieldMapPrepared) {
+        if ($this->relationFieldTreePrepared) {
             return;
         }
 
-        $this->relationFieldMapPrepared = true;
-        $this->relationFieldMap = $this->buildValidatedRelationFieldMap();
+        $this->relationFieldTreePrepared = true;
+        $relationFieldMap = $this->buildValidatedRelationFieldMap();
+        $this->relationFieldTree = $this->buildRelationFieldTree($relationFieldMap);
+    }
+
+    private function prepareAppendTree(): void
+    {
+        if ($this->appendTreePrepared) {
+            return;
+        }
+
+        $this->appendTreePrepared = true;
+        $appends = $this->getValidRequestedAppends();
+        $this->appendTree = empty($appends)
+            ? $this->emptyAppendTree()
+            : $this->buildAppendTree($appends);
     }
 
     /**
-     * Apply relation sparse fieldsets to query results.
+     * Apply appends and relation sparse fieldsets in a single traversal.
      */
-    private function applyRelationFieldMapToResults(mixed $results): void
+    private function applyPostProcessingToResults(mixed $results): void
     {
-        if (empty($this->relationFieldMap)) {
+        $this->applySafeRootFieldMaskToResults($results);
+        $this->prepareAppendTree();
+        $this->applyRelationPostProcessingToResults($results, $this->appendTree, $this->relationFieldTree);
+    }
+
+    /**
+     * @param  Model|\Traversable<mixed>|array<mixed>  $results
+     */
+    private function applySafeRootFieldMaskToResults(mixed $results): void
+    {
+        if (empty($this->safeRootHiddenFields)) {
             return;
         }
 
-        $visited = [];
-
         if ($results instanceof Model) {
-            $this->applyRelationFieldMapRecursively($results, $visited);
+            $results->makeHidden($this->safeRootHiddenFields);
 
             return;
         }
 
         foreach ($results as $item) {
             if ($item instanceof Model) {
-                $this->applyRelationFieldMapRecursively($item, $visited);
+                $item->makeHidden($this->safeRootHiddenFields);
             }
         }
     }
 
     /**
-     * @param  array<int, bool>  $visited
+     * @param  callable(): Collection<int, Model>  $executor
+     * @return Collection<int, Model>
      */
-    private function applyRelationFieldMapRecursively(Model $model, array &$visited, string $prefix = ''): void
+    private function executeCollectionQuery(callable $executor): Collection
     {
-        $objectId = spl_object_id($model);
-        if (isset($visited[$objectId])) {
-            return;
-        }
-        $visited[$objectId] = true;
+        $this->build();
+        $results = $executor();
+        $this->applyPostProcessingToResults($results);
 
-        foreach ($model->getRelations() as $relationName => $relatedData) {
-            $relationPath = $prefix === '' ? $relationName : $prefix.'.'.$relationName;
-            $visibleFields = $this->relationFieldMap[$relationPath] ?? [];
-
-            if (! empty($visibleFields) && ! in_array('*', $visibleFields, true)) {
-                $this->applyVisibleFieldsToRelated($relatedData, $visibleFields);
-            }
-
-            if ($relatedData instanceof Model) {
-                $this->applyRelationFieldMapRecursively($relatedData, $visited, $relationPath);
-
-                continue;
-            }
-
-            if (! is_iterable($relatedData)) {
-                continue;
-            }
-
-            foreach ($relatedData as $item) {
-                if ($item instanceof Model) {
-                    $this->applyRelationFieldMapRecursively($item, $visited, $relationPath);
-                }
-            }
-        }
+        return $results;
     }
 
     /**
-     * @param  array<string>  $visibleFields
+     * @param  callable(): ?Model  $executor
      */
-    private function applyVisibleFieldsToRelated(mixed $relatedData, array $visibleFields): void
+    private function executeNullableModelQuery(callable $executor): ?Model
     {
-        if ($relatedData instanceof Model) {
-            $this->hideModelAttributesExcept($relatedData, $visibleFields);
-
-            return;
+        $this->build();
+        $result = $executor();
+        if ($result !== null) {
+            $this->applyPostProcessingToResults($result);
         }
 
-        if (! is_iterable($relatedData)) {
-            return;
-        }
+        return $result;
+    }
 
-        foreach ($relatedData as $item) {
-            if ($item instanceof Model) {
-                $this->hideModelAttributesExcept($item, $visibleFields);
-            }
-        }
+    /**
+     * @param  callable(): Model  $executor
+     */
+    private function executeModelQuery(callable $executor): Model
+    {
+        $this->build();
+        $result = $executor();
+        $this->applyPostProcessingToResults($result);
+
+        return $result;
+    }
+
+    /**
+     * @template TPaginator of LengthAwarePaginator|Paginator|CursorPaginator
+     *
+     * @param  callable(): TPaginator  $executor
+     * @return TPaginator
+     */
+    private function executePaginatorQuery(callable $executor): LengthAwarePaginator|Paginator|CursorPaginator
+    {
+        $this->build();
+        $paginator = $executor();
+        $this->applyPostProcessingToResults($paginator->items());
+
+        return $paginator;
     }
 
     /**

@@ -264,6 +264,47 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('relationFieldExecutionMethodsProvider')]
+    public function it_combines_relation_fields_and_nested_appends_for_all_execution_methods(string $method): void
+    {
+        $wizard = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                ],
+                'append' => 'relatedModels.formattedName',
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->allowedAppends('relatedModels.formattedName');
+
+        $result = match ($method) {
+            'get' => $wizard->get(),
+            'first' => $wizard->first(),
+            'firstOrFail' => $wizard->firstOrFail(),
+            'paginate' => $wizard->paginate(2),
+            'simplePaginate' => $wizard->simplePaginate(2),
+            'cursorPaginate' => $wizard->cursorPaginate(2),
+        };
+
+        $model = match ($method) {
+            'get' => $result->first(),
+            'first', 'firstOrFail' => $result,
+            'paginate', 'simplePaginate', 'cursorPaginate' => collect($result->items())->first(),
+        };
+
+        $this->assertInstanceOf(TestModel::class, $model);
+
+        $relatedArray = $model->relatedModels->first()->toArray();
+        $this->assertArrayHasKey('id', $relatedArray);
+        $this->assertArrayNotHasKey('name', $relatedArray);
+        $this->assertArrayNotHasKey('test_model_id', $relatedArray);
+        $this->assertArrayHasKey('formattedName', $relatedArray);
+    }
+
+    #[Test]
     public function it_defaults_related_model_fields_correctly(): void
     {
         $models = $this
@@ -704,6 +745,119 @@ class FieldsTest extends TestCase
 
         // Relations should still work even if id wasn't explicitly requested
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
+    public function safe_mode_constrains_relation_selects_and_auto_adds_matching_keys(): void
+    {
+        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
+        DB::flushQueryLog();
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'name',
+                    'relatedModels' => 'name',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('name', 'relatedModels.name')
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $this->assertCount(2, $models->first()->relatedModels);
+
+        $rootArray = $models->first()->toArray();
+        $this->assertArrayHasKey('name', $rootArray);
+        $this->assertArrayNotHasKey('id', $rootArray);
+
+        $relatedArray = $models->first()->relatedModels->first()->toArray();
+        $this->assertArrayHasKey('name', $relatedArray);
+        $this->assertArrayNotHasKey('test_model_id', $relatedArray);
+
+        $this->assertQueryLogContains('select "test_models"."name", "test_models"."id" from "test_models"');
+        $this->assertQueryLogContains('select "name", "test_model_id" from "related_models"');
+    }
+
+    #[Test]
+    public function safe_mode_skips_relation_select_optimization_when_relation_append_is_requested(): void
+    {
+        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
+        DB::flushQueryLog();
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                ],
+                'append' => 'relatedModels.formattedName',
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->allowedAppends('relatedModels.formattedName')
+            ->get();
+
+        $relatedArray = $models->first()->relatedModels->first()->toArray();
+        $this->assertArrayHasKey('formattedName', $relatedArray);
+        $this->assertNotSame('Formatted: ', $relatedArray['formattedName']);
+
+        $this->assertQueryLogContains('select * from "related_models"');
+    }
+
+    #[Test]
+    public function safe_mode_skips_relation_select_optimization_when_relation_model_has_built_in_appends(): void
+    {
+        DB::flushQueryLog();
+
+        // relatedModelsWithAppends uses RelatedModelWithAppends which has $appends = ['formatted_name']
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModelsWithAppends',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModelsWithAppends' => 'id',
+                ],
+            ])
+            ->allowedIncludes('relatedModelsWithAppends')
+            ->allowedFields('id', 'name', 'relatedModelsWithAppends.id')
+            ->get();
+
+        // The formatted_name accessor should work correctly because SELECT * was used
+        $related = $models->first()->relatedModelsWithAppends->first();
+        if ($related !== null) {
+            $relatedArray = $related->toArray();
+            $this->assertArrayHasKey('formatted_name', $relatedArray);
+            // formatted_name = 'Formatted: ' . $this->name, should not be just 'Formatted: '
+            $this->assertNotSame('Formatted: ', $relatedArray['formatted_name']);
+        }
+
+        // Verify SELECT * was used instead of SELECT id
+        $this->assertQueryLogContains('select * from "related_models"');
+    }
+
+    #[Test]
+    public function safe_mode_uses_sql_select_for_relations_without_model_appends(): void
+    {
+        DB::flushQueryLog();
+
+        // relatedModels uses RelatedModel which has no $appends
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'name',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.name')
+            ->get();
+
+        // Verify SQL SELECT was used (not SELECT *)
+        $this->assertQueryLogContains('select "name", "test_model_id" from "related_models"');
     }
 
     // ========== Snake Case / Camel Case Tests ==========

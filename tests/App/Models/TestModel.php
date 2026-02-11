@@ -28,6 +28,11 @@ class TestModel extends Model
         return $this->hasMany(RelatedModel::class);
     }
 
+    public function relatedModelsWithAppends(): HasMany
+    {
+        return $this->hasMany(RelatedModelWithAppends::class, 'test_model_id');
+    }
+
     public function relatedModel(): BelongsTo
     {
         return $this->belongsTo(RelatedModel::class);

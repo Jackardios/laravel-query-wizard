@@ -75,6 +75,19 @@ class ManualAppendsTest extends TestCase
     }
 
     #[Test]
+    public function to_query_bypasses_append_validation(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithAppends('notAllowed')
+            ->allowedAppends('fullname');
+
+        $models = $wizard->toQuery()->get();
+
+        $this->assertCount(5, $models);
+        $this->assertFalse(array_key_exists('notAllowed', $models->first()->toArray()));
+    }
+
+    #[Test]
     public function apply_appends_to_empty_collection_does_not_error(): void
     {
         $wizard = $this

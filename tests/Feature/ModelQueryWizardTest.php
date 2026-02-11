@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
@@ -372,6 +373,32 @@ class ModelQueryWizardTest extends TestCase
         $this->assertArrayHasKey('firstname', $array);
         $this->assertArrayHasKey('lastname', $array);
         $this->assertArrayHasKey('fullname', $array);
+    }
+
+    #[Test]
+    public function it_combines_relation_fields_and_nested_appends_in_single_processing_pass(): void
+    {
+        $modelWithRelations = TestModel::with('relatedModels')->find($this->model->id);
+
+        $result = $this
+            ->createModelWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                ],
+                'append' => 'relatedModels.formattedName',
+            ], $modelWithRelations)
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->allowedAppends('relatedModels.formattedName')
+            ->process();
+
+        $relatedArray = $result->relatedModels->first()->toArray();
+        $this->assertArrayHasKey('id', $relatedArray);
+        $this->assertArrayNotHasKey('name', $relatedArray);
+        $this->assertArrayNotHasKey('test_model_id', $relatedArray);
+        $this->assertArrayHasKey('formattedName', $relatedArray);
     }
 
     // ========== Default Includes Validation Tests ==========
@@ -792,5 +819,62 @@ class ModelQueryWizardTest extends TestCase
         $this->assertArrayHasKey('id', $relatedArray);
         $this->assertArrayNotHasKey('name', $relatedArray);
         $this->assertArrayNotHasKey('test_model_id', $relatedArray);
+    }
+
+    #[Test]
+    public function safe_mode_constrains_model_load_missing_relation_selects_and_auto_adds_matching_keys(): void
+    {
+        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $result = $this
+            ->createModelWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'name',
+                    'relatedModels' => 'name',
+                ],
+            ], $this->model)
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('name', 'relatedModels.name')
+            ->process();
+
+        $this->assertTrue($result->relationLoaded('relatedModels'));
+        $this->assertCount(2, $result->relatedModels);
+
+        $relatedArray = $result->relatedModels->first()->toArray();
+        $this->assertArrayHasKey('name', $relatedArray);
+        $this->assertArrayNotHasKey('test_model_id', $relatedArray);
+
+        $this->assertQueryLogContains('select "name", "test_model_id" from "related_models"');
+    }
+
+    #[Test]
+    public function safe_mode_skips_model_relation_select_optimization_when_relation_append_is_requested(): void
+    {
+        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $result = $this
+            ->createModelWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                ],
+                'append' => 'relatedModels.formattedName',
+            ], $this->model)
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->allowedAppends('relatedModels.formattedName')
+            ->process();
+
+        $relatedArray = $result->relatedModels->first()->toArray();
+        $this->assertArrayHasKey('formattedName', $relatedArray);
+        $this->assertNotSame('Formatted: ', $relatedArray['formattedName']);
+
+        $this->assertQueryLogContains('select * from "related_models"');
     }
 }

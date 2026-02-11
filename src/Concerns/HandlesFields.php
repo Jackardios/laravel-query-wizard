@@ -347,12 +347,81 @@ trait HandlesFields
     protected function flattenRelationFieldGroups(array $groups): array
     {
         $flattened = [];
+        $seen = [];
 
         foreach ($groups as $group => $fields) {
-            $flattened = array_merge($flattened, $this->prefixGroupFields($group, $fields));
+            foreach ($fields as $field) {
+                $value = $group.'.'.$field;
+                if (isset($seen[$value])) {
+                    continue;
+                }
+
+                $seen[$value] = true;
+                $flattened[] = $value;
+            }
         }
 
-        return array_values(array_unique($flattened));
+        return $flattened;
+    }
+
+    /**
+     * Build relation field tree for targeted recursive traversal.
+     *
+     * @param  array<string, array<string>>  $relationFieldMap
+     * @return array{fields: array<string>, relations: array<string, mixed>}
+     */
+    protected function buildRelationFieldTree(array $relationFieldMap): array
+    {
+        $tree = [
+            'fields' => [],
+            'relations' => [],
+        ];
+
+        foreach ($relationFieldMap as $relationPath => $fields) {
+            if ($relationPath === '') {
+                continue;
+            }
+
+            $segments = explode('.', $relationPath);
+
+            /** @var array{fields: array<string>, relations: array<string, mixed>} $node */
+            $node = &$tree;
+
+            foreach ($segments as $segment) {
+                if (! isset($node['relations'][$segment])) {
+                    $node['relations'][$segment] = [
+                        'fields' => [],
+                        'relations' => [],
+                    ];
+                }
+
+                /** @var array{fields: array<string>, relations: array<string, mixed>} $node */
+                $node = &$node['relations'][$segment];
+            }
+
+            if (in_array('*', $fields, true)) {
+                $node['fields'] = ['*'];
+                unset($node);
+
+                continue;
+            }
+
+            if (in_array('*', $node['fields'], true)) {
+                unset($node);
+
+                continue;
+            }
+
+            foreach ($fields as $field) {
+                if (! in_array($field, $node['fields'], true)) {
+                    $node['fields'][] = $field;
+                }
+            }
+
+            unset($node);
+        }
+
+        return $tree;
     }
 
     /**
@@ -362,11 +431,19 @@ trait HandlesFields
      */
     protected function hideModelAttributesExcept(Model $model, array $visibleFields): void
     {
-        $allAttributes = array_keys($model->getAttributes());
-        $fieldsToHide = array_diff($allAttributes, $visibleFields);
+        $attributeKeys = array_keys($model->getAttributes());
+        if (empty($attributeKeys)) {
+            return;
+        }
+
+        $visibleFieldsMap = array_flip($visibleFields);
+        $fieldsToHide = array_filter(
+            $attributeKeys,
+            static fn (string $key): bool => ! isset($visibleFieldsMap[$key])
+        );
 
         if (! empty($fieldsToHide)) {
-            $model->makeHidden(array_values($fieldsToHide));
+            $model->makeHidden($fieldsToHide);
         }
     }
 }

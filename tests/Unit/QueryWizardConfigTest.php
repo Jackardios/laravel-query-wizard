@@ -49,6 +49,32 @@ class QueryWizardConfigTest extends TestCase
         $this->assertEquals('|', $this->config->getArrayValueSeparator());
     }
 
+    // ========== Optimizations Tests ==========
+    #[Test]
+    public function it_returns_default_relation_select_mode(): void
+    {
+        $this->assertEquals('safe', $this->config->getRelationSelectMode());
+        $this->assertTrue($this->config->isSafeRelationSelectEnabled());
+    }
+
+    #[Test]
+    public function it_returns_custom_relation_select_mode(): void
+    {
+        Config::set('query-wizard.optimizations.relation_select_mode', 'off');
+
+        $this->assertEquals('off', $this->config->getRelationSelectMode());
+        $this->assertFalse($this->config->isSafeRelationSelectEnabled());
+    }
+
+    #[Test]
+    public function it_falls_back_to_safe_for_invalid_relation_select_mode(): void
+    {
+        Config::set('query-wizard.optimizations.relation_select_mode', 'unsupported');
+
+        $this->assertEquals('safe', $this->config->getRelationSelectMode());
+        $this->assertTrue($this->config->isSafeRelationSelectEnabled());
+    }
+
     // ========== Parameter Names Tests ==========
     #[Test]
     public function it_returns_default_fields_parameter_name(): void
