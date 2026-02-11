@@ -6,10 +6,13 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
+use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -61,6 +64,33 @@ class FieldsTest extends TestCase
         $this->assertContains('id', $attributes);
         $this->assertContains('name', $attributes);
         $this->assertNotContains('created_at', $attributes);
+    }
+
+    #[Test]
+    public function it_can_select_specific_fields_using_root_shorthand(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFields('id,name')
+            ->allowedFields('id', 'name')
+            ->get();
+
+        $attributes = array_keys($models->first()->getAttributes());
+        $this->assertContains('id', $attributes);
+        $this->assertContains('name', $attributes);
+        $this->assertNotContains('created_at', $attributes);
+    }
+
+    #[Test]
+    public function resource_keyed_fields_take_precedence_over_root_shorthand(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFields('id,name,testModel.id')
+            ->allowedFields('id', 'name')
+            ->get();
+
+        $attributes = array_keys($models->first()->getAttributes());
+        $this->assertContains('id', $attributes);
+        $this->assertNotContains('name', $attributes);
     }
 
     #[Test]
@@ -128,10 +158,109 @@ class FieldsTest extends TestCase
                 ],
             ])
             ->allowedIncludes('relatedModels')
-            ->allowedFields('id', 'name')
+            ->allowedFields('id', 'name', 'relatedModels.id', 'relatedModels.name')
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+
+        $relatedAttributes = array_keys($models->first()->relatedModels->first()->toArray());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertContains('name', $relatedAttributes);
+        $this->assertNotContains('test_model_id', $relatedAttributes);
+    }
+
+    #[Test]
+    public function it_can_select_fields_for_included_relation_with_alias(): void
+    {
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'related',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'related' => 'id',
+                ],
+            ])
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels')->alias('related')
+            )
+            ->allowedFields('id', 'name', 'related.id')
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $relatedAttributes = array_keys($models->first()->relatedModels->first()->toArray());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertNotContains('name', $relatedAttributes);
+        $this->assertNotContains('test_model_id', $relatedAttributes);
+    }
+
+    #[Test]
+    public function it_can_select_fields_for_nested_included_relation(): void
+    {
+        $this->models->each(function (TestModel $model): void {
+            $model->relatedModels->each(function (RelatedModel $relatedModel): void {
+                NestedRelatedModel::factory()->count(2)->create([
+                    'related_model_id' => $relatedModel->id,
+                ]);
+            });
+        });
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels.nestedRelatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                    'relatedModels.nestedRelatedModels' => 'id',
+                ],
+            ])
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id', 'relatedModels.nestedRelatedModels.id')
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $nestedAttributes = array_keys($models->first()->relatedModels->first()->nestedRelatedModels->first()->toArray());
+        $this->assertContains('id', $nestedAttributes);
+        $this->assertNotContains('name', $nestedAttributes);
+        $this->assertNotContains('related_model_id', $nestedAttributes);
+    }
+
+    #[Test]
+    #[DataProvider('relationFieldExecutionMethodsProvider')]
+    public function it_applies_relation_fields_for_all_execution_methods(string $method): void
+    {
+        $wizard = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id');
+
+        $result = match ($method) {
+            'get' => $wizard->get(),
+            'first' => $wizard->first(),
+            'firstOrFail' => $wizard->firstOrFail(),
+            'paginate' => $wizard->paginate(2),
+            'simplePaginate' => $wizard->simplePaginate(2),
+            'cursorPaginate' => $wizard->cursorPaginate(2),
+        };
+
+        $model = match ($method) {
+            'get' => $result->first(),
+            'first', 'firstOrFail' => $result,
+            'paginate', 'simplePaginate', 'cursorPaginate' => collect($result->items())->first(),
+        };
+
+        $this->assertInstanceOf(TestModel::class, $model);
+        $this->assertTrue($model->relationLoaded('relatedModels'));
+
+        $relatedAttributes = array_keys($model->relatedModels->first()->toArray());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertNotContains('name', $relatedAttributes);
+        $this->assertNotContains('test_model_id', $relatedAttributes);
     }
 
     #[Test]
@@ -165,6 +294,80 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    public function it_throws_exception_for_not_allowed_relation_field(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id,secret_field',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->get();
+    }
+
+    #[Test]
+    public function it_throws_exception_for_relation_wildcard_field_when_not_allowed(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => '*',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->get();
+    }
+
+    #[Test]
+    public function it_throws_exception_for_unknown_relation_key_when_other_relation_whitelist_exists(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'otherRelatedModels' => 'id',
+                ],
+            ])
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->get();
+    }
+
+    #[Test]
+    public function it_throws_exception_for_relation_alias_without_matching_relation_field_whitelist(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'related',
+                'fields' => [
+                    'related' => 'id',
+                ],
+            ])
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels')->alias('related'),
+                'otherRelatedModels'
+            )
+            ->allowedFields('id', 'name', 'otherRelatedModels.id')
+            ->get();
+    }
+
+    #[Test]
     public function it_ignores_not_allowed_field_when_exception_disabled(): void
     {
         config()->set('query-wizard.disable_invalid_field_query_exception', true);
@@ -179,6 +382,56 @@ class FieldsTest extends TestCase
         $attributes = array_keys($models->first()->getAttributes());
         $this->assertContains('id', $attributes);
         $this->assertNotContains('secret_field', $attributes);
+    }
+
+    #[Test]
+    public function it_intersects_not_allowed_relation_fields_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id,secret_field',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $relatedAttributes = array_keys($models->first()->relatedModels->first()->toArray());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertNotContains('name', $relatedAttributes);
+        $this->assertNotContains('test_model_id', $relatedAttributes);
+        $this->assertNotContains('secret_field', $relatedAttributes);
+    }
+
+    #[Test]
+    public function it_ignores_unknown_relation_keys_and_keeps_valid_relation_fieldsets_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                    'unknownRelation' => 'id',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $relatedAttributes = array_keys($models->first()->relatedModels->first()->toArray());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertNotContains('name', $relatedAttributes);
+        $this->assertNotContains('test_model_id', $relatedAttributes);
     }
 
     #[Test]
@@ -357,8 +610,28 @@ class FieldsTest extends TestCase
 
     // ========== Multiple Resource Types Tests ==========
     #[Test]
-    public function it_handles_different_resource_fields(): void
+    public function it_throws_exception_for_relation_resource_without_whitelist(): void
     {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name')
+            ->get();
+    }
+
+    #[Test]
+    public function it_ignores_relation_resource_without_whitelist_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+
         $models = $this
             ->createEloquentWizardFromQuery([
                 'include' => 'relatedModels',
@@ -372,6 +645,21 @@ class FieldsTest extends TestCase
             ->get();
 
         $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+    }
+
+    /**
+     * @return array<int, array{0: string}>
+     */
+    public static function relationFieldExecutionMethodsProvider(): array
+    {
+        return [
+            ['get'],
+            ['first'],
+            ['firstOrFail'],
+            ['paginate'],
+            ['simplePaginate'],
+            ['cursorPaginate'],
+        ];
     }
 
     // ========== Dotted String Format Tests ==========

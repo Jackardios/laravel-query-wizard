@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -89,5 +90,57 @@ class FilterEdgeCasesTest extends TestCase
 
         // prepareValueWith returns null → filter is not applied
         $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function empty_filter_value_does_not_fall_back_to_default_filter_value(): void
+    {
+        $targetModel = TestModel::query()->firstOrFail();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => ''])
+            ->allowedFilters(
+                EloquentFilter::exact('name')->default($targetModel->name)
+            )
+            ->get();
+
+        // Explicit empty filter value means "skip this filter", not "use default".
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function empty_filter_value_falls_back_to_default_when_opt_in_enabled(): void
+    {
+        Config::set('query-wizard.apply_filter_default_on_null', true);
+
+        $targetModel = TestModel::query()->firstOrFail();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => ''])
+            ->allowedFilters(
+                EloquentFilter::exact('name')->default($targetModel->name)
+            )
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($targetModel->name, $models->first()->name);
+    }
+
+    #[Test]
+    public function null_filter_value_falls_back_to_default_when_opt_in_enabled(): void
+    {
+        Config::set('query-wizard.apply_filter_default_on_null', true);
+
+        $targetModel = TestModel::query()->firstOrFail();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => null])
+            ->allowedFilters(
+                EloquentFilter::exact('name')->default($targetModel->name)
+            )
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($targetModel->name, $models->first()->name);
     }
 }

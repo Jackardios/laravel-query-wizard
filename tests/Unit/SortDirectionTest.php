@@ -75,5 +75,4 @@ class SortDirectionTest extends TestCase
         $this->assertContains(SortDirection::Ascending, $cases);
         $this->assertContains(SortDirection::Descending, $cases);
     }
-
 }

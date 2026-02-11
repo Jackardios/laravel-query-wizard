@@ -270,7 +270,7 @@ class AppendTest extends TestCase
     {
         $models = $this
             ->createEloquentWizardFromQuery([
-                'fields' => ['appendModels' => 'firstname,lastname'],
+                'fields' => ['appendModel' => 'firstname,lastname'],
                 'append' => 'fullname',
             ], AppendModel::class)
             ->allowedFields('firstname', 'lastname')
@@ -384,7 +384,7 @@ class AppendTest extends TestCase
             ->createEloquentWizardFromQuery([
                 'filter' => ['firstname' => $model->firstname],
                 'sort' => 'lastname',
-                'fields' => ['appendModels' => 'firstname,lastname'],
+                'fields' => ['appendModel' => 'firstname,lastname'],
                 'append' => 'fullname,reversename',
             ], AppendModel::class)
             ->allowedFilters('firstname')

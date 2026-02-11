@@ -79,6 +79,49 @@ class PassthroughFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function passthrough_filter_does_not_apply_default_for_explicit_empty_value_by_default(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithFilters(['custom' => ''])
+            ->allowedFilters(
+                EloquentFilter::passthrough('custom')->default('default_value')
+            );
+
+        $passthrough = $wizard->getPassthroughFilters();
+        $this->assertTrue($passthrough->isEmpty());
+    }
+
+    #[Test]
+    public function passthrough_filter_applies_default_for_explicit_empty_value_when_opt_in_enabled(): void
+    {
+        config()->set('query-wizard.apply_filter_default_on_null', true);
+
+        $wizard = $this
+            ->createEloquentWizardWithFilters(['custom' => ''])
+            ->allowedFilters(
+                EloquentFilter::passthrough('custom')->default('default_value')
+            );
+
+        $passthrough = $wizard->getPassthroughFilters();
+        $this->assertEquals(['custom' => 'default_value'], $passthrough->all());
+    }
+
+    #[Test]
+    public function passthrough_filter_applies_default_for_explicit_null_value_when_opt_in_enabled(): void
+    {
+        config()->set('query-wizard.apply_filter_default_on_null', true);
+
+        $wizard = $this
+            ->createEloquentWizardWithFilters(['custom' => null])
+            ->allowedFilters(
+                EloquentFilter::passthrough('custom')->default('default_value')
+            );
+
+        $passthrough = $wizard->getPassthroughFilters();
+        $this->assertEquals(['custom' => 'default_value'], $passthrough->all());
+    }
+
+    #[Test]
     public function passthrough_filter_with_value_preparation(): void
     {
         $wizard = $this

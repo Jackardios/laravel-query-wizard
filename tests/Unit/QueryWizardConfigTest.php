@@ -117,6 +117,20 @@ class QueryWizardConfigTest extends TestCase
         $this->assertTrue($this->config->shouldUseRequestBody());
     }
 
+    #[Test]
+    public function should_apply_filter_default_on_null_returns_false_by_default(): void
+    {
+        $this->assertFalse($this->config->shouldApplyFilterDefaultOnNull());
+    }
+
+    #[Test]
+    public function should_apply_filter_default_on_null_returns_true_when_configured(): void
+    {
+        Config::set('query-wizard.apply_filter_default_on_null', true);
+
+        $this->assertTrue($this->config->shouldApplyFilterDefaultOnNull());
+    }
+
     // ========== Invalid Filter Query Exception Tests ==========
     #[Test]
     public function it_returns_false_for_disable_invalid_filter_query_exception_by_default(): void
@@ -242,7 +256,6 @@ class QueryWizardConfigTest extends TestCase
 
         $this->assertNull($this->config->getMaxFiltersCount());
     }
-
 
     #[Test]
     public function it_returns_default_max_sorts_count(): void

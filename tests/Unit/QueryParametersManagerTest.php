@@ -177,6 +177,36 @@ class QueryParametersManagerTest extends TestCase
         $this->assertEquals('John', $manager->getFilterValue('author.name'));
     }
 
+    #[Test]
+    public function has_filter_returns_true_for_explicit_null_value(): void
+    {
+        $request = new Request(['filter' => ['name' => '']]);
+        $manager = new QueryParametersManager($request);
+
+        // Empty string is transformed to null, but key still exists in request
+        $this->assertTrue($manager->hasFilter('name'));
+        $this->assertNull($manager->getFilterValue('name'));
+    }
+
+    #[Test]
+    public function has_filter_returns_true_for_nested_explicit_null_value(): void
+    {
+        $request = new Request(['filter' => ['author' => ['name' => '']]]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertTrue($manager->hasFilter('author.name'));
+        $this->assertNull($manager->getFilterValue('author.name'));
+    }
+
+    #[Test]
+    public function has_filter_returns_false_for_missing_filter(): void
+    {
+        $request = new Request(['filter' => ['name' => 'John']]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertFalse($manager->hasFilter('status'));
+    }
+
     // ========== Includes Tests ==========
     #[Test]
     public function it_returns_empty_collection_when_no_includes(): void
@@ -529,12 +559,12 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_empty_string_filter_value(): void
+    public function it_transforms_empty_string_filter_value_to_null(): void
     {
         $request = new Request(['filter' => ['name' => '']]);
         $manager = new QueryParametersManager($request);
 
-        $this->assertEquals('', $manager->getFilters()->get('name'));
+        $this->assertNull($manager->getFilters()->get('name'));
     }
 
     #[Test]

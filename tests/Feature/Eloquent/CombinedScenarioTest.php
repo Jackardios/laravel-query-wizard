@@ -8,7 +8,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
-use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
