@@ -50,15 +50,20 @@ trait HandlesAppends
             return $results;
         }
 
+        $appendTree = $this->buildAppendTree($appends);
+        if (empty($appendTree['appends']) && empty($appendTree['relations'])) {
+            return $results;
+        }
+
         if ($results instanceof Model) {
-            $this->applyAppendsRecursively($results, $appends);
+            $this->applyAppendsRecursively($results, $appendTree);
 
             return $results;
         }
 
         foreach ($results as $item) {
             if (is_object($item)) {
-                $this->applyAppendsRecursively($item, $appends);
+                $this->applyAppendsRecursively($item, $appendTree);
             }
         }
 
@@ -68,10 +73,10 @@ trait HandlesAppends
     /**
      * Apply appends recursively to model and its loaded relations.
      *
-     * @param  array<string>  $appends
+     * @param  array{appends: array<string>, relations: array<string, mixed>}  $appendTree
      * @param  array<int, bool>  $visited  Object IDs already processed (prevents circular reference loops)
      */
-    protected function applyAppendsRecursively(object $model, array $appends, array &$visited = []): void
+    protected function applyAppendsRecursively(object $model, array $appendTree, array &$visited = []): void
     {
         $objectId = spl_object_id($model);
         if (isset($visited[$objectId])) {
@@ -79,24 +84,12 @@ trait HandlesAppends
         }
         $visited[$objectId] = true;
 
-        $rootAppends = [];
-        /** @var array<string, array<string>> $nestedAppends */
-        $nestedAppends = [];
-
-        foreach ($appends as $append) {
-            if (str_contains($append, '.')) {
-                [$relation, $rest] = explode('.', $append, 2);
-                $nestedAppends[$relation][] = $rest;
-            } else {
-                $rootAppends[] = $append;
-            }
-        }
-
+        $rootAppends = $appendTree['appends'];
         if (! empty($rootAppends) && method_exists($model, 'append')) {
             $model->append($rootAppends);
         }
 
-        foreach ($nestedAppends as $relation => $relationAppends) {
+        foreach ($appendTree['relations'] as $relation => $relationAppendTree) {
             if (! method_exists($model, 'relationLoaded') || ! $model->relationLoaded($relation)) {
                 continue;
             }
@@ -114,13 +107,51 @@ trait HandlesAppends
             if ($related instanceof \Traversable || is_array($related)) {
                 foreach ($related as $item) {
                     if (is_object($item)) {
-                        $this->applyAppendsRecursively($item, $relationAppends, $visited);
+                        $this->applyAppendsRecursively($item, $relationAppendTree, $visited);
                     }
                 }
             } elseif (is_object($related)) {
-                $this->applyAppendsRecursively($related, $relationAppends, $visited);
+                $this->applyAppendsRecursively($related, $relationAppendTree, $visited);
             }
         }
+    }
+
+    /**
+     * Build append tree once and reuse in recursive traversal.
+     *
+     * @param  array<string>  $appends
+     * @return array{appends: array<string>, relations: array<string, mixed>}
+     */
+    protected function buildAppendTree(array $appends): array
+    {
+        $tree = [
+            'appends' => [],
+            'relations' => [],
+        ];
+
+        foreach ($appends as $appendPath) {
+            $segments = explode('.', $appendPath);
+            $append = array_pop($segments);
+
+            /** @var array{appends: array<string>, relations: array<string, mixed>} $node */
+            $node = &$tree;
+
+            foreach ($segments as $relation) {
+                if (! isset($node['relations'][$relation])) {
+                    $node['relations'][$relation] = [
+                        'appends' => [],
+                        'relations' => [],
+                    ];
+                }
+
+                $node = &$node['relations'][$relation];
+            }
+
+            $node['appends'][] = $append;
+            unset($node);
+        }
+
+        return $tree;
     }
 
     /**

@@ -86,28 +86,31 @@ trait HandlesFilters
     {
         $filters = $this->getEffectiveFilters();
         $allowedFilterNamesIndex = array_flip(array_keys($filters));
+        $requestedFilterNames = [];
 
-        return $this->extractAllRequestedFilterNames(
+        $this->extractAllRequestedFilterNames(
             $this->getParametersManager()->getFilters()->all(),
+            $requestedFilterNames,
             '',
             $allowedFilterNamesIndex,
         );
+
+        return $requestedFilterNames;
     }
 
     /**
      * Extract all possible filter names from a nested request structure.
      *
      * @param  array<string, mixed>  $filters
+     * @param  array<string>  $names
      * @param  array<string, int>  $allowedFilterNamesIndex
-     * @return array<string>
      */
     protected function extractAllRequestedFilterNames(
         array $filters,
+        array &$names,
         string $prefix = '',
         array $allowedFilterNamesIndex = [],
-    ): array {
-        $names = [];
-
+    ): void {
         foreach ($filters as $key => $value) {
             $fullKey = $prefix === '' ? (string) $key : $prefix.'.'.$key;
 
@@ -120,20 +123,18 @@ trait HandlesFilters
             $isRecursable = is_array($value) && ! empty($value) && $this->isAssociativeArray($value);
 
             if ($isRecursable) {
-                $names = array_merge(
+                $this->extractAllRequestedFilterNames(
+                    $value,
                     $names,
-                    $this->extractAllRequestedFilterNames(
-                        $value,
-                        $fullKey,
-                        $allowedFilterNamesIndex,
-                    )
+                    $fullKey,
+                    $allowedFilterNamesIndex,
                 );
-            } else {
-                $names[] = $fullKey;
-            }
-        }
 
-        return $names;
+                continue;
+            }
+
+            $names[] = $fullKey;
+        }
     }
 
     /**

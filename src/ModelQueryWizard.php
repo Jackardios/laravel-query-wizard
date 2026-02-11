@@ -475,7 +475,10 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         $appends = $this->getValidRequestedAppends();
         if (! empty($appends)) {
-            $this->applyAppendsRecursively($this->model, $appends);
+            $appendTree = $this->buildAppendTree($appends);
+            if (! empty($appendTree['appends']) || ! empty($appendTree['relations'])) {
+                $this->applyAppendsRecursively($this->model, $appendTree);
+            }
         }
     }
 
