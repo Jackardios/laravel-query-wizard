@@ -495,7 +495,7 @@ final class ModelQueryWizard implements QueryWizardInterface, WizardContextInter
      */
     protected function normalizeStringToInclude(string $name): IncludeInterface
     {
-        return RelationshipInclude::fromString($name, $this->config->getCountSuffix());
+        return RelationshipInclude::fromString($name, $this->config->getCountSuffix(), $this->config->getExistsSuffix());
     }
 
     /**

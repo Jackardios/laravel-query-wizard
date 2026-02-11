@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
+use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 
 /**
  * Filter by NULL/NOT NULL values.
+ *
+ * Supports dot notation for relation filtering (e.g., 'posts.deleted_at').
  *
  * By default:
  * - Truthy value → WHERE column IS NULL
@@ -18,6 +21,8 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
  */
 final class NullFilter extends AbstractFilter
 {
+    use HandlesRelationFiltering;
+
     protected bool $invertLogic = false;
 
     /**
@@ -68,22 +73,35 @@ final class NullFilter extends AbstractFilter
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
-        $column = $subject->qualifyColumn($this->property);
+        if ($this->withRelationConstraint && $this->isRelationProperty($subject, $this->property)) {
+            return $this->applyRelationFilter($subject, $this->property, $value);
+        }
+
+        return $this->applyOnQuery($subject, $value, $this->property);
+    }
+
+    /**
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
+     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     */
+    protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
+    {
+        $qualifiedColumn = $builder->qualifyColumn($column);
 
         $isTruthy = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
         if ($isTruthy === null) {
-            return $subject;
+            return $builder;
         }
 
         $shouldBeNull = $this->invertLogic ? ! $isTruthy : $isTruthy;
 
         if ($shouldBeNull) {
-            $subject->whereNull($column);
+            $builder->whereNull($qualifiedColumn);
         } else {
-            $subject->whereNotNull($column);
+            $builder->whereNotNull($qualifiedColumn);
         }
 
-        return $subject;
+        return $builder;
     }
 }

@@ -19,6 +19,37 @@ trait HandlesRelationFiltering
     protected bool $withRelationConstraint = true;
 
     /**
+     * Enable relation constraint for dot notation filtering (default).
+     *
+     * When enabled, filters like 'posts.title' use whereHas() to constrain
+     * the query to records that have related posts matching the filter.
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function withRelationConstraint(): static
+    {
+        $this->withRelationConstraint = true;
+
+        return $this;
+    }
+
+    /**
+     * Disable relation constraint for dot notation filtering.
+     *
+     * When disabled, filters like 'posts.title' are applied directly
+     * without using whereHas(), which may be useful for JSON columns
+     * or when joining tables manually.
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function withoutRelationConstraint(): static
+    {
+        $this->withRelationConstraint = false;
+
+        return $this;
+    }
+
+    /**
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
      */
     protected function isRelationProperty(Builder $builder, string $property): bool

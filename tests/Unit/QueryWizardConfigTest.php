@@ -34,6 +34,21 @@ class QueryWizardConfigTest extends TestCase
         $this->assertEquals('Total', $this->config->getCountSuffix());
     }
 
+    // ========== Exists Suffix Tests ==========
+    #[Test]
+    public function it_returns_default_exists_suffix(): void
+    {
+        $this->assertEquals('Exists', $this->config->getExistsSuffix());
+    }
+
+    #[Test]
+    public function it_returns_custom_exists_suffix(): void
+    {
+        Config::set('query-wizard.exists_suffix', 'Has');
+
+        $this->assertEquals('Has', $this->config->getExistsSuffix());
+    }
+
     // ========== Array Value Separator Tests ==========
     #[Test]
     public function it_returns_default_array_value_separator(): void
@@ -47,6 +62,102 @@ class QueryWizardConfigTest extends TestCase
         Config::set('query-wizard.array_value_separator', '|');
 
         $this->assertEquals('|', $this->config->getArrayValueSeparator());
+    }
+
+    // ========== Per-Type Separator Tests ==========
+    #[Test]
+    public function it_returns_default_separator_for_includes(): void
+    {
+        $this->assertEquals(',', $this->config->getIncludesSeparator());
+    }
+
+    #[Test]
+    public function it_returns_default_separator_for_sorts(): void
+    {
+        $this->assertEquals(',', $this->config->getSortsSeparator());
+    }
+
+    #[Test]
+    public function it_returns_default_separator_for_filters(): void
+    {
+        $this->assertEquals(',', $this->config->getFiltersSeparator());
+    }
+
+    #[Test]
+    public function it_returns_default_separator_for_fields(): void
+    {
+        $this->assertEquals(',', $this->config->getFieldsSeparator());
+    }
+
+    #[Test]
+    public function it_returns_default_separator_for_appends(): void
+    {
+        $this->assertEquals(',', $this->config->getAppendsSeparator());
+    }
+
+    #[Test]
+    public function it_returns_custom_separator_for_includes(): void
+    {
+        Config::set('query-wizard.separators.includes', '|');
+
+        $this->assertEquals('|', $this->config->getIncludesSeparator());
+    }
+
+    #[Test]
+    public function it_returns_custom_separator_for_filters(): void
+    {
+        Config::set('query-wizard.separators.filters', ';');
+
+        $this->assertEquals(';', $this->config->getFiltersSeparator());
+    }
+
+    #[Test]
+    public function it_falls_back_to_array_value_separator_when_type_not_configured(): void
+    {
+        Config::set('query-wizard.array_value_separator', '|');
+        Config::set('query-wizard.separators', []);
+
+        $this->assertEquals('|', $this->config->getFiltersSeparator());
+        $this->assertEquals('|', $this->config->getIncludesSeparator());
+    }
+
+    #[Test]
+    public function it_uses_type_specific_separator_over_array_value_separator(): void
+    {
+        Config::set('query-wizard.array_value_separator', '|');
+        Config::set('query-wizard.separators.filters', ';');
+
+        $this->assertEquals(';', $this->config->getFiltersSeparator());
+        $this->assertEquals('|', $this->config->getIncludesSeparator());
+    }
+
+    #[Test]
+    public function get_separator_returns_type_specific_value(): void
+    {
+        Config::set('query-wizard.separators.filters', ';');
+
+        $this->assertEquals(';', $this->config->getSeparator('filters'));
+    }
+
+    #[Test]
+    public function get_separator_falls_back_to_default(): void
+    {
+        $this->assertEquals(',', $this->config->getSeparator('nonexistent'));
+    }
+
+    // ========== Naming Conversion Tests ==========
+    #[Test]
+    public function it_returns_false_for_convert_parameters_to_snake_case_by_default(): void
+    {
+        $this->assertFalse($this->config->shouldConvertParametersToSnakeCase());
+    }
+
+    #[Test]
+    public function it_returns_true_when_convert_parameters_to_snake_case_enabled(): void
+    {
+        Config::set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $this->assertTrue($this->config->shouldConvertParametersToSnakeCase());
     }
 
     // ========== Optimizations Tests ==========

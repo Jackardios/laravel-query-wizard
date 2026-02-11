@@ -594,4 +594,98 @@ class IncludeTest extends TestCase
 
         $this->assertTrue($models->first()->relationLoaded('relatedThroughPivotModelsWithPivot'));
     }
+
+    // ========== Exists Include Tests ==========
+    #[Test]
+    public function it_can_include_exists(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModelsExists')
+            ->allowedIncludes(EloquentInclude::exists('relatedModels'))
+            ->get();
+
+        $this->assertTrue(isset($models->first()->related_models_exists));
+        $this->assertTrue($models->first()->related_models_exists);
+    }
+
+    #[Test]
+    public function it_can_include_exists_with_alias(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithIncludes('hasRelated')
+            ->allowedIncludes(EloquentInclude::exists('relatedModels')->alias('hasRelated'))
+            ->get();
+
+        $this->assertTrue(isset($models->first()->related_models_exists));
+    }
+
+    #[Test]
+    public function it_can_include_multiple_exists(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModelsExists,otherRelatedModelsExists')
+            ->allowedIncludes(
+                EloquentInclude::exists('relatedModels'),
+                EloquentInclude::exists('otherRelatedModels')
+            )
+            ->get();
+
+        $this->assertTrue(isset($models->first()->related_models_exists));
+        $this->assertTrue(isset($models->first()->other_related_models_exists));
+    }
+
+    #[Test]
+    public function it_returns_false_exists_for_empty_relations(): void
+    {
+        // Create a model without related models
+        $emptyModel = TestModel::factory()->create();
+
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModelsExists')
+            ->allowedIncludes(EloquentInclude::exists('relatedModels'))
+            ->get();
+
+        $modelWithoutRelated = $models->firstWhere('id', $emptyModel->id);
+        $this->assertFalse($modelWithoutRelated->related_models_exists);
+    }
+
+    #[Test]
+    public function exists_include_is_auto_detected_by_suffix(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModelsExists')
+            ->allowedIncludes('relatedModelsExists')
+            ->get();
+
+        $this->assertTrue(isset($models->first()->related_models_exists));
+    }
+
+    #[Test]
+    public function it_can_mix_relationship_count_and_exists_includes(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModels,relatedModelsCount,relatedModelsExists')
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels'),
+                EloquentInclude::count('relatedModels'),
+                EloquentInclude::exists('relatedModels')
+            )
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $this->assertTrue(isset($models->first()->related_models_count));
+        $this->assertTrue(isset($models->first()->related_models_exists));
+    }
+
+    #[Test]
+    public function exists_include_uses_with_exists(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithIncludes('relatedModelsExists')
+            ->allowedIncludes(EloquentInclude::exists('relatedModels'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('exists', strtolower($sql));
+    }
 }

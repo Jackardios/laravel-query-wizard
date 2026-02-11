@@ -53,7 +53,6 @@ trait HandlesIncludes
             ? $this->allowedIncludes
             : ($this->getSchema()?->includes($this) ?? []);
 
-        $countSuffix = $this->getConfig()->getCountSuffix();
         $disallowed = $this->disallowedIncludes;
         $result = [];
 
@@ -62,9 +61,11 @@ trait HandlesIncludes
                 $include = $this->normalizeStringToInclude($include);
             }
 
-            if ($include->getType() === 'count' && $include->getAlias() === null) {
-                $include = (clone $include)->alias($include->getRelation().$countSuffix);
-            }
+            $configKey = $include->getSuffixConfigKey();
+            $suffix = $configKey !== null
+                ? (string) config('query-wizard.'.$configKey, $include->getDefaultAliasSuffix())
+                : null;
+            $include = $include->withDefaultAlias($suffix);
 
             $name = $include->getName();
 

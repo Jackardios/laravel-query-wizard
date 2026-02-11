@@ -10,12 +10,14 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Includes\AbstractInclude;
 
 /**
- * Include for loading relationship counts via withCount().
+ * Include for checking relationship existence via withExists().
+ *
+ * Adds a boolean attribute `{relation}_exists` to each model.
  */
-final class CountInclude extends AbstractInclude
+final class ExistsInclude extends AbstractInclude
 {
     /**
-     * Create a new count include.
+     * Create a new exists include.
      *
      * @param  string  $relation  The relationship name
      * @param  string|null  $alias  Optional alias for URL parameter name
@@ -27,17 +29,17 @@ final class CountInclude extends AbstractInclude
 
     public function getType(): string
     {
-        return 'count';
+        return 'exists';
     }
 
     public function getDefaultAliasSuffix(): string
     {
-        return 'Count';
+        return 'Exists';
     }
 
     public function getSuffixConfigKey(): string
     {
-        return 'count_suffix';
+        return 'exists_suffix';
     }
 
     /**
@@ -46,6 +48,6 @@ final class CountInclude extends AbstractInclude
      */
     public function apply(mixed $subject): mixed
     {
-        return $subject->withCount($this->relation);
+        return $subject->withExists($this->relation);
     }
 }

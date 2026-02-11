@@ -851,4 +851,304 @@ class QueryParametersManagerTest extends TestCase
 
         $this->assertEquals(['posts.comments', 'posts.author'], $includes->all());
     }
+
+    // ========== Custom Separators Tests ==========
+    #[Test]
+    public function it_uses_custom_separator_for_filters(): void
+    {
+        config()->set('query-wizard.separators.filters', ';');
+
+        $request = new Request(['filter' => ['tags' => 'a;b;c']]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals(['a', 'b', 'c'], $manager->getFilters()->get('tags'));
+    }
+
+    #[Test]
+    public function it_uses_custom_separator_for_includes(): void
+    {
+        config()->set('query-wizard.separators.includes', '|');
+
+        $request = new Request(['include' => 'posts|comments|author']);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals(['posts', 'comments', 'author'], $manager->getIncludes()->all());
+    }
+
+    #[Test]
+    public function it_uses_custom_separator_for_sorts(): void
+    {
+        config()->set('query-wizard.separators.sorts', '|');
+
+        $request = new Request(['sort' => 'name|-created_at']);
+        $manager = new QueryParametersManager($request);
+
+        $sorts = $manager->getSorts();
+
+        $this->assertCount(2, $sorts);
+        $this->assertEquals('name', $sorts[0]->getField());
+        $this->assertEquals('created_at', $sorts[1]->getField());
+    }
+
+    #[Test]
+    public function it_uses_custom_separator_for_fields(): void
+    {
+        config()->set('query-wizard.separators.fields', '|');
+
+        $request = new Request(['fields' => ['users' => 'id|name|email']]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals(['id', 'name', 'email'], $manager->getFields()->get('users'));
+    }
+
+    #[Test]
+    public function it_uses_custom_separator_for_appends(): void
+    {
+        config()->set('query-wizard.separators.appends', '|');
+
+        $request = new Request(['append' => 'fullName|avatarUrl']);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals(['' => ['fullName', 'avatarUrl']], $manager->getAppends()->all());
+    }
+
+    #[Test]
+    public function different_parameter_types_can_use_different_separators(): void
+    {
+        config()->set('query-wizard.separators.filters', ';');
+        config()->set('query-wizard.separators.includes', '|');
+        config()->set('query-wizard.separators.sorts', ':');
+
+        $request = new Request([
+            'filter' => ['tags' => 'a;b;c'],
+            'include' => 'posts|comments',
+            'sort' => 'name:-created_at',
+        ]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals(['a', 'b', 'c'], $manager->getFilters()->get('tags'));
+        $this->assertEquals(['posts', 'comments'], $manager->getIncludes()->all());
+        $this->assertEquals('name', $manager->getSorts()[0]->getField());
+        $this->assertEquals('created_at', $manager->getSorts()[1]->getField());
+    }
+
+    #[Test]
+    public function reset_clears_cached_parsers(): void
+    {
+        config()->set('query-wizard.separators.includes', '|');
+
+        $request = new Request(['include' => 'posts|comments']);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals(['posts', 'comments'], $manager->getIncludes()->all());
+
+        config()->set('query-wizard.separators.includes', ';');
+        $manager->reset();
+        $manager->setIncludesParameter('posts;comments');
+
+        $this->assertEquals(['posts', 'comments'], $manager->getIncludes()->all());
+    }
+
+    // ========== Naming Conversion Tests ==========
+    #[Test]
+    public function it_converts_camel_case_filter_keys_to_snake_case(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['filter' => ['firstName' => 'John', 'lastName' => 'Doe']]);
+        $manager = new QueryParametersManager($request);
+
+        $filters = $manager->getFilters();
+
+        $this->assertEquals('John', $filters->get('first_name'));
+        $this->assertEquals('Doe', $filters->get('last_name'));
+        $this->assertNull($filters->get('firstName'));
+        $this->assertNull($filters->get('lastName'));
+    }
+
+    #[Test]
+    public function it_converts_nested_filter_keys_to_snake_case(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['filter' => [
+            'authorProfile' => ['fullName' => 'John Doe'],
+        ]]);
+        $manager = new QueryParametersManager($request);
+
+        $filters = $manager->getFilters();
+
+        $this->assertEquals(['full_name' => 'John Doe'], $filters->get('author_profile'));
+    }
+
+    #[Test]
+    public function it_converts_dotted_filter_keys_to_snake_case(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['filter' => ['author.firstName' => 'John']]);
+        $manager = new QueryParametersManager($request);
+
+        $filters = $manager->getFilters();
+
+        $this->assertEquals('John', $filters->get('author.first_name'));
+    }
+
+    #[Test]
+    public function it_converts_include_paths_to_snake_case(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['include' => 'relatedModels,relatedModels.nestedItems']);
+        $manager = new QueryParametersManager($request);
+
+        $includes = $manager->getIncludes();
+
+        $this->assertEquals(['related_models', 'related_models.nested_items'], $includes->all());
+    }
+
+    #[Test]
+    public function it_converts_sort_fields_to_snake_case(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['sort' => 'firstName,-createdAt']);
+        $manager = new QueryParametersManager($request);
+
+        $sorts = $manager->getSorts();
+
+        $this->assertEquals('first_name', $sorts[0]->getField());
+        $this->assertEquals('asc', $sorts[0]->getDirection());
+        $this->assertEquals('created_at', $sorts[1]->getField());
+        $this->assertEquals('desc', $sorts[1]->getDirection());
+    }
+
+    #[Test]
+    public function it_converts_field_keys_and_names_to_snake_case(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['fields' => [
+            'relatedModels' => 'fieldOne,fieldTwo',
+        ]]);
+        $manager = new QueryParametersManager($request);
+
+        $fields = $manager->getFields();
+
+        $this->assertEquals(['field_one', 'field_two'], $fields->get('related_models'));
+        $this->assertNull($fields->get('relatedModels'));
+    }
+
+    #[Test]
+    public function it_converts_dotted_field_paths_to_snake_case(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['fields' => 'relatedModels.fieldName,otherRelation.anotherField']);
+        $manager = new QueryParametersManager($request);
+
+        $fields = $manager->getFields();
+
+        $this->assertEquals(['field_name'], $fields->get('related_models'));
+        $this->assertEquals(['another_field'], $fields->get('other_relation'));
+    }
+
+    #[Test]
+    public function it_converts_append_keys_and_names_to_snake_case(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['append' => [
+            'relatedModels' => 'fullName,avatarUrl',
+        ]]);
+        $manager = new QueryParametersManager($request);
+
+        $appends = $manager->getAppends();
+
+        $this->assertEquals(['full_name', 'avatar_url'], $appends->get('related_models'));
+    }
+
+    #[Test]
+    public function it_does_not_convert_when_disabled(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', false);
+
+        $request = new Request([
+            'filter' => ['firstName' => 'John'],
+            'include' => 'relatedModels',
+            'sort' => 'createdAt',
+        ]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals('John', $manager->getFilters()->get('firstName'));
+        $this->assertEquals(['relatedModels'], $manager->getIncludes()->all());
+        $this->assertEquals('createdAt', $manager->getSorts()[0]->getField());
+    }
+
+    #[Test]
+    public function it_handles_already_snake_case_when_conversion_enabled(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $request = new Request(['filter' => ['first_name' => 'John']]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals('John', $manager->getFilters()->get('first_name'));
+    }
+
+    #[Test]
+    public function set_filters_parameter_applies_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $manager = new QueryParametersManager;
+        $manager->setFiltersParameter(['firstName' => 'John']);
+
+        $this->assertEquals('John', $manager->getFilters()->get('first_name'));
+    }
+
+    #[Test]
+    public function set_includes_parameter_applies_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $manager = new QueryParametersManager;
+        $manager->setIncludesParameter(['relatedModels', 'otherRelatedModels']);
+
+        $this->assertEquals(['related_models', 'other_related_models'], $manager->getIncludes()->all());
+    }
+
+    #[Test]
+    public function set_sorts_parameter_applies_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $manager = new QueryParametersManager;
+        $manager->setSortsParameter(['firstName', '-createdAt']);
+
+        $this->assertEquals('first_name', $manager->getSorts()[0]->getField());
+        $this->assertEquals('created_at', $manager->getSorts()[1]->getField());
+    }
+
+    #[Test]
+    public function set_fields_parameter_applies_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $manager = new QueryParametersManager;
+        $manager->setFieldsParameter(['relatedModels' => 'fieldName,otherField']);
+
+        $this->assertEquals(['field_name', 'other_field'], $manager->getFields()->get('related_models'));
+    }
+
+    #[Test]
+    public function set_appends_parameter_applies_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $manager = new QueryParametersManager;
+        $manager->setAppendsParameter(['fullName', 'avatarUrl']);
+
+        $this->assertEquals(['' => ['full_name', 'avatar_url']], $manager->getAppends()->all());
+    }
 }

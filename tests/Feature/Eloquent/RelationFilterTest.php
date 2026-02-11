@@ -103,4 +103,157 @@ class RelationFilterTest extends EloquentFilterTestCase
         // No whereHas — treated as direct column reference
         $this->assertStringNotContainsString('exists', strtolower($sql));
     }
+
+    // ========== RangeFilter Relation Tests ==========
+
+    #[Test]
+    public function it_can_filter_by_relation_property_with_range_filter(): void
+    {
+        $testModel = $this->models->first();
+        RelatedModel::factory()->create([
+            'test_model_id' => $testModel->id,
+        ]);
+
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.id' => ['min' => 1, 'max' => 100]])
+            ->allowedFilters(EloquentFilter::range('relatedModels.id'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('exists', strtolower($sql));
+        $this->assertStringContainsString('>=', $sql);
+        $this->assertStringContainsString('<=', $sql);
+    }
+
+    #[Test]
+    public function it_can_disable_relation_constraint_for_range_filter(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.id' => ['min' => 1]])
+            ->allowedFilters(
+                EloquentFilter::range('relatedModels.id')
+                    ->withoutRelationConstraint()
+            )
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringNotContainsString('exists', strtolower($sql));
+    }
+
+    // ========== DateRangeFilter Relation Tests ==========
+
+    #[Test]
+    public function it_can_filter_by_relation_property_with_date_range_filter(): void
+    {
+        $testModel = $this->models->first();
+        RelatedModel::factory()->create([
+            'test_model_id' => $testModel->id,
+        ]);
+
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.created_at' => ['from' => '2020-01-01', 'to' => '2030-12-31']])
+            ->allowedFilters(EloquentFilter::dateRange('relatedModels.created_at'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('exists', strtolower($sql));
+        $this->assertStringContainsString('>=', $sql);
+        $this->assertStringContainsString('<=', $sql);
+    }
+
+    #[Test]
+    public function it_can_disable_relation_constraint_for_date_range_filter(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.created_at' => ['from' => '2020-01-01']])
+            ->allowedFilters(
+                EloquentFilter::dateRange('relatedModels.created_at')
+                    ->withoutRelationConstraint()
+            )
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringNotContainsString('exists', strtolower($sql));
+    }
+
+    // ========== NullFilter Relation Tests ==========
+
+    #[Test]
+    public function it_can_filter_by_relation_property_with_null_filter(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => true])
+            ->allowedFilters(EloquentFilter::null('relatedModels.name'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('exists', strtolower($sql));
+        $this->assertStringContainsString('is null', strtolower($sql));
+    }
+
+    #[Test]
+    public function it_can_disable_relation_constraint_for_null_filter(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => true])
+            ->allowedFilters(
+                EloquentFilter::null('relatedModels.name')
+                    ->withoutRelationConstraint()
+            )
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringNotContainsString('exists', strtolower($sql));
+    }
+
+    #[Test]
+    public function it_can_filter_by_relation_property_with_null_filter_inverted(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => true])
+            ->allowedFilters(
+                EloquentFilter::null('relatedModels.name')
+                    ->withInvertedLogic()
+            )
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('exists', strtolower($sql));
+        $this->assertStringContainsString('is not null', strtolower($sql));
+    }
+
+    // ========== PartialFilter Relation Tests ==========
+
+    #[Test]
+    public function it_can_filter_by_relation_property_with_partial_filter(): void
+    {
+        $testModel = $this->models->first();
+        RelatedModel::factory()->create([
+            'test_model_id' => $testModel->id,
+            'name' => 'searchable_text',
+        ]);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => 'searchable'])
+            ->allowedFilters(EloquentFilter::partial('relatedModels.name'))
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($testModel->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function it_can_disable_relation_constraint_for_partial_filter(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => 'test'])
+            ->allowedFilters(
+                EloquentFilter::partial('relatedModels.name')
+                    ->withoutRelationConstraint()
+            )
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringNotContainsString('exists', strtolower($sql));
+    }
 }

@@ -27,6 +27,12 @@ return [
     'count_suffix' => 'Count',
 
     /*
+     * Relationship existence checks are included using the relationship name suffixed with this string.
+     * For example: GET /users?include=postsExists
+     */
+    'exists_suffix' => 'Exists',
+
+    /*
      * By default the package will throw an `InvalidFilterQuery` exception when a filter in the
      * URL is not allowed in the `allowedFilters()` method.
      */
@@ -72,6 +78,37 @@ return [
     'apply_filter_default_on_null' => false,
 
     'array_value_separator' => ',',
+
+    /*
+     * Naming conversion options.
+     */
+    'naming' => [
+        /*
+         * When true, camelCase parameter names are automatically converted to snake_case.
+         *
+         * Example: ?filter[firstName]=John -> internally: filter[first_name]=John
+         *
+         * This allows API consumers to use camelCase while your database uses snake_case.
+         */
+        'convert_parameters_to_snake_case' => false,
+    ],
+
+    /*
+     * Per-parameter-type separators.
+     *
+     * Allows using different separators for different parameter types.
+     * If a type-specific separator is not set, falls back to 'array_value_separator'.
+     *
+     * Example: Use semicolon for filters to allow commas in filter values:
+     *   'separators' => ['filters' => ';']
+     */
+    'separators' => [
+        // 'includes' => ',',
+        // 'sorts' => ',',
+        // 'fields' => ',',
+        // 'appends' => ',',
+        // 'filters' => ',',
+    ],
 
     /*
      * Runtime optimizations for relation field handling.

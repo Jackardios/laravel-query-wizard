@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\Includes\CountInclude;
+use Jackardios\QueryWizard\Eloquent\Includes\ExistsInclude;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Includes\CallbackInclude;
 
@@ -36,6 +37,19 @@ final class EloquentInclude
     public static function count(string $relation, ?string $alias = null): CountInclude
     {
         return CountInclude::make($relation, $alias);
+    }
+
+    /**
+     * Create an exists include (check existence with withExists()).
+     *
+     * Adds a boolean attribute `{relation}_exists` to each model.
+     *
+     * @param  string  $relation  The relationship name
+     * @param  string|null  $alias  Optional alias for URL parameter name (default: {relation}Exists)
+     */
+    public static function exists(string $relation, ?string $alias = null): ExistsInclude
+    {
+        return ExistsInclude::make($relation, $alias);
     }
 
     /**

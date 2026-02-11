@@ -8,10 +8,12 @@ use Jackardios\QueryWizard\Eloquent\Filters\DateRangeFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\ExactFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\JsonContainsFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\NullFilter;
+use Jackardios\QueryWizard\Eloquent\Filters\OperatorFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\PartialFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\RangeFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\TrashedFilter;
+use Jackardios\QueryWizard\Enums\FilterOperator;
 use Jackardios\QueryWizard\Filters\CallbackFilter;
 use Jackardios\QueryWizard\Filters\PassthroughFilter;
 
@@ -131,5 +133,24 @@ final class EloquentFilter
     public static function passthrough(string $name, ?string $alias = null): PassthroughFilter
     {
         return PassthroughFilter::make($name, $alias);
+    }
+
+    /**
+     * Create an operator filter with configurable comparison operator.
+     *
+     * Supports =, !=, >, >=, <, <=, LIKE, NOT LIKE operators.
+     * Use FilterOperator::DYNAMIC to parse operator from filter value.
+     *
+     * Examples:
+     *   Static: operator('price', FilterOperator::GREATER_THAN) + ?filter[price]=100 → price > 100
+     *   Dynamic: operator('price', FilterOperator::DYNAMIC) + ?filter[price]=>=100 → price >= 100
+     *
+     * @param  string  $property  The column name to filter on
+     * @param  FilterOperator  $operator  The comparison operator (default: EQUAL)
+     * @param  string|null  $alias  Optional alias for URL parameter name
+     */
+    public static function operator(string $property, FilterOperator $operator = FilterOperator::EQUAL, ?string $alias = null): OperatorFilter
+    {
+        return OperatorFilter::make($property, $alias, $operator);
     }
 }

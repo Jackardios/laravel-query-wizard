@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Support\FilterValueTransformer;
+use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Support\ParameterParser;
 use Jackardios\QueryWizard\Values\Sort;
 
@@ -44,18 +45,174 @@ class QueryParametersManager
 
     protected QueryWizardConfig $config;
 
-    protected ParameterParser $parser;
+    protected ?ParameterParser $includesParser = null;
 
-    protected FilterValueTransformer $filterTransformer;
+    protected ?ParameterParser $sortsParser = null;
+
+    protected ?ParameterParser $fieldsParser = null;
+
+    protected ?ParameterParser $appendsParser = null;
+
+    protected ?FilterValueTransformer $filterTransformer = null;
 
     public function __construct(
         protected ?Request $request = null,
         ?QueryWizardConfig $config = null
     ) {
         $this->config = $config ?? new QueryWizardConfig;
-        $separator = $this->config->getArrayValueSeparator();
-        $this->parser = new ParameterParser($separator);
-        $this->filterTransformer = new FilterValueTransformer($separator);
+    }
+
+    protected function getIncludesParser(): ParameterParser
+    {
+        return $this->includesParser ??= new ParameterParser($this->config->getIncludesSeparator());
+    }
+
+    protected function getSortsParser(): ParameterParser
+    {
+        return $this->sortsParser ??= new ParameterParser($this->config->getSortsSeparator());
+    }
+
+    protected function getFieldsParser(): ParameterParser
+    {
+        return $this->fieldsParser ??= new ParameterParser($this->config->getFieldsSeparator());
+    }
+
+    protected function getAppendsParser(): ParameterParser
+    {
+        return $this->appendsParser ??= new ParameterParser($this->config->getAppendsSeparator());
+    }
+
+    protected function getFilterTransformer(): FilterValueTransformer
+    {
+        return $this->filterTransformer ??= new FilterValueTransformer($this->config->getFiltersSeparator());
+    }
+
+    /**
+     * Convert a name to snake_case if the config option is enabled.
+     */
+    protected function convertName(string $name): string
+    {
+        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+            return $name;
+        }
+
+        return NameConverter::toSnakeCase($name);
+    }
+
+    /**
+     * Convert a dotted path to snake_case if the config option is enabled.
+     */
+    protected function convertPath(string $path): string
+    {
+        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+            return $path;
+        }
+
+        return NameConverter::pathToSnakeCase($path);
+    }
+
+    /**
+     * Convert a list collection (includes, etc.) paths to snake_case.
+     *
+     * @param  Collection<int, string>  $collection
+     * @return Collection<int, string>
+     */
+    protected function convertListCollection(Collection $collection): Collection
+    {
+        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+            return $collection;
+        }
+
+        return $collection->map(fn (string $item) => $this->convertPath($item))->values();
+    }
+
+    /**
+     * Convert a sorts collection field names to snake_case.
+     *
+     * @param  Collection<int, Sort>  $collection
+     * @return Collection<int, Sort>
+     */
+    protected function convertSortsCollection(Collection $collection): Collection
+    {
+        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+            return $collection;
+        }
+
+        return $collection->map(function (Sort $sort) {
+            $convertedField = $this->convertPath($sort->getField());
+            if ($convertedField === $sort->getField()) {
+                return $sort;
+            }
+
+            return new Sort(
+                $sort->getDirection() === 'desc' ? '-'.$convertedField : $convertedField
+            );
+        })->values();
+    }
+
+    /**
+     * Convert a fields/appends collection keys and values to snake_case.
+     *
+     * @param  Collection<string, array<string>>  $collection
+     * @return Collection<string, array<string>>
+     */
+    protected function convertFieldsCollection(Collection $collection): Collection
+    {
+        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+            return $collection;
+        }
+
+        return $collection->mapWithKeys(function (array $fields, string $key) {
+            $convertedKey = $this->convertPath($key);
+            $convertedFields = array_map(fn (string $field) => $this->convertName($field), $fields);
+
+            return [$convertedKey => $convertedFields];
+        });
+    }
+
+    /**
+     * Convert a filters collection keys to snake_case (recursively for nested).
+     *
+     * @param  Collection<string, mixed>  $collection
+     * @return Collection<string, mixed>
+     */
+    protected function convertFiltersCollection(Collection $collection): Collection
+    {
+        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+            return $collection;
+        }
+
+        return $collection->mapWithKeys(function (mixed $value, string $key) {
+            $convertedKey = $this->convertPath($key);
+
+            if (is_array($value)) {
+                $value = $this->convertFiltersArray($value);
+            }
+
+            return [$convertedKey => $value];
+        });
+    }
+
+    /**
+     * Convert filter array keys recursively to snake_case.
+     *
+     * @param  array<string|int, mixed>  $array
+     * @return array<string|int, mixed>
+     */
+    protected function convertFiltersArray(array $array): array
+    {
+        $result = [];
+        foreach ($array as $key => $value) {
+            $convertedKey = is_string($key) ? $this->convertPath($key) : $key;
+
+            if (is_array($value)) {
+                $value = $this->convertFiltersArray($value);
+            }
+
+            $result[$convertedKey] = $value;
+        }
+
+        return $result;
     }
 
     public function getRequest(): ?Request
@@ -80,7 +237,8 @@ class QueryParametersManager
         $fieldsParameterName = $this->config->getFieldsParameterName();
         $rawValue = $fieldsParameterName ? $this->getRequestData($fieldsParameterName) : null;
 
-        $this->fields = $this->parser->parseFields($rawValue);
+        $parsed = $this->getFieldsParser()->parseFields($rawValue);
+        $this->fields = $this->convertFieldsCollection($parsed);
 
         /** @var Collection<string, array<string>> */
         return $this->fields;
@@ -98,7 +256,8 @@ class QueryParametersManager
         $appendsParameterName = $this->config->getAppendsParameterName();
         $rawValue = $appendsParameterName ? $this->getRequestData($appendsParameterName) : null;
 
-        $this->appends = $this->parser->parseFields($rawValue);
+        $parsed = $this->getAppendsParser()->parseFields($rawValue);
+        $this->appends = $this->convertFieldsCollection($parsed);
 
         /** @var Collection<string, array<string>> */
         return $this->appends;
@@ -138,7 +297,8 @@ class QueryParametersManager
         $includesParameterName = $this->config->getIncludesParameterName();
         $rawValue = $includesParameterName ? $this->getRequestData($includesParameterName) : null;
 
-        $this->includes = $this->parser->parseList($rawValue);
+        $parsed = $this->getIncludesParser()->parseList($rawValue);
+        $this->includes = $this->convertListCollection($parsed);
 
         /** @var Collection<int, string> */
         return $this->includes;
@@ -156,7 +316,8 @@ class QueryParametersManager
         $sortsParameterName = $this->config->getSortsParameterName();
         $rawValue = $sortsParameterName ? $this->getRequestData($sortsParameterName) : null;
 
-        $this->sorts = $this->parser->parseSorts($rawValue);
+        $parsed = $this->getSortsParser()->parseSorts($rawValue);
+        $this->sorts = $this->convertSortsCollection($parsed);
 
         /** @var Collection<int, Sort> */
         return $this->sorts;
@@ -167,7 +328,8 @@ class QueryParametersManager
      */
     public function setFieldsParameter(mixed $fieldsParameter): static
     {
-        $this->fields = $this->parser->parseFields($fieldsParameter);
+        $parsed = $this->getFieldsParser()->parseFields($fieldsParameter);
+        $this->fields = $this->convertFieldsCollection($parsed);
 
         return $this;
     }
@@ -177,7 +339,8 @@ class QueryParametersManager
      */
     public function setAppendsParameter(mixed $appendsParameter): static
     {
-        $this->appends = $this->parser->parseFields($appendsParameter);
+        $parsed = $this->getAppendsParser()->parseFields($appendsParameter);
+        $this->appends = $this->convertFieldsCollection($parsed);
 
         return $this;
     }
@@ -194,9 +357,10 @@ class QueryParametersManager
             );
         }
 
-        $this->filters = collect($filtersParameter)->map(function ($value) {
-            return $this->filterTransformer->transform($value);
+        $parsed = collect($filtersParameter)->map(function ($value) {
+            return $this->getFilterTransformer()->transform($value);
         });
+        $this->filters = $this->convertFiltersCollection($parsed);
 
         return $this;
     }
@@ -288,7 +452,8 @@ class QueryParametersManager
      */
     public function setIncludesParameter(mixed $includesParameter): static
     {
-        $this->includes = $this->parser->parseList($includesParameter);
+        $parsed = $this->getIncludesParser()->parseList($includesParameter);
+        $this->includes = $this->convertListCollection($parsed);
 
         return $this;
     }
@@ -298,7 +463,8 @@ class QueryParametersManager
      */
     public function setSortsParameter(mixed $sortsParameter): static
     {
-        $this->sorts = $this->parser->parseSorts($sortsParameter);
+        $parsed = $this->getSortsParser()->parseSorts($sortsParameter);
+        $this->sorts = $this->convertSortsCollection($parsed);
 
         return $this;
     }
@@ -314,6 +480,11 @@ class QueryParametersManager
         $this->filters = null;
         $this->includes = null;
         $this->sorts = null;
+        $this->includesParser = null;
+        $this->sortsParser = null;
+        $this->fieldsParser = null;
+        $this->appendsParser = null;
+        $this->filterTransformer = null;
 
         return $this;
     }

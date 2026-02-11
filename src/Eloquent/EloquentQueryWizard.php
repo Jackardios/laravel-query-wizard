@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\BaseQueryWizard;
 use Jackardios\QueryWizard\Concerns\HandlesRelationPostProcessing;
@@ -165,6 +166,72 @@ final class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
+     * Build and execute query in chunks with automatic post-processing.
+     *
+     * @param  positive-int  $count
+     * @param  callable(Collection<int, Model>): mixed  $callback
+     */
+    public function chunk(int $count, callable $callback): bool
+    {
+        $this->build();
+
+        return $this->subject->chunk($count, function (Collection $models) use ($callback) {
+            $this->applyPostProcessingToResults($models);
+
+            return $callback($models);
+        });
+    }
+
+    /**
+     * Build and execute query with lazy collection with automatic post-processing.
+     *
+     * @return LazyCollection<int, Model>
+     */
+    public function lazy(int $chunkSize = 1000): LazyCollection
+    {
+        $this->build();
+
+        return $this->subject->lazy($chunkSize)->map(function (Model $model) {
+            $this->applyPostProcessingToResults($model);
+
+            return $model;
+        });
+    }
+
+    /**
+     * Build and execute query with cursor (memory-efficient) with automatic post-processing.
+     *
+     * @return LazyCollection<int, Model>
+     */
+    public function cursor(): LazyCollection
+    {
+        $this->build();
+
+        return $this->subject->cursor()->map(function (Model $model) {
+            $this->applyPostProcessingToResults($model);
+
+            return $model;
+        });
+    }
+
+    /**
+     * Build and execute query in chunks by ID with automatic post-processing.
+     *
+     * @param  positive-int  $count
+     * @param  callable(Collection<int, Model>): mixed  $callback
+     */
+    public function chunkById(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
+    {
+        $this->build();
+
+        return $this->subject->chunkById($count, function (Collection $models) use ($callback) {
+            $this->applyPostProcessingToResults($models);
+
+            return $callback($models);
+        }, $column, $alias);
+    }
+
+    /**
      * Build the query and prepare post-processing trees used after execution.
      *
      * @return Builder<Model>|Relation<Model, Model, mixed>
@@ -243,7 +310,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
 
     protected function normalizeStringToInclude(string $name): IncludeInterface
     {
-        return RelationshipInclude::fromString($name, $this->config->getCountSuffix());
+        return RelationshipInclude::fromString($name, $this->config->getCountSuffix(), $this->config->getExistsSuffix());
     }
 
     protected function applyFields(array $fields): void

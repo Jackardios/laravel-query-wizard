@@ -16,9 +16,55 @@ final class QueryWizardConfig
         return (string) config(self::CONFIG_PREFIX.'.count_suffix', 'Count');
     }
 
+    public function getExistsSuffix(): string
+    {
+        return (string) config(self::CONFIG_PREFIX.'.exists_suffix', 'Exists');
+    }
+
     public function getArrayValueSeparator(): string
     {
         return (string) config(self::CONFIG_PREFIX.'.array_value_separator', ',');
+    }
+
+    public function getSeparator(string $type): string
+    {
+        $separators = config(self::CONFIG_PREFIX.'.separators', []);
+
+        if (is_array($separators) && isset($separators[$type])) {
+            return (string) $separators[$type];
+        }
+
+        return $this->getArrayValueSeparator();
+    }
+
+    public function getIncludesSeparator(): string
+    {
+        return $this->getSeparator('includes');
+    }
+
+    public function getSortsSeparator(): string
+    {
+        return $this->getSeparator('sorts');
+    }
+
+    public function getFiltersSeparator(): string
+    {
+        return $this->getSeparator('filters');
+    }
+
+    public function getFieldsSeparator(): string
+    {
+        return $this->getSeparator('fields');
+    }
+
+    public function getAppendsSeparator(): string
+    {
+        return $this->getSeparator('appends');
+    }
+
+    public function shouldConvertParametersToSnakeCase(): bool
+    {
+        return (bool) config(self::CONFIG_PREFIX.'.naming.convert_parameters_to_snake_case', false);
     }
 
     public function getRelationSelectMode(): string
