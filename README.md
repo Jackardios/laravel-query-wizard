@@ -310,6 +310,9 @@ EloquentFilter::exact('status')
     ->when(fn($value) => $value !== 'all')     // Conditional: skip if returns false
 ```
 
+By default, explicit empty/null request values (for example `?filter[status]=`) skip the filter and do not use `default()`.
+If you want `default()` to be applied for explicit null/empty values too, enable `apply_filter_default_on_null` in config.
+
 #### Conditional Filtering with `when()`
 
 Skip filter application based on a condition:
@@ -500,9 +503,13 @@ EloquentQueryWizard::for(User::class)
     ->get();
 ```
 
-**Request:** `?fields[user]=id,name&fields[posts]=id,title`
+**Request (resource-keyed):** `?fields[user]=id,name&fields[posts]=id,title`
+
+**Request (root shorthand):** `?fields=id,name`
 
 The resource key (`user` in the example) is derived from the model name in camelCase. You can customize it with schemas.
+
+If both formats are provided, the resource-keyed format takes precedence for the root resource.
 
 ## Appending Attributes
 
@@ -801,6 +808,12 @@ return [
      * Options: 'query_string', 'body'
      */
     'request_data_source' => 'query_string',
+
+    /*
+     * Opt-in: apply filter default() when request value is null/empty.
+     * Example: ?filter[status]= will use ->default(...) when true.
+     */
+    'apply_filter_default_on_null' => false,
 
     /*
      * Separator for array values in query string.
