@@ -16,8 +16,8 @@ use Jackardios\QueryWizard\Concerns\HandlesSafeRelationSelect;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
+use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
-use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
@@ -29,7 +29,7 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  *
  * @phpstan-consistent-constructor
  */
-final class ModelQueryWizard implements QueryWizardInterface
+final class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 {
     use HandlesAppends;
     use HandlesConfiguration;
@@ -153,6 +153,21 @@ final class ModelQueryWizard implements QueryWizardInterface
     public function disallowedFields(string|array ...$names): static
     {
         $this->disallowedFields = $this->flattenStringArray($names);
+        $this->invalidateProcessedState();
+
+        return $this;
+    }
+
+    /**
+     * Set default fields.
+     *
+     * Applied only when request parameter is completely absent.
+     *
+     * @param  string|array<string>  ...$fields
+     */
+    public function defaultFields(string|array ...$fields): static
+    {
+        $this->defaultFields = $this->flattenStringArray($fields);
         $this->invalidateProcessedState();
 
         return $this;
@@ -330,6 +345,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     protected function loadMissingIncludes(array $effectiveIncludes): void
     {
         $requested = $this->getMergedRequestedIncludes();
+        $usingDefaults = $this->isIncludesRequestEmpty();
         $loaded = array_keys($this->model->getRelations());
 
         $this->validateIncludesLimit(count($requested));
@@ -339,7 +355,7 @@ final class ModelQueryWizard implements QueryWizardInterface
         if (! empty($requested)) {
             $allowedIncludeNames = array_keys($allowedIndex);
 
-            $defaults = $this->getEffectiveDefaultIncludes();
+            $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
             $defaultsIndex = array_flip($defaults);
 
             $invalidIncludes = array_filter(
@@ -413,40 +429,11 @@ final class ModelQueryWizard implements QueryWizardInterface
 
     protected function hideDisallowedFields(): void
     {
-        $resourceKey = $this->getResourceKey();
-        $requestedFields = $this->getRequestedFieldsForResource($resourceKey);
+        $validFields = $this->resolveValidatedRootFields();
 
-        if (empty($requestedFields) || in_array('*', $requestedFields)) {
-            return;
+        if ($validFields !== null) {
+            $this->hideModelAttributesExcept($this->model, $validFields);
         }
-
-        $allowedFields = $this->getEffectiveFields();
-
-        if (in_array('*', $allowedFields, true)) {
-            $visibleFields = $requestedFields;
-        } elseif (empty($allowedFields)) {
-            if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
-                throw InvalidFieldQuery::fieldsNotAllowed(
-                    collect($requestedFields),
-                    collect([])
-                );
-            }
-
-            return;
-        } else {
-            $invalidFields = array_diff($requestedFields, $allowedFields);
-            if (! empty($invalidFields)) {
-                if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
-                    throw InvalidFieldQuery::fieldsNotAllowed(
-                        collect($invalidFields),
-                        collect($allowedFields)
-                    );
-                }
-            }
-            $visibleFields = array_intersect($requestedFields, $allowedFields);
-        }
-
-        $this->hideModelAttributesExcept($this->model, $visibleFields);
     }
 
     /**
@@ -456,10 +443,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     {
         $relationFieldTree = $this->buildRelationFieldTree($this->buildValidatedRelationFieldMap());
 
-        $appends = $this->getValidRequestedAppends();
-        $appendTree = empty($appends)
-            ? $this->emptyAppendTree()
-            : $this->buildAppendTree($appends);
+        $appendTree = $this->getValidRequestedAppendsTree();
 
         $this->applyRelationPostProcessingToResults($this->model, $appendTree, $relationFieldTree);
     }
@@ -467,7 +451,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     /**
      * Get the configuration instance.
      */
-    protected function getConfig(): QueryWizardConfig
+    public function getConfig(): QueryWizardConfig
     {
         return $this->config;
     }
@@ -475,7 +459,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     /**
      * Get the parameters manager.
      */
-    protected function getParametersManager(): QueryParametersManager
+    public function getParametersManager(): QueryParametersManager
     {
         $this->parameters = $this->syncParametersManager($this->parameters);
 
@@ -501,7 +485,7 @@ final class ModelQueryWizard implements QueryWizardInterface
     /**
      * Get the schema instance.
      */
-    protected function getSchema(): ?ResourceSchemaInterface
+    public function getSchema(): ?ResourceSchemaInterface
     {
         return $this->schema;
     }

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
-use Jackardios\QueryWizard\Config\QueryWizardConfig;
-
 /**
  * Shared configuration handling methods for query wizards.
  *
@@ -14,10 +12,7 @@ use Jackardios\QueryWizard\Config\QueryWizardConfig;
  */
 trait HandlesConfiguration
 {
-    /**
-     * Get the configuration instance.
-     */
-    abstract protected function getConfig(): QueryWizardConfig;
+    use RequiresWizardContext;
 
     /**
      * Flatten definitions array (handle variadic with nested arrays).
@@ -90,13 +85,36 @@ trait HandlesConfiguration
     /**
      * Check if a name is disallowed.
      *
+     * Supports wildcards:
+     * - '*' blocks everything
+     * - 'relation.*' blocks direct children (non-recursive)
+     * - 'relation' blocks relation and all descendants (prefix match)
+     *
      * @param  array<string>  $disallowed
      */
     protected function isNameDisallowed(string $name, array $disallowed): bool
     {
+        if (in_array('*', $disallowed, true)) {
+            return true;
+        }
+
         foreach ($disallowed as $d) {
-            if ($name === $d || str_starts_with($name, $d.'.')) {
+            if ($name === $d) {
                 return true;
+            }
+
+            if (str_starts_with($name, $d.'.')) {
+                return true;
+            }
+
+            if (str_ends_with($d, '.*')) {
+                $prefix = substr($d, 0, -2);
+                if (str_starts_with($name, $prefix.'.')) {
+                    $suffix = substr($name, strlen($prefix) + 1);
+                    if (! str_contains($suffix, '.')) {
+                        return true;
+                    }
+                }
             }
         }
 

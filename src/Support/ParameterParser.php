@@ -34,8 +34,18 @@ final class ParameterParser
 
         /** @var Collection<int, string> */
         return collect($value)
-            ->map(fn ($item) => is_string($item) ? trim($item) : $item)
-            ->filter()
+            ->map(function (mixed $item): ?string {
+                if (is_string($item)) {
+                    return trim($item);
+                }
+
+                if (is_int($item) || is_float($item)) {
+                    return (string) $item;
+                }
+
+                return null;
+            })
+            ->filter(static fn (?string $item): bool => $item !== null && $item !== '')
             ->unique()
             ->values();
     }
@@ -52,8 +62,21 @@ final class ParameterParser
         }
 
         return collect($value)
-            ->filter()
-            ->map(fn ($field) => new Sort(trim((string) $field)))
+            ->map(function (mixed $field): ?string {
+                if (is_string($field)) {
+                    $field = trim($field);
+
+                    return $field !== '' ? $field : null;
+                }
+
+                if (is_int($field) || is_float($field)) {
+                    return (string) $field;
+                }
+
+                return null;
+            })
+            ->filter(static fn (?string $field): bool => $field !== null)
+            ->map(fn (string $field) => new Sort($field))
             ->unique(fn (Sort $sort) => $sort->getField())
             ->values();
     }
@@ -61,9 +84,10 @@ final class ParameterParser
     /**
      * Parse fields parameter into grouped format.
      *
-     * Supports two formats:
-     * 1. Array: ['resource' => ['field1', 'field2']]
-     * 2. String: 'resource.field1,resource.field2,simpleField'
+     * Supports three formats:
+     * 1. String: 'resource.field1,resource.field2,simpleField'
+     * 2. Sequential array: ['field1', 'resource.field2'] (treated as dot notation list)
+     * 3. Associative array: ['resource' => ['field1', 'field2']]
      *
      * @return Collection<string, array<string>>
      */
@@ -71,6 +95,8 @@ final class ParameterParser
     {
         if (is_string($value)) {
             $value = $this->parseFieldsString($value);
+        } elseif (is_array($value) && $this->isSequentialArray($value)) {
+            $value = $this->parseFieldsString(implode($this->arraySeparator, $value));
         }
 
         /** @var Collection<string, array<string>> */
@@ -83,6 +109,20 @@ final class ParameterParser
                 return $this->parseList($fields)->toArray();
             })
             ->filter();
+    }
+
+    /**
+     * Check if array is sequential (numeric keys starting from 0).
+     *
+     * @param  array<mixed>  $array
+     */
+    private function isSequentialArray(array $array): bool
+    {
+        if ($array === []) {
+            return true;
+        }
+
+        return array_keys($array) === range(0, count($array) - 1);
     }
 
     /**

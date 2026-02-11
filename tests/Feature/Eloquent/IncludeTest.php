@@ -307,17 +307,17 @@ class IncludeTest extends TestCase
     }
 
     #[Test]
-    public function explicit_include_merges_with_default(): void
+    public function explicit_include_replaces_defaults(): void
     {
-        // Explicit includes are MERGED with default includes, not replacing them
+        // Explicit includes replace defaults in this request
         $models = $this
             ->createEloquentWizardWithIncludes('otherRelatedModels')
             ->allowedIncludes('relatedModels', 'otherRelatedModels')
             ->defaultIncludes('relatedModels')
             ->get();
 
-        // Both default (relatedModels) and explicit (otherRelatedModels) should be loaded
-        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        // Only explicit include should be loaded
+        $this->assertFalse($models->first()->relationLoaded('relatedModels'));
         $this->assertTrue($models->first()->relationLoaded('otherRelatedModels'));
     }
 

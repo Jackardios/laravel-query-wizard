@@ -459,24 +459,31 @@ class SecurityLimitsTest extends TestCase
 
         $this->expectException(MaxAppendDepthExceeded::class);
 
+        // Relation must be included for its appends to be validated
+        // Defaults only apply when request has no append param
         $this
-            ->createEloquentWizardFromQuery([], AppendModel::class)
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
             ->allowedAppends('fullname', 'relatedModels.formattedName')
             ->defaultAppends('relatedModels.formattedName')
             ->get();
     }
 
     #[Test]
-    public function it_validates_total_appends_count_including_defaults(): void
+    public function it_validates_total_appends_count_when_using_defaults(): void
     {
+        // New behavior: defaults only apply when request is empty
+        // So this test validates count when defaults ARE applied (no append param in request)
         Config::set('query-wizard.limits.max_appends_count', 1);
 
         $this->expectException(MaxAppendsCountExceeded::class);
 
         $this
-            ->createEloquentWizardWithAppends('reversename', AppendModel::class)
+            ->createEloquentWizardFromQuery([], AppendModel::class) // No append param
             ->allowedAppends('fullname', 'reversename')
-            ->defaultAppends('fullname')
+            ->defaultAppends('fullname', 'reversename') // 2 appends, exceeds limit of 1
             ->get();
     }
 

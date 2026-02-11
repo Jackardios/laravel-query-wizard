@@ -348,10 +348,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         }
 
         $this->appendTreePrepared = true;
-        $appends = $this->getValidRequestedAppends();
-        $this->appendTree = empty($appends)
-            ? $this->emptyAppendTree()
-            : $this->buildAppendTree($appends);
+        $this->appendTree = $this->getValidRequestedAppendsTree();
     }
 
     /**

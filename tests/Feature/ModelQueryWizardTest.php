@@ -164,6 +164,19 @@ class ModelQueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function explicit_include_replaces_default_includes(): void
+    {
+        $result = $this
+            ->createModelWizardWithIncludes('otherRelatedModels', $this->model)
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->defaultIncludes('relatedModels')
+            ->process();
+
+        $this->assertFalse($result->relationLoaded('relatedModels'));
+        $this->assertTrue($result->relationLoaded('otherRelatedModels'));
+    }
+
+    #[Test]
     public function it_can_disallow_includes(): void
     {
         $this->expectException(InvalidIncludeQuery::class);
@@ -699,10 +712,12 @@ class ModelQueryWizardTest extends TestCase
 
         $modelWithRelations = TestModel::with('relatedModels.nestedRelatedModels')->find($this->model->id);
 
+        // Strict alias resolution: field key must match include name
+        // For nested includes without alias, use the full path
         $result = $this
             ->createModelWizardFromQuery([
                 'fields' => [
-                    'nestedRelatedModels' => 'id',
+                    'relatedModels.nestedRelatedModels' => 'id',
                 ],
             ], $modelWithRelations)
             ->allowedIncludes('relatedModels.nestedRelatedModels')

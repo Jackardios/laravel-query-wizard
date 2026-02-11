@@ -490,7 +490,7 @@ EloquentInclude::callback('recent_posts', function ($query, $relation) {
 ```php
 EloquentQueryWizard::for(User::class)
     ->allowedIncludes('posts', 'profile', 'settings')
-    ->defaultIncludes('profile')  // Always loaded unless overridden
+    ->defaultIncludes('profile')  // Used only when ?include is not provided
     ->get();
 ```
 
@@ -731,6 +731,32 @@ EloquentQueryWizard::forSchema(UserSchema::class)
     ->allowedAppends('extra_append')     // Add additional append
     ->get();
 ```
+
+### Wildcard Support in disallowed*() Methods
+
+All `disallowed*()` methods support wildcards for convenient bulk exclusions:
+
+| Pattern | Meaning | Example |
+|---------|---------|---------|
+| `'*'` | Block everything | `disallowedFields('*')` blocks all fields |
+| `'relation.*'` | Block direct children only | `disallowedFields('posts.*')` blocks `posts.id`, `posts.title`, but NOT `posts.comments.id` |
+| `'relation'` | Block relation and all descendants | `disallowedFields('posts')` blocks `posts`, `posts.id`, `posts.comments.id`, etc. |
+
+```php
+// Block all fields/appends
+->disallowedFields('*')
+->disallowedAppends('*')
+
+// Block only direct children of a relation
+->disallowedFields('posts.*')        // posts.id blocked, posts.comments.id allowed
+->disallowedAppends('posts.*')
+
+// Block relation and all nested paths (prefix match)
+->disallowedFields('posts')          // posts.* AND posts.comments.* blocked
+->disallowedIncludes('internal')     // internal AND internal.* blocked
+```
+
+> **Note:** Wildcards in `disallowed*()` work independently from `allowed*()`. If you use `allowedFields('*')` (allow everything) combined with `disallowedFields('secret')`, the `secret` field will still be blocked.
 
 ### Context-Aware Schemas
 
@@ -1101,17 +1127,17 @@ EloquentQueryWizard::for(
 |--------|-------------|
 | `schema($schema)` | Set ResourceSchema for configuration |
 | `allowedFilters(...$filters)` | Set allowed filters |
-| `disallowedFilters(...$names)` | Remove filters (override schema) |
+| `disallowedFilters(...$names)` | Remove filters (supports wildcards: `*`, `relation.*`, `relation`) |
 | `allowedSorts(...$sorts)` | Set allowed sorts |
-| `disallowedSorts(...$names)` | Remove sorts (override schema) |
+| `disallowedSorts(...$names)` | Remove sorts (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultSorts(...$sorts)` | Set default sorts |
 | `allowedIncludes(...$includes)` | Set allowed includes |
-| `disallowedIncludes(...$names)` | Remove includes (override schema) |
-| `defaultIncludes(...$names)` | Set default includes |
-| `allowedFields(...$fields)` | Set allowed fields |
-| `disallowedFields(...$names)` | Remove fields (override schema) |
-| `allowedAppends(...$appends)` | Set allowed appends |
-| `disallowedAppends(...$names)` | Remove appends (override schema) |
+| `disallowedIncludes(...$names)` | Remove includes (supports wildcards: `*`, `relation.*`, `relation`) |
+| `defaultIncludes(...$names)` | Set default includes (applied only when include param is absent) |
+| `allowedFields(...$fields)` | Set allowed fields (supports wildcards: `*`, `relation.*`) |
+| `disallowedFields(...$names)` | Remove fields (supports wildcards: `*`, `relation.*`, `relation`) |
+| `allowedAppends(...$appends)` | Set allowed appends (supports wildcards: `*`, `relation.*`) |
+| `disallowedAppends(...$names)` | Remove appends (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultAppends(...$appends)` | Set default appends |
 | `tap(callable $callback)` | Add query modification callback |
 

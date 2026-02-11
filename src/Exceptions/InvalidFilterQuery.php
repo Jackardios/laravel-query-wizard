@@ -19,18 +19,20 @@ class InvalidFilterQuery extends InvalidQuery
      * @param  Collection<int, string>  $unknownFilters
      * @param  Collection<int, string>  $allowedFilters
      */
-    public function __construct(Collection $unknownFilters, Collection $allowedFilters)
+    public function __construct(Collection $unknownFilters, Collection $allowedFilters, ?string $message = null)
     {
         $this->unknownFilters = $unknownFilters;
         $this->allowedFilters = $allowedFilters;
 
-        $joinedUnknownFilters = $this->unknownFilters->implode(', ');
+        if ($message === null) {
+            $joinedUnknownFilters = $this->unknownFilters->implode(', ');
 
-        if ($allowedFilters->isEmpty()) {
-            $message = "Requested filter(s) `{$joinedUnknownFilters}` are not allowed. No filters are allowed.";
-        } else {
-            $joinedAllowedFilters = $this->allowedFilters->implode(', ');
-            $message = "Requested filter(s) `{$joinedUnknownFilters}` are not allowed. Allowed filter(s) are `{$joinedAllowedFilters}`.";
+            if ($allowedFilters->isEmpty()) {
+                $message = "Requested filter(s) `{$joinedUnknownFilters}` are not allowed. No filters are allowed.";
+            } else {
+                $joinedAllowedFilters = $this->allowedFilters->implode(', ');
+                $message = "Requested filter(s) `{$joinedUnknownFilters}` are not allowed. Allowed filter(s) are `{$joinedAllowedFilters}`.";
+            }
         }
 
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
@@ -43,5 +45,14 @@ class InvalidFilterQuery extends InvalidQuery
     public static function filtersNotAllowed(Collection $unknownFilters, Collection $allowedFilters): self
     {
         return new self($unknownFilters, $allowedFilters);
+    }
+
+    public static function invalidFormat(string $details): self
+    {
+        return new self(
+            collect([]),
+            collect([]),
+            "Invalid `filter` parameter format. {$details}"
+        );
     }
 }

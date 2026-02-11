@@ -6,8 +6,10 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
+use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -458,10 +460,13 @@ class AppendTest extends TestCase
     {
         $this->expectException(InvalidAppendQuery::class);
 
+        // Relation must be included for its appends to be validated (not silently ignored)
         $this
             ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
                 'append' => 'relatedModels.unknownAttr',
             ], TestModel::class)
+            ->allowedIncludes('relatedModels')
             ->allowedAppends('relatedModels.formattedName')
             ->get();
     }
@@ -499,13 +504,15 @@ class AppendTest extends TestCase
     #[Test]
     public function global_wildcard_allows_nested_appends(): void
     {
+        // Non-recursive wildcards: '*' only allows root-level appends
+        // For nested appends, need explicit 'relatedModels.*' wildcard
         $result = $this
             ->createEloquentWizardFromQuery([
                 'include' => 'relatedModels',
                 'append' => 'relatedModels.formattedName',
             ], TestModel::class)
             ->allowedIncludes('relatedModels')
-            ->allowedAppends('*')
+            ->allowedAppends('*', 'relatedModels.*')
             ->first();
 
         $array = $result->toArray();
@@ -680,5 +687,269 @@ class AppendTest extends TestCase
 
         // Should complete without stack overflow
         $this->assertInstanceOf(TestModel::class, $result);
+    }
+
+    // ========== Non-recursive Wildcard Tests ==========
+
+    #[Test]
+    public function wildcard_is_non_recursive(): void
+    {
+        // Create test models with nested related models
+        $testModel = TestModel::factory()->create();
+        $relatedModel = RelatedModel::factory()->create(['test_model_id' => $testModel->id]);
+        NestedRelatedModel::factory()->count(2)->create(['related_model_id' => $relatedModel->id]);
+
+        // 'relatedModels.*' should NOT allow 'relatedModels.nestedRelatedModels.x'
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels.nestedRelatedModels',
+                'append' => 'relatedModels.nestedRelatedModels.name',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
+            ->allowedAppends('relatedModels.*')  // Only allows relatedModels.x, not relatedModels.nested.x
+            ->get();
+    }
+
+    #[Test]
+    public function strict_alias_resolution_for_appends(): void
+    {
+        // When include has alias, request must use alias, not original relation name
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'related',  // alias
+                'append' => 'related.formattedName',  // must use alias
+            ], TestModel::class)
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels')->alias('related')
+            )
+            ->allowedAppends('related.formattedName')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
+    }
+
+    #[Test]
+    public function using_relation_name_when_alias_defined_throws(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        // When include has alias 'related', using original 'relatedModels' is invalid
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'related',
+                'append' => 'relatedModels.formattedName',  // original name, not alias
+            ], TestModel::class)
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels')->alias('related')
+            )
+            ->allowedAppends('related.formattedName')
+            ->firstOrFail();
+    }
+
+    #[Test]
+    public function using_relation_name_when_alias_defined_is_ignored_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_append_query_exception', true);
+
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'related',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels')->alias('related')
+            )
+            ->allowedAppends('related.formattedName')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayNotHasKey('formattedName', $array['related_models'][0]);
+    }
+
+    #[Test]
+    public function defaults_only_apply_when_request_empty(): void
+    {
+        // When request has append param, defaults should NOT be merged
+        // Using AppendModel which has both fullname and reversename
+        $result = $this
+            ->createEloquentWizardWithAppends('fullname')
+            ->allowedAppends('fullname', 'reversename')
+            ->defaultAppends('reversename')  // Should NOT be applied
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('fullname', $array);
+        $this->assertArrayNotHasKey('reversename', $array);  // Default not applied
+    }
+
+    #[Test]
+    public function defaults_apply_when_no_append_param(): void
+    {
+        // When request has NO append param, defaults should be applied
+        // Using AppendModel which has reversename attribute
+        $result = $this
+            ->createEloquentWizardFromQuery([], AppendModel::class)
+            ->allowedAppends('fullname', 'reversename')
+            ->defaultAppends('reversename')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('reversename', $array);
+    }
+
+    // ========== Nested Includes with Aliases Edge Cases ==========
+
+    #[Test]
+    public function intermediate_relation_appends_work_with_aliased_nested_include(): void
+    {
+        // Create nested related models
+        $testModel = TestModel::factory()->create();
+        $relatedModel = RelatedModel::factory()->create(['test_model_id' => $testModel->id]);
+        NestedRelatedModel::factory()->count(2)->create(['related_model_id' => $relatedModel->id]);
+
+        // When nested include has alias 'nested', intermediate 'relatedModels' should still work
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'nested',
+                'append' => 'relatedModels.formattedName',  // Intermediate relation
+            ], TestModel::class)
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels.nestedRelatedModels')->alias('nested')
+            )
+            ->allowedAppends('relatedModels.formattedName')  // Allow by intermediate path
+            ->first();
+
+        $array = $result->toArray();
+        // Should have append on intermediate relation
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
+    }
+
+    #[Test]
+    public function can_use_both_aliased_and_intermediate_appends(): void
+    {
+        // Create nested related models
+        $testModel = TestModel::factory()->create();
+        $relatedModel = RelatedModel::factory()->create(['test_model_id' => $testModel->id]);
+        NestedRelatedModel::factory()->count(2)->create(['related_model_id' => $relatedModel->id]);
+
+        // Should be able to use both aliased include AND intermediate relation path
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'nested',
+                'append' => 'relatedModels.formattedName,relatedModels.upperName',
+            ], TestModel::class)
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels.nestedRelatedModels')->alias('nested')
+            )
+            ->allowedAppends('relatedModels.*')  // Wildcard for intermediate
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
+        $this->assertArrayHasKey('upperName', $array['related_models'][0]);
+    }
+
+    // ========== Defaults with Non-Included Relations Edge Cases ==========
+
+    #[Test]
+    public function default_appends_for_non_included_relations_are_silently_ignored(): void
+    {
+        // Default appends for relations that aren't included should be silently ignored
+        // (because the relation won't be loaded, so the append can't be applied)
+        $result = $this
+            ->createEloquentWizardFromQuery([], TestModel::class)  // No include param
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('fullname', 'relatedModels.formattedName')
+            ->defaultAppends('relatedModels.formattedName')  // Relation not included in request
+            ->first();
+
+        $array = $result->toArray();
+        // relatedModels is not included, so the default append should be silently ignored
+        $this->assertArrayNotHasKey('related_models', $array);
+    }
+
+    #[Test]
+    public function default_appends_apply_when_relation_is_included(): void
+    {
+        // Default appends should apply when the relation IS included
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',  // Include the relation
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('fullname', 'relatedModels.formattedName')
+            ->defaultAppends('relatedModels.formattedName')
+            ->first();
+
+        $array = $result->toArray();
+        // Relation is included, so the default append should be applied
+        $this->assertArrayHasKey('related_models', $array);
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
+    }
+
+    #[Test]
+    public function default_appends_with_default_includes(): void
+    {
+        // Default appends should work with default includes
+        $result = $this
+            ->createEloquentWizardFromQuery([], TestModel::class)  // No request params
+            ->allowedIncludes('relatedModels')
+            ->defaultIncludes('relatedModels')  // Include by default
+            ->allowedAppends('relatedModels.formattedName')
+            ->defaultAppends('relatedModels.formattedName')  // Append by default
+            ->first();
+
+        $array = $result->toArray();
+        // Both default include and default append should be applied
+        $this->assertArrayHasKey('related_models', $array);
+        $this->assertArrayHasKey('formattedName', $array['related_models'][0]);
+    }
+
+    // ========== Disallowed Wildcard Tests ==========
+
+    #[Test]
+    public function disallowed_global_wildcard_blocks_all_appends(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this->createEloquentWizardWithAppends('fullname')
+            ->allowedAppends('fullname', 'reversename')
+            ->disallowedAppends('*')
+            ->get();
+    }
+
+    #[Test]
+    public function disallowed_level_wildcard_blocks_relation_appends(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.*')
+            ->disallowedAppends('relatedModels.*')
+            ->get();
+    }
+
+    #[Test]
+    public function disallowed_prefix_blocks_relation_and_descendants(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.*')
+            ->disallowedAppends('relatedModels')
+            ->get();
     }
 }

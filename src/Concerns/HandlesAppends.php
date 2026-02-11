@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
-use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
-use Jackardios\QueryWizard\QueryParametersManager;
-use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
+use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
 
 /**
  * Shared append handling logic for query wizards.
  */
 trait HandlesAppends
 {
+    use RequiresWizardContext;
+    use HandlesRelationAttributeValidation;
+
     /** @var array<string> */
     protected array $allowedAppends = [];
 
@@ -29,9 +31,16 @@ trait HandlesAppends
     protected array $defaultAppends = [];
 
     /**
-     * Get the configuration instance.
+     * @return array<IncludeInterface>
      */
-    abstract protected function getConfig(): QueryWizardConfig;
+    abstract protected function getEffectiveIncludes(): array;
+
+    /**
+     * Get effective requested includes (defaults only when request absent).
+     *
+     * @return array<string>
+     */
+    abstract protected function getMergedRequestedIncludes(): array;
 
     /**
      * Apply appends to a collection of results or a single model.
@@ -45,12 +54,7 @@ trait HandlesAppends
      */
     public function applyAppendsTo(mixed $results): mixed
     {
-        $appends = $this->getValidRequestedAppends();
-        if (empty($appends)) {
-            return $results;
-        }
-
-        $appendTree = $this->buildAppendTree($appends);
+        $appendTree = $this->getValidRequestedAppendsTree();
         if (empty($appendTree['appends']) && empty($appendTree['relations'])) {
             return $results;
         }
@@ -117,125 +121,192 @@ trait HandlesAppends
     }
 
     /**
-     * Build append tree once and reuse in recursive traversal.
+     * Build append tree from grouped format.
      *
-     * @param  array<string>  $appends
+     * @param  array<string, array<string>>  $grouped  Grouped appends ['relation.path' => ['append1', 'append2']]
      * @return array{appends: array<string>, relations: array<string, mixed>}
      */
-    protected function buildAppendTree(array $appends): array
+    protected function buildAppendTree(array $grouped): array
     {
-        $tree = [
-            'appends' => [],
-            'relations' => [],
-        ];
-
-        foreach ($appends as $appendPath) {
-            $segments = explode('.', $appendPath);
-            $append = array_pop($segments);
-
-            /** @var array{appends: array<string>, relations: array<string, mixed>} $node */
-            $node = &$tree;
-
-            foreach ($segments as $relation) {
-                if (! isset($node['relations'][$relation])) {
-                    $node['relations'][$relation] = [
-                        'appends' => [],
-                        'relations' => [],
-                    ];
-                }
-
-                $node = &$node['relations'][$relation];
-            }
-
-            $node['appends'][] = $append;
-            unset($node);
-        }
-
-        return $tree;
+        /** @var array{appends: array<string>, relations: array<string, mixed>} */
+        return DotNotationTreeBuilder::build($grouped, 'appends');
     }
 
     /**
-     * Check if an append name is allowed.
+     * Get valid requested appends as tree structure.
      *
-     * @param  string  $append  Requested append name
-     * @param  array<string>  $allowed  Allowed appends list
+     * @return array{appends: array<string>, relations: array<string, mixed>}
      */
-    protected function isAppendAllowed(string $append, array $allowed): bool
+    protected function getValidRequestedAppendsTree(): array
     {
-        if (in_array('*', $allowed, true)) {
-            return true;
+        $requestedAppends = $this->getParametersManager()->getAppends();
+
+        $useDefaults = $requestedAppends->isEmpty();
+        if ($useDefaults) {
+            $grouped = $this->parseDefaultAppendsToGrouped();
+        } else {
+            $grouped = $requestedAppends->all();
         }
 
-        if (in_array($append, $allowed, true)) {
-            return true;
+        if (empty($grouped)) {
+            return ['appends' => [], 'relations' => []];
         }
 
-        $parts = explode('.', $append);
-        for ($i = count($parts) - 1; $i > 0; $i--) {
-            $wildcardPattern = implode('.', array_slice($parts, 0, $i)).'.*';
-            if (in_array($wildcardPattern, $allowed, true)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Get valid requested appends.
-     *
-     * @return array<string>
-     */
-    protected function getValidRequestedAppends(): array
-    {
         $allowed = $this->getEffectiveAppends();
-        $requested = $this->getParametersManager()->getAppends()->all();
-        $defaults = $this->getEffectiveDefaultAppends();
-
-        $this->validateAppendsLimit(count($requested));
-
-        if (! empty($requested)) {
-            $invalidAppends = array_filter($requested, fn ($r) => ! $this->isAppendAllowed($r, $allowed));
-            if (! empty($invalidAppends) && ! $this->getConfig()->isInvalidAppendQueryExceptionDisabled()) {
-                throw InvalidAppendQuery::appendsNotAllowed(
-                    collect($invalidAppends),
-                    collect($allowed)
-                );
-            }
-        }
+        $effectiveIncludes = $this->getEffectiveIncludes();
+        $includeNameToPathMap = $this->buildIncludeNameToPathMap($effectiveIncludes);
+        $includedRelationPaths = $this->getIncludedRelationPaths(
+            $this->getMergedRequestedIncludes(),
+            $includeNameToPathMap
+        );
 
         $maxDepth = $this->getConfig()->getMaxAppendDepth();
-        $filterValid = fn (string $append): bool => $this->isValidAppend($append, $allowed, $maxDepth);
+        $exceptionsDisabled = $this->getConfig()->isInvalidAppendQueryExceptionDisabled();
+        $allowedRelationAppendList = $this->extractRelationAttributes($allowed);
 
-        $validRequested = array_values(array_filter($requested, $filterValid));
-        $validDefaults = array_values(array_filter($defaults, $filterValid));
+        $validGrouped = [];
 
-        $merged = array_unique(array_merge($validDefaults, $validRequested));
+        foreach ($grouped as $key => $attributes) {
+            $key = (string) $key;
 
-        $this->validateAppendsLimit(count($merged));
+            if ($key === '') {
+                $valid = $this->filterValidAttributes(
+                    $key,
+                    $attributes,
+                    $allowed,
+                    ! $useDefaults,
+                    $exceptionsDisabled
+                );
+                if (! empty($valid)) {
+                    $validGrouped[''] = $valid;
+                }
 
-        return $merged;
-    }
+                continue;
+            }
 
-    /**
-     * Check if an append passes allowed list and depth limit.
-     *
-     * @param  array<string>  $allowed
-     */
-    protected function isValidAppend(string $append, array $allowed, ?int $maxDepth): bool
-    {
-        if (! $this->isAppendAllowed($append, $allowed)) {
-            return false;
-        }
+            $relationPath = $includeNameToPathMap[$key] ?? null;
+            if ($relationPath === null) {
+                if (
+                    ! $useDefaults
+                    && ! $exceptionsDisabled
+                    && ! empty($includeNameToPathMap)
+                ) {
+                    throw InvalidAppendQuery::appendsNotAllowed(
+                        collect($this->prefixGroupAttributes($key, $attributes)),
+                        collect($allowedRelationAppendList)
+                    );
+                }
 
-        if ($maxDepth !== null) {
-            $depth = substr_count($append, '.') + 1;
-            if ($depth > $maxDepth) {
-                throw MaxAppendDepthExceeded::create($append, $depth, $maxDepth);
+                continue;
+            }
+
+            if (! isset($includedRelationPaths[$relationPath])) {
+                continue;
+            }
+
+            // Validate depth (based on relation path, not alias)
+            $depth = substr_count($relationPath, '.') + 2;
+            if ($maxDepth !== null && $depth > $maxDepth) {
+                throw MaxAppendDepthExceeded::create("{$relationPath}.{$attributes[0]}", $depth, $maxDepth);
+            }
+
+            // Validate using the request key (include name/alias), not the relation path
+            // This ensures allowedAppends(['related.formattedName']) works when include has alias 'related'
+            $valid = $this->filterValidAttributes(
+                $key,
+                $attributes,
+                $allowed,
+                ! $useDefaults,
+                $exceptionsDisabled
+            );
+            if (! empty($valid)) {
+                $validGrouped[$relationPath] = $valid;
             }
         }
 
-        return true;
+        $this->validateAppendsLimit(array_sum(array_map('count', $validGrouped)));
+
+        return $this->buildAppendTree($validGrouped);
+    }
+
+    /**
+     * Filter attributes by allowed list.
+     *
+     * @param  string  $path  Relation path ('' for root)
+     * @param  array<string>  $attributes
+     * @param  array<string>  $allowed
+     * @param  bool  $canThrow  Whether to throw exceptions for invalid attributes
+     * @param  bool  $exceptionsDisabled
+     * @return array<string>
+     */
+    protected function filterValidAttributes(
+        string $path,
+        array $attributes,
+        array $allowed,
+        bool $canThrow,
+        bool $exceptionsDisabled
+    ): array {
+        $valid = [];
+        $invalid = [];
+
+        foreach ($attributes as $attr) {
+            if ($this->isAttributeAllowed($path, $attr, $allowed)) {
+                $valid[] = $attr;
+            } elseif ($canThrow) {
+                $invalid[] = $path !== '' ? "{$path}.{$attr}" : $attr;
+            }
+        }
+
+        if (! empty($invalid) && ! $exceptionsDisabled) {
+            throw InvalidAppendQuery::appendsNotAllowed(collect($invalid), collect($allowed));
+        }
+
+        return $valid;
+    }
+
+    /**
+     * Extract relation-level attributes from allowed list (for error messages).
+     *
+     * @param  array<string>  $allowed
+     * @return array<string>
+     */
+    protected function extractRelationAttributes(array $allowed): array
+    {
+        return array_values(array_filter(
+            $allowed,
+            static fn (string $value): bool => str_contains($value, '.')
+        ));
+    }
+
+    /**
+     * @param  array<string>  $attributes
+     * @return array<string>
+     */
+    protected function prefixGroupAttributes(string $group, array $attributes): array
+    {
+        return array_map(
+            static fn (string $attribute): string => $group.'.'.$attribute,
+            $attributes
+        );
+    }
+
+    /**
+     * Parse default appends (dot notation) to grouped format.
+     *
+     * @return array<string, array<string>>
+     */
+    protected function parseDefaultAppendsToGrouped(): array
+    {
+        $grouped = [];
+
+        foreach ($this->getEffectiveDefaultAppends() as $append) {
+            $lastDot = strrpos($append, '.');
+            $path = $lastDot !== false ? substr($append, 0, $lastDot) : '';
+            $name = $lastDot !== false ? substr($append, $lastDot + 1) : $append;
+            $grouped[$path][] = $name;
+        }
+
+        return $grouped;
     }
 
     /**
@@ -278,14 +349,4 @@ trait HandlesAppends
             ? $this->defaultAppends
             : ($this->getSchema()?->defaultAppends($this) ?? []);
     }
-
-    /**
-     * Get the parameters manager.
-     */
-    abstract protected function getParametersManager(): QueryParametersManager;
-
-    /**
-     * Get the schema instance.
-     */
-    abstract protected function getSchema(): ?ResourceSchemaInterface;
 }

@@ -5,22 +5,17 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use DateTimeInterface;
-use Illuminate\Database\Eloquent\Builder;
-use Jackardios\QueryWizard\Eloquent\Filters\Concerns\ParsesRangeValues;
-use Jackardios\QueryWizard\Filters\AbstractFilter;
 
 /**
  * Filter by date range (from/to).
  *
  * Expects: ?filter[property][from]=X&filter[property][to]=Y
  */
-final class DateRangeFilter extends AbstractFilter
+final class DateRangeFilter extends AbstractRangeFilter
 {
-    use ParsesRangeValues;
+    protected string $minKey = 'from';
 
-    protected string $fromKey = 'from';
-
-    protected string $toKey = 'to';
+    protected string $maxKey = 'to';
 
     protected ?string $dateFormat = null;
 
@@ -42,7 +37,7 @@ final class DateRangeFilter extends AbstractFilter
      */
     public function fromKey(string $key): static
     {
-        $this->fromKey = $key;
+        $this->minKey = $key;
 
         return $this;
     }
@@ -54,7 +49,7 @@ final class DateRangeFilter extends AbstractFilter
      */
     public function toKey(string $key): static
     {
-        $this->toKey = $key;
+        $this->maxKey = $key;
 
         return $this;
     }
@@ -74,28 +69,6 @@ final class DateRangeFilter extends AbstractFilter
     public function getType(): string
     {
         return 'date_range';
-    }
-
-    /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
-     * @param  array<string, mixed>|mixed  $value
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
-     */
-    public function apply(mixed $subject, mixed $value): mixed
-    {
-        $column = $subject->qualifyColumn($this->property);
-
-        [$from, $to] = $this->parseRangeValue($value, $this->fromKey, $this->toKey);
-
-        if ($from !== null) {
-            $subject->where($column, '>=', $this->formatDate($from));
-        }
-
-        if ($to !== null) {
-            $subject->where($column, '<=', $this->formatDate($to));
-        }
-
-        return $subject;
     }
 
     protected function normalizeRangeValue(mixed $value): mixed
@@ -119,10 +92,7 @@ final class DateRangeFilter extends AbstractFilter
         return $value;
     }
 
-    /**
-     * @param  DateTimeInterface|mixed  $value
-     */
-    protected function formatDate(mixed $value): mixed
+    protected function formatValue(mixed $value): mixed
     {
         if ($value instanceof DateTimeInterface && $this->dateFormat !== null) {
             return $value->format($this->dateFormat);

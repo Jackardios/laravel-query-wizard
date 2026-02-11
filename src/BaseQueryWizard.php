@@ -17,7 +17,7 @@ use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
-use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
+use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
@@ -30,7 +30,7 @@ use Jackardios\QueryWizard\Values\Sort;
  * Provides common configuration API and query building logic.
  * Subclasses implement filter/sort/include application and query execution.
  */
-abstract class BaseQueryWizard implements QueryWizardInterface
+abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInterface
 {
     use HandlesAppends;
     use HandlesConfiguration;
@@ -92,7 +92,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Get the configuration instance.
      */
-    protected function getConfig(): QueryWizardConfig
+    public function getConfig(): QueryWizardConfig
     {
         return $this->config;
     }
@@ -100,7 +100,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Get the parameters manager.
      */
-    protected function getParametersManager(): QueryParametersManager
+    public function getParametersManager(): QueryParametersManager
     {
         $this->parameters = $this->syncParametersManager($this->parameters);
 
@@ -115,7 +115,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Get the schema instance.
      */
-    protected function getSchema(): ?ResourceSchemaInterface
+    public function getSchema(): ?ResourceSchemaInterface
     {
         return $this->schema;
     }
@@ -288,6 +288,21 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     }
 
     /**
+     * Set default fields.
+     *
+     * Applied only when request parameter is completely absent.
+     *
+     * @param  string|array<string>  ...$fields
+     */
+    public function defaultFields(string|array ...$fields): static
+    {
+        $this->defaultFields = $this->flattenStringArray($fields);
+        $this->invalidateBuild();
+
+        return $this;
+    }
+
+    /**
      * Set allowed appends.
      *
      * @param  string|array<string>  ...$appends
@@ -447,20 +462,40 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
     /**
      * Resolve raw filter value from request/default according to filter presence rules.
+     *
+     * Priority: request value > filter->getDefault() > schema->defaultFilters()
      */
     protected function resolveFilterValue(FilterInterface $filter): mixed
     {
         $name = $filter->getName();
         $hasFilterInRequest = $this->getParametersManager()->hasFilter($name);
-        $value = $hasFilterInRequest
-            ? $this->getFilterValueFromRequest($name)
-            : $filter->getDefault();
 
-        if ($value === null && $hasFilterInRequest && $this->config->shouldApplyFilterDefaultOnNull()) {
-            return $filter->getDefault();
+        if ($hasFilterInRequest) {
+            $value = $this->getFilterValueFromRequest($name);
+
+            if ($value === null && $this->config->shouldApplyFilterDefaultOnNull()) {
+                return $this->getFilterDefault($filter);
+            }
+
+            return $value;
         }
 
-        return $value;
+        return $this->getFilterDefault($filter);
+    }
+
+    /**
+     * Get default value for a filter (from filter itself or schema).
+     */
+    protected function getFilterDefault(FilterInterface $filter): mixed
+    {
+        $filterDefault = $filter->getDefault();
+        if ($filterDefault !== null) {
+            return $filterDefault;
+        }
+
+        $schemaDefaults = $this->getSchemaDefaultFilters();
+
+        return $schemaDefaults[$filter->getName()] ?? null;
     }
 
     /**
@@ -559,11 +594,12 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     {
         $includes = $this->getEffectiveIncludes();
         $requestedIncludes = $this->getMergedRequestedIncludes();
+        $usingDefaults = $this->isIncludesRequestEmpty();
 
         $this->validateIncludesLimit(count($requestedIncludes));
 
         if (empty($includes) && ! empty($requestedIncludes)) {
-            $defaults = $this->getEffectiveDefaultIncludes();
+            $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
             $defaultsIndex = array_flip($defaults);
             $userOnlyIncludes = array_filter(
                 $requestedIncludes,
@@ -586,7 +622,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
         $includesIndex = $this->buildIncludesIndex($includes);
 
-        $defaults = $this->getEffectiveDefaultIncludes();
+        $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
         $defaultsIndex = array_flip($defaults);
 
         $allowedIncludeNames = array_keys($includesIndex);
@@ -634,48 +670,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
     protected function applyFieldsToSubject(): void
     {
-        $allowedFields = $this->getEffectiveFields();
-        $resourceKey = $this->getResourceKey();
-        $fields = $this->getRequestedFieldsForResource($resourceKey);
+        $validFields = $this->resolveValidatedRootFields();
 
-        if (in_array('*', $allowedFields, true)) {
-            if (! empty($fields) && ! in_array('*', $fields, true)) {
-                $this->applyFields($fields);
-            }
-
-            return;
-        }
-
-        if (empty($allowedFields)) {
-            if (! empty($fields) && ! in_array('*', $fields, true)) {
-                if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
-                    throw InvalidFieldQuery::fieldsNotAllowed(
-                        collect($fields),
-                        collect([])
-                    );
-                }
-            }
-
-            return;
-        }
-
-        if (empty($fields) || in_array('*', $fields, true)) {
-            return;
-        }
-
-        $invalidFields = array_diff($fields, $allowedFields);
-        if (! empty($invalidFields)) {
-            if (! $this->config->isInvalidFieldQueryExceptionDisabled()) {
-                throw InvalidFieldQuery::fieldsNotAllowed(
-                    collect($invalidFields),
-                    collect($allowedFields)
-                );
-            }
-            $fields = array_intersect($fields, $allowedFields);
-        }
-
-        if (! empty($fields)) {
-            $this->applyFields($fields);
+        if ($validFields !== null) {
+            $this->applyFields($validFields);
         }
     }
 

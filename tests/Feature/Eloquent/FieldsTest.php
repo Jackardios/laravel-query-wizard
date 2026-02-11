@@ -808,6 +808,58 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    public function safe_mode_skips_relation_select_optimization_when_relation_append_is_requested_via_alias(): void
+    {
+        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
+        DB::flushQueryLog();
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'related',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'related' => 'id',
+                ],
+                'append' => 'related.formattedName',
+            ])
+            ->allowedIncludes(EloquentInclude::relationship('relatedModels')->alias('related'))
+            ->allowedFields('id', 'name', 'related.id')
+            ->allowedAppends('related.formattedName')
+            ->get();
+
+        $relatedArray = $models->first()->relatedModels->first()->toArray();
+        $this->assertArrayHasKey('formattedName', $relatedArray);
+        $this->assertNotSame('Formatted: ', $relatedArray['formattedName']);
+
+        $this->assertQueryLogContains('select * from "related_models"');
+    }
+
+    #[Test]
+    public function safe_mode_ignores_default_relation_appends_when_append_request_is_present(): void
+    {
+        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
+        DB::flushQueryLog();
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                ],
+                'append' => 'fullname',
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->allowedAppends('fullname', 'relatedModels.formattedName')
+            ->defaultAppends('relatedModels.formattedName')
+            ->get();
+
+        $this->assertArrayHasKey('fullname', $models->first()->toArray());
+        $this->assertQueryLogContains('select "id", "test_model_id" from "related_models"');
+    }
+
+    #[Test]
     public function safe_mode_skips_relation_select_optimization_when_relation_model_has_built_in_appends(): void
     {
         DB::flushQueryLog();
@@ -871,5 +923,212 @@ class FieldsTest extends TestCase
 
         $attributes = array_keys($models->first()->getAttributes());
         $this->assertContains('created_at', $attributes);
+    }
+
+    // ========== Wildcard Fields Tests ==========
+
+    #[Test]
+    public function wildcard_allows_all_fields_for_relation(): void
+    {
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id,name',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.*')  // Wildcard for relation
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $relatedAttributes = array_keys($models->first()->relatedModels->first()->toArray());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertContains('name', $relatedAttributes);
+    }
+
+    #[Test]
+    public function wildcard_is_non_recursive_for_fields(): void
+    {
+        // Create nested related models
+        $this->models->each(function (TestModel $model): void {
+            $model->relatedModels->each(function (RelatedModel $relatedModel): void {
+                NestedRelatedModel::factory()->count(2)->create([
+                    'related_model_id' => $relatedModel->id,
+                ]);
+            });
+        });
+
+        // 'relatedModels.*' should NOT allow 'relatedModels.nestedRelatedModels.x'
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels.nestedRelatedModels',
+                'fields' => [
+                    'testModel' => 'id',
+                    'relatedModels.nestedRelatedModels' => 'id',
+                ],
+            ])
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
+            ->allowedFields('id', 'relatedModels.*')  // Only allows relatedModels.x, not nested
+            ->get();
+    }
+
+    // ========== Default Fields Tests ==========
+
+    #[Test]
+    public function default_fields_apply_when_no_fields_param(): void
+    {
+        DB::enableQueryLog();
+
+        $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedFields('id', 'name', 'created_at')
+            ->defaultFields('id', 'name')
+            ->get();
+
+        $this->assertQueryLogContains('select "test_models"."id", "test_models"."name" from "test_models"');
+    }
+
+    #[Test]
+    public function default_fields_do_not_apply_when_fields_requested(): void
+    {
+        DB::enableQueryLog();
+
+        // When request has fields param, defaults should NOT be used
+        $this
+            ->createEloquentWizardWithFields(['testModel' => 'created_at'])
+            ->allowedFields('id', 'name', 'created_at')
+            ->defaultFields('id', 'name')
+            ->get();
+
+        // Should use requested field, not defaults
+        $this->assertQueryLogContains('select "test_models"."created_at" from "test_models"');
+    }
+
+    #[Test]
+    public function no_default_fields_means_all_fields(): void
+    {
+        DB::enableQueryLog();
+
+        // When no defaults and no request, all fields should be returned
+        $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedFields('id', 'name', 'created_at')
+            // No defaultFields() call
+            ->get();
+
+        // Should not have SELECT restriction
+        $this->assertQueryLogContains('select * from "test_models"');
+    }
+
+    // ========== Nested Includes with Aliases Edge Cases ==========
+
+    #[Test]
+    public function intermediate_relation_fields_work_with_aliased_nested_include(): void
+    {
+        // Create nested related models
+        $this->models->each(function (TestModel $model): void {
+            $model->relatedModels->each(function (RelatedModel $relatedModel): void {
+                NestedRelatedModel::factory()->count(2)->create([
+                    'related_model_id' => $relatedModel->id,
+                ]);
+            });
+        });
+
+        // When nested include has alias 'nested', intermediate 'relatedModels' should still work
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'nested',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id,name',  // Intermediate relation
+                ],
+            ])
+            ->allowedIncludes(
+                EloquentInclude::relationship('relatedModels.nestedRelatedModels')->alias('nested')
+            )
+            ->allowedFields('id', 'name', 'relatedModels.*')  // Wildcard for intermediate
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $relatedAttributes = array_keys($models->first()->relatedModels->first()->toArray());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertContains('name', $relatedAttributes);
+        $this->assertNotContains('test_model_id', $relatedAttributes);
+    }
+
+    // ========== Wildcard Security Tests ==========
+
+    #[Test]
+    public function root_wildcard_request_should_be_rejected_when_not_allowed(): void
+    {
+        // Client requests ?fields[testModel]=* but allowed only 'id', 'name'
+        // This should throw an exception, not return all fields
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardWithFields(['testModel' => '*'])
+            ->allowedFields('id', 'name')
+            ->get();
+    }
+
+    #[Test]
+    public function root_wildcard_request_should_work_when_explicitly_allowed(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFields(['testModel' => '*'])
+            ->allowedFields('*')
+            ->get();
+
+        $this->assertNotNull($models->first()->name);
+        $this->assertNotNull($models->first()->created_at);
+    }
+
+    // ========== Disallowed Wildcard Tests ==========
+
+    #[Test]
+    public function disallowed_global_wildcard_blocks_all_fields(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this->createEloquentWizardWithFields(['testModel' => 'id'])
+            ->allowedFields('id', 'name')
+            ->disallowedFields('*')
+            ->get();
+    }
+
+    #[Test]
+    public function disallowed_level_wildcard_blocks_relation_fields(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => ['testModel' => 'id', 'relatedModels' => 'id'],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'relatedModels.*')
+            ->disallowedFields('relatedModels.*')
+            ->get();
+    }
+
+    #[Test]
+    public function disallowed_prefix_blocks_relation_and_descendants(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => ['testModel' => 'id', 'relatedModels' => 'id'],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'relatedModels.*')
+            ->disallowedFields('relatedModels')
+            ->get();
     }
 }

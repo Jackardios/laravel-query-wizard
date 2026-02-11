@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Support\FilterValueTransformer;
 use Jackardios\QueryWizard\Support\ParameterParser;
 use Jackardios\QueryWizard\Values\Sort;
@@ -26,7 +27,7 @@ class QueryParametersManager
         return self::$missing ??= new \stdClass;
     }
 
-    /** @var Collection<int, string>|null */
+    /** @var Collection<string, array<string>>|null */
     protected ?Collection $appends = null;
 
     /** @var Collection<string, array<string>>|null */
@@ -86,7 +87,7 @@ class QueryParametersManager
     }
 
     /**
-     * @return Collection<int, string>
+     * @return Collection<string, array<string>>
      */
     public function getAppends(): Collection
     {
@@ -97,9 +98,9 @@ class QueryParametersManager
         $appendsParameterName = $this->config->getAppendsParameterName();
         $rawValue = $appendsParameterName ? $this->getRequestData($appendsParameterName) : null;
 
-        $this->appends = $this->parser->parseList($rawValue);
+        $this->appends = $this->parser->parseFields($rawValue);
 
-        /** @var Collection<int, string> */
+        /** @var Collection<string, array<string>> */
         return $this->appends;
     }
 
@@ -115,7 +116,11 @@ class QueryParametersManager
         $filtersParameterName = $this->config->getFiltersParameterName();
         $rawValue = $filtersParameterName ? $this->getRequestData($filtersParameterName) : null;
 
-        $this->setFiltersParameter($rawValue);
+        try {
+            $this->setFiltersParameter($rawValue);
+        } catch (\InvalidArgumentException $exception) {
+            throw InvalidFilterQuery::invalidFormat($exception->getMessage());
+        }
 
         /** @var Collection<string, mixed> */
         return $this->filters ?? collect();
@@ -172,7 +177,7 @@ class QueryParametersManager
      */
     public function setAppendsParameter(mixed $appendsParameter): static
     {
-        $this->appends = $this->parser->parseList($appendsParameter);
+        $this->appends = $this->parser->parseFields($appendsParameter);
 
         return $this;
     }

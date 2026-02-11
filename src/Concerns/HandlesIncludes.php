@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
-use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
-use Jackardios\QueryWizard\QueryParametersManager;
-use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
 /**
  * Shared include handling logic for query wizards.
  */
 trait HandlesIncludes
 {
+    use RequiresWizardContext;
+
     /** @var array<IncludeInterface|string> */
     protected array $allowedIncludes = [];
 
@@ -29,21 +28,6 @@ trait HandlesIncludes
 
     /** @var array<IncludeInterface>|null */
     protected ?array $cachedEffectiveIncludes = null;
-
-    /**
-     * Get the configuration instance.
-     */
-    abstract protected function getConfig(): QueryWizardConfig;
-
-    /**
-     * Get the parameters manager.
-     */
-    abstract protected function getParametersManager(): QueryParametersManager;
-
-    /**
-     * Get the schema instance.
-     */
-    abstract protected function getSchema(): ?ResourceSchemaInterface;
 
     /**
      * Normalize a string include to an IncludeInterface instance.
@@ -107,16 +91,29 @@ trait HandlesIncludes
     }
 
     /**
-     * Get merged requested includes (defaults + request).
+     * Check if includes request is completely absent (for defaults logic).
+     */
+    protected function isIncludesRequestEmpty(): bool
+    {
+        return $this->getParametersManager()->getIncludes()->isEmpty();
+    }
+
+    /**
+     * Get effective requested includes.
+     *
+     * Uses defaults only when request parameter is absent.
      *
      * @return array<string>
      */
     protected function getMergedRequestedIncludes(): array
     {
-        $defaults = $this->getEffectiveDefaultIncludes();
         $requested = $this->getParametersManager()->getIncludes()->all();
 
-        return array_unique(array_merge($defaults, $requested));
+        if (! empty($requested)) {
+            return array_values(array_unique($requested));
+        }
+
+        return array_values(array_unique($this->getEffectiveDefaultIncludes()));
     }
 
     /**

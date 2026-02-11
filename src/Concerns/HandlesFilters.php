@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
-use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
-use Jackardios\QueryWizard\QueryParametersManager;
-use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
 /**
  * Shared filter handling logic for query wizards.
  */
 trait HandlesFilters
 {
+    use RequiresWizardContext;
+
     /** @var array<FilterInterface|string> */
     protected array $allowedFilters = [];
 
@@ -25,12 +24,6 @@ trait HandlesFilters
 
     /** @var array<string, FilterInterface>|null */
     protected ?array $cachedEffectiveFilters = null;
-
-    abstract protected function getConfig(): QueryWizardConfig;
-
-    abstract protected function getParametersManager(): QueryParametersManager;
-
-    abstract protected function getSchema(): ?ResourceSchemaInterface;
 
     abstract protected function normalizeStringToFilter(string $name): FilterInterface;
 
@@ -187,5 +180,15 @@ trait HandlesFilters
     protected function invalidateFilterCache(): void
     {
         $this->cachedEffectiveFilters = null;
+    }
+
+    /**
+     * Get default filter values from schema.
+     *
+     * @return array<string, mixed>
+     */
+    protected function getSchemaDefaultFilters(): array
+    {
+        return $this->getSchema()?->defaultFilters($this) ?? [];
     }
 }

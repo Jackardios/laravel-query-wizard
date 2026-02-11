@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Values\Sort;
@@ -126,6 +127,15 @@ class QueryParametersManagerTest extends TestCase
 
         $manager = new QueryParametersManager(new Request);
         $manager->setFiltersParameter('invalid_string');
+    }
+
+    #[Test]
+    public function it_throws_invalid_filter_query_for_string_filter_in_request(): void
+    {
+        $this->expectException(InvalidFilterQuery::class);
+
+        $manager = new QueryParametersManager(new Request(['filter' => 'invalid']));
+        $manager->getFilters();
     }
 
     #[Test]
@@ -271,6 +281,15 @@ class QueryParametersManagerTest extends TestCase
         $this->assertEquals(['posts', 'comments'], $includes->all());
     }
 
+    #[Test]
+    public function it_keeps_zero_includes(): void
+    {
+        $request = new Request(['include' => ['0', 'posts']]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertEquals(['0', 'posts'], $manager->getIncludes()->all());
+    }
+
     // ========== Sorts Tests ==========
     #[Test]
     public function it_returns_empty_collection_when_no_sorts(): void
@@ -329,6 +348,18 @@ class QueryParametersManagerTest extends TestCase
         $sorts = $manager->getSorts();
 
         $this->assertCount(2, $sorts);
+    }
+
+    #[Test]
+    public function it_keeps_zero_sort_field(): void
+    {
+        $request = new Request(['sort' => ['0', '-created_at']]);
+        $manager = new QueryParametersManager($request);
+
+        $sorts = $manager->getSorts();
+
+        $this->assertCount(2, $sorts);
+        $this->assertEquals('0', $sorts[0]->getField());
     }
 
     // ========== Fields Tests ==========
@@ -429,6 +460,19 @@ class QueryParametersManagerTest extends TestCase
         $this->assertEquals(['id', 'name'], $fields->get('users'));
     }
 
+    #[Test]
+    public function it_keeps_zero_field_name(): void
+    {
+        $request = new Request(['fields' => [
+            'users' => ['0', 'name'],
+        ]]);
+        $manager = new QueryParametersManager($request);
+
+        $fields = $manager->getFields();
+
+        $this->assertEquals(['0', 'name'], $fields->get('users'));
+    }
+
     // ========== Appends Tests ==========
     #[Test]
     public function it_returns_empty_collection_when_no_appends(): void
@@ -446,7 +490,7 @@ class QueryParametersManagerTest extends TestCase
 
         $appends = $manager->getAppends();
 
-        $this->assertEquals(['fullName', 'avatarUrl'], $appends->all());
+        $this->assertEquals(['' => ['fullName', 'avatarUrl']], $appends->all());
     }
 
     #[Test]
@@ -457,7 +501,7 @@ class QueryParametersManagerTest extends TestCase
 
         $appends = $manager->getAppends();
 
-        $this->assertEquals(['fullName', 'avatarUrl'], $appends->all());
+        $this->assertEquals(['' => ['fullName', 'avatarUrl']], $appends->all());
     }
 
     #[Test]
@@ -468,7 +512,75 @@ class QueryParametersManagerTest extends TestCase
 
         $appends = $manager->getAppends();
 
-        $this->assertEquals(['fullName', 'avatarUrl'], $appends->all());
+        $this->assertEquals(['' => ['fullName', 'avatarUrl']], $appends->all());
+    }
+
+    #[Test]
+    public function it_parses_bracket_notation_appends(): void
+    {
+        $request = new Request(['append' => ['posts' => 'fullname,formatted', 'comments' => 'text']]);
+        $manager = new QueryParametersManager($request);
+
+        $appends = $manager->getAppends();
+
+        $this->assertEquals([
+            'posts' => ['fullname', 'formatted'],
+            'comments' => ['text'],
+        ], $appends->all());
+    }
+
+    #[Test]
+    public function it_parses_bracket_notation_appends_with_root_key(): void
+    {
+        $request = new Request(['append' => ['posts' => 'fullname', '' => 'rootAppend']]);
+        $manager = new QueryParametersManager($request);
+
+        $appends = $manager->getAppends();
+
+        $this->assertEquals([
+            'posts' => ['fullname'],
+            '' => ['rootAppend'],
+        ], $appends->all());
+    }
+
+    #[Test]
+    public function it_parses_bracket_notation_appends_with_array_values(): void
+    {
+        $request = new Request(['append' => ['posts' => ['fullname', 'formatted']]]);
+        $manager = new QueryParametersManager($request);
+
+        $appends = $manager->getAppends();
+
+        $this->assertEquals(['posts' => ['fullname', 'formatted']], $appends->all());
+    }
+
+    #[Test]
+    public function it_removes_duplicates_in_bracket_notation_appends(): void
+    {
+        $request = new Request(['append' => ['posts' => 'fullname,fullname', 'comments' => 'fullname']]);
+        $manager = new QueryParametersManager($request);
+
+        $appends = $manager->getAppends();
+
+        $this->assertEquals([
+            'posts' => ['fullname'],
+            'comments' => ['fullname'],
+        ], $appends->all());
+    }
+
+    #[Test]
+    public function it_parses_dot_notation_appends_into_groups(): void
+    {
+        $request = new Request(['append' => 'fullname,posts.title,posts.body,comments.text']);
+        $manager = new QueryParametersManager($request);
+
+        $appends = $manager->getAppends();
+
+        $this->assertEquals([
+            '' => ['fullname'],
+            'posts' => ['title', 'body'],
+            'comments' => ['text'],
+        ], $appends->all());
     }
 
     // ========== Manual Parameter Setting Tests ==========
@@ -545,7 +657,7 @@ class QueryParametersManagerTest extends TestCase
         $manager = new QueryParametersManager;
         $manager->setAppendsParameter(['fullName', 'avatarUrl']);
 
-        $this->assertEquals(['fullName', 'avatarUrl'], $manager->getAppends()->all());
+        $this->assertEquals(['' => ['fullName', 'avatarUrl']], $manager->getAppends()->all());
     }
 
     // ========== Edge Cases ==========
@@ -689,7 +801,7 @@ class QueryParametersManagerTest extends TestCase
 
         $appends = $manager->getAppends();
 
-        $this->assertEquals(['fullName', 'avatarUrl'], $appends->all());
+        $this->assertEquals(['' => ['fullName', 'avatarUrl']], $appends->all());
     }
 
     #[Test]
@@ -700,7 +812,7 @@ class QueryParametersManagerTest extends TestCase
 
         $appends = $manager->getAppends();
 
-        $this->assertEquals(['fullName', 'avatarUrl'], $appends->all());
+        $this->assertEquals(['' => ['fullName', 'avatarUrl']], $appends->all());
     }
 
     #[Test]

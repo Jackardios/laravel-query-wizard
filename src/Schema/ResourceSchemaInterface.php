@@ -99,4 +99,22 @@ interface ResourceSchemaInterface
      * @return array<string>
      */
     public function defaultSorts(QueryWizardInterface $wizard): array;
+
+    /**
+     * Get default fields when none requested.
+     *
+     * @param  QueryWizardInterface  $wizard  The wizard requesting default fields (for conditional logic)
+     * @return array<string>
+     */
+    public function defaultFields(QueryWizardInterface $wizard): array;
+
+    /**
+     * Get default filter values to apply when not present in request.
+     *
+     * Returns an associative array of filter name => default value.
+     *
+     * @param  QueryWizardInterface  $wizard  The wizard requesting default filters (for conditional logic)
+     * @return array<string, mixed>
+     */
+    public function defaultFilters(QueryWizardInterface $wizard): array;
 }

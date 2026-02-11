@@ -92,6 +92,11 @@ class SchemaDefaultsTest extends TestCase
             {
                 return $this->overrides['defaultAppends'] ?? ['fullname'];
             }
+
+            public function defaultFilters(QueryWizardInterface $wizard): array
+            {
+                return $this->overrides['defaultFilters'] ?? [];
+            }
         };
     }
 
@@ -197,6 +202,67 @@ class SchemaDefaultsTest extends TestCase
         $sorted = $names;
         sort($sorted);
         $this->assertEquals($sorted, $names);
+    }
+
+    // ========== Schema Default Filters ==========
+
+    #[Test]
+    public function schema_default_filters_apply_when_filter_not_in_request(): void
+    {
+        $target = $this->models->first();
+        $schema = $this->createTestModelSchema([
+            'defaultFilters' => ['name' => $target->name],
+        ]);
+
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->schema($schema)
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($target->name, $models->first()->name);
+    }
+
+    #[Test]
+    public function schema_default_filters_ignored_when_filter_in_request(): void
+    {
+        $target = $this->models->first();
+        $other = $this->models->last();
+        $schema = $this->createTestModelSchema([
+            'defaultFilters' => ['name' => $target->name],
+        ]);
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'filter' => ['name' => $other->name],
+            ])
+            ->schema($schema)
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($other->name, $models->first()->name);
+    }
+
+    #[Test]
+    public function filter_default_takes_priority_over_schema_default_filters(): void
+    {
+        $target = $this->models->first();
+        $other = $this->models->last();
+        $schema = $this->createTestModelSchema([
+            'filters' => [
+                EloquentFilter::exact('name')->default($target->name),
+            ],
+            'defaultFilters' => ['name' => $other->name],
+        ]);
+
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->schema($schema)
+            ->get();
+
+        // Filter's default() takes priority over schema's defaultFilters()
+        $this->assertCount(1, $models);
+        $this->assertEquals($target->name, $models->first()->name);
     }
 
     // ========== forSchema() vs ->schema() ==========

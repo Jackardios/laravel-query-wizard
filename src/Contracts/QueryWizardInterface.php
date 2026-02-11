@@ -14,6 +14,13 @@ namespace Jackardios\QueryWizard\Contracts;
 interface QueryWizardInterface
 {
     /**
+     * Get the resource key for sparse fieldsets.
+     *
+     * Used as the key in ?fields[type]=id,name
+     */
+    public function getResourceKey(): string;
+
+    /**
      * Set allowed includes.
      *
      * @param  IncludeInterface|string|array<IncludeInterface|string>  ...$includes
@@ -47,6 +54,13 @@ interface QueryWizardInterface
      * @param  string|array<string>  ...$names
      */
     public function disallowedFields(string|array ...$names): static;
+
+    /**
+     * Set default fields.
+     *
+     * @param  string|array<string>  ...$fields
+     */
+    public function defaultFields(string|array ...$fields): static;
 
     /**
      * Set allowed appends.

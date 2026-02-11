@@ -370,7 +370,7 @@ class ParameterParserTest extends TestCase
         return [
             'with null' => [['a', null, 'b'], ['a', 'b']],
             'with false' => [['a', false, 'b'], ['a', 'b']],
-            'with zero' => [['a', 0, 'b'], ['a', 'b']], // 0 is falsy, filtered out
+            'with zero' => [['a', 0, 'b'], ['a', '0', 'b']],
             'with empty string' => [['a', '', 'b'], ['a', 'b']],
         ];
     }

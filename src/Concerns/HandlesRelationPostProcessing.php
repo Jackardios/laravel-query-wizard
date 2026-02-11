@@ -58,8 +58,11 @@ trait HandlesRelationPostProcessing
             return;
         }
 
+        // Use global visited tracking across all items to prevent redundant processing
+        // when the same model instance appears in multiple places (e.g., shared relations).
+        $visited = [];
+
         if ($results instanceof Model) {
-            $visited = [];
             $this->applyRelationPostProcessingRecursively($results, $appendTree, $fieldTree, $visited);
 
             return;
@@ -70,8 +73,6 @@ trait HandlesRelationPostProcessing
                 continue;
             }
 
-            // Keep traversal guard local to each root item.
-            $visited = [];
             $this->applyRelationPostProcessingRecursively($item, $appendTree, $fieldTree, $visited);
         }
     }

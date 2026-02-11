@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
-use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
-use Jackardios\QueryWizard\QueryParametersManager;
-use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Values\Sort;
 
 /**
@@ -16,6 +13,8 @@ use Jackardios\QueryWizard\Values\Sort;
  */
 trait HandlesSorts
 {
+    use RequiresWizardContext;
+
     /** @var array<SortInterface|string> */
     protected array $allowedSorts = [];
 
@@ -29,12 +28,6 @@ trait HandlesSorts
 
     /** @var array<string, SortInterface>|null */
     protected ?array $cachedEffectiveSorts = null;
-
-    abstract protected function getConfig(): QueryWizardConfig;
-
-    abstract protected function getParametersManager(): QueryParametersManager;
-
-    abstract protected function getSchema(): ?ResourceSchemaInterface;
 
     abstract protected function normalizeStringToSort(string $name): SortInterface;
 

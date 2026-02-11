@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
-use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
-use Jackardios\QueryWizard\QueryParametersManager;
-use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
+use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
 
 /**
  * Shared field handling logic for query wizards.
  */
 trait HandlesFields
 {
+    use RequiresWizardContext;
+    use HandlesRelationAttributeValidation;
+
     /** @var array<string> */
     protected array $allowedFields = [];
 
@@ -25,20 +25,8 @@ trait HandlesFields
     /** @var array<string> */
     protected array $disallowedFields = [];
 
-    /**
-     * Get the configuration instance.
-     */
-    abstract protected function getConfig(): QueryWizardConfig;
-
-    /**
-     * Get the parameters manager.
-     */
-    abstract protected function getParametersManager(): QueryParametersManager;
-
-    /**
-     * Get the schema instance.
-     */
-    abstract protected function getSchema(): ?ResourceSchemaInterface;
+    /** @var array<string> */
+    protected array $defaultFields = [];
 
     /**
      * Get the resource key for sparse fieldsets.
@@ -70,6 +58,18 @@ trait HandlesFields
     }
 
     /**
+     * Get effective default fields.
+     *
+     * @return array<string>
+     */
+    protected function getEffectiveDefaultFields(): array
+    {
+        return ! empty($this->defaultFields)
+            ? $this->defaultFields
+            : ($this->getSchema()?->defaultFields($this) ?? []);
+    }
+
+    /**
      * Get requested fields for the current resource.
      *
      * Supports both:
@@ -95,6 +95,14 @@ trait HandlesFields
     }
 
     /**
+     * Check if fields request is completely absent (for defaults logic).
+     */
+    protected function isFieldsRequestEmpty(): bool
+    {
+        return $this->getParametersManager()->getFields()->isEmpty();
+    }
+
+    /**
      * Build validated relation field map from request.
      *
      * @return array<string, array<string>>
@@ -108,40 +116,23 @@ trait HandlesFields
 
         $allowedFields = $this->getEffectiveFields();
         $allFieldsAllowed = in_array('*', $allowedFields, true);
-        $relationshipAliasMap = $this->buildRelationshipAliasMap();
-        $allowedGroups = $this->buildAllowedRelationFieldGroups($allowedFields, $relationshipAliasMap);
+        $includeNameToPathMap = $this->buildIncludeNameToPathMap($this->getEffectiveIncludes());
         $exceptionsDisabled = $this->getConfig()->isInvalidFieldQueryExceptionDisabled();
 
-        if (! $allFieldsAllowed && empty($allowedGroups)) {
-            if (! $exceptionsDisabled) {
-                throw InvalidFieldQuery::fieldsNotAllowed(
-                    collect($this->flattenRelationFieldGroups($requestedRelationFields)),
-                    collect([])
-                );
-            }
-
-            return [];
-        }
-
-        $allowedRelationFields = $allFieldsAllowed
+        $allowedRelationFieldList = $allFieldsAllowed
             ? []
-            : $this->flattenRelationFieldGroups($allowedGroups);
+            : $this->extractRelationFields($allowedFields);
         $relationFieldMap = [];
 
         foreach ($requestedRelationFields as $requestedKey => $requestedFields) {
             $normalizedRequestedFields = array_values(array_unique($requestedFields));
-            $relationPath = $this->resolveRelationKeyToPath(
-                $requestedKey,
-                $allowedGroups,
-                $relationshipAliasMap,
-                $allFieldsAllowed
-            );
 
+            $relationPath = $includeNameToPathMap[$requestedKey] ?? null;
             if ($relationPath === null) {
                 if (! $exceptionsDisabled) {
                     throw InvalidFieldQuery::fieldsNotAllowed(
                         collect($this->prefixGroupFields($requestedKey, $normalizedRequestedFields)),
-                        collect($allowedRelationFields)
+                        collect($allowedRelationFieldList)
                     );
                 }
 
@@ -149,30 +140,26 @@ trait HandlesFields
             }
 
             if (! $allFieldsAllowed) {
-                $allowedForPath = $allowedGroups[$relationPath] ?? [];
+                $validFields = [];
+                $invalidFields = [];
 
-                if (empty($allowedForPath)) {
-                    if (! $exceptionsDisabled) {
-                        throw InvalidFieldQuery::fieldsNotAllowed(
-                            collect($this->prefixGroupFields($requestedKey, $normalizedRequestedFields)),
-                            collect([])
-                        );
+                foreach ($normalizedRequestedFields as $field) {
+                    if ($this->isAttributeAllowed($requestedKey, $field, $allowedFields)) {
+                        $validFields[] = $field;
+                    } else {
+                        $invalidFields[] = $field;
                     }
-
-                    continue;
                 }
-
-                $invalidFields = array_values(array_diff($normalizedRequestedFields, $allowedForPath));
 
                 if (! empty($invalidFields)) {
                     if (! $exceptionsDisabled) {
                         throw InvalidFieldQuery::fieldsNotAllowed(
                             collect($this->prefixGroupFields($requestedKey, $invalidFields)),
-                            collect($this->prefixGroupFields($requestedKey, $allowedForPath)),
+                            collect($allowedRelationFieldList),
                         );
                     }
 
-                    $normalizedRequestedFields = array_values(array_intersect($normalizedRequestedFields, $allowedForPath));
+                    $normalizedRequestedFields = $validFields;
                 }
             }
 
@@ -226,104 +213,17 @@ trait HandlesFields
     }
 
     /**
-     * @return array<string, string>
-     */
-    protected function buildRelationshipAliasMap(): array
-    {
-        $map = [];
-
-        foreach ($this->getEffectiveIncludes() as $include) {
-            if ($include->getType() !== 'relationship') {
-                continue;
-            }
-
-            $map[$include->getName()] = $include->getRelation();
-        }
-
-        return $map;
-    }
-
-    /**
-     * @param  array<string>  $allowedFields
-     * @param  array<string, string>  $relationshipAliasMap
-     * @return array<string, array<string>>
-     */
-    protected function buildAllowedRelationFieldGroups(array $allowedFields, array $relationshipAliasMap): array
-    {
-        $groups = [];
-
-        foreach ($allowedFields as $allowedField) {
-            if (! str_contains($allowedField, '.')) {
-                continue;
-            }
-
-            $group = Str::beforeLast($allowedField, '.');
-            $field = Str::afterLast($allowedField, '.');
-
-            if ($field === '') {
-                continue;
-            }
-
-            if (isset($relationshipAliasMap[$group])) {
-                $group = $relationshipAliasMap[$group];
-            }
-
-            $groups[$group][] = $field;
-        }
-
-        foreach ($groups as $group => $fields) {
-            $groups[$group] = array_values(array_unique($fields));
-        }
-
-        return $groups;
-    }
-
-    /**
-     * Resolve request key (relation name/path/alias) to canonical relation path.
+     * Extract relation fields from allowed fields list (for error messages).
      *
-     * @param  array<string, array<string>>  $allowedGroups
-     * @param  array<string, string>  $relationshipAliasMap
+     * @param  array<string>  $allowedFields
+     * @return array<string>
      */
-    protected function resolveRelationKeyToPath(
-        string $requestedKey,
-        array $allowedGroups,
-        array $relationshipAliasMap,
-        bool $allFieldsAllowed
-    ): ?string {
-        if (isset($relationshipAliasMap[$requestedKey])) {
-            return $relationshipAliasMap[$requestedKey];
-        }
-
-        if (isset($allowedGroups[$requestedKey])) {
-            return $requestedKey;
-        }
-
-        $matchedAllowedGroups = array_values(array_filter(
-            array_keys($allowedGroups),
-            static fn (string $group): bool => Str::afterLast($group, '.') === $requestedKey
+    protected function extractRelationFields(array $allowedFields): array
+    {
+        return array_values(array_filter(
+            $allowedFields,
+            static fn (string $field): bool => str_contains($field, '.')
         ));
-        $matchedAllowedGroups = array_values(array_unique($matchedAllowedGroups));
-
-        if (count($matchedAllowedGroups) === 1) {
-            return $matchedAllowedGroups[0];
-        }
-
-        $mappedRelationPaths = array_values(array_unique(array_values($relationshipAliasMap)));
-        $matchedRelationPaths = array_values(array_filter(
-            $mappedRelationPaths,
-            static fn (string $path): bool => Str::afterLast($path, '.') === $requestedKey
-        ));
-        $matchedRelationPaths = array_values(array_unique($matchedRelationPaths));
-
-        if (count($matchedRelationPaths) === 1) {
-            return $matchedRelationPaths[0];
-        }
-
-        if ($allFieldsAllowed) {
-            return $requestedKey;
-        }
-
-        return null;
     }
 
     /**
@@ -339,32 +239,6 @@ trait HandlesFields
     }
 
     /**
-     * Flatten grouped relation fields to dotted notation list.
-     *
-     * @param  array<string, array<string>>  $groups
-     * @return array<string>
-     */
-    protected function flattenRelationFieldGroups(array $groups): array
-    {
-        $flattened = [];
-        $seen = [];
-
-        foreach ($groups as $group => $fields) {
-            foreach ($fields as $field) {
-                $value = $group.'.'.$field;
-                if (isset($seen[$value])) {
-                    continue;
-                }
-
-                $seen[$value] = true;
-                $flattened[] = $value;
-            }
-        }
-
-        return $flattened;
-    }
-
-    /**
      * Build relation field tree for targeted recursive traversal.
      *
      * @param  array<string, array<string>>  $relationFieldMap
@@ -372,56 +246,8 @@ trait HandlesFields
      */
     protected function buildRelationFieldTree(array $relationFieldMap): array
     {
-        $tree = [
-            'fields' => [],
-            'relations' => [],
-        ];
-
-        foreach ($relationFieldMap as $relationPath => $fields) {
-            if ($relationPath === '') {
-                continue;
-            }
-
-            $segments = explode('.', $relationPath);
-
-            /** @var array{fields: array<string>, relations: array<string, mixed>} $node */
-            $node = &$tree;
-
-            foreach ($segments as $segment) {
-                if (! isset($node['relations'][$segment])) {
-                    $node['relations'][$segment] = [
-                        'fields' => [],
-                        'relations' => [],
-                    ];
-                }
-
-                /** @var array{fields: array<string>, relations: array<string, mixed>} $node */
-                $node = &$node['relations'][$segment];
-            }
-
-            if (in_array('*', $fields, true)) {
-                $node['fields'] = ['*'];
-                unset($node);
-
-                continue;
-            }
-
-            if (in_array('*', $node['fields'], true)) {
-                unset($node);
-
-                continue;
-            }
-
-            foreach ($fields as $field) {
-                if (! in_array($field, $node['fields'], true)) {
-                    $node['fields'][] = $field;
-                }
-            }
-
-            unset($node);
-        }
-
-        return $tree;
+        /** @var array{fields: array<string>, relations: array<string, mixed>} */
+        return DotNotationTreeBuilder::build($relationFieldMap, 'fields');
     }
 
     /**
@@ -445,5 +271,90 @@ trait HandlesFields
         if (! empty($fieldsToHide)) {
             $model->makeHidden($fieldsToHide);
         }
+    }
+
+    /**
+     * Resolve and validate root-level fields from request.
+     *
+     * Returns validated fields array or null if no field filtering should be applied.
+     * Throws InvalidFieldQuery if validation fails and exceptions are enabled.
+     *
+     * @return array<string>|null  Validated fields or null for no filtering
+     *
+     * @throws InvalidFieldQuery
+     */
+    protected function resolveValidatedRootFields(): ?array
+    {
+        $resourceKey = $this->getResourceKey();
+        $requestedFields = $this->getRequestedFieldsForResource($resourceKey);
+        $requestEmpty = $this->isFieldsRequestEmpty();
+
+        if ($requestEmpty) {
+            $defaultFields = $this->getEffectiveDefaultFields();
+            if (! empty($defaultFields)) {
+                $fields = $defaultFields;
+                $requestEmpty = false;
+            } else {
+                $fields = [];
+            }
+        } else {
+            $fields = $requestedFields;
+        }
+
+        if ($requestEmpty && empty($fields)) {
+            return null;
+        }
+
+        if (empty($fields)) {
+            return null;
+        }
+
+        $allowedFields = $this->getEffectiveFields();
+
+        // Global wildcard in allowed - permit any requested fields
+        if (in_array('*', $allowedFields, true)) {
+            // If client requested '*', return null (all fields)
+            if (in_array('*', $fields, true)) {
+                return null;
+            }
+
+            return $fields;
+        }
+
+        if (empty($allowedFields)) {
+            if (! $requestEmpty && ! $this->getConfig()->isInvalidFieldQueryExceptionDisabled()) {
+                throw InvalidFieldQuery::fieldsNotAllowed(
+                    collect($fields),
+                    collect([])
+                );
+            }
+
+            return null;
+        }
+
+        $validFields = [];
+        $invalidFields = [];
+
+        foreach ($fields as $field) {
+            if ($this->isAttributeAllowed('', $field, $allowedFields)) {
+                $validFields[] = $field;
+            } elseif (! $requestEmpty) {
+                $invalidFields[] = $field;
+            }
+        }
+
+        if (! empty($invalidFields) && ! $this->getConfig()->isInvalidFieldQueryExceptionDisabled()) {
+            throw InvalidFieldQuery::fieldsNotAllowed(
+                collect($invalidFields),
+                collect($allowedFields)
+            );
+        }
+
+        // If '*' was validated as allowed, return null (all fields)
+        if (in_array('*', $validFields, true)) {
+            return null;
+        }
+
+        return ! empty($validFields) ? $validFields : null;
     }
 }

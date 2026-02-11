@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
-use Jackardios\QueryWizard\Config\QueryWizardConfig;
-use Jackardios\QueryWizard\QueryParametersManager;
+use Jackardios\QueryWizard\Contracts\IncludeInterface;
+use Jackardios\QueryWizard\Support\RelationResolver;
 
 /**
  * Builds a reusable "safe relation select" plan.
@@ -23,21 +23,13 @@ use Jackardios\QueryWizard\QueryParametersManager;
  */
 trait HandlesSafeRelationSelect
 {
+    use RequiresWizardContext;
+
     /** @var array<string, array<string>> */
     protected array $safeRelationSelectColumnsByPath = [];
 
     /** @var array<string> */
     protected array $safeRootRequiredFields = [];
-
-    /**
-     * Get the configuration instance.
-     */
-    abstract protected function getConfig(): QueryWizardConfig;
-
-    /**
-     * Get the parameters manager.
-     */
-    abstract protected function getParametersManager(): QueryParametersManager;
 
     /**
      * Build validated relation sparse-fields map from request.
@@ -52,6 +44,17 @@ trait HandlesSafeRelationSelect
      * @return array<string>
      */
     abstract protected function getEffectiveDefaultAppends(): array;
+
+    /**
+     * @return array<IncludeInterface>
+     */
+    abstract protected function getEffectiveIncludes(): array;
+
+    /**
+     * @param  array<IncludeInterface>  $effectiveIncludes
+     * @return array<string, string>
+     */
+    abstract protected function buildIncludeNameToPathMap(array $effectiveIncludes): array;
 
     protected function resetSafeRelationSelectState(): void
     {
@@ -101,112 +104,140 @@ trait HandlesSafeRelationSelect
             return;
         }
 
-        $requestedRelationshipPaths = array_values(array_unique(array_filter(
-            $requestedRelationshipPaths,
-            static fn (mixed $path): bool => is_string($path) && $path !== ''
-        )));
-
-        if (empty($requestedRelationshipPaths)) {
+        $paths = $this->normalizeRelationPaths($requestedRelationshipPaths);
+        if (empty($paths)) {
             return;
         }
 
-        $requestedRelationshipPathIndex = array_fill_keys($requestedRelationshipPaths, true);
-        $requestedAppendRelationPathIndex = array_fill_keys($this->resolveRequestedAppendRelationPaths(), true);
+        $resolver = new RelationResolver($rootModel);
+        $pathIndex = array_fill_keys($paths, true);
+        $appendPathIndex = array_fill_keys($this->resolveRequestedAppendRelationPaths(), true);
 
-        /** @var array<string, Relation<Model, Model, mixed>|null> $relationCache */
-        $relationCache = [];
+        $this->computeRootRequiredFields($paths, $resolver);
+        $this->computeRelationSelectColumns($paths, $pathIndex, $appendPathIndex, $resolver);
+    }
 
-        /**
-         * Resolve a relation by dot-notation path.
-         *
-         * Note: Assumes $rootModel is immutable during resolution.
-         * Eloquent relation methods should not mutate model state.
-         *
-         * @return Relation<Model, Model, mixed>|null
-         */
-        $resolveRelation = function (string $path) use (&$relationCache, $rootModel): ?Relation {
-            if (array_key_exists($path, $relationCache)) {
-                return $relationCache[$path];
-            }
+    /**
+     * Normalize and deduplicate relation paths.
+     *
+     * @param  array<string>  $paths
+     * @return array<string>
+     */
+    protected function normalizeRelationPaths(array $paths): array
+    {
+        return array_values(array_unique(array_filter(
+            $paths,
+            static fn (mixed $path): bool => is_string($path) && $path !== ''
+        )));
+    }
 
-            $model = $rootModel;
-            $relation = null;
-
-            foreach (explode('.', $path) as $segment) {
-                if ($segment === '' || ! method_exists($model, $segment)) {
-                    return $relationCache[$path] = null;
-                }
-
-                try {
-                    $relation = $model->{$segment}();
-                } catch (\Throwable) {
-                    return $relationCache[$path] = null;
-                }
-
-                if (! $relation instanceof Relation) {
-                    return $relationCache[$path] = null;
-                }
-
-                $model = $relation->getRelated();
-            }
-
-            return $relationCache[$path] = $relation;
-        };
-
+    /**
+     * Compute required FK columns for root model.
+     *
+     * @param  array<string>  $paths
+     */
+    protected function computeRootRequiredFields(array $paths, RelationResolver $resolver): void
+    {
         $topLevelRelations = [];
-        foreach ($requestedRelationshipPaths as $path) {
+        foreach ($paths as $path) {
             $topLevelRelations[Str::before($path, '.')] = true;
         }
 
         foreach (array_keys($topLevelRelations) as $topLevelPath) {
-            $relation = $resolveRelation($topLevelPath);
+            $relation = $resolver->resolve($topLevelPath);
             if ($relation === null) {
                 continue;
             }
 
             $this->appendColumns($this->safeRootRequiredFields, $this->resolveParentRequiredColumns($relation), true);
         }
+    }
 
+    /**
+     * Compute SELECT columns for each relation path.
+     *
+     * @param  array<string>  $paths
+     * @param  array<string, bool>  $pathIndex
+     * @param  array<string, bool>  $appendPathIndex
+     */
+    protected function computeRelationSelectColumns(
+        array $paths,
+        array $pathIndex,
+        array $appendPathIndex,
+        RelationResolver $resolver
+    ): void {
         foreach ($this->buildValidatedRelationFieldMap() as $relationPath => $fields) {
-            if (! isset($requestedRelationshipPathIndex[$relationPath])) {
+            if (! $this->shouldComputeSelectForPath($relationPath, $fields, $pathIndex, $appendPathIndex)) {
                 continue;
             }
 
-            if (in_array('*', $fields, true)) {
-                continue;
-            }
-
-            if (isset($requestedAppendRelationPathIndex[$relationPath])) {
-                continue;
-            }
-
-            $relation = $resolveRelation($relationPath);
+            $relation = $resolver->resolve($relationPath);
             if ($relation === null || ! $this->isSafeRelationSelectable($relation)) {
                 continue;
             }
 
-            // Skip SQL SELECT for models with built-in $appends — accessors may need all attributes
             if ($this->relationHasModelAppends($relation)) {
                 continue;
             }
 
-            $columns = [];
-            $this->appendColumns($columns, $fields);
-            $this->appendColumns($columns, $this->resolveRelatedRequiredColumns($relation), true);
-
-            foreach ($this->collectDirectChildRelationPaths($relationPath, $requestedRelationshipPaths) as $childRelationPath) {
-                $childRelation = $resolveRelation($childRelationPath);
-                if ($childRelation === null) {
-                    continue;
-                }
-
-                $this->appendColumns($columns, $this->resolveParentRequiredColumns($childRelation), true);
-            }
-
+            $columns = $this->buildRelationColumns($fields, $relationPath, $paths, $relation, $resolver);
             if (! empty($columns)) {
                 $this->safeRelationSelectColumnsByPath[$relationPath] = $columns;
             }
         }
+    }
+
+    /**
+     * Check if SELECT should be computed for this path.
+     *
+     * @param  array<string>  $fields
+     * @param  array<string, bool>  $pathIndex
+     * @param  array<string, bool>  $appendPathIndex
+     */
+    protected function shouldComputeSelectForPath(
+        string $relationPath,
+        array $fields,
+        array $pathIndex,
+        array $appendPathIndex
+    ): bool {
+        if (! isset($pathIndex[$relationPath])) {
+            return false;
+        }
+
+        if (in_array('*', $fields, true)) {
+            return false;
+        }
+
+        return ! isset($appendPathIndex[$relationPath]);
+    }
+
+    /**
+     * Build columns array for a relation.
+     *
+     * @param  array<string>  $fields
+     * @param  array<string>  $allPaths
+     * @param  Relation<Model, Model, mixed>  $relation
+     * @return array<string>
+     */
+    protected function buildRelationColumns(
+        array $fields,
+        string $relationPath,
+        array $allPaths,
+        Relation $relation,
+        RelationResolver $resolver
+    ): array {
+        $columns = [];
+        $this->appendColumns($columns, $fields);
+        $this->appendColumns($columns, $this->resolveRelatedRequiredColumns($relation), true);
+
+        foreach ($this->collectDirectChildRelationPaths($relationPath, $allPaths) as $childPath) {
+            $childRelation = $resolver->resolve($childPath);
+            if ($childRelation !== null) {
+                $this->appendColumns($columns, $this->resolveParentRequiredColumns($childRelation), true);
+            }
+        }
+
+        return $columns;
     }
 
     /**
@@ -244,24 +275,46 @@ trait HandlesSafeRelationSelect
      */
     protected function resolveRequestedAppendRelationPaths(): array
     {
-        $requestedAppends = array_merge(
-            $this->getEffectiveDefaultAppends(),
-            $this->getParametersManager()->getAppends()->all()
-        );
-
         $paths = [];
+        $requestedAppends = $this->getParametersManager()->getAppends();
+        $useDefaults = $requestedAppends->isEmpty();
 
-        foreach ($requestedAppends as $appendPath) {
-            if (! is_string($appendPath) || ! str_contains($appendPath, '.')) {
+        $grouped = [];
+        if ($useDefaults) {
+            foreach ($this->getEffectiveDefaultAppends() as $appendPath) {
+                if (! is_string($appendPath)) {
+                    continue;
+                }
+
+                $relationKey = Str::contains($appendPath, '.')
+                    ? Str::beforeLast($appendPath, '.')
+                    : '';
+                $appendName = Str::contains($appendPath, '.')
+                    ? Str::afterLast($appendPath, '.')
+                    : $appendPath;
+
+                $grouped[$relationKey][] = $appendName;
+            }
+        } else {
+            $grouped = $requestedAppends->all();
+        }
+
+        if (empty($grouped)) {
+            return [];
+        }
+
+        $includeNameToPathMap = $this->buildIncludeNameToPathMap($this->getEffectiveIncludes());
+
+        foreach ($grouped as $requestedKey => $appends) {
+            $requestedKey = (string) $requestedKey;
+            if ($requestedKey === '' || empty($appends)) {
                 continue;
             }
 
-            $relationPath = Str::beforeLast($appendPath, '.');
-            if ($relationPath === '') {
-                continue;
+            $relationPath = $includeNameToPathMap[$requestedKey] ?? null;
+            if ($relationPath !== null) {
+                $paths[$relationPath] = true;
             }
-
-            $paths[$relationPath] = true;
         }
 
         return array_keys($paths);
