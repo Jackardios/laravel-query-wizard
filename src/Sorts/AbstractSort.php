@@ -13,8 +13,6 @@ use Jackardios\QueryWizard\Contracts\SortInterface;
  * - Property/alias management
  *
  * All modifier methods mutate and return the same instance (fluent pattern).
- *
- * @phpstan-consistent-constructor
  */
 abstract class AbstractSort implements SortInterface
 {

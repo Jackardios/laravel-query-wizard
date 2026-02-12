@@ -26,8 +26,6 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  *
  * Handles: includes (load missing), fields (hide), appends
  * Does NOT handle: filters, sorts (these are for queries, not loaded models)
- *
- * @phpstan-consistent-constructor
  */
 final class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 {

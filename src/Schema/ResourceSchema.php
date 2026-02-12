@@ -33,8 +33,6 @@ use Jackardios\QueryWizard\Contracts\SortInterface;
  *     ];
  * }
  * ```
- *
- * @phpstan-consistent-constructor
  */
 abstract class ResourceSchema implements ResourceSchemaInterface
 {

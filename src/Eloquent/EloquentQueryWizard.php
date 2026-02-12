@@ -30,8 +30,6 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  * Query wizard for Eloquent Builder queries.
  *
  * Handles list queries with filters, sorts, includes, fields, and appends.
- *
- * @phpstan-consistent-constructor
  */
 final class EloquentQueryWizard extends BaseQueryWizard
 {

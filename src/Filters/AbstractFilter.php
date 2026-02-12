@@ -17,8 +17,6 @@ use Jackardios\QueryWizard\Contracts\FilterInterface;
  * - Conditional application via when()
  *
  * All modifier methods mutate and return the same instance (fluent pattern).
- *
- * @phpstan-consistent-constructor
  */
 abstract class AbstractFilter implements FilterInterface
 {
