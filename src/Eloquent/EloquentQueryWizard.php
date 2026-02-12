@@ -232,6 +232,26 @@ final class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
+     * Apply full post-processing (root fields, relation fields, appends) to externally fetched results.
+     *
+     * Use this when fetching results via `toQuery()` and methods that bypass the wizard
+     * (e.g., `$wizard->toQuery()->chunk()`). For direct wizard methods like `$wizard->chunk()`,
+     * `$wizard->lazy()`, etc., post-processing is applied automatically.
+     *
+     * @template T of Model|\Traversable<mixed>|array<mixed>
+     *
+     * @param  T  $results  Single model, collection, or iterable of models
+     * @return T The same results with post-processing applied
+     */
+    public function applyPostProcessingTo(mixed $results): mixed
+    {
+        $this->build();
+        $this->applyPostProcessingToResults($results);
+
+        return $results;
+    }
+
+    /**
      * Build the query and prepare post-processing trees used after execution.
      *
      * @return Builder<Model>|Relation<Model, Model, mixed>

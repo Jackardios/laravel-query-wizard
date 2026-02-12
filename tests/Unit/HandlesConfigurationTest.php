@@ -55,7 +55,7 @@ class HandlesConfigurationTest extends TestCase
                 };
             }
 
-            public function testIsNameDisallowed(string $name, array $disallowed): bool
+            public function checkIsNameDisallowed(string $name, array $disallowed): bool
             {
                 return $this->isNameDisallowed($name, $disallowed);
             }
@@ -64,7 +64,7 @@ class HandlesConfigurationTest extends TestCase
 
     private function isNameDisallowed(string $name, array $disallowed): bool
     {
-        return $this->configHandler->testIsNameDisallowed($name, $disallowed);
+        return $this->configHandler->checkIsNameDisallowed($name, $disallowed);
     }
 
     #[Test]

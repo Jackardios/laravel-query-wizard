@@ -14,8 +14,8 @@ use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
  */
 trait HandlesFields
 {
-    use RequiresWizardContext;
     use HandlesRelationAttributeValidation;
+    use RequiresWizardContext;
 
     /** @var array<string> */
     protected array $allowedFields = [];
@@ -279,7 +279,7 @@ trait HandlesFields
      * Returns validated fields array or null if no field filtering should be applied.
      * Throws InvalidFieldQuery if validation fails and exceptions are enabled.
      *
-     * @return array<string>|null  Validated fields or null for no filtering
+     * @return array<string>|null Validated fields or null for no filtering
      *
      * @throws InvalidFieldQuery
      */

@@ -620,25 +620,6 @@ class AppendTest extends TestCase
         $this->assertEmpty($array['related_models']);
     }
 
-    // ========== applyAppendsTo Workaround Tests ==========
-
-    #[Test]
-    public function apply_appends_to_can_be_used_with_chunk(): void
-    {
-        $wizard = $this
-            ->createEloquentWizardWithAppends('fullname')
-            ->allowedAppends('fullname');
-
-        $processed = collect();
-        $wizard->toQuery()->chunk(2, function ($chunk) use ($wizard, $processed) {
-            $wizard->applyAppendsTo($chunk);
-            $processed->push(...$chunk);
-        });
-
-        $this->assertCount(3, $processed);
-        $this->assertTrue($processed->every(fn ($m) => array_key_exists('fullname', $m->toArray())));
-    }
-
     // ========== Circular Reference Protection Tests ==========
     #[Test]
     public function it_handles_circular_references_in_appends(): void

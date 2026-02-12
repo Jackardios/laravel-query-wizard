@@ -1129,69 +1129,61 @@ In Laravel 11+ `bootstrap/app.php`:
 })
 ```
 
-## Batch Processing Limitations
+## Batch Processing and Post-Processing
 
-Methods like `chunk()`, `lazy()`, `cursor()`, `chunkById()`, etc. are **not directly supported** for appends. These methods internally call `get()` on the underlying Builder, bypassing the wizard's append logic.
+### What is Post-Processing?
 
-### Why This Happens
+After query execution, the wizard applies **post-processing** to results:
+- **Root field masking**: Hide fields not in `allowedFields()` (safe select mode)
+- **Relation field masking**: Hide fields on related models per `fields[relation]=...`
+- **Appends**: Add computed attributes via `append[]=...` or `append[relation]=...`
+
+### Supported Methods
+
+All wizard execution methods apply post-processing automatically:
+
+| Method | Post-Processing | Notes |
+|--------|-----------------|-------|
+| `get()` | ✅ Automatic | |
+| `first()` | ✅ Automatic | |
+| `firstOrFail()` | ✅ Automatic | |
+| `paginate()` | ✅ Automatic | |
+| `simplePaginate()` | ✅ Automatic | |
+| `cursorPaginate()` | ✅ Automatic | |
+| `chunk()` | ✅ Automatic | |
+| `chunkById()` | ✅ Automatic | |
+| `cursor()` | ✅ Automatic | Returns LazyCollection with post-processing |
+| `lazy()` | ✅ Automatic | Returns LazyCollection with post-processing |
+| `find()` | ❌ None | Use `where('id', $id)->first()` instead |
 
 ```php
-// Inside Laravel's Builder::chunk()
-$results = $this->forPage($page, $count)->get();  // Calls Builder::get(), not Wizard::get()
-$callback($results);  // Results don't have appends applied
+// All these apply post-processing automatically
+$wizard = EloquentQueryWizard::for(User::class)
+    ->allowedFields('id', 'name', 'posts.id', 'posts.title')
+    ->allowedAppends('full_name', 'posts.reading_time')
+    ->allowedIncludes('posts');
+
+$wizard->get();                              // ✅ Full post-processing
+$wizard->chunk(100, fn($users) => ...);      // ✅ Full post-processing per chunk
+$wizard->lazy()->each(fn($user) => ...);     // ✅ Full post-processing per model
+$wizard->cursor()->each(fn($user) => ...);   // ✅ Full post-processing per model
 ```
 
-### Workaround: Manual Append Application
+### Manual Post-Processing
 
-Use `toQuery()` to get the built query, then manually apply appends:
+Use `applyPostProcessingTo()` to apply field masking and appends to already loaded models:
 
 ```php
 $wizard = EloquentQueryWizard::for(User::class)
-    ->allowedFilters('status')
-    ->allowedAppends('full_name', 'posts.reading_time');
-
-// Get the built query
-$query = $wizard->toQuery();
-
-// Process in chunks with manual append application
-$query->chunk(100, function ($users) use ($wizard) {
-    $wizard->applyAppendsTo($users);
-
-    foreach ($users as $user) {
-        // Process user with appends applied
-    }
-});
-```
-
-### Workaround: Using cursor() with LazyCollection
-
-```php
-$wizard = EloquentQueryWizard::for(User::class)
+    ->allowedFields('id', 'name')
     ->allowedAppends('full_name');
 
-$query = $wizard->toQuery();
+// Models already loaded (from cache, queue, another query, etc.)
+$users = User::all();
 
-$query->cursor()->each(function ($user) use ($wizard) {
-    $wizard->applyAppendsTo([$user]);
-    // Process user
-});
+// Apply field masking and appends
+$wizard->applyPostProcessingTo($users);
 ```
-
-### Supported vs Unsupported Methods
-
-| Method | Appends Support | Notes |
-|--------|-----------------|-------|
-| `get()` | ✅ Full | Direct support |
-| `first()` | ✅ Full | Direct support |
-| `firstOrFail()` | ✅ Full | Direct support |
-| `paginate()` | ✅ Full | Direct support |
-| `simplePaginate()` | ✅ Full | Direct support |
-| `cursorPaginate()` | ✅ Full | Direct support |
-| `chunk()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
-| `chunkById()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
-| `cursor()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
-| `lazy()` | ⚠️ Manual | Use `toQuery()` + `applyAppendsTo()` |
-| `find()` | ❌ None | Use `where('id', $id)->first()` instead |
 
 ## Configuration Order
 
@@ -1271,7 +1263,7 @@ EloquentQueryWizard::for(
 | `cursorPaginate($perPage)` | Execute with cursor pagination |
 | `toQuery()` | Build and return query builder |
 | `getSubject()` | Get underlying query builder |
-| `applyAppendsTo($results)` | Apply appends to results (for manual batch processing) |
+| `applyPostProcessingTo($results)` | Apply full post-processing (fields + appends) to results |
 | `getPassthroughFilters()` | Get passthrough filter values |
 
 ### Filter Factory Methods (EloquentFilter)
@@ -1353,7 +1345,7 @@ This package is inspired by [spatie/laravel-query-builder](https://github.com/sp
 | `disallowed*()` methods (schema overrides) | ✅ | ❌ |
 | ModelQueryWizard (for loaded models) | ✅ | ❌ |
 | `tap()` query modification callbacks | ✅ | ❌ |
-| Batch processing support (`applyAppendsTo()`) | ✅ | ❌ |
+| Batch processing with full post-processing | ✅ | ❌ |
 | **Security** | | |
 | Max include depth | ✅ | ❌ |
 | Max count limits (filters, sorts, includes, appends) | ✅ | ❌ |

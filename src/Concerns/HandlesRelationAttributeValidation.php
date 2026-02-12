@@ -23,7 +23,7 @@ trait HandlesRelationAttributeValidation
      * because Laravel loads intermediate relations regardless of aliasing.
      *
      * @param  array<IncludeInterface>  $effectiveIncludes
-     * @return array<string, string>  ['includeName' => 'relation.path']
+     * @return array<string, string> ['includeName' => 'relation.path']
      */
     protected function buildIncludeNameToPathMap(array $effectiveIncludes): array
     {

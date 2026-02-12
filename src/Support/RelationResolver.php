@@ -17,8 +17,7 @@ final class RelationResolver
 
     public function __construct(
         private Model $rootModel
-    ) {
-    }
+    ) {}
 
     /**
      * Resolve a relation by dot-notation path.

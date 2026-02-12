@@ -582,7 +582,7 @@ The following traits still exist but are now internal shared traits with differe
 | `makeDefaultSortHandler()` | Not needed - use factory methods |
 | `getAllowedFilters()` | Internal only |
 | `getFilters()` | `getPassthroughFilters()` for passthrough filters |
-| `handleModels()` | `applyAppendsTo()` |
+| `handleModels()` | `applyPostProcessingTo()` |
 | `build()` on ModelQueryWizard | `process()` |
 
 ### Helper Functions Removed

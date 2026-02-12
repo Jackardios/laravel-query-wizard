@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
-use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
@@ -16,8 +15,8 @@ use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
  */
 trait HandlesAppends
 {
-    use RequiresWizardContext;
     use HandlesRelationAttributeValidation;
+    use RequiresWizardContext;
 
     /** @var array<string> */
     protected array $allowedAppends = [];
@@ -41,84 +40,6 @@ trait HandlesAppends
      * @return array<string>
      */
     abstract protected function getMergedRequestedIncludes(): array;
-
-    /**
-     * Apply appends to a collection of results or a single model.
-     *
-     * Call this after executing the query to apply allowed appends.
-     *
-     * @template T of Model|\Traversable<mixed>|array<mixed>
-     *
-     * @param  T  $results
-     * @return T
-     */
-    public function applyAppendsTo(mixed $results): mixed
-    {
-        $appendTree = $this->getValidRequestedAppendsTree();
-        if (empty($appendTree['appends']) && empty($appendTree['relations'])) {
-            return $results;
-        }
-
-        if ($results instanceof Model) {
-            $this->applyAppendsRecursively($results, $appendTree);
-
-            return $results;
-        }
-
-        foreach ($results as $item) {
-            if (is_object($item)) {
-                $this->applyAppendsRecursively($item, $appendTree);
-            }
-        }
-
-        return $results;
-    }
-
-    /**
-     * Apply appends recursively to model and its loaded relations.
-     *
-     * @param  array{appends: array<string>, relations: array<string, mixed>}  $appendTree
-     * @param  array<int, bool>  $visited  Object IDs already processed (prevents circular reference loops)
-     */
-    protected function applyAppendsRecursively(object $model, array $appendTree, array &$visited = []): void
-    {
-        $objectId = spl_object_id($model);
-        if (isset($visited[$objectId])) {
-            return;
-        }
-        $visited[$objectId] = true;
-
-        $rootAppends = $appendTree['appends'];
-        if (! empty($rootAppends) && method_exists($model, 'append')) {
-            $model->append($rootAppends);
-        }
-
-        foreach ($appendTree['relations'] as $relation => $relationAppendTree) {
-            if (! method_exists($model, 'relationLoaded') || ! $model->relationLoaded($relation)) {
-                continue;
-            }
-
-            if (! method_exists($model, 'getRelation')) {
-                continue;
-            }
-
-            /** @var mixed $related */
-            $related = $model->getRelation($relation);
-            if ($related === null) {
-                continue;
-            }
-
-            if ($related instanceof \Traversable || is_array($related)) {
-                foreach ($related as $item) {
-                    if (is_object($item)) {
-                        $this->applyAppendsRecursively($item, $relationAppendTree, $visited);
-                    }
-                }
-            } elseif (is_object($related)) {
-                $this->applyAppendsRecursively($related, $relationAppendTree, $visited);
-            }
-        }
-    }
 
     /**
      * Build append tree from grouped format.
@@ -236,7 +157,6 @@ trait HandlesAppends
      * @param  array<string>  $attributes
      * @param  array<string>  $allowed
      * @param  bool  $canThrow  Whether to throw exceptions for invalid attributes
-     * @param  bool  $exceptionsDisabled
      * @return array<string>
      */
     protected function filterValidAttributes(
