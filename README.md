@@ -3,7 +3,8 @@
 Build Eloquent queries from API request parameters. Filter, sort, include relationships, select fields, and append computed attributes - all from query string parameters.
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/jackardios/laravel-query-wizard.svg)](https://packagist.org/packages/jackardios/laravel-query-wizard)
-[![License](https://img.shields.io/packagist/l/jackardios/laravel-query-wizard.svg)](https://packagist.org/packages/jackardios/laravel-query-wizard)
+[![License](https://img.shields.io/packagist/l/jackardios/laravel-query-wizard.svg)](https://packagist.org/packages/jackardios/laravel-query-wizard)                                                            
+[![CI](https://github.com/jackardios/laravel-query-wizard/actions/workflows/ci.yml/badge.svg)](https://github.com/jackardios/laravel-query-wizard/actions)
 
 ## Why Use Query Wizard?
 
