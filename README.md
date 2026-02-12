@@ -282,6 +282,30 @@ EloquentFilter::jsonContains('settings.roles')->matchAny()
 
 **Request:** `?filter[meta.tags]=laravel,php`
 
+#### Operator Filter
+
+Filter with configurable comparison operators.
+
+```php
+use Jackardios\QueryWizard\Enums\FilterOperator;
+
+// Static operator (fixed comparison)
+EloquentFilter::operator('price', FilterOperator::GREATER_THAN)      // price > value
+EloquentFilter::operator('status', FilterOperator::NOT_EQUAL)        // status != value
+EloquentFilter::operator('name', FilterOperator::LIKE)               // name LIKE %value%
+
+// Dynamic operator (parsed from value)
+EloquentFilter::operator('price', FilterOperator::DYNAMIC)
+```
+
+Available operators: `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`, `LIKE`, `NOT_LIKE`, `DYNAMIC`
+
+**Request (static):** `?filter[price]=100` with `GREATER_THAN` → `price > 100`
+
+**Request (dynamic):** `?filter[price]=>=100` → `price >= 100`, `?filter[price]=!=5` → `price != 5`
+
+Supported dynamic prefixes: `>=`, `<=`, `!=`, `<>`, `>`, `<`
+
 #### Passthrough Filter
 
 Capture filter values without applying them to the query. Useful for external API calls or custom processing.
@@ -465,10 +489,22 @@ EloquentInclude::count('posts')
 EloquentInclude::count('posts', 'postCount')  // Custom alias
 ```
 
-Includes ending with "Count" (configurable suffix) are auto-detected:
+#### Exists Include
+
+Check relationship existence with `withExists()`. Adds a boolean attribute `{relation}_exists`.
 
 ```php
-->allowedIncludes('posts', 'postsCount')  // postsCount becomes count include
+EloquentInclude::exists('posts')
+EloquentInclude::exists('comments', 'hasComments')  // Custom alias
+```
+
+**Request:** `?include=postsExists` → adds `posts_exists` boolean attribute
+
+Includes ending with "Count" or "Exists" (configurable suffixes) are auto-detected:
+
+```php
+->allowedIncludes('posts', 'postsCount', 'postsExists')
+// postsCount → count include, postsExists → exists include
 ```
 
 #### Callback Include
@@ -511,6 +547,34 @@ EloquentQueryWizard::for(User::class)
 The resource key (`user` in the example) is derived from the model name in camelCase. You can customize it with schemas.
 
 If both formats are provided, the resource-keyed format takes precedence for the root resource.
+
+### Relation Fields
+
+For included relationships, use the **relation name** (or include alias) as the key — not the database table name:
+
+```php
+// Model: Task with createdBy(): BelongsTo<User>  (table: users)
+
+EloquentQueryWizard::for(Task::class)
+    ->allowedIncludes('createdBy')
+    ->allowedFields('id', 'title', 'createdBy.id', 'createdBy.name')
+    ->get();
+```
+
+```
+✅ ?include=createdBy&fields[task]=id,title&fields[createdBy]=id,name
+✅ ?include=createdBy&fields=id,title,createdBy.id,createdBy.name  (dot notation)
+❌ ?fields[users]=id,name  — table name won't work, use relation name
+```
+
+If the include has an alias, use the alias in fields too:
+
+```php
+->allowedIncludes(EloquentInclude::relationship('createdBy')->alias('creator'))
+->allowedFields('id', 'creator.id', 'creator.name')
+
+// URL: ?include=creator&fields[creator]=id,name
+```
 
 ### Relation Field Modes
 
@@ -630,6 +694,17 @@ Append attributes on related models:
 )
 ```
 
+Like fields, use **relation names** — not table names:
+
+```php
+// Model: Task with createdBy(): BelongsTo<User>
+
+->allowedAppends('createdBy.full_name')
+
+// URL: ?append=createdBy.full_name
+// ❌ ?append=users.full_name  — table name won't work
+```
+
 ### Wildcard Appends
 
 Allow any appends on a relation:
@@ -708,6 +783,18 @@ class UserSchema extends ResourceSchema
     public function defaultIncludes(QueryWizardInterface $wizard): array
     {
         return ['profile'];
+    }
+
+    public function defaultFields(QueryWizardInterface $wizard): array
+    {
+        return ['id', 'name', 'email'];  // Applied when ?fields is absent
+    }
+
+    public function defaultFilters(QueryWizardInterface $wizard): array
+    {
+        return [
+            'status' => 'active',  // Applied when ?filter[status] is absent
+        ];
     }
 }
 ```
@@ -905,6 +992,12 @@ return [
     'count_suffix' => 'Count',
 
     /*
+     * Suffix for exists includes.
+     * Example: postsExists will check existence of posts relation.
+     */
+    'exists_suffix' => 'Exists',
+
+    /*
      * When true, invalid filters/sorts/etc. are silently ignored.
      * When false (default), appropriate exception is thrown.
      */
@@ -931,6 +1024,30 @@ return [
      * Example: ?filter[status]=active,pending
      */
     'array_value_separator' => ',',
+
+    /*
+     * Per-parameter-type separators.
+     * Allows using different separators for different parameter types.
+     * If not set, falls back to 'array_value_separator'.
+     */
+    'separators' => [
+        // 'includes' => ',',
+        // 'sorts' => ',',
+        // 'fields' => ',',
+        // 'appends' => ',',
+        // 'filters' => ';',  // Use semicolon to allow commas in filter values
+    ],
+
+    /*
+     * Naming conversion options.
+     */
+    'naming' => [
+        /*
+         * When true, camelCase parameter names are converted to snake_case.
+         * Example: ?filter[firstName]=John → filter[first_name]=John
+         */
+        'convert_parameters_to_snake_case' => false,
+    ],
 
     /*
      * Runtime optimizations for relation field handling.
@@ -1136,6 +1253,7 @@ EloquentQueryWizard::for(
 | `defaultIncludes(...$names)` | Set default includes (applied only when include param is absent) |
 | `allowedFields(...$fields)` | Set allowed fields (supports wildcards: `*`, `relation.*`) |
 | `disallowedFields(...$names)` | Remove fields (supports wildcards: `*`, `relation.*`, `relation`) |
+| `defaultFields(...$fields)` | Set default fields (applied when ?fields is absent) |
 | `allowedAppends(...$appends)` | Set allowed appends (supports wildcards: `*`, `relation.*`) |
 | `disallowedAppends(...$names)` | Remove appends (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultAppends(...$appends)` | Set default appends |
@@ -1168,6 +1286,7 @@ EloquentQueryWizard::for(
 | `range($property, $alias)` | Numeric range filter |
 | `dateRange($property, $alias)` | Date range filter |
 | `jsonContains($property, $alias)` | JSON contains filter |
+| `operator($property, $operator, $alias)` | Operator filter (=, !=, >, >=, <, <=, LIKE, NOT LIKE, DYNAMIC) |
 | `callback($name, $callback, $alias)` | Custom callback filter |
 | `passthrough($name, $alias)` | Passthrough filter |
 
@@ -1186,6 +1305,7 @@ EloquentQueryWizard::for(
 |--------|-------------|
 | `relationship($relation, $alias)` | Eager load relationship |
 | `count($relation, $alias)` | Load relationship count |
+| `exists($relation, $alias)` | Check relationship existence (adds boolean attribute) |
 | `callback($name, $callback, $alias)` | Custom callback include |
 
 ## Comparison with spatie/laravel-query-builder
@@ -1205,7 +1325,7 @@ This package is inspired by [spatie/laravel-query-builder](https://github.com/sp
 | Passthrough (capture without applying) | ✅ | ❌ |
 | Conditional filters (`when()`) | ✅ | ❌ |
 | Value transformation (`prepareValueWith()`) | ✅ | ❌ |
-| Operator filter (>, <, >=, <=) | ❌ | ✅ |
+| Operator filter (>, <, >=, <=, DYNAMIC) | ✅ | ✅ |
 | BelongsTo filter | ❌ | ✅ |
 | BeginsWith / EndsWith | ❌ | ✅ |
 | Ignored filter values | ❌ | ✅ |
@@ -1219,7 +1339,7 @@ This package is inspired by [spatie/laravel-query-builder](https://github.com/sp
 | Default sorts | ✅ | ✅ |
 | **Includes** | | |
 | Relationship, Count, Custom/Callback | ✅ | ✅ |
-| Exists includes | ❌ | ✅ |
+| Exists includes | ✅ | ✅ |
 | Default includes | ✅ | ❌ |
 | Count auto-allowed with relationship | ❌ | ✅ |
 | **Fields** | | |
