@@ -1171,17 +1171,19 @@ $wizard->cursor()->each(fn($user) => ...);   // ✅ Full post-processing per mod
 
 ### Manual Post-Processing
 
-Use `applyPostProcessingTo()` to apply field masking and appends to already loaded models:
+Some `Builder` methods like `find()`, `findMany()`, `sole()` are not wrapped by the wizard. Use `applyPostProcessingTo()` to apply field masking and appends:
 
 ```php
 $wizard = EloquentQueryWizard::for(User::class)
     ->allowedFields('id', 'name')
     ->allowedAppends('full_name');
 
-// Models already loaded (from cache, queue, another query, etc.)
-$users = User::all();
+// find() is not wrapped — post-processing not applied automatically
+$user = $wizard->toQuery()->find($id);
+$wizard->applyPostProcessingTo($user);
 
-// Apply field masking and appends
+// Also useful for models from external sources (cache, queue, etc.)
+$users = Cache::get('users');
 $wizard->applyPostProcessingTo($users);
 ```
 
