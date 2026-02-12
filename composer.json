@@ -50,11 +50,12 @@
         }
     },
     "scripts": {
-        "test": "vendor/bin/phpunit --testdox",
-        "test-coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit --testdox --coverage-text",
-        "phpstan": "vendor/bin/phpstan analyse --memory-limit=512M",
-        "format": "vendor/bin/pint",
-        "format-check": "vendor/bin/pint --test"
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite=Unit",
+        "test:feature": "phpunit --testsuite=Feature",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "format-check": "pint --test",
+        "format": "pint"
     },
     "config": {
         "sort-packages": true
