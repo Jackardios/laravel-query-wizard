@@ -148,24 +148,6 @@ EloquentFilter::null('verified_at')->withInvertedLogic()
 EloquentFilter::jsonContains('tags')->matchAny()
 ```
 
-### New Support Classes
-
-The following classes have been extracted for better separation of concerns:
-
-| Class | Purpose |
-|-------|---------|
-| `Support\ParameterParser` | Parses list/sort/fields parameters |
-| `Support\FilterValueTransformer` | Transforms filter values (booleans, arrays) |
-| `Concerns\HandlesAppends` | Shared append handling logic |
-
-These are internal implementation details and should not affect most users.
-
-### Updated Traits
-
-- `HandlesAppends` trait is now used by both `BaseQueryWizard` and `ModelQueryWizard`
-- `HandlesIncludes` and `HandlesFields` traits added for shared logic
-- Reduces code duplication between wizard classes
-
 ### New Sort Types
 
 Two new sort types have been added:
@@ -182,18 +164,6 @@ EloquentSort::relation('orders', 'total', 'sum')     // Sort by sum of order tot
 EloquentSort::relation('posts', 'created_at', 'max') // Sort by newest post date
 ```
 
-### Conditional Filters with `when()`
-
-Filters now support conditional application via `when()`:
-
-```php
-EloquentFilter::exact('status')
-    ->when(fn($value) => $value !== 'all')  // Skip filter if value is 'all'
-
-EloquentFilter::exact('user_id')
-    ->when(fn($value) => auth()->check())   // Only apply if user is authenticated
-```
-
 ### Laravel Octane Support
 
 The package is now fully compatible with Laravel Octane:
@@ -204,15 +174,13 @@ The package is now fully compatible with Laravel Octane:
 
 # Upgrade Guide: v2.x to v3.0
 
-This document describes how to upgrade Laravel Query Wizard from version 2.x to 3.0.
-
 ## Overview
 
 Version 3.0 is a significant rewrite with a cleaner architecture:
 
 - **Simplified class structure** - Removed trait-based architecture in favor of class inheritance
 - **Fluent configuration API** - Method names changed from `setAllowed*()` to `allowed*()`
-- **New filter types** - Added Range, DateRange, Null, JsonContains, and Passthrough filters
+- **New filter types** - Added Range, DateRange, Null, JsonContains, Passthrough, and Operator filters
 - **Resource Schemas** - Declarative configuration for reusable query definitions
 - **Security limits** - Built-in protection against resource exhaustion attacks
 - **Improved type safety** - Better interfaces and strict types throughout
@@ -221,16 +189,13 @@ Version 3.0 is a significant rewrite with a cleaner architecture:
 
 | v2.x | v3.0 |
 |------|------|
-| `EloquentQueryWizard::for($subject)` | `EloquentQueryWizard::for($subject)` (unchanged) |
-| `->setAllowedFilters([...])` | `->allowedFilters(...)` |
+| `->setAllowedFilters([...])` | `->allowedFilters(...)` (variadic) |
 | `->setAllowedSorts([...])` | `->allowedSorts(...)` |
-| `->setAllowedIncludes([...])` | `->allowedIncludes(...)` |
-| `->setAllowedFields([...])` | `->allowedFields(...)` |
-| `->setAllowedAppends([...])` | `->allowedAppends(...)` |
 | `->setDefaultSorts([...])` | `->defaultSorts(...)` |
-| `new ExactFilter($property, $alias)` | `EloquentFilter::exact($property, $alias)` |
-| `Model\ModelQueryWizard` | `ModelQueryWizard` (moved to root namespace) |
-| Traits in `Concerns/` | Consolidated into base classes |
+| `new ExactFilter(...)` | `EloquentFilter::exact(...)` |
+| `new FieldSort(...)` | `EloquentSort::field(...)` |
+| `new RelationshipInclude(...)` | `EloquentInclude::relationship(...)` |
+| `Model\ModelQueryWizard->build()` | `ModelQueryWizard->process()` |
 
 ## Migration Steps
 
@@ -432,18 +397,196 @@ $result = ModelQueryWizard::for($user)
 
 | v2.x | v3.0 |
 |------|------|
-| `Jackardios\QueryWizard\Eloquent\EloquentQueryWizard` | `Jackardios\QueryWizard\Eloquent\EloquentQueryWizard` (unchanged) |
-| `Jackardios\QueryWizard\Model\ModelQueryWizard` | `Jackardios\QueryWizard\ModelQueryWizard` |
-| `Jackardios\QueryWizard\Eloquent\Filters\ExactFilter` | `Jackardios\QueryWizard\Eloquent\EloquentFilter` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Filters\PartialFilter` | `Jackardios\QueryWizard\Eloquent\EloquentFilter` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter` | `Jackardios\QueryWizard\Eloquent\EloquentFilter` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Filters\TrashedFilter` | `Jackardios\QueryWizard\Eloquent\EloquentFilter` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Filters\CallbackFilter` | `Jackardios\QueryWizard\Eloquent\EloquentFilter` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Sorts\FieldSort` | `Jackardios\QueryWizard\Eloquent\EloquentSort` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Sorts\CallbackSort` | `Jackardios\QueryWizard\Eloquent\EloquentSort` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude` | `Jackardios\QueryWizard\Eloquent\EloquentInclude` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Includes\CountInclude` | `Jackardios\QueryWizard\Eloquent\EloquentInclude` (factory) |
-| `Jackardios\QueryWizard\Eloquent\Includes\CallbackInclude` | `Jackardios\QueryWizard\Eloquent\EloquentInclude` (factory) |
+| `Model\ModelQueryWizard` | `ModelQueryWizard` (root namespace) |
+| `Filters\*Filter` | `EloquentFilter` (factory) |
+| `Sorts\*Sort` | `EloquentSort` (factory) |
+| `Includes\*Include` | `EloquentInclude` (factory) |
+
+### 9. Replace Custom QueryWizard Classes with Schemas
+
+In v2.x, a common pattern was to create dedicated QueryWizard subclasses for each resource by overriding configuration methods. Typically you needed two classes per resource: one for collections (plural) and one for single models (singular).
+
+**Before (v2.x):**
+```php
+// app/QueryWizards/UsersQueryWizard.php (for collections)
+class UsersQueryWizard extends EloquentQueryWizard
+{
+    protected function allowedFilters(): array
+    {
+        return ['name', 'email', 'status'];
+    }
+
+    protected function allowedSorts(): array
+    {
+        return ['created_at', 'name'];
+    }
+
+    protected function allowedIncludes(): array
+    {
+        return ['posts', 'profile'];
+    }
+}
+
+// app/QueryWizards/UserQueryWizard.php (for single models)
+class UserQueryWizard extends ModelQueryWizard
+{
+    protected function allowedIncludes(): array
+    {
+        return ['posts', 'profile'];  // Duplicated configuration!
+    }
+
+    protected function allowedFields(): array
+    {
+        return ['id', 'name', 'email'];
+    }
+}
+
+// Usage
+$users = UsersQueryWizard::for(User::class)->get();
+$user = UserQueryWizard::for(User::find(1))->build();
+```
+
+**After (v3.0):**
+
+Instead of two subclasses with duplicated configuration, use a single `ResourceSchema` that works with both `EloquentQueryWizard` and `ModelQueryWizard`:
+
+```php
+// app/Schemas/UserSchema.php
+use Jackardios\QueryWizard\Schema\ResourceSchema;
+use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
+
+class UserSchema extends ResourceSchema
+{
+    public function model(): string
+    {
+        return User::class;
+    }
+
+    public function filters(QueryWizardInterface $wizard): array
+    {
+        return ['name', 'email', 'status'];
+    }
+
+    public function sorts(QueryWizardInterface $wizard): array
+    {
+        return ['created_at', 'name'];
+    }
+
+    public function includes(QueryWizardInterface $wizard): array
+    {
+        return ['posts', 'profile'];  // Shared between both wizards
+    }
+
+    public function fields(QueryWizardInterface $wizard): array
+    {
+        return ['id', 'name', 'email'];
+    }
+}
+
+// Usage with EloquentQueryWizard (replaces UsersQueryWizard)
+$users = EloquentQueryWizard::forSchema(UserSchema::class)->get();
+
+// Usage with ModelQueryWizard (replaces UserQueryWizard)
+$user = User::find(1);
+ModelQueryWizard::for($user)->schema(UserSchema::class)->process();
+```
+
+**Conditional configuration based on wizard type:**
+
+The `$wizard` parameter allows you to return different configurations depending on whether the schema is used with `EloquentQueryWizard` or `ModelQueryWizard`:
+
+```php
+use Jackardios\QueryWizard\Schema\ResourceSchema;
+use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
+use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
+use Jackardios\QueryWizard\ModelQueryWizard;
+
+class UserSchema extends ResourceSchema
+{
+    public function model(): string
+    {
+        return User::class;
+    }
+
+    public function filters(QueryWizardInterface $wizard): array
+    {
+        // Filters only make sense for EloquentQueryWizard (database queries)
+        // ModelQueryWizard works with already-loaded models, so filters are ignored
+        return [
+            'name',
+            'email',
+            EloquentFilter::exact('status'),
+            EloquentFilter::scope('active'),
+            EloquentFilter::dateRange('created_at'),
+        ];
+    }
+
+    public function sorts(QueryWizardInterface $wizard): array
+    {
+        // Sorts also only apply to EloquentQueryWizard
+        return ['created_at', 'name', 'email'];
+    }
+
+    public function includes(QueryWizardInterface $wizard): array
+    {
+        // Base includes shared by both wizards
+        $includes = ['posts', 'profile', 'roles'];
+
+        // Count/exists includes only work with EloquentQueryWizard
+        if ($wizard instanceof EloquentQueryWizard) {
+            $includes[] = EloquentInclude::count('posts');
+            $includes[] = EloquentInclude::exists('subscription');
+        }
+
+        return $includes;
+    }
+
+    public function fields(QueryWizardInterface $wizard): array
+    {
+        $fields = ['id', 'name', 'email', 'created_at'];
+
+        // Include sensitive fields only for single model requests
+        if ($wizard instanceof ModelQueryWizard) {
+            $fields[] = 'phone';
+            $fields[] = 'address';
+        }
+
+        return $fields;
+    }
+
+    public function appends(QueryWizardInterface $wizard): array
+    {
+        $appends = ['full_name', 'avatar_url'];
+
+        // Heavy computed appends only for single models (avoid N+1 on collections)
+        if ($wizard instanceof ModelQueryWizard) {
+            $appends[] = 'permissions_summary';
+            $appends[] = 'activity_stats';
+        }
+
+        return $appends;
+    }
+
+    public function defaultIncludes(QueryWizardInterface $wizard): array
+    {
+        // Always load profile for single model, but not for collections
+        if ($wizard instanceof ModelQueryWizard) {
+            return ['profile'];
+        }
+
+        return [];
+    }
+}
+```
+
+**Benefits:**
+- **No duplication**: One schema replaces two classes, shared configuration stays in one place
+- **Reusability**: Same schema works with both `EloquentQueryWizard` and `ModelQueryWizard`
+- **Separation of concerns**: Query configuration is separate from query execution
+- **Flexibility**: Override schema settings per-request using `disallowed*()` methods
+- **Testability**: Schemas are plain PHP classes, easy to unit test
 
 ## New Features in v3.0
 
@@ -451,21 +594,24 @@ $result = ModelQueryWizard::for($user)
 
 ```php
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Enums\FilterOperator;
 
-// Numeric range filtering
 EloquentFilter::range('price')           // ?filter[price][min]=10&filter[price][max]=100
-
-// Date range filtering with Carbon parsing
 EloquentFilter::dateRange('created_at')  // ?filter[created_at][from]=2024-01-01&filter[created_at][to]=2024-12-31
-
-// NULL/NOT NULL checking
-EloquentFilter::null('deleted_at')       // ?filter[deleted_at]=true (IS NULL)
-
-// JSON column containment
+EloquentFilter::null('deleted_at')       // ?filter[deleted_at]=true → IS NULL
 EloquentFilter::jsonContains('tags')     // ?filter[tags]=laravel,php
+EloquentFilter::passthrough('context')   // Captured, not applied. Use getPassthroughFilters()
 
-// Capture value without modifying query
-EloquentFilter::passthrough('context')   // Retrieved via getPassthroughFilters()
+// Operator filter with comparison operators
+EloquentFilter::operator('age', FilterOperator::GREATER_THAN)  // ?filter[age]=18 → age > 18
+EloquentFilter::operator('price', FilterOperator::DYNAMIC)     // ?filter[price]=>=100 → price >= 100
+// Operators: EQUAL, NOT_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL, LIKE, NOT_LIKE, DYNAMIC
+```
+
+### Exists Include
+
+```php
+EloquentInclude::exists('posts')  // ?include=postsExists → adds posts_exists boolean attribute
 ```
 
 ### Resource Schemas
@@ -482,6 +628,11 @@ class UserSchema extends ResourceSchema
     public function model(): string
     {
         return User::class;
+    }
+
+    public function type(): string
+    {
+        return 'user';  // Key for ?fields[user]=id,name (default: camelCase of model)
     }
 
     public function filters(QueryWizardInterface $wizard): array
@@ -507,6 +658,11 @@ class UserSchema extends ResourceSchema
     {
         return ['-created_at'];
     }
+
+    public function defaultFilters(QueryWizardInterface $wizard): array
+    {
+        return ['status' => 'active'];  // Applied when filter absent from request
+    }
 }
 
 // Usage
@@ -531,12 +687,15 @@ Protection against resource exhaustion attacks:
 
 ### Disallowed Methods
 
-Override schema configuration for specific endpoints:
+Override schema configuration with wildcard support:
 
 ```php
 EloquentQueryWizard::forSchema(UserSchema::class)
-    ->disallowedFilters('status', 'role')      // Remove from schema
-    ->disallowedIncludes('sensitiveRelation')   // Remove from schema
+    ->disallowedFilters('status', 'secret_*')    // Wildcard matching
+    ->disallowedIncludes('auditLogs')
+    ->disallowedFields('*')                      // Block all fields
+    ->disallowedFields('posts.*')                // Block direct children only
+    ->disallowedFields('posts')                  // Block relation + all descendants
     ->get();
 ```
 
@@ -544,50 +703,44 @@ EloquentQueryWizard::forSchema(UserSchema::class)
 
 ```php
 EloquentFilter::exact('status')
-    ->alias('state')                           // URL parameter name
-    ->default('active')                        // Default value
+    ->alias('state')                              // URL parameter name
+    ->default('active')                           // Default value
     ->prepareValueWith(fn($v) => strtolower($v))  // Transform value
+    ->asBoolean()                                 // Convert "true"/"1" → true, "false"/"0" → false
+    ->when(fn($value) => $value !== 'all')        // Skip filter conditionally
+```
+
+### tap() Method
+
+Modify the query builder directly:
+
+```php
+EloquentQueryWizard::for(User::class)
+    ->tap(fn($query) => $query->where('tenant_id', auth()->user()->tenant_id))
+    ->allowedFilters('name')
+    ->get();
+```
+
+### applyPostProcessingTo()
+
+Apply fields/appends to externally fetched models:
+
+```php
+$wizard = EloquentQueryWizard::for(User::class)
+    ->allowedFields('id', 'name')
+    ->allowedAppends('full_name');
+
+$user = $wizard->toQuery()->find($id);  // find() bypasses wizard
+$wizard->applyPostProcessingTo($user);  // Apply fields/appends manually
 ```
 
 ## Removed Features
 
-### Classes Removed
-
-- `Jackardios\QueryWizard\Abstracts\AbstractFilter` - Use `EloquentFilter` factory
-- `Jackardios\QueryWizard\Abstracts\AbstractInclude` - Use `EloquentInclude` factory
-- `Jackardios\QueryWizard\Abstracts\AbstractSort` - Use `EloquentSort` factory
-- `Jackardios\QueryWizard\Abstracts\AbstractQueryWizard` - Use `BaseQueryWizard`
-- `Jackardios\QueryWizard\Eloquent\EloquentFilter` (old base class) - Replaced by factory
-- `Jackardios\QueryWizard\Eloquent\EloquentInclude` (old base class) - Replaced by factory
-- `Jackardios\QueryWizard\Eloquent\EloquentSort` (old base class) - Replaced by factory
-- `Jackardios\QueryWizard\Model\ModelInclude` - Consolidated into includes
-- All handler classes in `Model\Includes\*`
-
-### Traits Restructured
-
-The following traits still exist but are now internal shared traits with different responsibilities than in v2:
-
-- `Jackardios\QueryWizard\Concerns\HandlesFilters` — filter validation
-- `Jackardios\QueryWizard\Concerns\HandlesSorts` — sort validation
-- `Jackardios\QueryWizard\Concerns\HandlesIncludes` — include handling and validation
-- `Jackardios\QueryWizard\Concerns\HandlesFields` — field handling
-- `Jackardios\QueryWizard\Concerns\HandlesAppends` — append handling and validation
-
-### Methods Changed/Removed
-
-| v2.x | v3.0 |
-|------|------|
-| `makeDefaultFilterHandler()` | Not needed - use factory methods |
-| `makeDefaultIncludeHandler()` | Not needed - use factory methods |
-| `makeDefaultSortHandler()` | Not needed - use factory methods |
-| `getAllowedFilters()` | Internal only |
-| `getFilters()` | `getPassthroughFilters()` for passthrough filters |
-| `handleModels()` | `applyPostProcessingTo()` |
-| `build()` on ModelQueryWizard | `process()` |
-
-### Helper Functions Removed
-
-- `instance_of_one_of()` - Was in `src/helpers.php`, no longer needed
+- **Abstract base classes** (`Abstracts\*`) - replaced by factory methods
+- **Old base classes** (`EloquentFilter`, `EloquentSort`, `EloquentInclude`) - now factories
+- **Model handler classes** (`Model\Includes\*`, `Model\ModelInclude`)
+- **Helper functions** (`instance_of_one_of()`)
+- **Methods**: `makeDefault*Handler()`, `getAllowedFilters()`, `getFilters()` → `getPassthroughFilters()`, `handleModels()` → `applyPostProcessingTo()`
 
 ## Configuration Changes
 
@@ -596,9 +749,22 @@ The following traits still exist but are now internal shared traits with differe
 ```php
 // config/query-wizard.php
 return [
-    // ... existing options ...
+    // Naming conventions
+    'naming' => [
+        'convert_parameters_to_snake_case' => false,  // ?filter[firstName] → first_name
+    ],
 
-    // NEW: Security limits
+    // Per-type separators (default: array_value_separator)
+    'separators' => [
+        'filters' => ';',  // Use semicolon to allow commas in filter values
+    ],
+
+    // Eager loading optimization
+    'optimizations' => [
+        'relation_select_mode' => 'safe',  // Auto-injects FK columns for eager loading
+    ],
+
+    // Security limits (null = disabled)
     'limits' => [
         'max_includes_count' => 10,
         'max_include_depth' => 3,
@@ -612,26 +778,26 @@ return [
 
 ### New Exception Types
 
-- `MaxFiltersCountExceeded`
-- `MaxSortsCountExceeded`
-- `MaxIncludesCountExceeded`
-- `MaxIncludeDepthExceeded`
-- `MaxAppendsCountExceeded`
-- `MaxAppendDepthExceeded`
+Limit exceptions (extend `QueryLimitExceeded` → `InvalidQuery`):
+- `MaxFiltersCountExceeded`, `MaxSortsCountExceeded`, `MaxIncludesCountExceeded`
+- `MaxIncludeDepthExceeded`, `MaxAppendsCountExceeded`, `MaxAppendDepthExceeded`
 
-All extend `QueryLimitExceeded` which extends `InvalidQuery`.
+Other:
+- `InvalidFilterValue` - thrown when filter value fails validation
 
 ## Quick Migration Checklist
 
-- [ ] Update method names: `setAllowed*` → `allowed*`
-- [ ] Update filter imports to use `EloquentFilter` factory
-- [ ] Update sort imports to use `EloquentSort` factory
-- [ ] Update include imports to use `EloquentInclude` factory
-- [ ] Update callback signatures (remove `$wizard` parameter)
-- [ ] Update `ModelQueryWizard` namespace and use `process()` instead of `build()`
-- [ ] Remove array wrappers in method calls (now variadic)
-- [ ] Review security limits in config (new feature)
-- [ ] Consider using Resource Schemas for reusable configuration
+- [ ] Rename `setAllowed*()` → `allowed*()`, `setDefault*()` → `default*()`
+- [ ] Replace filter/sort/include constructors with factory methods
+- [ ] Update callback signatures: remove `$wizard`, rename `$builder` → `$query`
+- [ ] Update `ModelQueryWizard`: new namespace, `build()` → `process()`
+- [ ] Remove array wrappers (methods are now variadic)
+- [ ] Add `->withModelBinding()` to ScopeFilters that need model binding
+- [ ] Explicitly allow count/exists includes (no longer auto-allowed)
+- [ ] Ensure config methods called before builder methods (or use `tap()`)
+- [ ] Review renamed methods: `withRelationConstraint(false)` → `withoutRelationConstraint()`
+- [ ] Review security limits in config
+- [ ] Replace custom `*QueryWizard` subclasses with `ResourceSchema`
 
 ## Need Help?
 
