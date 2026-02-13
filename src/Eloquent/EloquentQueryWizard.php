@@ -30,8 +30,12 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  * Query wizard for Eloquent Builder queries.
  *
  * Handles list queries with filters, sorts, includes, fields, and appends.
+ *
+ * @mixin \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>
+ *
+ * @phpstan-consistent-constructor
  */
-final class EloquentQueryWizard extends BaseQueryWizard
+class EloquentQueryWizard extends BaseQueryWizard
 {
     use HandlesRelationPostProcessing;
     use HandlesSafeRelationSelect;
@@ -93,7 +97,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         }
 
         /** @var Builder<Model>|Relation<Model, Model, mixed> $subject */
-        return new self($subject);
+        return new static($subject);
     }
 
     /**
@@ -108,7 +112,7 @@ final class EloquentQueryWizard extends BaseQueryWizard
         /** @var class-string<Model> $modelClass */
         $modelClass = $schema->model();
 
-        return new self($modelClass::query(), null, null, $schema);
+        return new static($modelClass::query(), null, null, $schema);
     }
 
     /**

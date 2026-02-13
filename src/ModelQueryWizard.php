@@ -26,8 +26,10 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  *
  * Handles: includes (load missing), fields (hide), appends
  * Does NOT handle: filters, sorts (these are for queries, not loaded models)
+ *
+ * @phpstan-consistent-constructor
  */
-final class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
+class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 {
     use HandlesAppends;
     use HandlesConfiguration;
@@ -70,7 +72,7 @@ final class ModelQueryWizard implements QueryWizardInterface, WizardContextInter
      */
     public static function for(Model $model): static
     {
-        return new self($model);
+        return new static($model);
     }
 
     /**
