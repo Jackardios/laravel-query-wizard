@@ -32,6 +32,10 @@ final class ParameterParser
             $value = $this->splitString($value);
         }
 
+        if (! is_iterable($value)) {
+            return collect();
+        }
+
         /** @var Collection<int, string> */
         return collect($value)
             ->map(function (mixed $item): ?string {
@@ -59,6 +63,10 @@ final class ParameterParser
     {
         if (is_string($value)) {
             $value = $this->splitString($value);
+        }
+
+        if (! is_iterable($value)) {
+            return collect();
         }
 
         return collect($value)

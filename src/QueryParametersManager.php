@@ -357,7 +357,8 @@ class QueryParametersManager
             );
         }
 
-        $parsed = collect($filtersParameter)->map(function ($value) {
+        $filtersArray = is_array($filtersParameter) ? $filtersParameter : [];
+        $parsed = collect($filtersArray)->map(function ($value) {
             return $this->getFilterTransformer()->transform($value);
         });
         $this->filters = $this->convertFiltersCollection($parsed);

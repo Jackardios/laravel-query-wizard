@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard;
 
 use Illuminate\Contracts\Support\DeferrableProvider;
+use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 
@@ -26,9 +28,9 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
         });
 
         // Scoped binding for Octane compatibility
-        $this->app->scoped(QueryParametersManager::class, function ($app) {
+        $this->app->scoped(QueryParametersManager::class, function (Application $app) {
             return new QueryParametersManager(
-                $app['request'],
+                $app->make(Request::class),
                 $app->make(QueryWizardConfig::class)
             );
         });
