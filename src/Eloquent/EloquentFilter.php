@@ -116,7 +116,7 @@ final class EloquentFilter
      * Create a callback filter for custom logic.
      *
      * @param  string  $name  The filter name (also used as property)
-     * @param  callable(mixed $query, mixed $value, string $property): void  $callback
+     * @param  callable(mixed $query, mixed $value, string $property): mixed  $callback
      * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function callback(string $name, callable $callback, ?string $alias = null): CallbackFilter

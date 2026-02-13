@@ -50,7 +50,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     protected ?ResourceSchemaInterface $schema = null;
 
-    /** @var array<callable> */
+    /** @var array<callable(mixed): mixed> */
     protected array $tapCallbacks = [];
 
     protected bool $built = false;
@@ -345,7 +345,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     /**
      * Add a tap callback to modify the subject.
      *
-     * @param  callable(mixed): void  $callback
+     * Callback return value is ignored.
+     *
+     * @param  callable(mixed): mixed  $callback
      */
     public function tap(callable $callback): static
     {

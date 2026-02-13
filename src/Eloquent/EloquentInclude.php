@@ -56,7 +56,7 @@ final class EloquentInclude
      * Create a callback include for custom loading logic.
      *
      * @param  string  $name  The include name
-     * @param  callable(mixed $query, string $relation): void  $callback
+     * @param  callable(mixed $query, string $relation): mixed  $callback
      * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function callback(string $name, callable $callback, ?string $alias = null): CallbackInclude

@@ -64,7 +64,7 @@ final class EloquentSort
      * Create a callback sort for custom logic.
      *
      * @param  string  $name  The sort name
-     * @param  callable(mixed $query, string $direction, string $property): void  $callback
+     * @param  callable(mixed $query, string $direction, string $property): mixed  $callback
      * @param  string|null  $alias  Optional alias for URL parameter name
      */
     public static function callback(string $name, callable $callback, ?string $alias = null): CallbackSort
