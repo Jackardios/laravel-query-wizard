@@ -188,6 +188,28 @@ EloquentFilter::exact('status')
     ->default('active')                        // Default value when not in request
     ->prepareValueWith(fn($v) => strtolower($v))  // Transform before applying
     ->when(fn($v) => $v !== 'all')             // Skip filter if returns false
+    ->asBoolean()                              // Convert 'true'/'1'/'yes' to bool
+```
+
+**Filter-specific modifiers:**
+
+```php
+// Range filter
+EloquentFilter::range('price')->minKey('from')->maxKey('to')
+
+// Date range filter
+EloquentFilter::dateRange('created_at')
+    ->fromKey('start')->toKey('end')
+    ->dateFormat('Y-m-d')
+
+// JSON contains filter
+EloquentFilter::jsonContains('tags')->matchAny()  // Default: matchAll()
+
+// Null filter
+EloquentFilter::null('deleted_at')->withInvertedLogic()  // IS NOT NULL
+
+// Scope filter
+EloquentFilter::scope('byAuthor')->withModelBinding()  // Load model by ID
 ```
 
 ### Relation Filtering
@@ -224,7 +246,7 @@ EloquentQueryWizard::for(User::class)
 |------|---------|-------------|
 | Field | `EloquentSort::field('created_at')` | Sort by column |
 | Count | `EloquentSort::count('posts')` | Sort by relationship count |
-| Relation | `EloquentSort::relation('orders', 'total', 'sum')` | Sort by aggregate (sum, avg, max, min) |
+| Relation | `EloquentSort::relation('orders', 'total', 'sum')` | Sort by aggregate (min, max, sum, avg, count, exists) |
 | Callback | `EloquentSort::callback('custom', fn($q, $dir, $p) => ...)` | Custom logic |
 
 ## Including Relationships
@@ -491,6 +513,9 @@ return [
 
     'disable_invalid_filter_query_exception' => false,  // Throw on invalid filter
     // ... similar for sort, include, field, append
+
+    'request_data_source' => 'query_string',  // 'query_string' or 'body'
+    'apply_filter_default_on_null' => false,  // Apply default() when filter value is null/empty
 
     'naming' => [
         'convert_parameters_to_snake_case' => false,  // ?filter[firstName] → first_name

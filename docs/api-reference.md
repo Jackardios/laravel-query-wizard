@@ -95,13 +95,37 @@
 | `callback($name, $callback, $alias)` | Custom callback filter |
 | `passthrough($name, $alias)` | Passthrough filter |
 
+## Filter Modifiers
+
+### Common Modifiers (all filters)
+
+| Method | Description |
+|--------|-------------|
+| `alias($name)` | URL parameter name |
+| `default($value)` | Default value when absent |
+| `prepareValueWith($callback)` | Transform value before applying |
+| `when($callback)` | Conditionally skip filter |
+| `asBoolean()` | Convert 'true'/'1'/'yes' to boolean |
+
+### Filter-Specific Modifiers
+
+| Filter | Method | Description |
+|--------|--------|-------------|
+| Exact, Partial, Null, Operator | `withoutRelationConstraint()` | Disable `whereHas` for dot notation |
+| Scope | `withModelBinding()` | Load model by ID |
+| Null | `withInvertedLogic()` | Use IS NOT NULL |
+| JsonContains | `matchAny()` | Match any value (default: `matchAll()`) |
+| Range | `minKey($key)`, `maxKey($key)` | Custom range keys |
+| DateRange | `fromKey($key)`, `toKey($key)` | Custom date keys |
+| DateRange | `dateFormat($format)` | Format DateTime values |
+
 ## Sort Factory Methods (EloquentSort)
 
 | Method | Description |
 |--------|-------------|
 | `field($property, $alias)` | Column sort |
 | `count($relation, $alias)` | Relationship count sort |
-| `relation($relation, $column, $aggregate, $alias)` | Relationship aggregate sort |
+| `relation($relation, $column, $aggregate, $alias)` | Relationship aggregate sort (min, max, sum, avg, count, exists) |
 | `callback($name, $callback, $alias)` | Custom callback sort |
 
 ## Include Factory Methods (EloquentInclude)

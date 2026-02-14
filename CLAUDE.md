@@ -12,8 +12,10 @@ No redundant inline comments. PHPDoc annotations are fine.
 
 ```bash
 composer test                          # Run all tests
+composer test:unit                     # Unit tests only
+composer test:feature                  # Feature tests only
 vendor/bin/phpunit --filter test_name  # Single test
-composer phpstan                       # Static analysis
+composer analyse                       # Static analysis (PHPStan)
 composer format                        # Format code with Pint
 composer format-check                  # Check formatting
 ```
@@ -21,10 +23,10 @@ composer format-check                  # Check formatting
 ## Architecture
 
 ```
-BaseQueryWizard (abstract)       # Config API, build logic, no execution
+BaseQueryWizard (abstract)    # Config API, build logic, no execution
     ↓
-EloquentQueryWizard (final)      # Filters, sorts, includes, fields, appends → get(), paginate()
-ModelQueryWizard (final)         # Includes, fields, appends only → process()
+EloquentQueryWizard           # Filters, sorts, includes, fields, appends → get(), paginate()
+ModelQueryWizard              # Includes, fields, appends only → process()
 ```
 
 ### Key Files
@@ -62,6 +64,12 @@ ModelQueryWizard::for($user)
     ->allowedFields('id', 'name')
     ->allowedAppends('full_name')
     ->process();
+
+// Useful methods
+$wizard->schema(UserSchema::class);     // Set schema after instantiation
+$wizard->getPassthroughFilters();       // Get Collection of passthrough filter values
+$wizard->toQuery();                     // Get underlying builder after building
+$wizard->getSubject();                  // Get underlying builder without building
 ```
 
 ## Filter Types
@@ -89,7 +97,7 @@ ModelQueryWizard::for($user)
 // Sorts
 EloquentSort::field('col')                              // ?sort=col or ?sort=-col
 EloquentSort::count('posts')                            // Sort by relationship count
-EloquentSort::relation('orders', 'total', 'sum')        // Sort by aggregate
+EloquentSort::relation('orders', 'total', 'sum')        // Sort by aggregate (min|max|sum|avg|count|exists)
 EloquentSort::callback('name', fn($q, $dir, $p) => ...)
 
 // Includes
@@ -109,14 +117,16 @@ EloquentFilter::exact('status')
     ->default('active')                   // Default when not in request
     ->prepareValueWith(fn($v) => strtolower($v))
     ->when(fn($value) => $value !== 'all') // Skip if returns false
+    ->asBoolean()                         // Convert 'true'/'false'/'1'/'0'/'yes'/'no' to bool
 
 // Filter-specific
-->withoutRelationConstraint()             // ExactFilter, PartialFilter
+->withoutRelationConstraint()             // ExactFilter, PartialFilter, NullFilter, OperatorFilter
 ->withModelBinding()                      // ScopeFilter
 ->withInvertedLogic()                     // NullFilter
-->matchAny()                              // JsonContainsFilter
+->matchAny()                              // JsonContainsFilter (default: matchAll)
 ->minKey('from')->maxKey('to')            // RangeFilter
 ->fromKey('start')->toKey('end')          // DateRangeFilter
+->dateFormat('Y-m-d')                     // DateRangeFilter
 ```
 
 ## Schema
@@ -142,6 +152,8 @@ abstract class ResourceSchema {
 
 ```php
 // config/query-wizard.php
+'request_data_source' => 'query_string',  // or 'body' for request body
+'apply_filter_default_on_null' => false,  // true = use default() when filter value is null/empty
 'naming' => [
     'convert_parameters_to_snake_case' => false,  // ?filter[firstName] → filter[first_name]
 ],
@@ -155,7 +167,9 @@ abstract class ResourceSchema {
     'max_includes_count' => 10,
     'max_include_depth' => 3,
     'max_filters_count' => 20,
-    // ...
+    'max_appends_count' => 10,
+    'max_append_depth' => 3,
+    'max_sorts_count' => 5,
 ],
 ```
 
