@@ -9,6 +9,7 @@ use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Pagination\Cursor;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\LazyCollection;
@@ -118,53 +119,77 @@ class EloquentQueryWizard extends BaseQueryWizard
     /**
      * Build and execute query, returning all results.
      *
+     * @param  array<int, string>|string  $columns
      * @return Collection<int, Model>
      */
-    public function get(): Collection
+    public function get(array|string $columns = ['*']): Collection
     {
-        return $this->executeCollectionQuery(fn () => $this->subject->get());
+        return $this->executeCollectionQuery(fn () => $this->subject->get($columns));
     }
 
     /**
      * Build and execute query, returning first result.
+     *
+     * @param  array<int, string>|string  $columns
      */
-    public function first(): ?Model
+    public function first(array|string $columns = ['*']): ?Model
     {
-        return $this->executeNullableModelQuery(fn () => $this->subject->first());
+        return $this->executeNullableModelQuery(fn () => $this->subject->first($columns));
     }
 
     /**
      * Build and execute query, returning first result or throwing exception.
      *
+     * @param  array<int, string>|string  $columns
+     *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException<Model>
      */
-    public function firstOrFail(): Model
+    public function firstOrFail(array|string $columns = ['*']): Model
     {
-        return $this->executeModelQuery(fn () => $this->subject->firstOrFail());
+        return $this->executeModelQuery(fn () => $this->subject->firstOrFail($columns));
     }
 
     /**
      * Build and execute query with pagination.
+     *
+     * @param  array<int, string>  $columns
      */
-    public function paginate(int $perPage = 15): LengthAwarePaginator
-    {
-        return $this->executePaginatorQuery(fn () => $this->subject->paginate($perPage));
+    public function paginate(
+        ?int $perPage = null,
+        array $columns = ['*'],
+        string $pageName = 'page',
+        ?int $page = null,
+        \Closure|int|null $total = null
+    ): LengthAwarePaginator {
+        return $this->executePaginatorQuery(fn () => $this->subject->paginate($perPage, $columns, $pageName, $page, $total));
     }
 
     /**
      * Build and execute query with simple pagination.
+     *
+     * @param  array<int, string>  $columns
      */
-    public function simplePaginate(int $perPage = 15): Paginator
-    {
-        return $this->executePaginatorQuery(fn () => $this->subject->simplePaginate($perPage));
+    public function simplePaginate(
+        ?int $perPage = null,
+        array $columns = ['*'],
+        string $pageName = 'page',
+        ?int $page = null
+    ): Paginator {
+        return $this->executePaginatorQuery(fn () => $this->subject->simplePaginate($perPage, $columns, $pageName, $page));
     }
 
     /**
      * Build and execute query with cursor pagination.
+     *
+     * @param  array<int, string>  $columns
      */
-    public function cursorPaginate(int $perPage = 15): CursorPaginator
-    {
-        return $this->executePaginatorQuery(fn () => $this->subject->cursorPaginate($perPage));
+    public function cursorPaginate(
+        ?int $perPage = null,
+        array $columns = ['*'],
+        string $cursorName = 'cursor',
+        Cursor|string|null $cursor = null
+    ): CursorPaginator {
+        return $this->executePaginatorQuery(fn () => $this->subject->cursorPaginate($perPage, $columns, $cursorName, $cursor));
     }
 
     /**
