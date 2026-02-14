@@ -163,7 +163,12 @@ class EloquentQueryWizard extends BaseQueryWizard
         ?int $page = null,
         \Closure|int|null $total = null
     ): LengthAwarePaginator {
-        return $this->executePaginatorQuery(fn () => $this->subject->paginate($perPage, $columns, $pageName, $page, $total));
+        // Laravel 10 uses func_num_args() to detect if $total was passed.
+        // Passing null explicitly causes it to skip count query AND return empty results.
+        // Only pass $total when it has a value.
+        return $this->executePaginatorQuery(
+            fn () => $this->subject->paginate($perPage, $columns, $pageName, $page, ...($total !== null ? [$total] : []))
+        );
     }
 
     /**
