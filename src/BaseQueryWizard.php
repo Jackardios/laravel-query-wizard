@@ -29,6 +29,8 @@ use Jackardios\QueryWizard\Values\Sort;
  *
  * Provides common configuration API and query building logic.
  * Subclasses implement filter/sort/include application and query execution.
+ *
+ * @template TSubject
  */
 abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInterface
 {
@@ -40,8 +42,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     use HandlesParameterScope;
     use HandlesSorts;
 
+    /** @var TSubject */
     protected mixed $subject;
 
+    /** @var TSubject */
     protected mixed $originalSubject;
 
     protected QueryParametersManager $parameters;
@@ -50,7 +54,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     protected ?ResourceSchemaInterface $schema = null;
 
-    /** @var array<callable(mixed): mixed> */
+    /** @var array<callable(TSubject): mixed> */
     protected array $tapCallbacks = [];
 
     protected bool $built = false;
@@ -347,7 +351,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      *
      * Callback return value is ignored.
      *
-     * @param  callable(mixed): mixed  $callback
+     * @param  callable(TSubject): mixed  $callback
      */
     public function tap(callable $callback): static
     {
@@ -361,6 +365,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      * Build the query (apply filters, sorts, includes, fields).
      *
      * Returns the underlying subject (e.g., Eloquent Builder) for execution.
+     *
+     * @return TSubject
      */
     public function build(): mixed
     {
@@ -388,6 +394,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     /**
      * Get the underlying subject without building.
+     *
+     * @return TSubject
      */
     public function getSubject(): mixed
     {

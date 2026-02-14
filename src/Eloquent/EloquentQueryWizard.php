@@ -34,6 +34,8 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  *
  * @mixin \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>
  *
+ * @extends BaseQueryWizard<Builder<Model>|Relation<Model, Model, mixed>>
+ *
  * @phpstan-consistent-constructor
  */
 class EloquentQueryWizard extends BaseQueryWizard
