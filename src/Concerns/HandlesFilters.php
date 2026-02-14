@@ -73,42 +73,47 @@ trait HandlesFilters
     /**
      * Extract all requested filter names from request.
      *
+     * Uses set-based counting to prevent duplicate filter names from being counted multiple times.
+     *
      * @return array<string>
      */
     protected function extractRequestedFilterNames(): array
     {
         $filters = $this->getEffectiveFilters();
         $allowedFilterNamesIndex = array_flip(array_keys($filters));
-        $requestedFilterNames = [];
+        /** @var array<string, true> $requestedFilterNamesSet */
+        $requestedFilterNamesSet = [];
 
-        $this->extractAllRequestedFilterNames(
+        $this->extractAllRequestedFilterNamesUnique(
             $this->getParametersManager()->getFilters()->all(),
-            $requestedFilterNames,
+            $requestedFilterNamesSet,
             '',
             $allowedFilterNamesIndex,
         );
 
-        return $requestedFilterNames;
+        return array_keys($requestedFilterNamesSet);
     }
 
     /**
-     * Extract all possible filter names from a nested request structure.
+     * Extract all unique filter names from a nested request structure.
+     *
+     * Uses a set (associative array with true values) for O(1) duplicate detection.
      *
      * @param  array<string, mixed>  $filters
-     * @param  array<string>  $names
+     * @param  array<string, true>  $namesSet
      * @param  array<string, int>  $allowedFilterNamesIndex
      */
-    protected function extractAllRequestedFilterNames(
+    protected function extractAllRequestedFilterNamesUnique(
         array $filters,
-        array &$names,
-        string $prefix = '',
-        array $allowedFilterNamesIndex = [],
+        array &$namesSet,
+        string $prefix,
+        array $allowedFilterNamesIndex,
     ): void {
         foreach ($filters as $key => $value) {
             $fullKey = $prefix === '' ? (string) $key : $prefix.'.'.$key;
 
             if (isset($allowedFilterNamesIndex[$fullKey])) {
-                $names[] = $fullKey;
+                $namesSet[$fullKey] = true;
 
                 continue;
             }
@@ -116,9 +121,9 @@ trait HandlesFilters
             $isRecursable = is_array($value) && ! empty($value) && $this->isAssociativeArray($value);
 
             if ($isRecursable) {
-                $this->extractAllRequestedFilterNames(
+                $this->extractAllRequestedFilterNamesUnique(
                     $value,
-                    $names,
+                    $namesSet,
                     $fullKey,
                     $allowedFilterNamesIndex,
                 );
@@ -126,7 +131,7 @@ trait HandlesFilters
                 continue;
             }
 
-            $names[] = $fullKey;
+            $namesSet[$fullKey] = true;
         }
     }
 

@@ -249,4 +249,82 @@ class RangeFilterTest extends EloquentFilterTestCase
 
         $this->assertCount(5, $models);
     }
+
+    #[Test]
+    public function date_range_filter_accepts_relative_dates_by_default(): void
+    {
+        // Relative dates like "yesterday" are accepted by default (via strtotime validation)
+        // Note: actual database filtering depends on database support for these strings
+        $sql = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => '-1 week',
+                'to' => '+1 week',
+            ]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
+            ->toQuery()
+            ->toSql();
+
+        // Both from and to should be applied since they pass strtotime validation
+        $this->assertStringContainsString('>=', $sql);
+        $this->assertStringContainsString('<=', $sql);
+    }
+
+    #[Test]
+    public function date_range_filter_strict_mode_rejects_relative_dates(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => 'yesterday',
+                'to' => '2030-12-31',
+            ]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->strict())
+            ->toQuery()
+            ->toSql();
+
+        // 'yesterday' should be rejected in strict mode, only 'to' applied
+        $this->assertStringContainsString('<=', $sql);
+        $this->assertStringNotContainsString('>=', $sql);
+    }
+
+    #[Test]
+    public function date_range_filter_strict_mode_accepts_standard_dates(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => '2020-01-01',
+                'to' => '2030-12-31',
+            ]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->strict())
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function date_range_filter_strict_mode_accepts_datetime_format(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => '2020-01-01 00:00:00',
+                'to' => '2030-12-31 23:59:59',
+            ]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->strict())
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function date_range_filter_strict_mode_accepts_iso8601_format(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => [
+                'from' => '2020-01-01T00:00:00',
+                'to' => '2030-12-31T23:59:59',
+            ]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->strict())
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
 }

@@ -19,6 +19,8 @@ final class DateRangeFilter extends AbstractRangeFilter
 
     protected ?string $dateFormat = null;
 
+    protected bool $strictDateParsing = false;
+
     /**
      * Create a new date range filter.
      *
@@ -66,6 +68,21 @@ final class DateRangeFilter extends AbstractRangeFilter
         return $this;
     }
 
+    /**
+     * Enable strict date parsing mode.
+     *
+     * By default, strtotime() is used which accepts relative dates like "tomorrow", "+1 week".
+     * With strict mode, only standard date formats (Y-m-d, Y-m-d H:i:s, ISO 8601) are accepted.
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function strict(): static
+    {
+        $this->strictDateParsing = true;
+
+        return $this;
+    }
+
     public function getType(): string
     {
         return 'date_range';
@@ -85,11 +102,29 @@ final class DateRangeFilter extends AbstractRangeFilter
             return $value;
         }
 
-        if (is_string($value) && strtotime($value) === false) {
-            return null;
+        if (is_string($value)) {
+            if ($this->strictDateParsing) {
+                return $this->parseStrictDate($value);
+            }
+
+            return strtotime($value) === false ? null : $value;
         }
 
-        return $value;
+        return null;
+    }
+
+    protected function parseStrictDate(string $value): ?string
+    {
+        $formats = ['Y-m-d', 'Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i:sP'];
+
+        foreach ($formats as $format) {
+            $parsed = \DateTimeImmutable::createFromFormat($format, $value);
+            if ($parsed !== false && $parsed->format($format) === $value) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     protected function formatValue(mixed $value): mixed

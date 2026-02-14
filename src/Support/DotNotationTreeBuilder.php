@@ -47,9 +47,11 @@ final class DotNotationTreeBuilder
             if (in_array('*', $values, true)) {
                 $node[$leafKey] = ['*'];
             } elseif (! in_array('*', $existingValues, true)) {
+                $existingIndex = array_flip($existingValues);
                 foreach ($values as $value) {
-                    if (! in_array($value, $existingValues, true)) {
+                    if (! isset($existingIndex[$value])) {
                         $existingValues[] = $value;
+                        $existingIndex[$value] = true;
                     }
                 }
                 $node[$leafKey] = $existingValues;

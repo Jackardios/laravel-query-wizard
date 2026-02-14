@@ -128,10 +128,24 @@ class OperatorFilter extends AbstractFilter
                 default => FilterOperator::LESS_THAN,
             };
 
+            if ($this->requiresNumericValue($operator) && ! is_numeric($actualValue)) {
+                return [null, null];
+            }
+
             return [$operator, $actualValue];
         }
 
         return [FilterOperator::EQUAL, $value];
+    }
+
+    protected function requiresNumericValue(FilterOperator $operator): bool
+    {
+        return in_array($operator, [
+            FilterOperator::GREATER_THAN,
+            FilterOperator::GREATER_THAN_OR_EQUAL,
+            FilterOperator::LESS_THAN,
+            FilterOperator::LESS_THAN_OR_EQUAL,
+        ], true);
     }
 
     /**

@@ -11,6 +11,8 @@ final class QueryWizardConfig
 {
     private const CONFIG_PREFIX = 'query-wizard';
 
+    private const VALID_REQUEST_DATA_SOURCES = ['query_string', 'body'];
+
     public function getCountSuffix(): string
     {
         return (string) config(self::CONFIG_PREFIX.'.count_suffix', 'Count');
@@ -31,7 +33,10 @@ final class QueryWizardConfig
         $separators = config(self::CONFIG_PREFIX.'.separators', []);
 
         if (is_array($separators) && isset($separators[$type])) {
-            return (string) $separators[$type];
+            $separator = (string) $separators[$type];
+            if ($separator !== '' && mb_strlen($separator) <= 10) {
+                return $separator;
+            }
         }
 
         return $this->getArrayValueSeparator();
@@ -106,7 +111,12 @@ final class QueryWizardConfig
 
     public function getRequestDataSource(): string
     {
-        return (string) config(self::CONFIG_PREFIX.'.request_data_source', 'query_string');
+        $value = config(self::CONFIG_PREFIX.'.request_data_source', 'query_string');
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, self::VALID_REQUEST_DATA_SOURCES, true)
+            ? $normalized
+            : 'query_string';
     }
 
     public function shouldUseRequestBody(): bool
@@ -146,43 +156,42 @@ final class QueryWizardConfig
 
     public function getMaxIncludeDepth(): ?int
     {
-        $value = config(self::CONFIG_PREFIX.'.limits.max_include_depth');
-
-        return $value !== null ? (int) $value : null;
+        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_include_depth'));
     }
 
     public function getMaxIncludesCount(): ?int
     {
-        $value = config(self::CONFIG_PREFIX.'.limits.max_includes_count');
-
-        return $value !== null ? (int) $value : null;
+        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_includes_count'));
     }
 
     public function getMaxFiltersCount(): ?int
     {
-        $value = config(self::CONFIG_PREFIX.'.limits.max_filters_count');
-
-        return $value !== null ? (int) $value : null;
+        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_filters_count'));
     }
 
     public function getMaxSortsCount(): ?int
     {
-        $value = config(self::CONFIG_PREFIX.'.limits.max_sorts_count');
-
-        return $value !== null ? (int) $value : null;
+        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_sorts_count'));
     }
 
     public function getMaxAppendsCount(): ?int
     {
-        $value = config(self::CONFIG_PREFIX.'.limits.max_appends_count');
-
-        return $value !== null ? (int) $value : null;
+        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_appends_count'));
     }
 
     public function getMaxAppendDepth(): ?int
     {
-        $value = config(self::CONFIG_PREFIX.'.limits.max_append_depth');
+        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_append_depth'));
+    }
 
-        return $value !== null ? (int) $value : null;
+    private function normalizeLimit(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $intValue = (int) $value;
+
+        return $intValue > 0 ? $intValue : null;
     }
 }

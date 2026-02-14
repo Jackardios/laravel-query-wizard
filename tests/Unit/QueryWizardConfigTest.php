@@ -429,4 +429,111 @@ class QueryWizardConfigTest extends TestCase
 
         $this->assertEquals(5, $this->config->getMaxAppendDepth());
     }
+
+    // ========== Negative Limits Tests ==========
+    #[Test]
+    public function it_returns_null_for_negative_max_include_depth(): void
+    {
+        Config::set('query-wizard.limits.max_include_depth', -5);
+
+        $this->assertNull($this->config->getMaxIncludeDepth());
+    }
+
+    #[Test]
+    public function it_returns_null_for_zero_max_include_depth(): void
+    {
+        Config::set('query-wizard.limits.max_include_depth', 0);
+
+        $this->assertNull($this->config->getMaxIncludeDepth());
+    }
+
+    #[Test]
+    public function it_returns_null_for_negative_max_includes_count(): void
+    {
+        Config::set('query-wizard.limits.max_includes_count', -1);
+
+        $this->assertNull($this->config->getMaxIncludesCount());
+    }
+
+    #[Test]
+    public function it_returns_null_for_negative_max_filters_count(): void
+    {
+        Config::set('query-wizard.limits.max_filters_count', -10);
+
+        $this->assertNull($this->config->getMaxFiltersCount());
+    }
+
+    #[Test]
+    public function it_returns_null_for_negative_max_sorts_count(): void
+    {
+        Config::set('query-wizard.limits.max_sorts_count', -3);
+
+        $this->assertNull($this->config->getMaxSortsCount());
+    }
+
+    #[Test]
+    public function it_returns_null_for_negative_max_appends_count(): void
+    {
+        Config::set('query-wizard.limits.max_appends_count', -2);
+
+        $this->assertNull($this->config->getMaxAppendsCount());
+    }
+
+    #[Test]
+    public function it_returns_null_for_negative_max_append_depth(): void
+    {
+        Config::set('query-wizard.limits.max_append_depth', -1);
+
+        $this->assertNull($this->config->getMaxAppendDepth());
+    }
+
+    // ========== Request Data Source Validation Tests ==========
+    #[Test]
+    public function it_normalizes_request_data_source_case(): void
+    {
+        Config::set('query-wizard.request_data_source', 'BODY');
+
+        $this->assertEquals('body', $this->config->getRequestDataSource());
+    }
+
+    #[Test]
+    public function it_trims_request_data_source(): void
+    {
+        Config::set('query-wizard.request_data_source', '  query_string  ');
+
+        $this->assertEquals('query_string', $this->config->getRequestDataSource());
+    }
+
+    #[Test]
+    public function it_falls_back_to_query_string_for_invalid_request_data_source(): void
+    {
+        Config::set('query-wizard.request_data_source', 'invalid_source');
+
+        $this->assertEquals('query_string', $this->config->getRequestDataSource());
+    }
+
+    // ========== Separator Validation Tests ==========
+    #[Test]
+    public function it_falls_back_to_default_for_empty_separator(): void
+    {
+        Config::set('query-wizard.separators.filters', '');
+
+        $this->assertEquals(',', $this->config->getFiltersSeparator());
+    }
+
+    #[Test]
+    public function it_falls_back_to_default_for_too_long_separator(): void
+    {
+        Config::set('query-wizard.separators.filters', 'this-is-way-too-long');
+
+        $this->assertEquals(',', $this->config->getFiltersSeparator());
+    }
+
+    #[Test]
+    public function it_accepts_separator_at_max_length(): void
+    {
+        Config::set('query-wizard.separators.filters', '1234567890');
+
+        $this->assertEquals('1234567890', $this->config->getFiltersSeparator());
+    }
 }

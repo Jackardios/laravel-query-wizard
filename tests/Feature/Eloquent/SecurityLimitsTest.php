@@ -553,4 +553,81 @@ class SecurityLimitsTest extends TestCase
 
         $this->assertNotEmpty($models);
     }
+
+    // ========== Negative Limits Bypass Tests ==========
+
+    #[Test]
+    public function it_treats_negative_filter_count_as_disabled(): void
+    {
+        // Negative limits should be treated as disabled (null), not bypass validation
+        Config::set('query-wizard.limits.max_filters_count', -5);
+
+        $models = $this
+            ->createEloquentWizardWithFilters([
+                'name' => 'test',
+                'id' => 1,
+                'created_at' => '2021-01-01',
+            ])
+            ->allowedFilters('name', 'id', 'created_at')
+            ->get();
+
+        // Should work (limit disabled)
+        $this->assertIsIterable($models);
+    }
+
+    #[Test]
+    public function it_treats_zero_filter_count_as_disabled(): void
+    {
+        Config::set('query-wizard.limits.max_filters_count', 0);
+
+        $models = $this
+            ->createEloquentWizardWithFilters([
+                'name' => 'test',
+                'id' => 1,
+            ])
+            ->allowedFilters('name', 'id')
+            ->get();
+
+        // Should work (limit disabled)
+        $this->assertIsIterable($models);
+    }
+
+    #[Test]
+    public function it_treats_negative_includes_count_as_disabled(): void
+    {
+        Config::set('query-wizard.limits.max_includes_count', -10);
+
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels,morphModels')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels', 'morphModels')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    #[Test]
+    public function it_treats_negative_sorts_count_as_disabled(): void
+    {
+        Config::set('query-wizard.limits.max_sorts_count', -1);
+
+        $models = $this
+            ->createEloquentWizardWithSorts('name,-id,created_at')
+            ->allowedSorts('name', 'id', 'created_at')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    #[Test]
+    public function it_treats_negative_include_depth_as_disabled(): void
+    {
+        Config::set('query-wizard.limits.max_include_depth', -3);
+
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModels.nestedRelatedModels')
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
 }

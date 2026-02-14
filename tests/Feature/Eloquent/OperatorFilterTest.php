@@ -391,4 +391,89 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $this->assertEquals(FilterOperator::GREATER_THAN, $filter->getOperator());
     }
+
+    // ========== Dynamic Operator Numeric Validation Tests ==========
+    #[Test]
+    public function dynamic_operator_skips_non_numeric_greater_than(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '>abc'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->get();
+
+        // Filter should be skipped entirely for non-numeric value with comparison operator
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function dynamic_operator_skips_non_numeric_greater_than_or_equal(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '>=xyz'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function dynamic_operator_skips_non_numeric_less_than(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '<not_a_number'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function dynamic_operator_skips_non_numeric_less_than_or_equal(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '<=text'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function dynamic_operator_accepts_not_equal_with_non_numeric(): void
+    {
+        // != and <> operators should still work with non-numeric values
+        TestModel::factory()->create(['name' => 'unique_test_model']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => '!=unique_test_model'])
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::DYNAMIC))
+            ->get();
+
+        $this->assertCount(5, $models);
+        $this->assertFalse($models->contains('name', 'unique_test_model'));
+    }
+
+    #[Test]
+    public function dynamic_operator_accepts_numeric_string_for_comparison(): void
+    {
+        TestModel::factory()->create(['id' => 5000]);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '>4999'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->get();
+
+        $this->assertTrue($models->contains('id', 5000));
+    }
+
+    #[Test]
+    public function dynamic_operator_accepts_negative_numeric_for_comparison(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '>=-100'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
 }

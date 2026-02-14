@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 
 /**
@@ -24,6 +25,8 @@ final class NullFilter extends AbstractFilter
     use HandlesRelationFiltering;
 
     protected bool $invertLogic = false;
+
+    protected bool $strictMode = false;
 
     /**
      * Create a new null filter.
@@ -62,6 +65,21 @@ final class NullFilter extends AbstractFilter
         return $this;
     }
 
+    /**
+     * Enable strict mode: throw exception for invalid boolean values.
+     *
+     * By default, invalid values (not recognizable as boolean) are silently skipped.
+     * With strict mode enabled, an InvalidFilterValue exception is thrown.
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function strict(): static
+    {
+        $this->strictMode = true;
+
+        return $this;
+    }
+
     public function getType(): string
     {
         return 'null';
@@ -91,6 +109,10 @@ final class NullFilter extends AbstractFilter
         $isTruthy = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
         if ($isTruthy === null) {
+            if ($this->strictMode) {
+                throw InvalidFilterValue::make($value, $this->getName());
+            }
+
             return $builder;
         }
 

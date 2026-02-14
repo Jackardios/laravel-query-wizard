@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -117,5 +118,30 @@ class NullFilterTest extends EloquentFilterTestCase
 
         $this->assertStringNotContainsString('is null', strtolower($sql));
         $this->assertStringNotContainsString('is not null', strtolower($sql));
+    }
+
+    #[Test]
+    public function null_filter_strict_mode_throws_on_invalid_value(): void
+    {
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage('is invalid for filter');
+
+        $this
+            ->createEloquentWizardWithFilters(['name' => 'invalid'])
+            ->allowedFilters(EloquentFilter::null('name')->strict())
+            ->toQuery()
+            ->toSql();
+    }
+
+    #[Test]
+    public function null_filter_strict_mode_accepts_valid_boolean(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => 'true'])
+            ->allowedFilters(EloquentFilter::null('name')->strict())
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('is null', strtolower($sql));
     }
 }

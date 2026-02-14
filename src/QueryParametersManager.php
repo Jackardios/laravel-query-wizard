@@ -153,6 +153,9 @@ class QueryParametersManager
     /**
      * Convert a fields/appends collection keys and values to snake_case.
      *
+     * Keys (relation paths) are converted using pathToSnakeCase() (preserves dots).
+     * Values (field names) are converted using toSnakeCase() (simple conversion).
+     *
      * @param  Collection<string, array<string>>  $collection
      * @return Collection<string, array<string>>
      */
@@ -415,6 +418,8 @@ class QueryParametersManager
      * Returns the sentinel missing() object when the key is not found,
      * to distinguish "not found" from "found with null value".
      *
+     * Uses progressive key building (O(n)) instead of repeated implode/array_slice (O(n²)).
+     *
      * @param  array<string, mixed>  $data
      */
     protected function getNestedFilterValue(array $data, string $name): mixed
@@ -424,19 +429,21 @@ class QueryParametersManager
         }
 
         $parts = explode('.', $name);
+        $partsCount = count($parts);
+        $key = '';
 
-        for ($i = 1; $i <= count($parts); $i++) {
-            $key = implode('.', array_slice($parts, 0, $i));
-            $remainder = implode('.', array_slice($parts, $i));
+        for ($i = 0; $i < $partsCount; $i++) {
+            $key = $i === 0 ? $parts[0] : $key.'.'.$parts[$i];
 
             if (array_key_exists($key, $data)) {
                 $value = $data[$key];
 
-                if ($remainder === '') {
+                if ($i === $partsCount - 1) {
                     return $value;
                 }
 
                 if (is_array($value)) {
+                    $remainder = implode('.', array_slice($parts, $i + 1));
                     $nested = $this->getNestedFilterValue($value, $remainder);
                     if ($nested !== self::missing()) {
                         return $nested;
