@@ -20,6 +20,18 @@ class CallbackFilter extends AbstractFilter
     protected Closure $callback;
 
     /**
+     * @param  Closure(mixed, mixed, string): mixed  $callback
+     */
+    protected function __construct(
+        string $property,
+        Closure $callback,
+        ?string $alias = null,
+    ) {
+        parent::__construct($property, $alias);
+        $this->callback = $callback;
+    }
+
+    /**
      * Create a new callback filter.
      *
      * @param  string  $property  The filter property name
@@ -28,10 +40,7 @@ class CallbackFilter extends AbstractFilter
      */
     public static function make(string $property, callable $callback, ?string $alias = null): static
     {
-        $instance = new static($property, $alias);
-        $instance->callback = $callback(...);
-
-        return $instance;
+        return new static($property, $callback(...), $alias);
     }
 
     public function getType(): string

@@ -21,9 +21,9 @@ abstract class AbstractRangeFilter extends AbstractFilter
     use HandlesRelationFiltering;
     use ParsesRangeValues;
 
-    protected string $minKey;
+    protected string $minKey = 'min';
 
-    protected string $maxKey;
+    protected string $maxKey = 'max';
 
     /**
      * Set the key used for minimum value in the request.

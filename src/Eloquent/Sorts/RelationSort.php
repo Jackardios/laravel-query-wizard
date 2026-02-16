@@ -25,6 +25,17 @@ final class RelationSort extends AbstractSort
 
     protected string $aggregate;
 
+    protected function __construct(
+        string $property,
+        string $column,
+        string $aggregate,
+        ?string $alias = null,
+    ) {
+        parent::__construct($property, $alias);
+        $this->column = $column;
+        $this->aggregate = $aggregate;
+    }
+
     /**
      * Create a new relation sort.
      *
@@ -45,11 +56,7 @@ final class RelationSort extends AbstractSort
             );
         }
 
-        $instance = new self($relation, $alias);
-        $instance->column = $column;
-        $instance->aggregate = $aggregate;
-
-        return $instance;
+        return new self($relation, $column, $aggregate, $alias);
     }
 
     public function getType(): string

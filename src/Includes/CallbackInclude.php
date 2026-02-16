@@ -20,6 +20,18 @@ class CallbackInclude extends AbstractInclude
     protected Closure $callback;
 
     /**
+     * @param  Closure(mixed, string): mixed  $callback
+     */
+    protected function __construct(
+        string $relation,
+        Closure $callback,
+        ?string $alias = null,
+    ) {
+        parent::__construct($relation, $alias);
+        $this->callback = $callback;
+    }
+
+    /**
      * Create a new callback include.
      *
      * @param  string  $relation  The relation/include name
@@ -28,10 +40,7 @@ class CallbackInclude extends AbstractInclude
      */
     public static function make(string $relation, callable $callback, ?string $alias = null): static
     {
-        $instance = new static($relation, $alias);
-        $instance->callback = $callback(...);
-
-        return $instance;
+        return new static($relation, $callback(...), $alias);
     }
 
     public function getType(): string

@@ -20,6 +20,18 @@ class CallbackSort extends AbstractSort
     protected Closure $callback;
 
     /**
+     * @param  Closure(mixed, string, string): mixed  $callback
+     */
+    protected function __construct(
+        string $property,
+        Closure $callback,
+        ?string $alias = null,
+    ) {
+        parent::__construct($property, $alias);
+        $this->callback = $callback;
+    }
+
+    /**
      * Create a new callback sort.
      *
      * @param  string  $property  The sort property name
@@ -28,10 +40,7 @@ class CallbackSort extends AbstractSort
      */
     public static function make(string $property, callable $callback, ?string $alias = null): static
     {
-        $instance = new static($property, $alias);
-        $instance->callback = $callback(...);
-
-        return $instance;
+        return new static($property, $callback(...), $alias);
     }
 
     public function getType(): string

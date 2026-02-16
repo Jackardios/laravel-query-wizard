@@ -22,8 +22,10 @@ abstract class AbstractFilter implements FilterInterface
 {
     protected mixed $default = null;
 
+    /** @var (Closure(mixed): mixed)|null */
     protected ?Closure $prepareValueCallback = null;
 
+    /** @var (Closure(mixed): bool)|null */
     protected ?Closure $whenCallback = null;
 
     protected function __construct(
