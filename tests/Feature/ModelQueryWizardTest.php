@@ -77,6 +77,37 @@ class ModelQueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function it_can_load_belongs_to_through_include_with_sparse_fields(): void
+    {
+        $relatedModel = $this->model->relatedModels()->firstOrFail();
+        $nestedModel = NestedRelatedModel::factory()->create([
+            'related_model_id' => $relatedModel->id,
+        ]);
+
+        $result = $this
+            ->createModelWizardFromQuery([
+                'include' => 'throughTestModel',
+                'fields' => [
+                    'nestedRelatedModel' => 'id,name',
+                    'throughTestModel' => 'id,name',
+                ],
+            ], $nestedModel)
+            ->allowedIncludes('throughTestModel')
+            ->allowedFields('id', 'name', 'throughTestModel.id', 'throughTestModel.name')
+            ->process();
+
+        $this->assertTrue($result->relationLoaded('throughTestModel'));
+        $this->assertNotNull($result->throughTestModel);
+        $this->assertSame($relatedModel->test_model_id, $result->throughTestModel->id);
+        $this->assertArrayNotHasKey('related_model_id', $result->toArray());
+
+        $relatedAttributes = array_keys($result->throughTestModel->getAttributes());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertContains('name', $relatedAttributes);
+        $this->assertNotContains('created_at', $relatedAttributes);
+    }
+
+    #[Test]
     public function it_does_not_reload_already_loaded_relations(): void
     {
         $modelWithRelations = TestModel::with('relatedModels')->find($this->model->id);

@@ -113,6 +113,35 @@ class IncludeTest extends TestCase
     }
 
     #[Test]
+    public function it_can_include_belongs_to_through_relation_with_sparse_fields(): void
+    {
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'throughTestModel',
+                'fields' => [
+                    'nestedRelatedModel' => 'id,name',
+                    'throughTestModel' => 'id,name',
+                ],
+            ], NestedRelatedModel::class)
+            ->allowedIncludes('throughTestModel')
+            ->allowedFields('id', 'name', 'throughTestModel.id', 'throughTestModel.name')
+            ->get();
+
+        $model = $models->first();
+
+        $this->assertInstanceOf(NestedRelatedModel::class, $model);
+        $this->assertTrue($model->relationLoaded('throughTestModel'));
+        $this->assertNotNull($model->throughTestModel);
+        $this->assertSame($model->relatedModel->test_model_id, $model->throughTestModel->id);
+        $this->assertContains('related_model_id', array_keys($model->getAttributes()));
+        $this->assertArrayNotHasKey('related_model_id', $model->toArray());
+        $relatedAttributes = array_keys($model->throughTestModel->getAttributes());
+        $this->assertContains('id', $relatedAttributes);
+        $this->assertContains('name', $relatedAttributes);
+        $this->assertNotContains('created_at', $relatedAttributes);
+    }
+
+    #[Test]
     public function it_can_include_both_parent_and_nested(): void
     {
         $models = $this

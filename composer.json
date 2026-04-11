@@ -37,7 +37,8 @@
         "laravel/pint": "^1.13",
         "orchestra/testbench": "^8.21 || ^9.0 || ^10.0",
         "phpunit/phpunit": "^10.5 || ^11.0",
-        "roave/security-advisories": "dev-latest"
+        "roave/security-advisories": "dev-latest",
+        "staudenmeir/belongs-to-through": "^2.13"
     },
     "autoload": {
         "psr-4": {

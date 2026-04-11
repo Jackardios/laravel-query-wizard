@@ -237,7 +237,7 @@ trait HandlesSafeRelationSelect
             }
         }
 
-        return $columns;
+        return $this->qualifySafeRelationColumns($relation, $columns);
     }
 
     /**
@@ -330,7 +330,8 @@ trait HandlesSafeRelationSelect
         }
 
         return $relation instanceof BelongsTo
-            || $relation instanceof HasOneOrMany;
+            || $relation instanceof HasOneOrMany
+            || $this->isBelongsToThroughRelation($relation);
     }
 
     /**
@@ -369,12 +370,20 @@ trait HandlesSafeRelationSelect
             return [$relation->getLocalKeyName()];
         }
 
-        if (method_exists($relation, 'getParentKeyName')) {
-            return [(string) $relation->getParentKeyName()];
+        if ($this->isBelongsToThroughRelation($relation)) {
+            $firstForeignKeyName = $this->callRelationMethodWithoutArguments($relation, 'getFirstForeignKeyName');
+
+            return $firstForeignKeyName !== null ? [$firstForeignKeyName] : [];
         }
 
-        if (method_exists($relation, 'getLocalKeyName')) {
-            return [(string) $relation->getLocalKeyName()];
+        $parentKeyName = $this->callRelationMethodWithoutArguments($relation, 'getParentKeyName');
+        if ($parentKeyName !== null) {
+            return [$parentKeyName];
+        }
+
+        $localKeyName = $this->callRelationMethodWithoutArguments($relation, 'getLocalKeyName');
+        if ($localKeyName !== null) {
+            return [$localKeyName];
         }
 
         return [];
@@ -411,6 +420,71 @@ trait HandlesSafeRelationSelect
     }
 
     /**
+     * Detect BelongsToThrough-style relations without requiring the optional package.
+     *
+     * The package uses getFirstForeignKeyName() for eager matching and a
+     * model-aware getLocalKeyName(Model $model) accessor.
+     *
+     * @param  Relation<Model, Model, mixed>  $relation
+     */
+    protected function isBelongsToThroughRelation(Relation $relation): bool
+    {
+        if (is_a($relation, 'Znck\Eloquent\\Relations\\BelongsToThrough')) {
+            return true;
+        }
+
+        return method_exists($relation, 'getFirstForeignKeyName')
+            && method_exists($relation, 'getQualifiedFirstLocalKeyName')
+            && $this->relationMethodRequiresArguments($relation, 'getLocalKeyName');
+    }
+
+    /**
+     * Call a relation key accessor only when it does not require arguments.
+     *
+     * @param  Relation<Model, Model, mixed>  $relation
+     */
+    protected function callRelationMethodWithoutArguments(Relation $relation, string $method): ?string
+    {
+        if (! method_exists($relation, $method)) {
+            return null;
+        }
+
+        try {
+            $reflection = new \ReflectionMethod($relation, $method);
+        } catch (\ReflectionException) {
+            return null;
+        }
+
+        if (! $reflection->isPublic() || $reflection->getNumberOfRequiredParameters() > 0) {
+            return null;
+        }
+
+        $value = $relation->{$method}();
+
+        return is_scalar($value) ? (string) $value : null;
+    }
+
+    /**
+     * Check whether a relation method requires one or more positional arguments.
+     *
+     * @param  Relation<Model, Model, mixed>  $relation
+     */
+    protected function relationMethodRequiresArguments(Relation $relation, string $method): bool
+    {
+        if (! method_exists($relation, $method)) {
+            return false;
+        }
+
+        try {
+            $reflection = new \ReflectionMethod($relation, $method);
+        } catch (\ReflectionException) {
+            return false;
+        }
+
+        return $reflection->isPublic() && $reflection->getNumberOfRequiredParameters() > 0;
+    }
+
+    /**
      * @param  array<string>  $target
      * @param  array<string>  $source
      */
@@ -436,6 +510,39 @@ trait HandlesSafeRelationSelect
 
             $target[] = $column;
         }
+    }
+
+    /**
+     * Qualify safe-select columns for joined relations to avoid ambiguity.
+     *
+     * @param  Relation<Model, Model, mixed>  $relation
+     * @param  array<string>  $columns
+     * @return array<string>
+     */
+    protected function qualifySafeRelationColumns(Relation $relation, array $columns): array
+    {
+        if (! $this->isBelongsToThroughRelation($relation)) {
+            return $columns;
+        }
+
+        return array_map(
+            fn (string $column): string => $this->qualifyBelongsToThroughColumn($relation, $column),
+            $columns
+        );
+    }
+
+    /**
+     * Qualify relation columns selected from the related table in BelongsToThrough joins.
+     *
+     * @param  Relation<Model, Model, mixed>  $relation
+     */
+    protected function qualifyBelongsToThroughColumn(Relation $relation, string $column): string
+    {
+        if ($column === '*' || str_contains($column, '.') || stripos($column, ' as ') !== false) {
+            return $column;
+        }
+
+        return $relation->getRelated()->qualifyColumn($column);
     }
 
     /**
