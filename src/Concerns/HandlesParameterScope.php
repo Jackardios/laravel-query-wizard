@@ -34,6 +34,8 @@ trait HandlesParameterScope
     {
         $request = $parameters->getRequest();
 
-        return spl_object_id($parameters).':'.($request !== null ? spl_object_id($request) : 0);
+        return spl_object_id($parameters)
+            .':'.($request !== null ? spl_object_id($request) : 0)
+            .':'.$parameters->getStateVersion();
     }
 }

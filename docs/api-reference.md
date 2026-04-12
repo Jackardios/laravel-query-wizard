@@ -72,11 +72,13 @@
 | `disallowedAppends(...$names)` | Remove appends |
 | `defaultAppends(...$appends)` | Set default appends |
 
+All configuration methods must be called before `process()`. After processing, create a new `ModelQueryWizard` instance for any different configuration or request parameters.
+
 ### Execution Methods
 
 | Method | Description |
 |--------|-------------|
-| `process()` | Apply includes, fields, appends and return the model |
+| `process()` | Apply includes, fields, appends and return the model; repeated calls are only safe when configuration and parameters are unchanged |
 | `getModel()` | Get the underlying model instance |
 
 ## Filter Factory Methods (EloquentFilter)

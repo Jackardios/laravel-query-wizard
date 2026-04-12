@@ -82,6 +82,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function schema(string|ResourceSchemaInterface $schema): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->schema = is_string($schema) ? app($schema) : $schema;
         $this->invalidateProcessedState(true);
 
@@ -95,6 +96,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function allowedIncludes(IncludeInterface|string|array ...$includes): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->allowedIncludes = $this->flattenDefinitions($includes);
         $this->allowedIncludesExplicitlySet = true;
         $this->invalidateProcessedState(true);
@@ -109,6 +111,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function disallowedIncludes(string|array ...$names): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->disallowedIncludes = $this->flattenStringArray($names);
         $this->invalidateProcessedState(true);
 
@@ -122,6 +125,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function defaultIncludes(string|array ...$names): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->defaultIncludes = $this->flattenStringArray($names);
         $this->invalidateProcessedState(true);
 
@@ -138,6 +142,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function allowedFields(string|array ...$fields): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->allowedFields = $this->flattenStringArray($fields);
         $this->allowedFieldsExplicitlySet = true;
         $this->invalidateProcessedState();
@@ -152,6 +157,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function disallowedFields(string|array ...$names): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->disallowedFields = $this->flattenStringArray($names);
         $this->invalidateProcessedState();
 
@@ -167,6 +173,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function defaultFields(string|array ...$fields): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->defaultFields = $this->flattenStringArray($fields);
         $this->invalidateProcessedState();
 
@@ -180,6 +187,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function allowedAppends(string|array ...$appends): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->allowedAppends = $this->flattenStringArray($appends);
         $this->allowedAppendsExplicitlySet = true;
         $this->invalidateProcessedState();
@@ -194,6 +202,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function disallowedAppends(string|array ...$names): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->disallowedAppends = $this->flattenStringArray($names);
         $this->invalidateProcessedState();
 
@@ -207,6 +216,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function defaultAppends(string|array ...$appends): static
     {
+        $this->ensureMutableBeforeProcessing();
         $this->defaultAppends = $this->flattenStringArray($appends);
         $this->invalidateProcessedState();
 
@@ -227,8 +237,9 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         if ($this->processed) {
             if ($this->processedScopeSignature !== $currentScopeSignature) {
                 throw new \LogicException(
-                    'ModelQueryWizard instance cannot be reused across request boundaries. '
-                    .'Create a new wizard instance per request.'
+                    'ModelQueryWizard instance cannot be reused across request boundaries or after '
+                    .'request parameters or manually injected parameters change. Create a new wizard '
+                    .'instance per request.'
                 );
             }
 
@@ -324,6 +335,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
                 continue;
             }
 
+            /** @var array<string, mixed> $nestedAllowed */
             $nestedAllowed = $allowedTree[$relationName];
             $relatedData = $model->getRelation($relationName);
 
@@ -473,6 +485,13 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 
     protected function invalidateProcessedState(bool $invalidateIncludeCache = false): void
     {
+        if ($this->processed) {
+            throw new \LogicException(
+                'ModelQueryWizard cannot be reconfigured after process() has been called. '
+                .'Create a new wizard instance for a different configuration.'
+            );
+        }
+
         if ($invalidateIncludeCache) {
             $this->invalidateIncludeCache();
         }
@@ -480,6 +499,18 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         $this->resetSafeRelationSelectState();
         $this->processed = false;
         $this->processedScopeSignature = null;
+    }
+
+    protected function ensureMutableBeforeProcessing(): void
+    {
+        if (! $this->processed) {
+            return;
+        }
+
+        throw new \LogicException(
+            'ModelQueryWizard cannot be reconfigured after process() has been called. '
+            .'Create a new wizard instance for a different configuration.'
+        );
     }
 
     /**

@@ -121,6 +121,7 @@ trait HandlesFilters
             $isRecursable = is_array($value) && ! empty($value) && $this->isAssociativeArray($value);
 
             if ($isRecursable) {
+                /** @var array<string, mixed> $value */
                 $this->extractAllRequestedFilterNamesUnique(
                     $value,
                     $namesSet,

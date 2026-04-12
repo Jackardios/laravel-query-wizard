@@ -64,7 +64,7 @@ return [
 
     /*
      * By default the package inspects query string of request using $request->query().
-     * You can change this behavior to inspect the request body using $request->input()
+     * You can change this behavior to inspect only the request body payload
      * by setting this value to `body`.
      *
      * Possible values: `query_string`, `body`

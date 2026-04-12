@@ -97,4 +97,71 @@ class RequestDataSourceTest extends TestCase
 
         $this->assertArrayHasKey('fullname', $models->first()->toArray());
     }
+
+    #[Test]
+    public function it_ignores_query_string_when_body_mode_is_enabled(): void
+    {
+        config()->set('query-wizard.request_data_source', 'body');
+
+        $targetModel = TestModel::query()->firstOrFail();
+
+        $request = Request::create(
+            '/wizard?filter[id]=999999&include=otherRelatedModels',
+            'POST',
+            [
+                'filter' => ['id' => (string) $targetModel->id],
+                'include' => 'relatedModels',
+            ],
+        );
+
+        $wizard = new EloquentQueryWizard(
+            TestModel::query(),
+            new QueryParametersManager($request),
+        );
+
+        $models = $wizard
+            ->allowedFilters('id')
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($targetModel->id, $models->first()->id);
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+        $this->assertFalse($models->first()->relationLoaded('otherRelatedModels'));
+    }
+
+    #[Test]
+    public function it_reads_json_request_body_without_query_fallback_when_configured(): void
+    {
+        config()->set('query-wizard.request_data_source', 'body');
+
+        $targetModel = AppendModel::query()->firstOrFail();
+
+        $request = Request::create(
+            '/wizard?filter[id]=999999',
+            'POST',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            json_encode([
+                'filter' => ['id' => (string) $targetModel->id],
+                'append' => 'fullname',
+            ], JSON_THROW_ON_ERROR),
+        );
+
+        $wizard = new EloquentQueryWizard(
+            AppendModel::query(),
+            new QueryParametersManager($request),
+        );
+
+        $models = $wizard
+            ->allowedFilters('id')
+            ->allowedAppends('fullname')
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($targetModel->id, $models->first()->id);
+        $this->assertArrayHasKey('fullname', $models->first()->toArray());
+    }
 }

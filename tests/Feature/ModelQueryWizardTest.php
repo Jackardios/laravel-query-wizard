@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
@@ -12,6 +13,8 @@ use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
+use Jackardios\QueryWizard\ModelQueryWizard;
+use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
@@ -61,6 +64,54 @@ class ModelQueryWizardTest extends TestCase
             ->process();
 
         $this->assertInstanceOf(TestModel::class, $result);
+    }
+
+    #[Test]
+    public function it_returns_same_model_on_repeated_process_without_changes(): void
+    {
+        $wizard = $this
+            ->createModelWizardWithFields(['testModel' => 'id,name'], $this->model)
+            ->allowedFields('id', 'name');
+
+        $first = $wizard->process();
+        $second = $wizard->process();
+
+        $this->assertSame($first, $second);
+        $this->assertEqualsCanonicalizing(['id', 'name'], array_keys($second->toArray()));
+    }
+
+    #[Test]
+    public function it_throws_when_reconfigured_after_process(): void
+    {
+        $wizard = $this
+            ->createModelWizardWithFields(['testModel' => 'id,name'], $this->model)
+            ->allowedFields('id', 'name');
+
+        $wizard->process();
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('cannot be reconfigured after process()');
+
+        $wizard->allowedFields('id');
+    }
+
+    #[Test]
+    public function it_throws_when_manually_injected_parameters_change_after_process(): void
+    {
+        $parameters = new QueryParametersManager(new Request([
+            'fields' => ['testModel' => 'id'],
+        ]));
+
+        $wizard = (new ModelQueryWizard($this->model, $parameters))
+            ->allowedFields('id', 'name');
+
+        $wizard->process();
+        $parameters->setFieldsParameter(['testModel' => 'name']);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('cannot be reused across request boundaries');
+
+        $wizard->process();
     }
 
     // ========== Include Tests ==========

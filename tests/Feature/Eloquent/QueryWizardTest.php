@@ -15,6 +15,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
+use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -771,6 +772,107 @@ class QueryWizardTest extends TestCase
         // Query was executed again
         $this->assertNotEmpty(DB::getQueryLog());
         $this->assertEquals(1, $secondResults->first()->id);
+    }
+
+    #[Test]
+    public function wizard_rebuilds_when_programmatic_filters_change_on_same_manager(): void
+    {
+        $targetModel = $this->models->first();
+        $params = new QueryParametersManager;
+        $params->setFiltersParameter(['name' => $targetModel->name]);
+
+        $wizard = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('name');
+
+        $firstResults = $wizard->get();
+        $this->assertCount(1, $firstResults);
+
+        $params->setFiltersParameter([]);
+
+        $secondResults = $wizard->get();
+        $this->assertCount(5, $secondResults);
+    }
+
+    #[Test]
+    public function wizard_rebuilds_when_programmatic_includes_change_on_same_manager(): void
+    {
+        $params = new QueryParametersManager;
+        $params->setIncludesParameter(['relatedModels']);
+
+        $wizard = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedIncludes('relatedModels', 'otherRelatedModels');
+
+        $firstResults = $wizard->get();
+        $this->assertTrue($firstResults->first()->relationLoaded('relatedModels'));
+        $this->assertFalse($firstResults->first()->relationLoaded('otherRelatedModels'));
+
+        $params->setIncludesParameter(['otherRelatedModels']);
+
+        $secondResults = $wizard->get();
+        $this->assertFalse($secondResults->first()->relationLoaded('relatedModels'));
+        $this->assertTrue($secondResults->first()->relationLoaded('otherRelatedModels'));
+    }
+
+    #[Test]
+    public function wizard_rebuilds_when_programmatic_sorts_change_on_same_manager(): void
+    {
+        $params = new QueryParametersManager;
+        $params->setSortsParameter(['id']);
+
+        $wizard = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedSorts('id');
+
+        $firstResults = $wizard->get();
+        $this->assertEquals(1, $firstResults->first()->id);
+
+        $params->setSortsParameter(['-id']);
+
+        $secondResults = $wizard->get();
+        $this->assertEquals(5, $secondResults->first()->id);
+    }
+
+    #[Test]
+    public function wizard_rebuilds_when_programmatic_fields_change_on_same_manager(): void
+    {
+        $params = new QueryParametersManager;
+        $params->setFieldsParameter(['testModel' => 'id']);
+
+        $wizard = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFields('id', 'name');
+
+        $firstResults = $wizard->get();
+        $this->assertSame(['id'], array_keys($firstResults->first()->getAttributes()));
+
+        $params->setFieldsParameter(['testModel' => 'name']);
+
+        $secondResults = $wizard->get();
+        $this->assertSame(['name'], array_keys($secondResults->first()->getAttributes()));
+    }
+
+    #[Test]
+    public function wizard_rebuilds_when_programmatic_appends_change_on_same_manager(): void
+    {
+        AppendModel::factory()->create();
+
+        $params = new QueryParametersManager;
+        $params->setAppendsParameter(['fullname']);
+
+        $wizard = (new EloquentQueryWizard(AppendModel::query(), $params))
+            ->allowedAppends('fullname', 'reversename');
+
+        $firstResult = $wizard->first();
+        $this->assertNotNull($firstResult);
+        $firstArray = $firstResult->toArray();
+        $this->assertArrayHasKey('fullname', $firstArray);
+        $this->assertArrayNotHasKey('reversename', $firstArray);
+
+        $params->setAppendsParameter(['reversename']);
+
+        $secondResult = $wizard->first();
+        $this->assertNotNull($secondResult);
+        $secondArray = $secondResult->toArray();
+        $this->assertArrayHasKey('reversename', $secondArray);
+        $this->assertArrayNotHasKey('fullname', $secondArray);
     }
 
     #[Test]

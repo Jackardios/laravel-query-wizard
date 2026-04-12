@@ -107,6 +107,7 @@ final class ParameterParser
             $value = $this->parseFieldsString(implode($this->arraySeparator, $value));
         }
 
+        /** @var iterable<string, mixed> $value */
         /** @var Collection<string, array<string>> */
         return collect($value)
             ->map(function ($fields) {

@@ -449,6 +449,8 @@ public function includes(QueryWizardInterface $wizard): array
 
 For processing already-loaded model instances. Handles includes, fields, and appends — **not** filters or sorts.
 
+Call all configuration methods before `process()`. After the first successful `process()`, treat the wizard as single-use for that request/configuration and create a new instance for any different parameters or rules.
+
 ```php
 use Jackardios\QueryWizard\ModelQueryWizard;
 
@@ -514,7 +516,7 @@ return [
     'disable_invalid_filter_query_exception' => false,  // Throw on invalid filter
     // ... similar for sort, include, field, append
 
-    'request_data_source' => 'query_string',  // 'query_string' or 'body'
+    'request_data_source' => 'query_string',  // 'query_string' or 'body' (body only, query string ignored)
     'apply_filter_default_on_null' => false,  // Apply default() when filter value is null/empty
 
     'naming' => [

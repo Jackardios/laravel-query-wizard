@@ -43,6 +43,8 @@ class QueryParametersManager
     /** @var Collection<int, Sort>|null */
     protected ?Collection $sorts = null;
 
+    protected int $stateVersion = 0;
+
     protected QueryWizardConfig $config;
 
     protected ?ParameterParser $includesParser = null;
@@ -54,6 +56,9 @@ class QueryParametersManager
     protected ?ParameterParser $appendsParser = null;
 
     protected ?FilterValueTransformer $filterTransformer = null;
+
+    /** @var array<string, mixed>|null */
+    protected ?array $strictBodyPayload = null;
 
     public function __construct(
         protected ?Request $request = null,
@@ -229,6 +234,16 @@ class QueryParametersManager
     }
 
     /**
+     * Monotonic revision of the manager state.
+     *
+     * Increments when request-bound or manually injected parameters change.
+     */
+    public function getStateVersion(): int
+    {
+        return $this->stateVersion;
+    }
+
+    /**
      * @return Collection<string, array<string>>
      */
     public function getFields(): Collection
@@ -279,7 +294,7 @@ class QueryParametersManager
         $rawValue = $filtersParameterName ? $this->getRequestData($filtersParameterName) : null;
 
         try {
-            $this->setFiltersParameter($rawValue);
+            $this->filters = $this->parseFiltersParameter($rawValue);
         } catch (\InvalidArgumentException $exception) {
             throw InvalidFilterQuery::invalidFormat($exception->getMessage());
         }
@@ -333,6 +348,7 @@ class QueryParametersManager
     {
         $parsed = $this->getFieldsParser()->parseFields($fieldsParameter);
         $this->fields = $this->convertFieldsCollection($parsed);
+        $this->bumpStateVersion();
 
         return $this;
     }
@@ -344,6 +360,7 @@ class QueryParametersManager
     {
         $parsed = $this->getAppendsParser()->parseFields($appendsParameter);
         $this->appends = $this->convertFieldsCollection($parsed);
+        $this->bumpStateVersion();
 
         return $this;
     }
@@ -353,18 +370,8 @@ class QueryParametersManager
      */
     public function setFiltersParameter(mixed $filtersParameter): static
     {
-        if (is_string($filtersParameter)) {
-            throw new \InvalidArgumentException(
-                'Filters parameter must be an array or null, string given. '
-                .'Use ?filter[name]=value format in the query string.'
-            );
-        }
-
-        $filtersArray = is_array($filtersParameter) ? $filtersParameter : [];
-        $parsed = collect($filtersArray)->map(function ($value) {
-            return $this->getFilterTransformer()->transform($value);
-        });
-        $this->filters = $this->convertFiltersCollection($parsed);
+        $this->filters = $this->parseFiltersParameter($filtersParameter);
+        $this->bumpStateVersion();
 
         return $this;
     }
@@ -444,6 +451,7 @@ class QueryParametersManager
 
                 if (is_array($value)) {
                     $remainder = implode('.', array_slice($parts, $i + 1));
+                    /** @var array<string, mixed> $value */
                     $nested = $this->getNestedFilterValue($value, $remainder);
                     if ($nested !== self::missing()) {
                         return $nested;
@@ -462,6 +470,7 @@ class QueryParametersManager
     {
         $parsed = $this->getIncludesParser()->parseList($includesParameter);
         $this->includes = $this->convertListCollection($parsed);
+        $this->bumpStateVersion();
 
         return $this;
     }
@@ -473,6 +482,7 @@ class QueryParametersManager
     {
         $parsed = $this->getSortsParser()->parseSorts($sortsParameter);
         $this->sorts = $this->convertSortsCollection($parsed);
+        $this->bumpStateVersion();
 
         return $this;
     }
@@ -493,6 +503,8 @@ class QueryParametersManager
         $this->fieldsParser = null;
         $this->appendsParser = null;
         $this->filterTransformer = null;
+        $this->strictBodyPayload = null;
+        $this->bumpStateVersion();
 
         return $this;
     }
@@ -517,9 +529,55 @@ class QueryParametersManager
         }
 
         if ($this->config->shouldUseRequestBody()) {
-            return $this->request->input($key, $default);
+            return data_get($this->getStrictBodyPayload(), $key, $default);
         }
 
         return $this->request->query($key, $default);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function getStrictBodyPayload(): array
+    {
+        if ($this->strictBodyPayload !== null) {
+            return $this->strictBodyPayload;
+        }
+
+        if ($this->request === null) {
+            return $this->strictBodyPayload = [];
+        }
+
+        $payload = $this->request->isJson()
+            ? $this->request->json()->all()
+            : $this->request->request->all();
+
+        return $this->strictBodyPayload = $payload;
+    }
+
+    /**
+     * @return Collection<string, mixed>
+     */
+    protected function parseFiltersParameter(mixed $filtersParameter): Collection
+    {
+        if (is_string($filtersParameter)) {
+            throw new \InvalidArgumentException(
+                'Filters parameter must be an array or null, string given. '
+                .'Use ?filter[name]=value format in the query string.'
+            );
+        }
+
+        $filtersArray = is_array($filtersParameter) ? $filtersParameter : [];
+        $parsed = collect($filtersArray)->map(function ($value) {
+            return $this->getFilterTransformer()->transform($value);
+        });
+
+        /** @var Collection<string, mixed> */
+        return $this->convertFiltersCollection($parsed);
+    }
+
+    protected function bumpStateVersion(): void
+    {
+        $this->stateVersion++;
     }
 }
