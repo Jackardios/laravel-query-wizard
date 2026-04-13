@@ -86,9 +86,11 @@ trait HandlesIncludes
      */
     protected function getEffectiveDefaultIncludes(): array
     {
-        return ! empty($this->defaultIncludes)
+        $defaults = ! empty($this->defaultIncludes)
             ? $this->defaultIncludes
             : ($this->getSchema()?->defaultIncludes($this) ?? []);
+
+        return $this->normalizePublicPaths($defaults);
     }
 
     /**
@@ -127,7 +129,7 @@ trait HandlesIncludes
     {
         $index = [];
         foreach ($includes as $include) {
-            $index[$include->getName()] = $include;
+            $index[$this->normalizePublicPath($include->getName())] = $include;
         }
 
         return $index;

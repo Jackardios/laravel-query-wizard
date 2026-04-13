@@ -52,6 +52,17 @@ class FilterTest extends EloquentFilterTestCase
             ->get();
     }
 
+    #[Test]
+    public function malformed_nested_filter_prefix_is_rejected(): void
+    {
+        $this->expectException(InvalidFilterQuery::class);
+
+        $this
+            ->createEloquentWizardWithFilters(['relatedModels' => 'Alpha'])
+            ->allowedFilters(EloquentFilter::exact('relatedModels.name'))
+            ->get();
+    }
+
     // ========== Edge Cases ==========
 
     #[Test]
@@ -194,6 +205,22 @@ class FilterTest extends EloquentFilterTestCase
 
         // Condition is false, filter is skipped - returns all models
         $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function it_matches_filter_aliases_after_snake_case_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $targetModel = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['fullName' => $targetModel->name])
+            ->allowedFilters(EloquentFilter::exact('name')->alias('fullName'))
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertSame($targetModel->id, $models->first()->id);
     }
 
     #[Test]

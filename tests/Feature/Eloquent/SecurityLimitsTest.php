@@ -535,12 +535,14 @@ class SecurityLimitsTest extends TestCase
     #[Test]
     public function default_limits_are_reasonable(): void
     {
-        // Reset to package defaults
+        // Reset to the package default limits for this assertion.
         Config::set('query-wizard.limits', [
-            'max_include_depth' => 5,
+            'max_include_depth' => 3,
             'max_includes_count' => 10,
-            'max_filters_count' => 15,
+            'max_filters_count' => 20,
             'max_sorts_count' => 5,
+            'max_appends_count' => 20,
+            'max_append_depth' => 3,
         ]);
 
         // These should all pass with default limits

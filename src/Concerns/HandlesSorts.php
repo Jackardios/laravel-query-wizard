@@ -57,7 +57,7 @@ trait HandlesSorts
             if (is_string($sort)) {
                 $sort = $this->normalizeStringToSort($sort);
             }
-            $name = $sort->getName();
+            $name = $this->normalizePublicPath($sort->getName());
 
             if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed)) {
                 continue;
@@ -76,9 +76,11 @@ trait HandlesSorts
      */
     protected function getEffectiveDefaultSorts(): array
     {
-        return ! empty($this->defaultSorts)
+        $defaults = ! empty($this->defaultSorts)
             ? $this->defaultSorts
             : ($this->getSchema()?->defaultSorts($this) ?? []);
+
+        return $this->normalizePublicPaths($defaults);
     }
 
     /**

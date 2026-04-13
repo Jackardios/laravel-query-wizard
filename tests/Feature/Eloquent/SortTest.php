@@ -352,6 +352,31 @@ class SortTest extends TestCase
         $this->assertEquals(5, $models->first()->id);
     }
 
+    #[Test]
+    public function explicit_sort_denial_blocks_default_sorts(): void
+    {
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->allowedSorts([])
+            ->defaultSorts('-id')
+            ->get();
+
+        $this->assertEquals(1, $models->first()->id);
+    }
+
+    #[Test]
+    public function disallowed_wildcard_blocks_default_sorts(): void
+    {
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->allowedSorts('id')
+            ->disallowedSorts('*')
+            ->defaultSorts('-id')
+            ->get();
+
+        $this->assertEquals(1, $models->first()->id);
+    }
+
     // ========== Validation Tests ==========
     #[Test]
     public function it_throws_exception_for_not_allowed_sort(): void
@@ -615,6 +640,19 @@ class SortTest extends TestCase
     #[Test]
     public function it_handles_camel_case_alias(): void
     {
+        $models = $this
+            ->createEloquentWizardWithSorts('createdAt')
+            ->allowedSorts(EloquentSort::field('created_at')->alias('createdAt'))
+            ->get();
+
+        $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function it_matches_sort_aliases_after_snake_case_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
         $models = $this
             ->createEloquentWizardWithSorts('createdAt')
             ->allowedSorts(EloquentSort::field('created_at')->alias('createdAt'))

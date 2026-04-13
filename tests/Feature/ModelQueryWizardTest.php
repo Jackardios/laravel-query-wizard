@@ -229,7 +229,7 @@ class ModelQueryWizardTest extends TestCase
             ->allowedIncludes('relatedModels')
             ->process();
 
-        $this->assertTrue($result->relationLoaded('relatedModels'));
+        $this->assertFalse($result->relationLoaded('relatedModels'));
         $this->assertFalse($result->relationLoaded('otherRelatedModels'));
     }
 
@@ -268,6 +268,34 @@ class ModelQueryWizardTest extends TestCase
             ->allowedIncludes('relatedModels', 'otherRelatedModels')
             ->disallowedIncludes('relatedModels')
             ->process();
+    }
+
+    #[Test]
+    public function standalone_disallowed_includes_remove_preloaded_relations(): void
+    {
+        $modelWithRelations = TestModel::with(['relatedModels', 'otherRelatedModels'])->find($this->model->id);
+
+        $result = $this
+            ->createModelWizardFromQuery([], $modelWithRelations)
+            ->disallowedIncludes('relatedModels')
+            ->process();
+
+        $this->assertFalse($result->relationLoaded('relatedModels'));
+        $this->assertTrue($result->relationLoaded('otherRelatedModels'));
+    }
+
+    #[Test]
+    public function requested_includes_prune_allowed_but_unrequested_preloaded_relations(): void
+    {
+        $modelWithRelations = TestModel::with(['relatedModels', 'otherRelatedModels'])->find($this->model->id);
+
+        $result = $this
+            ->createModelWizardWithIncludes('otherRelatedModels', $modelWithRelations)
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->process();
+
+        $this->assertFalse($result->relationLoaded('relatedModels'));
+        $this->assertTrue($result->relationLoaded('otherRelatedModels'));
     }
 
     // ========== Fields Tests ==========
@@ -748,7 +776,7 @@ class ModelQueryWizardTest extends TestCase
             ->allowedIncludes('relatedModels')
             ->process();
 
-        $this->assertTrue($result->relationLoaded('relatedModels'));
+        $this->assertFalse($result->relationLoaded('relatedModels'));
     }
 
     // ========== Relation Fields Edge Case Tests ==========
@@ -888,10 +916,20 @@ class ModelQueryWizardTest extends TestCase
             ->allowedFields('id', 'name')
             ->process();
 
-        $relatedArray = $result->relatedModels->first()->toArray();
-        $this->assertArrayHasKey('id', $relatedArray);
-        $this->assertArrayHasKey('name', $relatedArray);
-        $this->assertArrayHasKey('test_model_id', $relatedArray);
+        $this->assertSame([], $result->relatedModels->first()->toArray());
+    }
+
+    #[Test]
+    public function it_matches_resource_keyed_fields_after_snake_case_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $result = $this
+            ->createModelWizardWithFields(['testModel' => 'id'], $this->model)
+            ->allowedFields('id', 'name')
+            ->process();
+
+        $this->assertSame(['id'], array_keys($result->toArray()));
     }
 
     #[Test]

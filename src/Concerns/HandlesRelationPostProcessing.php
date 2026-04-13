@@ -113,7 +113,7 @@ trait HandlesRelationPostProcessing
             }
 
             $visibleFields = $childFieldNode['fields'] ?? [];
-            $shouldHideFields = ! empty($visibleFields) && ! in_array('*', $visibleFields, true);
+            $shouldHideFields = $childFieldNode !== null && ! in_array('*', $visibleFields, true);
 
             $nextAppendNode = $childAppendNode ?? $emptyAppendNode;
             $nextFieldNode = $childFieldNode ?? $emptyFieldNode;

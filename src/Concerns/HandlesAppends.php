@@ -255,7 +255,10 @@ trait HandlesAppends
             ? $this->allowedAppends
             : ($this->getSchema()?->appends($this) ?? []);
 
-        return $this->removeDisallowedStrings($appends, $this->disallowedAppends);
+        return $this->removeDisallowedStrings(
+            $this->normalizePublicPaths($appends),
+            $this->disallowedAppends
+        );
     }
 
     /**
@@ -265,8 +268,10 @@ trait HandlesAppends
      */
     protected function getEffectiveDefaultAppends(): array
     {
-        return ! empty($this->defaultAppends)
+        $defaults = ! empty($this->defaultAppends)
             ? $this->defaultAppends
             : ($this->getSchema()?->defaultAppends($this) ?? []);
+
+        return $this->normalizePublicPaths($defaults);
     }
 }

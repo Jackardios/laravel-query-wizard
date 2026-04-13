@@ -67,6 +67,8 @@ class EloquentQueryWizard extends BaseQueryWizard
     /** @var array<string> */
     private array $safeRootHiddenFields = [];
 
+    private bool $hideAllRootFields = false;
+
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
      */
@@ -257,6 +259,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     public function chunkById(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
     {
         $this->build();
+        $this->ensureChunkByIdColumnSelected($column, $alias);
 
         return $this->subject->chunkById($count, function (Collection $models) use ($callback) {
             $this->applyPostProcessingToResults($models);
@@ -335,6 +338,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->appendTree = $this->emptyAppendTree();
         $this->appendTreePrepared = false;
         $this->safeRootHiddenFields = [];
+        $this->hideAllRootFields = false;
         parent::invalidateBuild();
     }
 
@@ -348,6 +352,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->appendTree = $this->emptyAppendTree();
         $this->appendTreePrepared = false;
         $this->safeRootHiddenFields = [];
+        $this->hideAllRootFields = false;
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
@@ -371,6 +376,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         $requestedFields = $fields;
         $fields = $this->applySafeRootFieldRequirements($fields);
+        $this->hideAllRootFields = $requestedFields === [];
         $this->safeRootHiddenFields = array_values(array_diff($fields, $requestedFields));
 
         if (! empty($fields) && $fields !== ['*']) {
@@ -426,10 +432,10 @@ class EloquentQueryWizard extends BaseQueryWizard
     public function getResourceKey(): string
     {
         if ($this->schema !== null) {
-            return $this->schema->type();
+            return $this->normalizePublicName($this->schema->type());
         }
 
-        return Str::camel(class_basename($this->subject->getModel()));
+        return $this->normalizePublicName(Str::camel(class_basename($this->subject->getModel())));
     }
 
     /**
@@ -487,6 +493,18 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function applySafeRootFieldMaskToResults(mixed $results): void
     {
+        if ($this->hideAllRootFields) {
+            if ($results instanceof Model) {
+                $this->hideModelAttributesExcept($results, []);
+            } else {
+                foreach ($results as $item) {
+                    if ($item instanceof Model) {
+                        $this->hideModelAttributesExcept($item, []);
+                    }
+                }
+            }
+        }
+
         if (empty($this->safeRootHiddenFields)) {
             return;
         }
@@ -502,6 +520,66 @@ class EloquentQueryWizard extends BaseQueryWizard
                 $item->makeHidden($this->safeRootHiddenFields);
             }
         }
+    }
+
+    private function ensureChunkByIdColumnSelected(?string $column, ?string $alias): void
+    {
+        $selectedColumns = $this->subject->getQuery()->columns;
+
+        if ($selectedColumns === null || in_array('*', $selectedColumns, true)) {
+            return;
+        }
+
+        $columnName = $column ?? $this->subject->getModel()->getKeyName();
+        $qualifiedColumn = $this->subject->qualifyColumn($columnName);
+
+        if ($this->queryAlreadySelectsChunkColumn($selectedColumns, $columnName, $qualifiedColumn, $alias)) {
+            return;
+        }
+
+        if ($alias !== null) {
+            $this->subject->addSelect("{$qualifiedColumn} as {$alias}");
+            $this->safeRootHiddenFields[] = $alias;
+
+            return;
+        }
+
+        $this->subject->addSelect($qualifiedColumn);
+        $this->safeRootHiddenFields[] = $columnName;
+    }
+
+    /**
+     * @param  array<int, mixed>  $selectedColumns
+     */
+    private function queryAlreadySelectsChunkColumn(
+        array $selectedColumns,
+        string $columnName,
+        string $qualifiedColumn,
+        ?string $alias
+    ): bool {
+        foreach ($selectedColumns as $selectedColumn) {
+            if (! is_string($selectedColumn)) {
+                continue;
+            }
+
+            $normalizedColumn = strtolower(trim($selectedColumn));
+            $normalizedQualified = strtolower($qualifiedColumn);
+            $normalizedName = strtolower($columnName);
+
+            if (
+                $normalizedColumn === $normalizedQualified
+                || $normalizedColumn === $normalizedName
+                || str_ends_with($normalizedColumn, '.'.$normalizedName)
+            ) {
+                return true;
+            }
+
+            if ($alias !== null && preg_match('/\bas\s+("?'.preg_quote(strtolower($alias), '/').'"?)$/', $normalizedColumn) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

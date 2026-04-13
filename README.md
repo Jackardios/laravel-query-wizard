@@ -481,7 +481,7 @@ Built-in protection against resource exhaustion attacks:
 | `max_include_depth` | 3 | Max nesting (e.g., `posts.comments.author` = 3) |
 | `max_includes_count` | 10 | Max includes per request |
 | `max_filters_count` | 20 | Max filters per request |
-| `max_appends_count` | 10 | Max appends per request |
+| `max_appends_count` | 20 | Max appends per request |
 | `max_sorts_count` | 5 | Max sorts per request |
 
 Configure in `config/query-wizard.php`. Set to `null` to disable.
@@ -527,16 +527,22 @@ return [
         'relation_select_mode' => 'safe',  // 'safe' or 'off'
     ],
 
+    'fields' => [
+        'use_allowed_as_default' => false,
+    ],
+
     'limits' => [
         'max_include_depth' => 3,
         'max_includes_count' => 10,
         'max_filters_count' => 20,
-        'max_appends_count' => 10,
+        'max_appends_count' => 20,
         'max_sorts_count' => 5,
         'max_append_depth' => 3,
     ],
 ];
 ```
+
+When `fields.use_allowed_as_default` is enabled and `?fields` is absent, default fields resolve in this order: explicit `defaultFields()` on the wizard, schema `defaultFields()`, then the effective allowed root fields. Relation field allow-lists are not promoted into the root `SELECT`. This only affects default field selection and does not allow arbitrary `?fields[...]` requests when allowed fields are not configured. If no allowed fields are configured, the package keeps its normal behavior: root queries still default to all columns, while explicit `?fields[...]` requests are validated against the configured allow-list.
 
 ## Error Handling
 

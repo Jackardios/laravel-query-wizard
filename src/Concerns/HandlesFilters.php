@@ -53,7 +53,7 @@ trait HandlesFilters
             if (is_string($filter)) {
                 $filter = $this->normalizeStringToFilter($filter);
             }
-            $name = $filter->getName();
+            $name = $this->normalizePublicPath($filter->getName());
 
             if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed)) {
                 continue;
@@ -134,45 +134,6 @@ trait HandlesFilters
 
             $namesSet[$fullKey] = true;
         }
-    }
-
-    /**
-     * Build prefix index for dot notation support.
-     *
-     * @param  array<string>  $allowedFilterNames
-     * @return array<string, bool>
-     */
-    protected function buildPrefixIndex(array $allowedFilterNames): array
-    {
-        $prefixIndex = [];
-        foreach ($allowedFilterNames as $name) {
-            $parts = explode('.', $name);
-            $prefix = '';
-            foreach ($parts as $i => $part) {
-                if ($i === count($parts) - 1) {
-                    break;
-                }
-                $prefix = $prefix === '' ? $part : $prefix.'.'.$part;
-                $prefixIndex[$prefix] = true;
-            }
-        }
-
-        return $prefixIndex;
-    }
-
-    /**
-     * Check if a filter name is valid.
-     *
-     * @param  array<string, int>  $allowedFilterNamesIndex
-     * @param  array<string, bool>  $prefixIndex
-     */
-    protected function isValidFilterName(string $filterName, array $allowedFilterNamesIndex, array $prefixIndex): bool
-    {
-        if (isset($allowedFilterNamesIndex[$filterName])) {
-            return true;
-        }
-
-        return isset($prefixIndex[$filterName]);
     }
 
     protected function validateFiltersLimit(int $count): void

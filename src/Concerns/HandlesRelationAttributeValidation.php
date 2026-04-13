@@ -33,7 +33,7 @@ trait HandlesRelationAttributeValidation
                 continue;
             }
 
-            $name = $include->getName();
+            $name = $this->normalizePublicPath($include->getName());
             $relation = $include->getRelation();
 
             $map[$name] = $relation;
@@ -43,8 +43,9 @@ trait HandlesRelationAttributeValidation
                 $intermediatePath = '';
                 foreach (array_slice($relationParts, 0, -1) as $part) {
                     $intermediatePath = $intermediatePath !== '' ? "{$intermediatePath}.{$part}" : $part;
-                    if (! isset($map[$intermediatePath])) {
-                        $map[$intermediatePath] = $intermediatePath;
+                    $normalizedIntermediatePath = $this->normalizePublicPath($intermediatePath);
+                    if (! isset($map[$normalizedIntermediatePath])) {
+                        $map[$normalizedIntermediatePath] = $intermediatePath;
                     }
                 }
             }

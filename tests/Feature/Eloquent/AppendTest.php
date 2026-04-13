@@ -223,6 +223,44 @@ class AppendTest extends TestCase
     }
 
     #[Test]
+    public function relation_appends_match_after_snake_case_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => 'relatedModels.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->first();
+
+        $this->assertNotNull($result);
+        $array = $result->toArray();
+        $this->assertArrayHasKey('formatted_name', $array['related_models'][0]);
+    }
+
+    #[Test]
+    public function relation_appends_match_include_aliases_after_snake_case_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedItems',
+                'append' => 'relatedItems.formattedName',
+            ], TestModel::class)
+            ->allowedIncludes(EloquentInclude::relationship('relatedModels')->alias('relatedItems'))
+            ->allowedAppends('relatedItems.formattedName')
+            ->first();
+
+        $this->assertNotNull($result);
+        $array = $result->toArray();
+        $this->assertArrayHasKey('formatted_name', $array['related_models'][0]);
+    }
+
+    #[Test]
     public function it_removes_duplicate_appends(): void
     {
         $models = $this

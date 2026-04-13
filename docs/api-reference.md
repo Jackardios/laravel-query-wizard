@@ -21,13 +21,13 @@
 | `defaultSorts(...$sorts)` | Set default sorts |
 | `allowedIncludes(...$includes)` | Set allowed includes |
 | `disallowedIncludes(...$names)` | Remove includes (supports wildcards: `*`, `relation.*`, `relation`) |
-| `defaultIncludes(...$names)` | Set default includes (applied only when include param is absent) |
+| `defaultIncludes(...$names)` | Set default includes (applied only when include param is absent and the names are also allowed by allowlist/schema) |
 | `allowedFields(...$fields)` | Set allowed fields (supports wildcards: `*`, `relation.*`) |
 | `disallowedFields(...$names)` | Remove fields (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultFields(...$fields)` | Set default fields (applied when ?fields is absent) |
 | `allowedAppends(...$appends)` | Set allowed appends (supports wildcards: `*`, `relation.*`) |
 | `disallowedAppends(...$names)` | Remove appends (supports wildcards: `*`, `relation.*`, `relation`) |
-| `defaultAppends(...$appends)` | Set default appends |
+| `defaultAppends(...$appends)` | Set default appends (applied only when append param is absent and the names are also allowed by allowlist/schema) |
 | `tap(callable $callback)` | Add query modification callback |
 
 ### Execution Methods
@@ -64,13 +64,13 @@
 | `schema($schema)` | Set ResourceSchema for configuration |
 | `allowedIncludes(...$includes)` | Set allowed includes |
 | `disallowedIncludes(...$names)` | Remove includes |
-| `defaultIncludes(...$names)` | Set default includes |
+| `defaultIncludes(...$names)` | Set default includes (effective only for names also allowed by allowlist/schema) |
 | `allowedFields(...$fields)` | Set allowed fields |
 | `disallowedFields(...$names)` | Remove fields |
 | `defaultFields(...$fields)` | Set default fields |
 | `allowedAppends(...$appends)` | Set allowed appends |
 | `disallowedAppends(...$names)` | Remove appends |
-| `defaultAppends(...$appends)` | Set default appends |
+| `defaultAppends(...$appends)` | Set default appends (effective only for names also allowed by allowlist/schema) |
 
 All configuration methods must be called before `process()`. After processing, create a new `ModelQueryWizard` instance for any different configuration or request parameters.
 

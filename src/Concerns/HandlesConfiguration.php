@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Jackardios\QueryWizard\Support\NameConverter;
+
 /**
  * Shared configuration handling methods for query wizards.
  *
@@ -64,6 +66,63 @@ trait HandlesConfiguration
         return $result;
     }
 
+    protected function normalizePublicName(string $name): string
+    {
+        if ($name === '' || $name === '*' || ! $this->shouldNormalizePublicInput()) {
+            return $name;
+        }
+
+        return NameConverter::toSnakeCase($name);
+    }
+
+    protected function normalizePublicPath(string $path): string
+    {
+        if ($path === '' || $path === '*' || ! $this->shouldNormalizePublicInput()) {
+            return $path;
+        }
+
+        $prefix = '';
+        if (str_starts_with($path, '-')) {
+            $prefix = '-';
+            $path = substr($path, 1);
+        }
+
+        return $prefix.NameConverter::pathToSnakeCase($path);
+    }
+
+    protected function shouldNormalizePublicInput(): bool
+    {
+        try {
+            return $this->getConfig()->shouldConvertParametersToSnakeCase();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * @param  array<string>  $names
+     * @return array<string>
+     */
+    protected function normalizePublicNames(array $names): array
+    {
+        return array_values(array_map(
+            fn (string $name): string => $this->normalizePublicName($name),
+            $names
+        ));
+    }
+
+    /**
+     * @param  array<string>  $paths
+     * @return array<string>
+     */
+    protected function normalizePublicPaths(array $paths): array
+    {
+        return array_values(array_map(
+            fn (string $path): string => $this->normalizePublicPath($path),
+            $paths
+        ));
+    }
+
     /**
      * Remove disallowed strings from array.
      *
@@ -94,6 +153,9 @@ trait HandlesConfiguration
      */
     protected function isNameDisallowed(string $name, array $disallowed): bool
     {
+        $name = $this->normalizePublicPath($name);
+        $disallowed = $this->normalizePublicPaths($disallowed);
+
         if (in_array('*', $disallowed, true)) {
             return true;
         }

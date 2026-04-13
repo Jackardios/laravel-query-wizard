@@ -440,10 +440,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $allowedFilterNames = array_keys($filters);
         $allowedFilterNamesIndex = array_flip($allowedFilterNames);
-        $prefixIndex = $this->buildPrefixIndex($allowedFilterNames);
 
         foreach ($requestedFilterNames as $filterName) {
-            if (! $this->isValidFilterName($filterName, $allowedFilterNamesIndex, $prefixIndex)) {
+            if (! isset($allowedFilterNamesIndex[$filterName])) {
                 if (! $this->config->isInvalidFilterQueryExceptionDisabled()) {
                     throw InvalidFilterQuery::filtersNotAllowed(
                         collect([$filterName]),
@@ -477,7 +476,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     protected function resolveFilterValue(FilterInterface $filter): mixed
     {
-        $name = $filter->getName();
+        $name = $this->normalizePublicPath($filter->getName());
         $hasFilterInRequest = $this->getParametersManager()->hasFilter($name);
 
         if ($hasFilterInRequest) {
@@ -540,6 +539,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         if (empty($sorts) && $effectiveSorts->isNotEmpty()) {
             if ($usingDefaults) {
+                if (! $this->canApplyDefaultSortsWithoutAllowlist($sorts)) {
+                    return;
+                }
+
                 foreach ($effectiveSorts as $sortValue) {
                     $sort = $this->normalizeStringToSort($sortValue->getField());
                     $this->subject = $sort->apply($this->subject, $sortValue->getDirection());
@@ -566,7 +569,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $sortsIndex = [];
         foreach ($sorts as $sort) {
-            $name = $sort->getName();
+            $name = $this->normalizePublicPath($sort->getName());
             $normalizedName = ltrim($name, '-');
             $sortsIndex[$normalizedName] = $sort;
         }
@@ -685,6 +688,24 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         if ($validFields !== null) {
             $this->applyFields($validFields);
         }
+    }
+
+    /**
+     * @param  array<string, SortInterface>  $effectiveSorts
+     */
+    protected function canApplyDefaultSortsWithoutAllowlist(array $effectiveSorts): bool
+    {
+        if (! empty($effectiveSorts)) {
+            return false;
+        }
+
+        if ($this->allowedSortsExplicitlySet || ! empty($this->disallowedSorts)) {
+            return false;
+        }
+
+        $schemaSorts = $this->getSchema()?->sorts($this) ?? [];
+
+        return empty($schemaSorts);
     }
 
     public function __clone(): void

@@ -68,7 +68,7 @@ trait HandlesSafeRelationSelect
      */
     protected function applySafeRootFieldRequirements(array $fields): array
     {
-        if (empty($fields) || in_array('*', $fields, true) || empty($this->safeRootRequiredFields)) {
+        if (in_array('*', $fields, true) || empty($this->safeRootRequiredFields)) {
             return $fields;
         }
 
@@ -397,10 +397,6 @@ trait HandlesSafeRelationSelect
      */
     protected function resolveRelatedRequiredColumns(Relation $relation): array
     {
-        if ($relation instanceof MorphTo) {
-            return [$relation->getOwnerKeyName()];
-        }
-
         if ($relation instanceof BelongsTo) {
             return [$relation->getOwnerKeyName()];
         }

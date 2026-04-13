@@ -268,6 +268,20 @@ class QueryWizardConfigTest extends TestCase
         $this->assertTrue($this->config->shouldApplyFilterDefaultOnNull());
     }
 
+    #[Test]
+    public function should_use_allowed_fields_as_default_returns_false_by_default(): void
+    {
+        $this->assertFalse($this->config->shouldUseAllowedFieldsAsDefault());
+    }
+
+    #[Test]
+    public function should_use_allowed_fields_as_default_returns_true_when_configured(): void
+    {
+        Config::set('query-wizard.fields.use_allowed_as_default', true);
+
+        $this->assertTrue($this->config->shouldUseAllowedFieldsAsDefault());
+    }
+
     // ========== Invalid Filter Query Exception Tests ==========
     #[Test]
     public function it_returns_false_for_disable_invalid_filter_query_exception_by_default(): void

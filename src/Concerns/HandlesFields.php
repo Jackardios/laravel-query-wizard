@@ -39,34 +39,54 @@ trait HandlesFields
     abstract protected function getEffectiveIncludes(): array;
 
     /**
-     * Get effective fields.
+     * Get effective fields (what client CAN request via ?fields).
      *
      * If allowedFields() was called explicitly, use those (even if empty).
      * Otherwise, fall back to schema fields (if any).
-     * Empty result means client cannot request specific fields.
+     * Empty result means client cannot use ?fields parameter.
      * Use ['*'] to allow any fields requested by client.
      *
      * @return array<string>
      */
     protected function getEffectiveFields(): array
     {
-        $fields = $this->allowedFieldsExplicitlySet
-            ? $this->allowedFields
-            : ($this->getSchema()?->fields($this) ?? []);
+        if ($this->allowedFieldsExplicitlySet) {
+            $fields = $this->allowedFields;
+        } else {
+            $schemaFields = $this->getSchema()?->fields($this);
+            $fields = ! empty($schemaFields) ? $schemaFields : [];
+        }
 
-        return $this->removeDisallowedStrings($fields, $this->disallowedFields);
+        return $this->removeDisallowedStrings(
+            $this->normalizePublicPaths($fields),
+            $this->disallowedFields
+        );
     }
 
     /**
      * Get effective default fields.
      *
+     * When 'fields.use_allowed_as_default' is enabled, falls back to allowed fields
+     * if no explicit defaults are configured.
+     *
      * @return array<string>
      */
     protected function getEffectiveDefaultFields(): array
     {
-        return ! empty($this->defaultFields)
-            ? $this->defaultFields
-            : ($this->getSchema()?->defaultFields($this) ?? []);
+        if (! empty($this->defaultFields)) {
+            return $this->normalizePublicPaths($this->defaultFields);
+        }
+
+        $schemaDefaults = $this->getSchema()?->defaultFields($this);
+        if (! empty($schemaDefaults)) {
+            return $this->normalizePublicPaths($schemaDefaults);
+        }
+
+        if ($this->getConfig()->shouldUseAllowedFieldsAsDefault()) {
+            return $this->extractRootFields($this->getEffectiveFields());
+        }
+
+        return [];
     }
 
     /**
@@ -170,6 +190,8 @@ trait HandlesFields
             }
 
             if (empty($normalizedRequestedFields)) {
+                $relationFieldMap[$relationPath] = [];
+
                 continue;
             }
 
@@ -223,6 +245,18 @@ trait HandlesFields
         return array_values(array_filter(
             $allowedFields,
             static fn (string $field): bool => str_contains($field, '.')
+        ));
+    }
+
+    /**
+     * @param  array<string>  $fields
+     * @return array<string>
+     */
+    protected function extractRootFields(array $fields): array
+    {
+        return array_values(array_filter(
+            $fields,
+            static fn (string $field): bool => ! str_contains($field, '.')
         ));
     }
 
@@ -288,12 +322,14 @@ trait HandlesFields
         $resourceKey = $this->getResourceKey();
         $requestedFields = $this->getRequestedFieldsForResource($resourceKey);
         $requestEmpty = $this->isFieldsRequestEmpty();
+        $usingDefaults = false;
 
         if ($requestEmpty) {
             $defaultFields = $this->getEffectiveDefaultFields();
             if (! empty($defaultFields)) {
                 $fields = $defaultFields;
                 $requestEmpty = false;
+                $usingDefaults = true;
             } else {
                 $fields = [];
             }
@@ -329,7 +365,7 @@ trait HandlesFields
                 );
             }
 
-            return null;
+            return $usingDefaults || $requestEmpty ? null : [];
         }
 
         $validFields = [];
@@ -355,6 +391,10 @@ trait HandlesFields
             return null;
         }
 
-        return ! empty($validFields) ? $validFields : null;
+        if (! empty($validFields)) {
+            return $validFields;
+        }
+
+        return $usingDefaults || $requestEmpty ? null : [];
     }
 }

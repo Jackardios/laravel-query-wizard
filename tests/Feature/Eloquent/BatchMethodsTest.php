@@ -203,6 +203,26 @@ class BatchMethodsTest extends TestCase
         $this->assertCount(10, $processedModels);
     }
 
+    #[Test]
+    public function chunk_by_id_auto_selects_and_hides_chunk_column_when_sparse_fields_omit_it(): void
+    {
+        $processedModels = collect();
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'fields' => [
+                    'appendModel' => 'firstname',
+                ],
+            ], AppendModel::class)
+            ->allowedFields('id', 'firstname')
+            ->chunkById(3, function ($models) use ($processedModels) {
+                $processedModels->push(...$models);
+            });
+
+        $this->assertCount(10, $processedModels);
+        $this->assertSame(['firstname'], array_keys($processedModels->first()->toArray()));
+    }
+
     // ========== Integration Tests ==========
     #[Test]
     public function batch_methods_work_with_filters(): void

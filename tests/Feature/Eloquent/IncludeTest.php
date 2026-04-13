@@ -179,6 +179,32 @@ class IncludeTest extends TestCase
         $this->assertTrue($models->first()->relatedModels->first()->relationLoaded('nestedRelatedModels'));
     }
 
+    #[Test]
+    public function it_matches_includes_after_snake_case_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedModels')
+            ->allowedIncludes('relatedModels')
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
+    public function it_matches_include_aliases_after_snake_case_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $models = $this
+            ->createEloquentWizardWithIncludes('relatedItems')
+            ->allowedIncludes(EloquentInclude::relationship('relatedModels')->alias('relatedItems'))
+            ->get();
+
+        $this->assertTrue($models->first()->relationLoaded('relatedModels'));
+    }
+
     // ========== Count Include Tests ==========
     #[Test]
     public function it_can_include_count(): void

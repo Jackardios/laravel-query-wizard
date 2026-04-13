@@ -925,6 +925,53 @@ class FieldsTest extends TestCase
         $this->assertContains('created_at', $attributes);
     }
 
+    #[Test]
+    public function resource_keyed_fields_match_after_snake_case_conversion(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $models = $this
+            ->createEloquentWizardWithFields(['testModel' => 'id'])
+            ->allowedFields('id', 'name')
+            ->get();
+
+        $attributes = array_keys($models->first()->getAttributes());
+        $this->assertContains('id', $attributes);
+        $this->assertNotContains('name', $attributes);
+    }
+
+    #[Test]
+    public function all_invalid_root_fields_hide_all_visible_root_attributes_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+
+        $models = $this
+            ->createEloquentWizardWithFields(['testModel' => 'secretField'])
+            ->allowedFields('id', 'name')
+            ->get();
+
+        $this->assertSame([], $models->first()->toArray());
+    }
+
+    #[Test]
+    public function all_invalid_relation_fields_hide_relation_attributes_when_exception_disabled(): void
+    {
+        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'relatedModels' => 'secretField',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('relatedModels.id')
+            ->get();
+
+        $this->assertSame([], $models->first()->relatedModels->first()->toArray());
+    }
+
     // ========== Wildcard Fields Tests ==========
 
     #[Test]

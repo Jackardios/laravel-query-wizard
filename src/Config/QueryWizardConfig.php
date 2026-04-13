@@ -184,6 +184,11 @@ final class QueryWizardConfig
         return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_append_depth'));
     }
 
+    public function shouldUseAllowedFieldsAsDefault(): bool
+    {
+        return (bool) config(self::CONFIG_PREFIX.'.fields.use_allowed_as_default', false);
+    }
+
     private function normalizeLimit(mixed $value): ?int
     {
         if ($value === null) {

@@ -132,6 +132,22 @@ return [
     ],
 
     /*
+     * Sparse fieldsets configuration.
+     */
+    'fields' => [
+        /*
+         * When true and ?fields is absent, default fields resolve in this order:
+         * 1. explicit defaultFields() on the wizard
+         * 2. schema defaultFields()
+         * 3. effective allowed fields
+         *
+         * This only affects default field selection. It does not allow arbitrary
+         * ?fields requests when allowed fields are not configured.
+         */
+        'use_allowed_as_default' => false,
+    ],
+
+    /*
      * Security limits to protect against resource exhaustion attacks.
      * Set to null to disable a specific limit.
      */

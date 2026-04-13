@@ -247,8 +247,9 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         }
 
         $effectiveIncludes = $this->getEffectiveIncludes();
-        $this->cleanUnwantedRelations($effectiveIncludes);
-        $this->loadMissingIncludes($effectiveIncludes);
+        $requestedIncludeNames = $this->resolveRequestedIncludeNames($effectiveIncludes);
+        $this->cleanUnwantedRelations($effectiveIncludes, $requestedIncludeNames);
+        $this->loadMissingIncludes($effectiveIncludes, $requestedIncludeNames);
         $this->hideDisallowedFields();
         $this->applyRelationPostProcessing();
 
@@ -268,14 +269,22 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 
     /**
      * @param  array<IncludeInterface>  $effectiveIncludes
+     * @param  array<string>  $requestedIncludeNames
      */
-    protected function cleanUnwantedRelations(array $effectiveIncludes): void
+    protected function cleanUnwantedRelations(array $effectiveIncludes, array $requestedIncludeNames): void
     {
         if (! $this->allowedIncludesExplicitlySet && $this->schema === null) {
+            if (empty($this->disallowedIncludes)) {
+                return;
+            }
+
+            $visited = [];
+            $this->cleanDisallowedRelations($this->model, '', $visited);
+
             return;
         }
 
-        $allowedTree = $this->buildAllowedTree($effectiveIncludes);
+        $allowedTree = $this->buildRequestedIncludeTree($effectiveIncludes, $requestedIncludeNames);
         $visited = [];
         $this->cleanRelationsWithTree($this->model, $allowedTree, $visited);
     }
@@ -284,18 +293,19 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      * Build tree from includes for nested checking.
      *
      * @param  array<IncludeInterface>  $includes
+     * @param  array<string>  $requestedIncludeNames
      * @return array<string, mixed>
      */
-    protected function buildAllowedTree(array $includes): array
+    protected function buildRequestedIncludeTree(array $includes, array $requestedIncludeNames): array
     {
+        $requestedRelationPaths = $this->resolveRequestedRelationPaths($includes, $requestedIncludeNames);
+        foreach (array_keys($this->buildValidatedRelationFieldMap()) as $relationPath) {
+            $requestedRelationPaths[$relationPath] = true;
+        }
+
         /** @var array<string, mixed> $tree */
         $tree = [];
-        foreach ($includes as $include) {
-            if ($include->getType() === 'count') {
-                continue;
-            }
-
-            $name = $include->getRelation();
+        foreach (array_keys($requestedRelationPaths) as $name) {
             $parts = explode('.', $name);
             /** @var array<string, mixed> $current */
             $current = &$tree;
@@ -310,6 +320,65 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         }
 
         return $tree;
+    }
+
+    /**
+     * @param  array<IncludeInterface>  $includes
+     * @param  array<string>  $requestedIncludeNames
+     * @return array<string, true>
+     */
+    protected function resolveRequestedRelationPaths(array $includes, array $requestedIncludeNames): array
+    {
+        $requestedLookup = array_fill_keys($requestedIncludeNames, true);
+        $paths = [];
+
+        foreach ($includes as $include) {
+            if ($include->getType() !== 'relationship') {
+                continue;
+            }
+
+            $includeName = $this->normalizePublicPath($include->getName());
+            if (! isset($requestedLookup[$includeName])) {
+                continue;
+            }
+
+            $paths[$include->getRelation()] = true;
+        }
+
+        return $paths;
+    }
+
+    /**
+     * @param  array<int, bool>  $visited
+     */
+    protected function cleanDisallowedRelations(Model $model, string $prefix, array &$visited): void
+    {
+        $objectId = spl_object_id($model);
+        if (isset($visited[$objectId])) {
+            return;
+        }
+        $visited[$objectId] = true;
+
+        foreach (array_keys($model->getRelations()) as $relationName) {
+            $path = $prefix === '' ? $relationName : "{$prefix}.{$relationName}";
+
+            if ($this->isNameDisallowed($path, $this->disallowedIncludes)) {
+                $model->unsetRelation($relationName);
+
+                continue;
+            }
+
+            $relatedData = $model->getRelation($relationName);
+            if ($relatedData instanceof Model) {
+                $this->cleanDisallowedRelations($relatedData, $path, $visited);
+            } elseif (is_iterable($relatedData)) {
+                foreach ($relatedData as $item) {
+                    if ($item instanceof Model) {
+                        $this->cleanDisallowedRelations($item, $path, $visited);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -353,36 +422,16 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 
     /**
      * @param  array<IncludeInterface>  $effectiveIncludes
+     * @param  array<string>  $requestedIncludeNames
      */
-    protected function loadMissingIncludes(array $effectiveIncludes): void
+    protected function loadMissingIncludes(array $effectiveIncludes, array $requestedIncludeNames): void
     {
-        $requested = $this->getMergedRequestedIncludes();
-        $usingDefaults = $this->isIncludesRequestEmpty();
+        $requested = $requestedIncludeNames;
         $loaded = array_keys($this->model->getRelations());
 
         $this->validateIncludesLimit(count($requested));
 
         $allowedIndex = $this->buildIncludesIndex($effectiveIncludes);
-
-        if (! empty($requested)) {
-            $allowedIncludeNames = array_keys($allowedIndex);
-
-            $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
-            $defaultsIndex = array_flip($defaults);
-
-            $invalidIncludes = array_filter(
-                array_diff($requested, $allowedIncludeNames),
-                fn ($name) => ! isset($defaultsIndex[$name])
-            );
-
-            if (! empty($invalidIncludes) && ! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
-                throw InvalidIncludeQuery::includesNotAllowed(
-                    collect($invalidIncludes),
-                    collect($allowedIncludeNames)
-                );
-            }
-            $requested = array_intersect($requested, $allowedIncludeNames);
-        }
 
         /** @var array<int, string> $relationshipRequests */
         $relationshipRequests = [];
@@ -461,6 +510,39 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     }
 
     /**
+     * @param  array<IncludeInterface>  $effectiveIncludes
+     * @return array<string>
+     */
+    protected function resolveRequestedIncludeNames(array $effectiveIncludes): array
+    {
+        $requested = $this->getMergedRequestedIncludes();
+        if (empty($requested)) {
+            return [];
+        }
+
+        $allowedIndex = $this->buildIncludesIndex($effectiveIncludes);
+        $allowedIncludeNames = array_keys($allowedIndex);
+        $usingDefaults = $this->isIncludesRequestEmpty();
+        $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
+        $defaultsIndex = array_flip($defaults);
+
+        $invalidIncludes = array_filter(
+            array_diff($requested, $allowedIncludeNames),
+            fn ($name) => ! isset($defaultsIndex[$name])
+        );
+
+        if (! empty($invalidIncludes) && ! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
+            throw InvalidIncludeQuery::includesNotAllowed(
+                collect($invalidIncludes),
+                collect($allowedIncludeNames)
+            );
+        }
+
+        /** @var array<string> */
+        return array_values(array_intersect($requested, $allowedIncludeNames));
+    }
+
+    /**
      * Get the configuration instance.
      */
     public function getConfig(): QueryWizardConfig
@@ -535,9 +617,9 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     public function getResourceKey(): string
     {
         if ($this->schema !== null) {
-            return $this->schema->type();
+            return $this->normalizePublicName($this->schema->type());
         }
 
-        return Str::camel(class_basename($this->model));
+        return $this->normalizePublicName(Str::camel(class_basename($this->model)));
     }
 }
