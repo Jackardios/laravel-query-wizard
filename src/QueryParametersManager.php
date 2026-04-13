@@ -28,32 +28,18 @@ class QueryParametersManager
         return self::$missing ??= new \stdClass;
     }
 
-    /** @var Collection<string, array<string>>|null */
-    protected ?Collection $appends = null;
-
-    /** @var Collection<string, array<string>>|null */
-    protected ?Collection $fields = null;
-
     /** @var Collection<string, mixed>|null */
     protected ?Collection $filters = null;
 
-    /** @var Collection<int, string>|null */
-    protected ?Collection $includes = null;
-
-    /** @var Collection<int, Sort>|null */
-    protected ?Collection $sorts = null;
+    /** @var array<string, Collection<int, Sort>|Collection<int, string>|Collection<string, array<string>>> */
+    protected array $simpleParameterCache = [];
 
     protected int $stateVersion = 0;
 
     protected QueryWizardConfig $config;
 
-    protected ?ParameterParser $includesParser = null;
-
-    protected ?ParameterParser $sortsParser = null;
-
-    protected ?ParameterParser $fieldsParser = null;
-
-    protected ?ParameterParser $appendsParser = null;
+    /** @var array<string, ParameterParser> */
+    protected array $parsers = [];
 
     protected ?FilterValueTransformer $filterTransformer = null;
 
@@ -67,24 +53,17 @@ class QueryParametersManager
         $this->config = $config ?? new QueryWizardConfig;
     }
 
-    protected function getIncludesParser(): ParameterParser
+    protected function getParser(string $type): ParameterParser
     {
-        return $this->includesParser ??= new ParameterParser($this->config->getIncludesSeparator());
-    }
-
-    protected function getSortsParser(): ParameterParser
-    {
-        return $this->sortsParser ??= new ParameterParser($this->config->getSortsSeparator());
-    }
-
-    protected function getFieldsParser(): ParameterParser
-    {
-        return $this->fieldsParser ??= new ParameterParser($this->config->getFieldsSeparator());
-    }
-
-    protected function getAppendsParser(): ParameterParser
-    {
-        return $this->appendsParser ??= new ParameterParser($this->config->getAppendsSeparator());
+        return $this->parsers[$type] ??= new ParameterParser(
+            match ($type) {
+                'includes' => $this->config->getIncludesSeparator(),
+                'sorts' => $this->config->getSortsSeparator(),
+                'fields' => $this->config->getFieldsSeparator(),
+                'appends' => $this->config->getAppendsSeparator(),
+                default => throw new \InvalidArgumentException("Unsupported parser type [{$type}]."),
+            }
+        );
     }
 
     protected function getFilterTransformer(): FilterValueTransformer
@@ -248,18 +227,8 @@ class QueryParametersManager
      */
     public function getFields(): Collection
     {
-        if ($this->fields instanceof Collection) {
-            return $this->fields;
-        }
-
-        $fieldsParameterName = $this->config->getFieldsParameterName();
-        $rawValue = $fieldsParameterName ? $this->getRequestData($fieldsParameterName) : null;
-
-        $parsed = $this->getFieldsParser()->parseFields($rawValue);
-        $this->fields = $this->convertFieldsCollection($parsed);
-
         /** @var Collection<string, array<string>> */
-        return $this->fields;
+        return $this->readSimpleParameter('fields');
     }
 
     /**
@@ -267,18 +236,8 @@ class QueryParametersManager
      */
     public function getAppends(): Collection
     {
-        if ($this->appends instanceof Collection) {
-            return $this->appends;
-        }
-
-        $appendsParameterName = $this->config->getAppendsParameterName();
-        $rawValue = $appendsParameterName ? $this->getRequestData($appendsParameterName) : null;
-
-        $parsed = $this->getAppendsParser()->parseFields($rawValue);
-        $this->appends = $this->convertFieldsCollection($parsed);
-
         /** @var Collection<string, array<string>> */
-        return $this->appends;
+        return $this->readSimpleParameter('appends');
     }
 
     /**
@@ -300,7 +259,7 @@ class QueryParametersManager
         }
 
         /** @var Collection<string, mixed> */
-        return $this->filters ?? collect();
+        return $this->filters;
     }
 
     /**
@@ -308,18 +267,8 @@ class QueryParametersManager
      */
     public function getIncludes(): Collection
     {
-        if ($this->includes instanceof Collection) {
-            return $this->includes;
-        }
-
-        $includesParameterName = $this->config->getIncludesParameterName();
-        $rawValue = $includesParameterName ? $this->getRequestData($includesParameterName) : null;
-
-        $parsed = $this->getIncludesParser()->parseList($rawValue);
-        $this->includes = $this->convertListCollection($parsed);
-
         /** @var Collection<int, string> */
-        return $this->includes;
+        return $this->readSimpleParameter('includes');
     }
 
     /**
@@ -327,18 +276,8 @@ class QueryParametersManager
      */
     public function getSorts(): Collection
     {
-        if ($this->sorts instanceof Collection) {
-            return $this->sorts;
-        }
-
-        $sortsParameterName = $this->config->getSortsParameterName();
-        $rawValue = $sortsParameterName ? $this->getRequestData($sortsParameterName) : null;
-
-        $parsed = $this->getSortsParser()->parseSorts($rawValue);
-        $this->sorts = $this->convertSortsCollection($parsed);
-
         /** @var Collection<int, Sort> */
-        return $this->sorts;
+        return $this->readSimpleParameter('sorts');
     }
 
     /**
@@ -346,11 +285,7 @@ class QueryParametersManager
      */
     public function setFieldsParameter(mixed $fieldsParameter): static
     {
-        $parsed = $this->getFieldsParser()->parseFields($fieldsParameter);
-        $this->fields = $this->convertFieldsCollection($parsed);
-        $this->bumpStateVersion();
-
-        return $this;
+        return $this->setSimpleParameter('fields', $fieldsParameter);
     }
 
     /**
@@ -358,11 +293,7 @@ class QueryParametersManager
      */
     public function setAppendsParameter(mixed $appendsParameter): static
     {
-        $parsed = $this->getAppendsParser()->parseFields($appendsParameter);
-        $this->appends = $this->convertFieldsCollection($parsed);
-        $this->bumpStateVersion();
-
-        return $this;
+        return $this->setSimpleParameter('appends', $appendsParameter);
     }
 
     /**
@@ -468,11 +399,7 @@ class QueryParametersManager
      */
     public function setIncludesParameter(mixed $includesParameter): static
     {
-        $parsed = $this->getIncludesParser()->parseList($includesParameter);
-        $this->includes = $this->convertListCollection($parsed);
-        $this->bumpStateVersion();
-
-        return $this;
+        return $this->setSimpleParameter('includes', $includesParameter);
     }
 
     /**
@@ -480,11 +407,7 @@ class QueryParametersManager
      */
     public function setSortsParameter(mixed $sortsParameter): static
     {
-        $parsed = $this->getSortsParser()->parseSorts($sortsParameter);
-        $this->sorts = $this->convertSortsCollection($parsed);
-        $this->bumpStateVersion();
-
-        return $this;
+        return $this->setSimpleParameter('sorts', $sortsParameter);
     }
 
     /**
@@ -493,15 +416,9 @@ class QueryParametersManager
      */
     public function reset(): static
     {
-        $this->appends = null;
-        $this->fields = null;
         $this->filters = null;
-        $this->includes = null;
-        $this->sorts = null;
-        $this->includesParser = null;
-        $this->sortsParser = null;
-        $this->fieldsParser = null;
-        $this->appendsParser = null;
+        $this->simpleParameterCache = [];
+        $this->parsers = [];
         $this->filterTransformer = null;
         $this->strictBodyPayload = null;
         $this->bumpStateVersion();
@@ -553,6 +470,60 @@ class QueryParametersManager
             : $this->request->request->all();
 
         return $this->strictBodyPayload = $payload;
+    }
+
+    /**
+     * @return Collection<int, string>|Collection<int, Sort>|Collection<string, array<string>>
+     */
+    protected function readSimpleParameter(string $type): Collection
+    {
+        if (isset($this->simpleParameterCache[$type])) {
+            return $this->simpleParameterCache[$type];
+        }
+
+        $parameterName = $this->getParameterName($type);
+        $rawValue = $parameterName ? $this->getRequestData($parameterName) : null;
+
+        return $this->simpleParameterCache[$type] = $this->parseSimpleParameter($type, $rawValue);
+    }
+
+    protected function setSimpleParameter(string $type, mixed $rawValue): static
+    {
+        $this->simpleParameterCache[$type] = $this->parseSimpleParameter($type, $rawValue);
+        $this->bumpStateVersion();
+
+        return $this;
+    }
+
+    protected function getParameterName(string $type): ?string
+    {
+        return match ($type) {
+            'fields' => $this->config->getFieldsParameterName(),
+            'appends' => $this->config->getAppendsParameterName(),
+            'includes' => $this->config->getIncludesParameterName(),
+            'sorts' => $this->config->getSortsParameterName(),
+            'filters' => $this->config->getFiltersParameterName(),
+            default => throw new \InvalidArgumentException("Unsupported parameter type [{$type}]."),
+        };
+    }
+
+    /**
+     * @return Collection<int, string>|Collection<int, Sort>|Collection<string, array<string>>
+     */
+    protected function parseSimpleParameter(string $type, mixed $rawValue): Collection
+    {
+        return match ($type) {
+            'fields', 'appends' => $this->convertFieldsCollection(
+                $this->getParser($type)->parseFields($rawValue)
+            ),
+            'includes' => $this->convertListCollection(
+                $this->getParser($type)->parseList($rawValue)
+            ),
+            'sorts' => $this->convertSortsCollection(
+                $this->getParser($type)->parseSorts($rawValue)
+            ),
+            default => throw new \InvalidArgumentException("Unsupported parameter type [{$type}]."),
+        };
     }
 
     /**

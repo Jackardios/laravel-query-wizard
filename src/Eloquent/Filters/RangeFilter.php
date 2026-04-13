@@ -11,10 +11,6 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
  */
 final class RangeFilter extends AbstractRangeFilter
 {
-    protected string $minKey = 'min';
-
-    protected string $maxKey = 'max';
-
     /**
      * Create a new range filter.
      *

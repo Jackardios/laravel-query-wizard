@@ -4,14 +4,12 @@ namespace Jackardios\QueryWizard\Tests;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Jackardios\QueryWizard\QueryWizardServiceProvider;
-use Jackardios\QueryWizard\Tests\Concerns\AssertsModels;
 use Jackardios\QueryWizard\Tests\Concerns\AssertsQueryLog;
 use Jackardios\QueryWizard\Tests\Concerns\QueryWizardTestingHelpers;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
 {
-    use AssertsModels;
     use AssertsQueryLog;
     use QueryWizardTestingHelpers;
     use RefreshDatabase;
