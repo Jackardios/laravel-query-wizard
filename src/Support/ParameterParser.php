@@ -102,9 +102,18 @@ final class ParameterParser
     public function parseFields(mixed $value): Collection
     {
         if (is_string($value)) {
-            $value = $this->parseFieldsString($value);
+            $value = trim($value) === ''
+                ? ['' => []]
+                : $this->parseFieldsString($value);
         } elseif (is_array($value) && $this->isSequentialArray($value)) {
-            $value = $this->parseFieldsString(implode($this->arraySeparator, $value));
+            $joined = implode($this->arraySeparator, $value);
+            $value = trim($joined) === ''
+                ? ['' => []]
+                : $this->parseFieldsString($joined);
+        }
+
+        if (! is_iterable($value)) {
+            return collect();
         }
 
         /** @var iterable<string, mixed> $value */
@@ -112,12 +121,19 @@ final class ParameterParser
         return collect($value)
             ->map(function ($fields) {
                 if (is_string($fields)) {
+                    if (trim($fields) === '') {
+                        return [];
+                    }
+
                     $fields = $this->splitString($fields);
                 }
 
+                if (! is_iterable($fields)) {
+                    return [];
+                }
+
                 return $this->parseList($fields)->toArray();
-            })
-            ->filter();
+            });
     }
 
     /**

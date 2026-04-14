@@ -276,8 +276,9 @@ trait HandlesSafeRelationSelect
     protected function resolveRequestedAppendRelationPaths(): array
     {
         $paths = [];
-        $requestedAppends = $this->getParametersManager()->getAppends();
-        $useDefaults = $requestedAppends->isEmpty();
+        $parameters = $this->getParametersManager();
+        $requestedAppends = $parameters->getAppends();
+        $useDefaults = ! $parameters->hasSimpleParameter('appends');
 
         $grouped = [];
         if ($useDefaults) {

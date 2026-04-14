@@ -67,7 +67,8 @@ class EloquentQueryWizard extends BaseQueryWizard
     /** @var array<string> */
     private array $safeRootHiddenFields = [];
 
-    private bool $hideAllRootFields = false;
+    /** @var array<string>|null */
+    private ?array $rootVisibleFields = null;
 
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
@@ -338,7 +339,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->appendTree = $this->emptyAppendTree();
         $this->appendTreePrepared = false;
         $this->safeRootHiddenFields = [];
-        $this->hideAllRootFields = false;
+        $this->rootVisibleFields = null;
         parent::invalidateBuild();
     }
 
@@ -352,7 +353,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->appendTree = $this->emptyAppendTree();
         $this->appendTreePrepared = false;
         $this->safeRootHiddenFields = [];
-        $this->hideAllRootFields = false;
+        $this->rootVisibleFields = null;
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
@@ -375,9 +376,14 @@ class EloquentQueryWizard extends BaseQueryWizard
     protected function applyFields(array $fields): void
     {
         $requestedFields = $fields;
+        $this->rootVisibleFields = $requestedFields;
+        $this->safeRootHiddenFields = [];
+
+        if ($this->shouldKeepFullRootSelectForAppends($requestedFields)) {
+            return;
+        }
+
         $fields = $this->applySafeRootFieldRequirements($fields);
-        $this->hideAllRootFields = $requestedFields === [];
-        $this->safeRootHiddenFields = array_values(array_diff($fields, $requestedFields));
 
         if (! empty($fields) && $fields !== ['*']) {
             $qualifiedFields = $this->qualifyColumns($fields);
@@ -493,13 +499,13 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function applySafeRootFieldMaskToResults(mixed $results): void
     {
-        if ($this->hideAllRootFields) {
+        if ($this->rootVisibleFields !== null) {
             if ($results instanceof Model) {
-                $this->hideModelAttributesExcept($results, []);
+                $this->hideModelAttributesExcept($results, $this->rootVisibleFields);
             } else {
                 foreach ($results as $item) {
                     if ($item instanceof Model) {
-                        $this->hideModelAttributesExcept($item, []);
+                        $this->hideModelAttributesExcept($item, $this->rootVisibleFields);
                     }
                 }
             }
@@ -520,6 +526,30 @@ class EloquentQueryWizard extends BaseQueryWizard
                 $item->makeHidden($this->safeRootHiddenFields);
             }
         }
+    }
+
+    /**
+     * Keep a full root select when root accessors may be serialized as appends.
+     *
+     * Root accessor dependencies are opaque, so when a root fieldset is narrowed and the
+     * response will still expose root appends, the safe option is to fetch full attributes
+     * and hide the non-requested fields during post-processing.
+     *
+     * @param  array<string>  $requestedFields
+     */
+    private function shouldKeepFullRootSelectForAppends(array $requestedFields): bool
+    {
+        if ($requestedFields === [] || $requestedFields === ['*']) {
+            return false;
+        }
+
+        if (! empty($this->subject->getModel()->getAppends())) {
+            return true;
+        }
+
+        $this->prepareAppendTree();
+
+        return ! empty($this->appendTree['appends']);
     }
 
     private function ensureChunkByIdColumnSelected(?string $column, ?string $alias): void

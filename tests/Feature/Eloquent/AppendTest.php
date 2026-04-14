@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
+use Jackardios\QueryWizard\Tests\App\Models\AppendModelWithBuiltInAppends;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -205,9 +206,9 @@ class AppendTest extends TestCase
         $models = $this
             ->createEloquentWizardWithAppends('')
             ->allowedAppends('fullname')
+            ->defaultAppends('fullname')
             ->get();
 
-        // Empty append = no appends
         $this->assertFalse(array_key_exists('fullname', $models->first()->toArray()));
     }
 
@@ -817,6 +818,62 @@ class AppendTest extends TestCase
 
         $array = $result->toArray();
         $this->assertArrayHasKey('reversename', $array);
+    }
+
+    #[Test]
+    public function explicit_empty_append_disables_default_appends(): void
+    {
+        $result = $this
+            ->createEloquentWizardWithAppends('')
+            ->allowedAppends('fullname', 'reversename')
+            ->defaultAppends('reversename')
+            ->first();
+
+        $array = $result->toArray();
+        $this->assertArrayNotHasKey('fullname', $array);
+        $this->assertArrayNotHasKey('reversename', $array);
+    }
+
+    #[Test]
+    public function root_append_uses_full_select_when_root_fields_are_narrowed(): void
+    {
+        DB::flushQueryLog();
+
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'fields' => ['appendModel' => 'id'],
+                'append' => 'fullname',
+            ], AppendModel::class)
+            ->allowedFields('id')
+            ->allowedAppends('fullname')
+            ->firstOrFail();
+
+        $array = $result->toArray();
+        $this->assertSame($result->firstname.' '.$result->lastname, $array['fullname']);
+        $this->assertSame([$result->id, $array['fullname']], [$array['id'], $array['fullname']]);
+        $this->assertArrayNotHasKey('firstname', $array);
+        $this->assertArrayNotHasKey('lastname', $array);
+        $this->assertQueryLogContains('select * from "append_models"');
+    }
+
+    #[Test]
+    public function root_model_with_built_in_appends_uses_full_select_when_root_fields_are_narrowed(): void
+    {
+        DB::flushQueryLog();
+
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'fields' => ['appendModelWithBuiltInAppends' => 'id'],
+            ], AppendModelWithBuiltInAppends::class)
+            ->allowedFields('id')
+            ->firstOrFail();
+
+        $array = $result->toArray();
+        $this->assertSame($result->firstname.' '.$result->lastname, $array['fullname']);
+        $this->assertArrayHasKey('id', $array);
+        $this->assertArrayNotHasKey('firstname', $array);
+        $this->assertArrayNotHasKey('lastname', $array);
+        $this->assertQueryLogContains('select * from "append_models"');
     }
 
     // ========== Nested Includes with Aliases Edge Cases ==========

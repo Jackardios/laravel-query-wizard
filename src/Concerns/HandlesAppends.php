@@ -60,9 +60,10 @@ trait HandlesAppends
      */
     protected function getValidRequestedAppendsTree(): array
     {
-        $requestedAppends = $this->getParametersManager()->getAppends();
+        $parameters = $this->getParametersManager();
+        $requestedAppends = $parameters->getAppends();
 
-        $useDefaults = $requestedAppends->isEmpty();
+        $useDefaults = ! $parameters->hasSimpleParameter('appends');
         if ($useDefaults) {
             $grouped = $this->parseDefaultAppendsToGrouped();
         } else {

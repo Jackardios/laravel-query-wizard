@@ -522,10 +522,10 @@ class FieldsTest extends TestCase
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => ''])
             ->allowedFields('id', 'name')
+            ->defaultFields('id', 'name')
             ->get();
 
-        // Empty fields = select all
-        $this->assertNotNull($models->first()->name);
+        $this->assertSame([], $models->first()->toArray());
     }
 
     #[Test]
@@ -860,6 +860,32 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    public function safe_mode_ignores_default_relation_appends_when_append_request_is_explicitly_empty(): void
+    {
+        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
+        DB::flushQueryLog();
+
+        $models = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id,name',
+                    'relatedModels' => 'id',
+                ],
+                'append' => '',
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->allowedAppends('fullname', 'relatedModels.formattedName')
+            ->defaultAppends('relatedModels.formattedName')
+            ->get();
+
+        $this->assertArrayNotHasKey('fullname', $models->first()->toArray());
+        $this->assertArrayNotHasKey('formattedName', $models->first()->relatedModels->first()->toArray());
+        $this->assertQueryLogContains('select "id", "test_model_id" from "related_models"');
+    }
+
+    #[Test]
     public function safe_mode_skips_relation_select_optimization_when_relation_model_has_built_in_appends(): void
     {
         DB::flushQueryLog();
@@ -1053,6 +1079,37 @@ class FieldsTest extends TestCase
 
         // Should use requested field, not defaults
         $this->assertQueryLogContains('select "test_models"."created_at" from "test_models"');
+    }
+
+    #[Test]
+    public function explicit_empty_fields_disable_default_fields(): void
+    {
+        $result = $this
+            ->createEloquentWizardWithFields(['testModel' => ''])
+            ->allowedFields('id', 'name')
+            ->defaultFields('id', 'name')
+            ->firstOrFail();
+
+        $this->assertSame([], $result->toArray());
+    }
+
+    #[Test]
+    public function explicit_empty_relation_fieldset_hides_relation_attributes(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => [
+                    'testModel' => 'id',
+                    'relatedModels' => '',
+                ],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'relatedModels.id', 'relatedModels.name')
+            ->firstOrFail();
+
+        $relatedArray = $result->relatedModels->first()->toArray();
+        $this->assertSame([], $relatedArray);
     }
 
     #[Test]

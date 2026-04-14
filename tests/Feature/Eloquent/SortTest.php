@@ -494,13 +494,13 @@ class SortTest extends TestCase
     #[Test]
     public function it_handles_empty_sort_string(): void
     {
-        $models = $this
+        $this->expectException(InvalidSortQuery::class);
+        $this->expectExceptionMessage('The `sort` parameter must contain at least one sort field when present.');
+
+        $this
             ->createEloquentWizardWithSorts('')
             ->allowedSorts('name')
             ->get();
-
-        // Empty sort, returns all
-        $this->assertCount(5, $models);
     }
 
     #[Test]

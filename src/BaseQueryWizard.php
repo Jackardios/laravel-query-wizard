@@ -529,10 +529,18 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     protected function applySortsToSubject(): void
     {
         $sorts = $this->getEffectiveSorts();
-        $requestedSorts = $this->getParametersManager()->getSorts();
+        $parameters = $this->getParametersManager();
+        $requestedSorts = $parameters->getSorts();
         $defaultSorts = $this->getEffectiveDefaultSorts();
 
-        $usingDefaults = $requestedSorts->isEmpty();
+        $sortRequested = $parameters->hasSimpleParameter('sorts');
+        if ($sortRequested && $requestedSorts->isEmpty()) {
+            throw InvalidSortQuery::invalidFormat(
+                'The `sort` parameter must contain at least one sort field when present.'
+            );
+        }
+
+        $usingDefaults = ! $sortRequested;
         $effectiveSorts = $usingDefaults
             ? collect($defaultSorts)->map(fn ($s) => new Sort($s))
             : $requestedSorts;

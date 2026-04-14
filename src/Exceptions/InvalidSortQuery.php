@@ -19,18 +19,20 @@ class InvalidSortQuery extends InvalidQuery
      * @param  Collection<int, string>  $unknownSorts
      * @param  Collection<int, string>  $allowedSorts
      */
-    public function __construct(Collection $unknownSorts, Collection $allowedSorts)
+    public function __construct(Collection $unknownSorts, Collection $allowedSorts, ?string $message = null)
     {
         $this->unknownSorts = $unknownSorts;
         $this->allowedSorts = $allowedSorts;
 
-        $joinedUnknownSorts = $unknownSorts->implode(', ');
+        if ($message === null) {
+            $joinedUnknownSorts = $unknownSorts->implode(', ');
 
-        if ($allowedSorts->isEmpty()) {
-            $message = "Requested sort(s) `{$joinedUnknownSorts}` are not allowed. No sorts are allowed.";
-        } else {
-            $joinedAllowedSorts = $allowedSorts->implode(', ');
-            $message = "Requested sort(s) `{$joinedUnknownSorts}` are not allowed. Allowed sort(s) are `{$joinedAllowedSorts}`.";
+            if ($allowedSorts->isEmpty()) {
+                $message = "Requested sort(s) `{$joinedUnknownSorts}` are not allowed. No sorts are allowed.";
+            } else {
+                $joinedAllowedSorts = $allowedSorts->implode(', ');
+                $message = "Requested sort(s) `{$joinedUnknownSorts}` are not allowed. Allowed sort(s) are `{$joinedAllowedSorts}`.";
+            }
         }
 
         parent::__construct(Response::HTTP_BAD_REQUEST, $message);
@@ -43,5 +45,16 @@ class InvalidSortQuery extends InvalidQuery
     public static function sortsNotAllowed(Collection $unknownSorts, Collection $allowedSorts): self
     {
         return new self($unknownSorts, $allowedSorts);
+    }
+
+    public static function invalidFormat(?string $details = null): self
+    {
+        $message = 'The `sort` parameter has an invalid format.';
+
+        if ($details !== null && $details !== '') {
+            $message .= ' '.$details;
+        }
+
+        return new self(collect(), collect(), $message);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
@@ -33,6 +34,9 @@ class QueryParametersManager
 
     /** @var array<string, Collection<int, Sort>|Collection<int, string>|Collection<string, array<string>>> */
     protected array $simpleParameterCache = [];
+
+    /** @var array<string, bool> */
+    protected array $simpleParameterPresenceCache = [];
 
     protected int $stateVersion = 0;
 
@@ -281,6 +285,24 @@ class QueryParametersManager
     }
 
     /**
+     * Check whether a top-level simple parameter is present in the raw request payload.
+     *
+     * Presence is tracked separately from parsed emptiness so empty parameters like
+     * ?include= or ?fields[user]= remain distinguishable from complete absence.
+     */
+    public function hasSimpleParameter(string $type): bool
+    {
+        if (array_key_exists($type, $this->simpleParameterPresenceCache)) {
+            return $this->simpleParameterPresenceCache[$type];
+        }
+
+        $parameterName = $this->getParameterName($type);
+
+        return $this->simpleParameterPresenceCache[$type] = $parameterName !== null
+            && $this->hasRequestData($parameterName);
+    }
+
+    /**
      * Set fields parameter manually (for testing or programmatic use).
      */
     public function setFieldsParameter(mixed $fieldsParameter): static
@@ -418,6 +440,7 @@ class QueryParametersManager
     {
         $this->filters = null;
         $this->simpleParameterCache = [];
+        $this->simpleParameterPresenceCache = [];
         $this->parsers = [];
         $this->filterTransformer = null;
         $this->strictBodyPayload = null;
@@ -453,6 +476,22 @@ class QueryParametersManager
     }
 
     /**
+     * Check if the raw request payload contains the given key.
+     */
+    protected function hasRequestData(string $key): bool
+    {
+        if ($this->request === null) {
+            return false;
+        }
+
+        if ($this->config->shouldUseRequestBody()) {
+            return Arr::has($this->getStrictBodyPayload(), $key);
+        }
+
+        return Arr::has($this->request->query(), $key);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function getStrictBodyPayload(): array
@@ -482,13 +521,16 @@ class QueryParametersManager
         }
 
         $parameterName = $this->getParameterName($type);
-        $rawValue = $parameterName ? $this->getRequestData($parameterName) : null;
+        $isPresent = $parameterName !== null && $this->hasRequestData($parameterName);
+        $this->simpleParameterPresenceCache[$type] = $isPresent;
+        $rawValue = $isPresent ? $this->getRequestData($parameterName) : null;
 
         return $this->simpleParameterCache[$type] = $this->parseSimpleParameter($type, $rawValue);
     }
 
     protected function setSimpleParameter(string $type, mixed $rawValue): static
     {
+        $this->simpleParameterPresenceCache[$type] = true;
         $this->simpleParameterCache[$type] = $this->parseSimpleParameter($type, $rawValue);
         $this->bumpStateVersion();
 

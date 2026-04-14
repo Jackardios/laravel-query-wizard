@@ -260,6 +260,15 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
+    public function it_tracks_raw_include_presence_separately_from_parsed_emptiness(): void
+    {
+        $manager = new QueryParametersManager(new Request(['include' => '']));
+
+        $this->assertTrue($manager->hasSimpleParameter('includes'));
+        $this->assertSame([], $manager->getIncludes()->all());
+    }
+
+    #[Test]
     public function it_removes_duplicate_includes(): void
     {
         $request = new Request(['include' => 'posts,comments,posts']);
@@ -348,6 +357,15 @@ class QueryParametersManagerTest extends TestCase
         $sorts = $manager->getSorts();
 
         $this->assertCount(2, $sorts);
+    }
+
+    #[Test]
+    public function it_tracks_raw_sort_presence_separately_from_parsed_emptiness(): void
+    {
+        $manager = new QueryParametersManager(new Request(['sort' => '']));
+
+        $this->assertTrue($manager->hasSimpleParameter('sorts'));
+        $this->assertSame([], $manager->getSorts()->all());
     }
 
     #[Test]
@@ -461,6 +479,26 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
+    public function it_preserves_explicit_empty_root_fields_group(): void
+    {
+        $manager = new QueryParametersManager(new Request(['fields' => '']));
+
+        $this->assertTrue($manager->hasSimpleParameter('fields'));
+        $this->assertSame(['' => []], $manager->getFields()->all());
+    }
+
+    #[Test]
+    public function it_preserves_explicit_empty_resource_fields_group(): void
+    {
+        $manager = new QueryParametersManager(new Request([
+            'fields' => ['users' => ''],
+        ]));
+
+        $this->assertTrue($manager->hasSimpleParameter('fields'));
+        $this->assertSame(['users' => []], $manager->getFields()->all());
+    }
+
+    #[Test]
     public function it_keeps_zero_field_name(): void
     {
         $request = new Request(['fields' => [
@@ -552,6 +590,26 @@ class QueryParametersManagerTest extends TestCase
         $appends = $manager->getAppends();
 
         $this->assertEquals(['posts' => ['fullname', 'formatted']], $appends->all());
+    }
+
+    #[Test]
+    public function it_preserves_explicit_empty_root_appends_group(): void
+    {
+        $manager = new QueryParametersManager(new Request(['append' => '']));
+
+        $this->assertTrue($manager->hasSimpleParameter('appends'));
+        $this->assertSame(['' => []], $manager->getAppends()->all());
+    }
+
+    #[Test]
+    public function it_preserves_explicit_empty_relation_appends_group(): void
+    {
+        $manager = new QueryParametersManager(new Request([
+            'append' => ['posts' => ''],
+        ]));
+
+        $this->assertTrue($manager->hasSimpleParameter('appends'));
+        $this->assertSame(['posts' => []], $manager->getAppends()->all());
     }
 
     #[Test]

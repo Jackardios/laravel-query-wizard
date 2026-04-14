@@ -234,11 +234,13 @@ use Jackardios\QueryWizard\Eloquent\EloquentSort;
 
 EloquentQueryWizard::for(User::class)
     ->allowedSorts('name', 'created_at', EloquentSort::field('email'))
-    ->defaultSorts('-created_at')  // Applied when no sort in request
+    ->defaultSorts('-created_at')  // Applied only when ?sort is absent
     ->get();
 ```
 
 **Request:** `?sort=name` (asc), `?sort=-name` (desc), `?sort=-created_at,name` (multiple)
+
+`?sort=` is treated as an invalid request and throws `InvalidSortQuery`.
 
 ### Available Sort Types
 
@@ -264,11 +266,13 @@ EloquentQueryWizard::for(User::class)
         'postsCount',                          // Count (auto-detected by suffix)
         EloquentInclude::exists('subscription'),
     )
-    ->defaultIncludes('profile')               // Used when ?include is not provided
+    ->defaultIncludes('profile')               // Used only when ?include is absent
     ->get();
 ```
 
 **Request:** `?include=posts,postsCount,subscriptionExists`
+
+`?include=` explicitly disables includes for that request and does not merge defaults.
 
 ### Available Include Types
 
@@ -292,6 +296,8 @@ EloquentQueryWizard::for(User::class)
 ```
 
 **Request:** `?fields[user]=id,name&fields[posts]=id,title` or `?fields=id,name`
+
+`?fields=` means an explicit empty root fieldset. `?fields[posts]=` means an explicit empty fieldset for `posts`.
 
 ### Relation Fields
 
@@ -317,7 +323,7 @@ EloquentQueryWizard::for(Task::class)
 ],
 ```
 
-**Safe mode** (default): Automatically injects foreign keys for eager loading and protects accessors.
+**Safe mode** (default): Automatically injects foreign keys for eager loading and protects relation and root accessors/appends by falling back to a full select when needed.
 
 **Off mode**: No automatic handling — you must include all required FK columns manually.
 
@@ -343,6 +349,18 @@ EloquentQueryWizard::for(User::class)
 ```
 
 **Request:** `?append=full_name,posts.reading_time`
+
+`?append=` explicitly disables appends for that request and does not merge defaults.
+
+## Parameter Semantics
+
+Defaults are applied only when the corresponding parameter is completely absent.
+
+- `?include=` means "include nothing"
+- `?append=` means "append nothing"
+- `?fields=` means "show no root fields"
+- `?fields[relation]=` means "show no fields for that relation"
+- `?sort=` is invalid and throws `InvalidSortQuery`
 
 ## Resource Schemas
 

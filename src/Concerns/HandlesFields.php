@@ -115,11 +115,21 @@ trait HandlesFields
     }
 
     /**
-     * Check if fields request is completely absent (for defaults logic).
+     * Determine whether the current request explicitly targets the root resource fieldset.
+     */
+    protected function hasRequestedFieldsForResource(string $resourceKey): bool
+    {
+        $requestedFields = $this->getParametersManager()->getFields();
+
+        return $requestedFields->has($resourceKey) || $requestedFields->has('');
+    }
+
+    /**
+     * Check if fields request parameter is completely absent (for defaults logic).
      */
     protected function isFieldsRequestEmpty(): bool
     {
-        return $this->getParametersManager()->getFields()->isEmpty();
+        return ! $this->getParametersManager()->hasSimpleParameter('fields');
     }
 
     /**
@@ -225,10 +235,7 @@ trait HandlesFields
                 $fields,
                 static fn (mixed $field): bool => is_string($field) && $field !== ''
             ));
-
-            if (! empty($normalized)) {
-                $result[(string) $requestedKey] = $normalized;
-            }
+            $result[(string) $requestedKey] = $normalized;
         }
 
         return $result;
@@ -321,28 +328,23 @@ trait HandlesFields
     {
         $resourceKey = $this->getResourceKey();
         $requestedFields = $this->getRequestedFieldsForResource($resourceKey);
-        $requestEmpty = $this->isFieldsRequestEmpty();
+        $requestAbsent = $this->isFieldsRequestEmpty();
         $usingDefaults = false;
 
-        if ($requestEmpty) {
+        if ($requestAbsent) {
             $defaultFields = $this->getEffectiveDefaultFields();
             if (! empty($defaultFields)) {
                 $fields = $defaultFields;
-                $requestEmpty = false;
                 $usingDefaults = true;
             } else {
-                $fields = [];
+                return null;
             }
         } else {
+            if (! $this->hasRequestedFieldsForResource($resourceKey)) {
+                return null;
+            }
+
             $fields = $requestedFields;
-        }
-
-        if ($requestEmpty && empty($fields)) {
-            return null;
-        }
-
-        if (empty($fields)) {
-            return null;
         }
 
         $allowedFields = $this->getEffectiveFields();
@@ -358,14 +360,18 @@ trait HandlesFields
         }
 
         if (empty($allowedFields)) {
-            if (! $requestEmpty && ! $this->getConfig()->isInvalidFieldQueryExceptionDisabled()) {
+            if (
+                ! $requestAbsent
+                && $fields !== []
+                && ! $this->getConfig()->isInvalidFieldQueryExceptionDisabled()
+            ) {
                 throw InvalidFieldQuery::fieldsNotAllowed(
                     collect($fields),
                     collect([])
                 );
             }
 
-            return $usingDefaults || $requestEmpty ? null : [];
+            return $requestAbsent ? null : [];
         }
 
         $validFields = [];
@@ -374,7 +380,7 @@ trait HandlesFields
         foreach ($fields as $field) {
             if ($this->isAttributeAllowed('', $field, $allowedFields)) {
                 $validFields[] = $field;
-            } elseif (! $requestEmpty) {
+            } elseif (! $requestAbsent) {
                 $invalidFields[] = $field;
             }
         }
@@ -395,6 +401,6 @@ trait HandlesFields
             return $validFields;
         }
 
-        return $usingDefaults || $requestEmpty ? null : [];
+        return $requestAbsent ? null : [];
     }
 }

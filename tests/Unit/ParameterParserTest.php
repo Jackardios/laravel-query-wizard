@@ -279,7 +279,7 @@ class ParameterParserTest extends TestCase
         ]);
 
         $this->assertTrue($result->has('user'));
-        $this->assertFalse($result->has('post'));
+        $this->assertSame([], $result->get('post'));
     }
 
     #[Test]
@@ -309,7 +309,7 @@ class ParameterParserTest extends TestCase
 
         $result = $parser->parseFields('');
 
-        $this->assertTrue($result->isEmpty());
+        $this->assertSame(['' => []], $result->all());
     }
 
     // ========== Edge Cases ==========

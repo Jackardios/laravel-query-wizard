@@ -259,6 +259,18 @@ class ModelQueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function explicit_empty_include_disables_default_includes_for_model_wizard(): void
+    {
+        $result = $this
+            ->createModelWizardWithIncludes('', $this->model)
+            ->allowedIncludes('relatedModels')
+            ->defaultIncludes('relatedModels')
+            ->process();
+
+        $this->assertFalse($result->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
     public function it_can_disallow_includes(): void
     {
         $this->expectException(InvalidIncludeQuery::class);
@@ -352,6 +364,18 @@ class ModelQueryWizardTest extends TestCase
         $this->assertArrayHasKey('id', $array);
         $this->assertArrayHasKey('name', $array);
         $this->assertArrayHasKey('created_at', $array);
+    }
+
+    #[Test]
+    public function explicit_empty_root_fields_hide_all_root_attributes_for_model_wizard(): void
+    {
+        $result = $this
+            ->createModelWizardWithFields(['testModel' => ''], $this->model)
+            ->allowedFields('id', 'name', 'created_at')
+            ->defaultFields('id', 'name')
+            ->process();
+
+        $this->assertSame([], $result->toArray());
     }
 
     #[Test]
@@ -461,6 +485,20 @@ class ModelQueryWizardTest extends TestCase
             ->process();
 
         $this->assertTrue(array_key_exists('fullname', $result->toArray()));
+    }
+
+    #[Test]
+    public function explicit_empty_append_disables_default_appends_for_model_wizard(): void
+    {
+        $appendModel = AppendModel::factory()->create();
+
+        $result = $this
+            ->createModelWizardWithAppends('', $appendModel)
+            ->allowedAppends('fullname')
+            ->defaultAppends('fullname')
+            ->process();
+
+        $this->assertArrayNotHasKey('fullname', $result->toArray());
     }
 
     #[Test]

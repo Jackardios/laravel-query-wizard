@@ -464,6 +464,18 @@ class IncludeTest extends TestCase
     }
 
     #[Test]
+    public function explicit_empty_include_disables_default_includes(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithIncludes('')
+            ->allowedIncludes('relatedModels')
+            ->defaultIncludes('relatedModels')
+            ->get();
+
+        $this->assertFalse($models->first()->relationLoaded('relatedModels'));
+    }
+
+    #[Test]
     public function it_handles_include_with_trailing_comma(): void
     {
         $models = $this

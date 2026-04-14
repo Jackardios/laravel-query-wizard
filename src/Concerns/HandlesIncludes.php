@@ -94,11 +94,11 @@ trait HandlesIncludes
     }
 
     /**
-     * Check if includes request is completely absent (for defaults logic).
+     * Check if includes request parameter is completely absent (for defaults logic).
      */
     protected function isIncludesRequestEmpty(): bool
     {
-        return $this->getParametersManager()->getIncludes()->isEmpty();
+        return ! $this->getParametersManager()->hasSimpleParameter('includes');
     }
 
     /**
@@ -110,9 +110,10 @@ trait HandlesIncludes
      */
     protected function getMergedRequestedIncludes(): array
     {
-        $requested = $this->getParametersManager()->getIncludes()->all();
+        $parameters = $this->getParametersManager();
+        $requested = $parameters->getIncludes()->all();
 
-        if (! empty($requested)) {
+        if ($parameters->hasSimpleParameter('includes')) {
             return array_values(array_unique($requested));
         }
 

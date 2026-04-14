@@ -18,16 +18,16 @@
 | `disallowedFilters(...$names)` | Remove filters (supports wildcards: `*`, `relation.*`, `relation`) |
 | `allowedSorts(...$sorts)` | Set allowed sorts |
 | `disallowedSorts(...$names)` | Remove sorts (supports wildcards: `*`, `relation.*`, `relation`) |
-| `defaultSorts(...$sorts)` | Set default sorts |
+| `defaultSorts(...$sorts)` | Set default sorts (applied only when `sort` is absent) |
 | `allowedIncludes(...$includes)` | Set allowed includes |
 | `disallowedIncludes(...$names)` | Remove includes (supports wildcards: `*`, `relation.*`, `relation`) |
-| `defaultIncludes(...$names)` | Set default includes (applied only when include param is absent and the names are also allowed by allowlist/schema) |
+| `defaultIncludes(...$names)` | Set default includes (applied only when `include` is absent; `?include=` disables defaults) |
 | `allowedFields(...$fields)` | Set allowed fields (supports wildcards: `*`, `relation.*`) |
 | `disallowedFields(...$names)` | Remove fields (supports wildcards: `*`, `relation.*`, `relation`) |
-| `defaultFields(...$fields)` | Set default fields (applied when ?fields is absent) |
+| `defaultFields(...$fields)` | Set default fields (applied only when `fields` is absent; `?fields=` is an explicit empty root fieldset) |
 | `allowedAppends(...$appends)` | Set allowed appends (supports wildcards: `*`, `relation.*`) |
 | `disallowedAppends(...$names)` | Remove appends (supports wildcards: `*`, `relation.*`, `relation`) |
-| `defaultAppends(...$appends)` | Set default appends (applied only when append param is absent and the names are also allowed by allowlist/schema) |
+| `defaultAppends(...$appends)` | Set default appends (applied only when `append` is absent; `?append=` disables defaults) |
 | `tap(callable $callback)` | Add query modification callback |
 
 ### Execution Methods
@@ -64,13 +64,13 @@
 | `schema($schema)` | Set ResourceSchema for configuration |
 | `allowedIncludes(...$includes)` | Set allowed includes |
 | `disallowedIncludes(...$names)` | Remove includes |
-| `defaultIncludes(...$names)` | Set default includes (effective only for names also allowed by allowlist/schema) |
+| `defaultIncludes(...$names)` | Set default includes (effective only when `include` is absent and the names are also allowed by allowlist/schema) |
 | `allowedFields(...$fields)` | Set allowed fields |
 | `disallowedFields(...$names)` | Remove fields |
-| `defaultFields(...$fields)` | Set default fields |
+| `defaultFields(...$fields)` | Set default fields (effective only when `fields` is absent) |
 | `allowedAppends(...$appends)` | Set allowed appends |
 | `disallowedAppends(...$names)` | Remove appends |
-| `defaultAppends(...$appends)` | Set default appends (effective only for names also allowed by allowlist/schema) |
+| `defaultAppends(...$appends)` | Set default appends (effective only when `append` is absent and the names are also allowed by allowlist/schema) |
 
 All configuration methods must be called before `process()`. After processing, create a new `ModelQueryWizard` instance for any different configuration or request parameters.
 
@@ -80,6 +80,15 @@ All configuration methods must be called before `process()`. After processing, c
 |--------|-------------|
 | `process()` | Apply includes, fields, appends and return the model; repeated calls are only safe when configuration and parameters are unchanged |
 | `getModel()` | Get the underlying model instance |
+
+## Parameter Semantics
+
+- Defaults apply only when the corresponding top-level parameter is absent.
+- `?include=` means "include nothing" and does not merge `defaultIncludes()`.
+- `?append=` means "append nothing" and does not merge `defaultAppends()`.
+- `?fields=` means an explicit empty root fieldset.
+- `?fields[relation]=` means an explicit empty fieldset for that relation.
+- `?sort=` is invalid and throws `InvalidSortQuery`.
 
 ## Filter Factory Methods (EloquentFilter)
 
