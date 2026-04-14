@@ -126,6 +126,10 @@ trait HandlesAppends
                 continue;
             }
 
+            if (empty($attributes)) {
+                continue;
+            }
+
             // Validate depth (based on relation path, not alias)
             $depth = substr_count($relationPath, '.') + 2;
             if ($maxDepth !== null && $depth > $maxDepth) {

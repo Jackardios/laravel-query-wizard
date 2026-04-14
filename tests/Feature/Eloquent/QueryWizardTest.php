@@ -645,6 +645,34 @@ class QueryWizardTest extends TestCase
             ->allowedSorts('name');
     }
 
+    #[Test]
+    public function config_after_to_query_throws_logic_exception(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name');
+
+        $wizard->toQuery();
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via toQuery() or getSubject()');
+
+        $wizard->allowedSorts('id');
+    }
+
+    #[Test]
+    public function config_after_get_subject_throws_logic_exception(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name');
+
+        $wizard->getSubject();
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via toQuery() or getSubject()');
+
+        $wizard->allowedSorts('id');
+    }
+
     // ========== Idempotency Tests ==========
     #[Test]
     public function wizard_to_query_is_idempotent(): void

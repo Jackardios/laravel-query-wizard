@@ -555,7 +555,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         }
 
         $details = $filter->validateIncomingValueShape($value);
-        
+
         if ($details !== null) {
             throw InvalidFilterQuery::invalidFormat($details);
         }

@@ -562,6 +562,26 @@ class ModelQueryWizardTest extends TestCase
         $this->assertArrayHasKey('formattedName', $relatedArray);
     }
 
+    #[Test]
+    public function explicit_empty_relation_append_group_is_ignored_for_model_wizard_even_with_strict_depth_limit(): void
+    {
+        config()->set('query-wizard.limits.max_append_depth', 1);
+
+        $modelWithRelations = TestModel::with('relatedModels')->find($this->model->id);
+
+        $result = $this
+            ->createModelWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => ['relatedModels' => ''],
+            ], $modelWithRelations)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->process();
+
+        $this->assertTrue($result->relationLoaded('relatedModels'));
+        $this->assertArrayNotHasKey('formattedName', $result->relatedModels->first()->toArray());
+    }
+
     // ========== Default Includes Validation Tests ==========
 
     #[Test]

@@ -616,6 +616,25 @@ class AppendTest extends TestCase
     }
 
     #[Test]
+    public function explicit_empty_relation_append_group_is_ignored_even_with_strict_depth_limit(): void
+    {
+        config()->set('query-wizard.limits.max_append_depth', 1);
+
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'append' => ['relatedModels' => ''],
+            ], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->firstOrFail();
+
+        $array = $result->toArray();
+        $this->assertArrayHasKey('related_models', $array);
+        $this->assertArrayNotHasKey('formattedName', $array['related_models'][0]);
+    }
+
+    #[Test]
     public function nested_append_works_with_belongs_to_relation(): void
     {
         // Create a RelatedModel with a parent TestModel

@@ -49,6 +49,8 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     private bool $proxyModified = false;
 
+    private bool $subjectEscaped = false;
+
     /** @var array{fields: array<string>, relations: array<string, mixed>} */
     private array $relationFieldTree = [
         'fields' => [],
@@ -317,6 +319,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     public function toQuery(): Builder|Relation
     {
         $this->build();
+        $this->subjectEscaped = true;
 
         return $this->subject;
     }
@@ -328,6 +331,8 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function getSubject(): Builder|Relation
     {
+        $this->subjectEscaped = true;
+
         return $this->subject;
     }
 
@@ -337,6 +342,13 @@ class EloquentQueryWizard extends BaseQueryWizard
             throw new \LogicException(
                 'Cannot modify query wizard configuration after calling query builder methods (e.g. where(), orderBy()). '
                 .'Call all configuration methods (allowedFilters, allowedSorts, etc.) before query builder methods.'
+            );
+        }
+
+        if ($this->subjectEscaped) {
+            throw new \LogicException(
+                'Cannot modify query wizard configuration after retrieving the underlying builder via toQuery() or getSubject(). '
+                .'Those methods expose the live builder, so call all configuration methods before builder access.'
             );
         }
 
@@ -356,6 +368,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         parent::__clone();
         $this->proxyModified = false;
+        $this->subjectEscaped = false;
         $this->resetSafeRelationSelectState();
         $this->relationFieldTree = $this->emptyRelationFieldTree();
         $this->relationFieldTreePrepared = false;

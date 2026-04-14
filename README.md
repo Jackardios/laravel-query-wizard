@@ -140,6 +140,8 @@ EloquentQueryWizard::for(User::where('active', true))
     ->get();
 ```
 
+`toQuery()` and `getSubject()` expose the live underlying builder. Treat them as the point where wizard configuration is finalized, and do not call `allowed*()`, `default*()`, or `schema()` afterwards.
+
 ## Filtering
 
 Filters allow API consumers to narrow down results based on specific criteria.
