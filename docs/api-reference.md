@@ -47,7 +47,7 @@
 | `toQuery()` | Build and return query builder |
 | `getSubject()` | Get underlying query builder |
 | `applyPostProcessingTo($results)` | Apply full post-processing (fields + appends) to results |
-| `getPassthroughFilters()` | Get passthrough filter values |
+| `getPassthroughFilters()` | Get passthrough filter values using the same validation/default/prepare pipeline as normal filter execution |
 
 ## ModelQueryWizard Methods
 
@@ -89,6 +89,7 @@ All configuration methods must be called before `process()`. After processing, c
 - `?fields=` means an explicit empty root fieldset.
 - `?fields[relation]=` means an explicit empty fieldset for that relation.
 - `?sort=` is invalid and throws `InvalidSortQuery`.
+- Active `count` / `exists` includes remain visible even when the root fieldset is empty.
 
 ## Filter Factory Methods (EloquentFilter)
 
@@ -116,7 +117,19 @@ All configuration methods must be called before `process()`. After processing, c
 | `default($value)` | Default value when absent |
 | `prepareValueWith($callback)` | Transform value before applying |
 | `when($callback)` | Conditionally skip filter |
+| `allowStructuredInput()` | Skip raw shape validation and validate only the prepared value shape |
 | `asBoolean()` | Convert 'true'/'1'/'yes' to boolean |
+
+### Built-in Filter Value Shapes
+
+- `exact`, `partial`, `operator`: scalar or flat list of scalars
+- `scope`: single value or flat list without nested arrays
+- `null`, `trashed`: scalar only
+- `range`, `dateRange`: array with boundary keys or a flat list with at least two values
+
+Malformed built-in filter payloads raise `InvalidFilterQuery::invalidFormat(...)`. `disable_invalid_filter_query_exception` does not suppress malformed payload format errors; it only affects unknown filter names.
+
+Use `allowStructuredInput()` when a built-in filter should intentionally accept structured raw input that will be normalized inside `prepareValueWith()`. The prepared value is still validated against the built-in filter's contract before `apply()` runs.
 
 ### Filter-Specific Modifiers
 
@@ -147,3 +160,5 @@ All configuration methods must be called before `process()`. After processing, c
 | `count($relation, $alias)` | Load relationship count |
 | `exists($relation, $alias)` | Check relationship existence (adds boolean attribute) |
 | `callback($name, $callback, $alias)` | Custom callback include |
+
+Count / exists include aliases are request-facing only. The serialized attribute key remains Laravel's default runtime key (for example `posts_count` or `posts_exists`), and those runtime attributes stay visible even when root sparse fieldsets are applied.

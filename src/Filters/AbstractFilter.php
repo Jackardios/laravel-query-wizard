@@ -28,6 +28,8 @@ abstract class AbstractFilter implements FilterInterface
     /** @var (Closure(mixed): bool)|null */
     protected ?Closure $whenCallback = null;
 
+    protected bool $structuredInputAllowed = false;
+
     protected function __construct(
         protected string $property,
         protected ?string $alias = null,
@@ -138,6 +140,65 @@ abstract class AbstractFilter implements FilterInterface
     }
 
     /**
+     * Allow structured raw input that will be normalized by prepareValueWith().
+     *
+     * Built-in filters still validate the prepared value shape before apply().
+     */
+    public function allowStructuredInput(): static
+    {
+        $this->structuredInputAllowed = true;
+
+        return $this;
+    }
+
+    /**
+     * Restore the default behavior and validate raw input shape before preparation.
+     */
+    public function disallowStructuredInput(): static
+    {
+        $this->structuredInputAllowed = false;
+
+        return $this;
+    }
+
+    /**
+     * Validate the raw filter value shape before prepareValue().
+     *
+     * Return null when the value shape is acceptable, otherwise return a
+     * human-readable details string for InvalidFilterQuery::invalidFormat().
+     */
+    public function validateIncomingValueShape(mixed $value): ?string
+    {
+        if ($this->structuredInputAllowed) {
+            return null;
+        }
+
+        return $this->validatePreparedValueShape($value);
+    }
+
+    /**
+     * Validate the prepared filter value shape before apply().
+     *
+     * Return null when the value shape is acceptable, otherwise return a
+     * human-readable details string for InvalidFilterQuery::invalidFormat().
+     */
+    public function validatePreparedValueShape(mixed $value): ?string
+    {
+        return $this->validateValueShape($value);
+    }
+
+    /**
+     * Backward-compatible single-stage validation hook.
+     *
+     * Override validatePreparedValueShape() for new implementations when the
+     * prepared value contract differs from the raw input contract.
+     */
+    public function validateValueShape(mixed $value): ?string
+    {
+        return null;
+    }
+
+    /**
      * Treat the filter value as boolean.
      *
      * Converts string values like 'true', 'false', '1', '0', 'yes', 'no'
@@ -150,6 +211,77 @@ abstract class AbstractFilter implements FilterInterface
         return $this->prepareValueWith(
             static fn (mixed $value) => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
         );
+    }
+
+    protected function validateScalarOnlyValueShape(mixed $value): ?string
+    {
+        if ($value === null || is_scalar($value)) {
+            return null;
+        }
+
+        return "Filter `{$this->getName()}` expects a scalar value.";
+    }
+
+    protected function validateScalarOrFlatListValueShape(mixed $value): ?string
+    {
+        if ($value === null || is_scalar($value)) {
+            return null;
+        }
+
+        if (is_array($value) && $this->isFlatScalarList($value)) {
+            return null;
+        }
+
+        return "Filter `{$this->getName()}` expects a scalar value or a flat list of scalar values.";
+    }
+
+    protected function validateNonArrayOrFlatListOfNonArraysValueShape(mixed $value): ?string
+    {
+        if (! is_array($value)) {
+            return null;
+        }
+
+        if ($this->isFlatListWithoutNestedArrays($value)) {
+            return null;
+        }
+
+        return "Filter `{$this->getName()}` expects a single value or a flat list without nested arrays.";
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     */
+    protected function isFlatScalarList(array $value): bool
+    {
+        if (! array_is_list($value)) {
+            return false;
+        }
+
+        foreach ($value as $item) {
+            if ($item !== null && ! is_scalar($item)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     */
+    protected function isFlatListWithoutNestedArrays(array $value): bool
+    {
+        if (! array_is_list($value)) {
+            return false;
+        }
+
+        foreach ($value as $item) {
+            if (is_array($item)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

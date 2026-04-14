@@ -35,6 +35,11 @@ class ExactFilter extends AbstractFilter
         return 'exact';
     }
 
+    public function validateValueShape(mixed $value): ?string
+    {
+        return $this->validateScalarOrFlatListValueShape($value);
+    }
+
     /**
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
      * @return Builder<\Illuminate\Database\Eloquent\Model>

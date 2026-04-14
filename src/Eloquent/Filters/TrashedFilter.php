@@ -30,6 +30,11 @@ final class TrashedFilter extends AbstractFilter
         return 'trashed';
     }
 
+    public function validateValueShape(mixed $value): ?string
+    {
+        return $this->validateScalarOnlyValueShape($value);
+    }
+
     /**
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
      * @param  'with'|'only'|'without'|mixed  $value

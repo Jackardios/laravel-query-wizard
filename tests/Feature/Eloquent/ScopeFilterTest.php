@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -50,6 +51,38 @@ class ScopeFilterTest extends EloquentFilterTestCase
         $models = $this
             ->createEloquentWizardWithFilters(['created_between' => [$from->toDateTimeString(), $to->toDateTimeString()]])
             ->allowedFilters(EloquentFilter::scope('createdBetween')->alias('created_between'))
+            ->get();
+
+        $this->assertTrue($models->contains('id', $model->id));
+        $this->assertNotEmpty($models);
+    }
+
+    #[Test]
+    public function scope_filter_rejects_malformed_nested_payload(): void
+    {
+        $this->expectException(InvalidFilterQuery::class);
+        $this->expectExceptionMessage('Invalid `filter` parameter format');
+
+        $this
+            ->createEloquentWizardWithFilters(['named' => ['foo' => ['bar' => 'Alpha']]])
+            ->allowedFilters(EloquentFilter::scope('named'))
+            ->get();
+    }
+
+    #[Test]
+    public function scope_filter_can_opt_in_to_structured_input_normalization(): void
+    {
+        $model = $this->models->first();
+        $from = $model->created_at->subDay()->toDateTimeString();
+        $to = $model->created_at->addDay()->toDateTimeString();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_between' => ['from' => $from, 'to' => $to]])
+            ->allowedFilters(
+                EloquentFilter::scope('createdBetween')->alias('created_between')
+                    ->allowStructuredInput()
+                    ->prepareValueWith(static fn (array $value): array => [$value['from'] ?? null, $value['to'] ?? null])
+            )
             ->get();
 
         $this->assertTrue($models->contains('id', $model->id));

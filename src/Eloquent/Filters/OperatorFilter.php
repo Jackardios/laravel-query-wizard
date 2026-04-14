@@ -45,6 +45,11 @@ class OperatorFilter extends AbstractFilter
         return 'operator';
     }
 
+    public function validateValueShape(mixed $value): ?string
+    {
+        return $this->validateScalarOrFlatListValueShape($value);
+    }
+
     public function getOperator(): FilterOperator
     {
         return $this->operator;

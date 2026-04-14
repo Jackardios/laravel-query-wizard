@@ -21,6 +21,7 @@ use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
+use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Values\Sort;
 
@@ -411,13 +412,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     {
         $result = collect();
 
-        foreach ($this->getEffectiveFilters() as $name => $filter) {
-            if ($filter->getType() === 'passthrough') {
-                $value = $this->resolveFilterValue($filter);
-
-                if ($value !== null) {
-                    $result[$name] = $filter->prepareValue($value);
-                }
+        foreach ($this->resolvePreparedFilters() as $name => $resolvedFilter) {
+            if ($resolvedFilter['filter']->getType() === 'passthrough') {
+                $result[$name] = $resolvedFilter['value'];
             }
         }
 
@@ -433,31 +430,40 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     protected function applyFiltersToSubject(): void
     {
+        foreach ($this->resolvePreparedFilters() as $resolvedFilter) {
+            $filter = $resolvedFilter['filter'];
+
+            if ($filter->getType() === 'passthrough') {
+                continue;
+            }
+
+            $this->applyFilter($filter, $resolvedFilter['value']);
+        }
+    }
+
+    /**
+     * Resolve, validate, and prepare all current filters.
+     *
+     * @return array<string, array{filter: FilterInterface, value: mixed}>
+     */
+    protected function resolvePreparedFilters(): array
+    {
         $filters = $this->getEffectiveFilters();
         $requestedFilterNames = $this->extractRequestedFilterNames();
 
         $this->validateFiltersLimit(count($requestedFilterNames));
+        $this->validateRequestedFilterNames($requestedFilterNames, array_keys($filters));
 
-        $allowedFilterNames = array_keys($filters);
-        $allowedFilterNamesIndex = array_flip($allowedFilterNames);
+        $resolvedFilters = [];
 
-        foreach ($requestedFilterNames as $filterName) {
-            if (! isset($allowedFilterNamesIndex[$filterName])) {
-                if (! $this->config->isInvalidFilterQueryExceptionDisabled()) {
-                    throw InvalidFilterQuery::filtersNotAllowed(
-                        collect([$filterName]),
-                        collect($allowedFilterNames)
-                    );
-                }
-            }
-        }
-
-        foreach ($filters as $filter) {
+        foreach ($filters as $name => $filter) {
             $value = $this->resolveFilterValue($filter);
 
             if ($value === null) {
                 continue;
             }
+
+            $this->validateIncomingFilterValueShape($filter, $value);
 
             $preparedValue = $filter->prepareValue($value);
 
@@ -465,8 +471,15 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
                 continue;
             }
 
-            $this->applyFilter($filter, $preparedValue);
+            $this->validatePreparedFilterValueShape($filter, $preparedValue);
+
+            $resolvedFilters[$name] = [
+                'filter' => $filter,
+                'value' => $preparedValue,
+            ];
         }
+
+        return $resolvedFilters;
     }
 
     /**
@@ -515,6 +528,50 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     protected function applyFilter(FilterInterface $filter, mixed $preparedValue): void
     {
         $this->subject = $filter->apply($this->subject, $preparedValue);
+    }
+
+    /**
+     * @param  array<int, string>  $requestedFilterNames
+     * @param  array<int, string>  $allowedFilterNames
+     */
+    protected function validateRequestedFilterNames(array $requestedFilterNames, array $allowedFilterNames): void
+    {
+        $allowedFilterNamesIndex = array_flip($allowedFilterNames);
+
+        foreach ($requestedFilterNames as $filterName) {
+            if (! isset($allowedFilterNamesIndex[$filterName]) && ! $this->config->isInvalidFilterQueryExceptionDisabled()) {
+                throw InvalidFilterQuery::filtersNotAllowed(
+                    collect([$filterName]),
+                    collect($allowedFilterNames)
+                );
+            }
+        }
+    }
+
+    protected function validateIncomingFilterValueShape(FilterInterface $filter, mixed $value): void
+    {
+        if (! $filter instanceof AbstractFilter) {
+            return;
+        }
+
+        $details = $filter->validateIncomingValueShape($value);
+        
+        if ($details !== null) {
+            throw InvalidFilterQuery::invalidFormat($details);
+        }
+    }
+
+    protected function validatePreparedFilterValueShape(FilterInterface $filter, mixed $value): void
+    {
+        if (! $filter instanceof AbstractFilter) {
+            return;
+        }
+
+        $details = $filter->validatePreparedValueShape($value);
+
+        if ($details !== null) {
+            throw InvalidFilterQuery::invalidFormat($details);
+        }
     }
 
     /**

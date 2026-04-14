@@ -87,6 +87,11 @@ final class ScopeFilter extends AbstractFilter
         return 'scope';
     }
 
+    public function validatePreparedValueShape(mixed $value): ?string
+    {
+        return $this->validateNonArrayOrFlatListOfNonArraysValueShape($value);
+    }
+
     /**
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
      * @return Builder<\Illuminate\Database\Eloquent\Model>

@@ -188,6 +188,7 @@ EloquentFilter::exact('status')
     ->default('active')                        // Default value when not in request
     ->prepareValueWith(fn($v) => strtolower($v))  // Transform before applying
     ->when(fn($v) => $v !== 'all')             // Skip filter if returns false
+    ->allowStructuredInput()                   // Accept structured raw input, still validate prepared value
     ->asBoolean()                              // Convert 'true'/'1'/'yes' to bool
 ```
 
@@ -211,6 +212,21 @@ EloquentFilter::null('deleted_at')->withInvertedLogic()  // IS NOT NULL
 // Scope filter
 EloquentFilter::scope('byAuthor')->withModelBinding()  // Load model by ID
 ```
+
+### Built-in Filter Payload Validation
+
+Built-in filters validate the shape of their input before `prepareValueWith()` and `apply()` run.
+
+- `exact`, `partial`, `operator`: scalar or flat list of scalars
+- `scope`: single value or flat list without nested arrays
+- `null`, `trashed`: scalar only
+- `range`, `dateRange`: array with boundary keys (`min`/`max`, `from`/`to`) or a flat list with at least two values
+
+Malformed payloads such as `?filter[name][foo][bar]=Alpha` now raise `InvalidFilterQuery::invalidFormat(...)` instead of reaching SQL generation or PHP warnings.
+
+If you intentionally accept structured raw payloads and normalize them in `prepareValueWith()`, opt in with `allowStructuredInput()`. The built-in filter still validates the prepared value shape before applying it to the query.
+
+`disable_invalid_filter_query_exception` only suppresses unknown-filter errors. It does not suppress malformed `filter` payload format errors.
 
 ### Relation Filtering
 
@@ -285,6 +301,8 @@ EloquentQueryWizard::for(User::class)
 
 Includes ending with "Count" or "Exists" are auto-detected as count/exists includes.
 
+When root sparse fieldsets are applied, explicit or default `count` / `exists` includes remain visible in the serialized output. Their request alias stays request-facing only; the runtime attribute key still follows Laravel's default naming (`posts_count`, `posts_exists`).
+
 ## Selecting Fields
 
 Allow sparse fieldsets (JSON:API compatible).
@@ -298,6 +316,8 @@ EloquentQueryWizard::for(User::class)
 **Request:** `?fields[user]=id,name&fields[posts]=id,title` or `?fields=id,name`
 
 `?fields=` means an explicit empty root fieldset. `?fields[posts]=` means an explicit empty fieldset for `posts`.
+
+If a `count` / `exists` include is active, `?fields=` still hides normal root columns but keeps the included runtime attribute visible.
 
 ### Relation Fields
 
@@ -358,7 +378,7 @@ Defaults are applied only when the corresponding parameter is completely absent.
 
 - `?include=` means "include nothing"
 - `?append=` means "append nothing"
-- `?fields=` means "show no root fields"
+- `?fields=` means "show no root fields", except active `count` / `exists` include attributes remain visible
 - `?fields[relation]=` means "show no fields for that relation"
 - `?sort=` is invalid and throws `InvalidSortQuery`
 
@@ -561,6 +581,8 @@ return [
 ```
 
 When `fields.use_allowed_as_default` is enabled and `?fields` is absent, default fields resolve in this order: explicit `defaultFields()` on the wizard, schema `defaultFields()`, then the effective allowed root fields. Relation field allow-lists are not promoted into the root `SELECT`. This only affects default field selection and does not allow arbitrary `?fields[...]` requests when allowed fields are not configured. If no allowed fields are configured, the package keeps its normal behavior: root queries still default to all columns, while explicit `?fields[...]` requests are validated against the configured allow-list.
+
+`getPassthroughFilters()` uses the same filter validation, defaults, `prepareValueWith()`, `when()`, and `max_filters_count` enforcement as normal query execution. Unknown filters still honor `disable_invalid_filter_query_exception`; malformed built-in filter payloads do not.
 
 ## Error Handling
 

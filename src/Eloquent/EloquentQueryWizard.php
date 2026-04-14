@@ -9,6 +9,7 @@ use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -69,6 +70,12 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     /** @var array<string>|null */
     private ?array $rootVisibleFields = null;
+
+    /** @var array<string, string> */
+    private array $runtimeRootAttributeNamesByField = [];
+
+    /** @var array<string> */
+    private array $alwaysVisibleRuntimeRootAttributes = [];
 
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
@@ -340,6 +347,8 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->appendTreePrepared = false;
         $this->safeRootHiddenFields = [];
         $this->rootVisibleFields = null;
+        $this->runtimeRootAttributeNamesByField = [];
+        $this->alwaysVisibleRuntimeRootAttributes = [];
         parent::invalidateBuild();
     }
 
@@ -354,6 +363,8 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->appendTreePrepared = false;
         $this->safeRootHiddenFields = [];
         $this->rootVisibleFields = null;
+        $this->runtimeRootAttributeNamesByField = [];
+        $this->alwaysVisibleRuntimeRootAttributes = [];
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
@@ -376,18 +387,23 @@ class EloquentQueryWizard extends BaseQueryWizard
     protected function applyFields(array $fields): void
     {
         $requestedFields = $fields;
-        $this->rootVisibleFields = $requestedFields;
+        $this->rootVisibleFields = $this->resolveVisibleRootFields($requestedFields);
         $this->safeRootHiddenFields = [];
 
         if ($this->shouldKeepFullRootSelectForAppends($requestedFields)) {
             return;
         }
 
+        $preservedSelectExpressions = $this->collectPreservedSelectExpressions();
+        $preservedSelectAliases = $this->collectPreservedSelectAliases($preservedSelectExpressions);
+
         $fields = $this->applySafeRootFieldRequirements($fields);
+        $fields = $this->excludeRuntimeOnlyRootFieldsFromSelect($fields, $preservedSelectAliases);
 
         if (! empty($fields) && $fields !== ['*']) {
             $qualifiedFields = $this->qualifyColumns($fields);
             $this->subject->select($qualifiedFields);
+            $this->restorePreservedSelectExpressions($preservedSelectExpressions);
         }
     }
 
@@ -411,6 +427,8 @@ class EloquentQueryWizard extends BaseQueryWizard
 
         foreach ($validRequestedIncludes as $includeName) {
             $include = $includesIndex[$includeName];
+
+            $this->registerRuntimeVisibleInclude($includeName, $include);
 
             if ($include->getType() !== 'relationship') {
                 $this->subject = $include->apply($this->subject);
@@ -550,6 +568,173 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->prepareAppendTree();
 
         return ! empty($this->appendTree['appends']);
+    }
+
+    /**
+     * @param  array<string>  $requestedFields
+     * @return array<string>
+     */
+    private function resolveVisibleRootFields(array $requestedFields): array
+    {
+        $visibleFields = [];
+
+        foreach ($requestedFields as $field) {
+            $normalizedField = $this->normalizePublicPath($field);
+
+            if (isset($this->runtimeRootAttributeNamesByField[$normalizedField])) {
+                $visibleFields[] = $this->runtimeRootAttributeNamesByField[$normalizedField];
+
+                continue;
+            }
+
+            $visibleFields[] = $field;
+        }
+
+        return array_values(array_unique(array_merge(
+            $visibleFields,
+            $this->alwaysVisibleRuntimeRootAttributes
+        )));
+    }
+
+    /**
+     * @param  array<string>  $fields
+     * @param  array<string>  $preservedSelectAliases
+     * @return array<string>
+     */
+    private function excludeRuntimeOnlyRootFieldsFromSelect(array $fields, array $preservedSelectAliases): array
+    {
+        if (in_array('*', $fields, true)) {
+            return $fields;
+        }
+
+        $preservedAliasIndex = array_fill_keys($preservedSelectAliases, true);
+        $filteredFields = [];
+
+        foreach ($fields as $field) {
+            $normalizedField = $this->normalizePublicPath($field);
+
+            if (isset($this->runtimeRootAttributeNamesByField[$normalizedField])) {
+                continue;
+            }
+
+            if (isset($preservedAliasIndex[$field])) {
+                continue;
+            }
+
+            $filteredFields[] = $field;
+        }
+
+        return $filteredFields;
+    }
+
+    /**
+     * @return array<int, Expression<float|int|string>|string>
+     */
+    private function collectPreservedSelectExpressions(): array
+    {
+        $preserved = [];
+
+        foreach ($this->subject->getQuery()->columns ?? [] as $column) {
+            if (! $this->shouldPreserveSelectedColumn($column)) {
+                continue;
+            }
+
+            /** @var Expression<float|int|string>|string $column */
+            $preserved[] = $column;
+        }
+
+        return $preserved;
+    }
+
+    /**
+     * @param  array<int, Expression<float|int|string>|string>  $columns
+     * @return array<string>
+     */
+    private function collectPreservedSelectAliases(array $columns): array
+    {
+        $aliases = [];
+
+        foreach ($columns as $column) {
+            $alias = $this->extractSelectedColumnAlias($column);
+
+            if ($alias !== null) {
+                $aliases[] = $alias;
+            }
+        }
+
+        return array_values(array_unique($aliases));
+    }
+
+    /**
+     * @param  array<int, Expression<float|int|string>|string>  $columns
+     */
+    private function restorePreservedSelectExpressions(array $columns): void
+    {
+        foreach ($columns as $column) {
+            $this->subject->addSelect($column);
+        }
+    }
+
+    private function shouldPreserveSelectedColumn(mixed $column): bool
+    {
+        if ($column instanceof Expression) {
+            return true;
+        }
+
+        if (! is_string($column)) {
+            return false;
+        }
+
+        return $this->extractSelectedColumnAlias($column) !== null || str_contains($column, '(');
+    }
+
+    private function extractSelectedColumnAlias(mixed $column): ?string
+    {
+        $sql = $this->stringifySelectedColumn($column);
+
+        if ($sql === null) {
+            return null;
+        }
+
+        if (preg_match('/\bas\s+[`"\\[]?([a-zA-Z0-9_]+)[`"\\]]?\s*$/i', $sql, $matches) !== 1) {
+            return null;
+        }
+
+        return $matches[1];
+    }
+
+    private function stringifySelectedColumn(mixed $column): ?string
+    {
+        if ($column instanceof Expression) {
+            $sql = $column->getValue($this->subject->getQuery()->getGrammar());
+
+            return is_string($sql) ? $sql : null;
+        }
+
+        return is_string($column) ? $column : null;
+    }
+
+    private function registerRuntimeVisibleInclude(string $includeName, IncludeInterface $include): void
+    {
+        if (! in_array($include->getType(), ['count', 'exists'], true)) {
+            return;
+        }
+
+        $runtimeAttribute = $this->resolveRuntimeAttributeNameForInclude($include);
+        $normalizedIncludeName = $this->normalizePublicPath($includeName);
+
+        $this->runtimeRootAttributeNamesByField[$normalizedIncludeName] = $runtimeAttribute;
+
+        if (! in_array($runtimeAttribute, $this->alwaysVisibleRuntimeRootAttributes, true)) {
+            $this->alwaysVisibleRuntimeRootAttributes[] = $runtimeAttribute;
+        }
+    }
+
+    private function resolveRuntimeAttributeNameForInclude(IncludeInterface $include): string
+    {
+        $relation = str_replace('.', '_', Str::snake($include->getRelation()));
+
+        return "{$relation}_{$include->getType()}";
     }
 
     private function ensureChunkByIdColumnSelected(?string $column, ?string $alias): void

@@ -63,6 +63,45 @@ abstract class AbstractRangeFilter extends AbstractFilter
         return $this->applyOnQuery($subject, $value, $this->property);
     }
 
+    public function validateValueShape(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (! is_array($value)) {
+            return $this->invalidRangeValueShapeMessage();
+        }
+
+        if (array_is_list($value)) {
+            if (count($value) < 2) {
+                return $this->invalidRangeValueShapeMessage();
+            }
+
+            foreach ($value as $boundaryValue) {
+                if (is_array($boundaryValue)) {
+                    return $this->invalidRangeValueShapeMessage();
+                }
+            }
+
+            return null;
+        }
+
+        $hasBoundaryKey = false;
+
+        foreach ($value as $key => $boundaryValue) {
+            if ($key === $this->minKey || $key === $this->maxKey) {
+                $hasBoundaryKey = true;
+            }
+
+            if (is_array($boundaryValue)) {
+                return $this->invalidRangeValueShapeMessage();
+            }
+        }
+
+        return $hasBoundaryKey ? null : $this->invalidRangeValueShapeMessage();
+    }
+
     /**
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
      * @param  array<string, mixed>|mixed  $value
@@ -93,5 +132,10 @@ abstract class AbstractRangeFilter extends AbstractFilter
     protected function formatValue(mixed $value): mixed
     {
         return $value;
+    }
+
+    protected function invalidRangeValueShapeMessage(): string
+    {
+        return "Filter `{$this->getName()}` expects an array with `{$this->minKey}`/`{$this->maxKey}` keys or a flat list with at least two values.";
     }
 }

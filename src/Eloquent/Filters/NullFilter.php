@@ -85,6 +85,11 @@ final class NullFilter extends AbstractFilter
         return 'null';
     }
 
+    public function validateValueShape(mixed $value): ?string
+    {
+        return $this->validateScalarOnlyValueShape($value);
+    }
+
     /**
      * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
      * @return Builder<\Illuminate\Database\Eloquent\Model>
