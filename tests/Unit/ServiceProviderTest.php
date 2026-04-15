@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Illuminate\Contracts\Support\DeferrableProvider;
+use Illuminate\Support\ServiceProvider;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\QueryWizardServiceProvider;
@@ -59,7 +61,7 @@ class ServiceProviderTest extends TestCase
     {
         $provider = new QueryWizardServiceProvider($this->app);
 
-        $this->assertInstanceOf(\Illuminate\Contracts\Support\DeferrableProvider::class, $provider);
+        $this->assertInstanceOf(DeferrableProvider::class, $provider);
     }
 
     #[Test]
@@ -71,7 +73,7 @@ class ServiceProviderTest extends TestCase
         $provider->boot();
 
         // Check if config is publishable
-        $paths = \Illuminate\Support\ServiceProvider::pathsToPublish(QueryWizardServiceProvider::class, 'config');
+        $paths = ServiceProvider::pathsToPublish(QueryWizardServiceProvider::class, 'config');
 
         $this->assertNotEmpty($paths);
         $this->assertStringContainsString('query-wizard.php', array_key_first($paths));

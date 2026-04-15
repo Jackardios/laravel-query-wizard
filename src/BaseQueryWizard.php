@@ -21,6 +21,7 @@ use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
+use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Values\Sort;
@@ -581,7 +582,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      * if none requested, and enforces sort count limits.
      *
      * @throws InvalidSortQuery When requested sort is not allowed
-     * @throws \Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded When sort count exceeds configured limit
+     * @throws MaxSortsCountExceeded When sort count exceeds configured limit
      */
     protected function applySortsToSubject(): void
     {

@@ -93,8 +93,8 @@ final class ScopeFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @param  Builder<Model>  $subject
+     * @return Builder<Model>
      *
      * @throws InvalidFilterValue
      * @throws ReflectionException
@@ -126,7 +126,7 @@ final class ScopeFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $queryBuilder
+     * @param  Builder<Model>  $queryBuilder
      * @param  array<int, mixed>  $values
      * @return array<int, mixed>
      *
@@ -167,7 +167,7 @@ final class ScopeFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $queryBuilder
+     * @param  Builder<Model>  $queryBuilder
      * @return array<ReflectionParameter>|null
      */
     protected function getScopeParameters(Builder $queryBuilder, string $scope): ?array

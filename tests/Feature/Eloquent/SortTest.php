@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
+use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -671,13 +672,13 @@ class SortTest extends TestCase
         $modelWithLeast = $this->models->get(2);
 
         // Create related models with different counts
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->count(5)->create([
+        RelatedModel::factory()->count(5)->create([
             'test_model_id' => $modelWithMost->id,
         ]);
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->count(3)->create([
+        RelatedModel::factory()->count(3)->create([
             'test_model_id' => $modelWithMiddle->id,
         ]);
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->count(1)->create([
+        RelatedModel::factory()->count(1)->create([
             'test_model_id' => $modelWithLeast->id,
         ]);
 
@@ -699,10 +700,10 @@ class SortTest extends TestCase
     public function it_can_sort_by_relationship_count_ascending(): void
     {
         // Create related models for only first 2 models
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->count(3)->create([
+        RelatedModel::factory()->count(3)->create([
             'test_model_id' => $this->models->get(0)->id,
         ]);
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->count(1)->create([
+        RelatedModel::factory()->count(1)->create([
             'test_model_id' => $this->models->get(1)->id,
         ]);
 
@@ -732,7 +733,7 @@ class SortTest extends TestCase
     #[Test]
     public function count_sort_does_not_duplicate_with_count_when_already_added_on_builder(): void
     {
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->count(3)->create([
+        RelatedModel::factory()->count(3)->create([
             'test_model_id' => $this->models->get(0)->id,
         ]);
 
@@ -762,15 +763,15 @@ class SortTest extends TestCase
         $modelWithApple = $this->models->get(1);
         $modelWithMango = $this->models->get(2);
 
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->create([
+        RelatedModel::factory()->create([
             'test_model_id' => $modelWithZebra->id,
             'name' => 'Zebra',
         ]);
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->create([
+        RelatedModel::factory()->create([
             'test_model_id' => $modelWithApple->id,
             'name' => 'Apple',
         ]);
-        \Jackardios\QueryWizard\Tests\App\Models\RelatedModel::factory()->create([
+        RelatedModel::factory()->create([
             'test_model_id' => $modelWithMango->id,
             'name' => 'Mango',
         ]);

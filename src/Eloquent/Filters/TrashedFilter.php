@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 
 /**
@@ -36,9 +37,9 @@ final class TrashedFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  Builder<Model>  $subject
      * @param  'with'|'only'|'without'|mixed  $value
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
     {

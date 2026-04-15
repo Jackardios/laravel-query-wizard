@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 
@@ -41,8 +42,8 @@ class ExactFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @param  Builder<Model>  $subject
+     * @return Builder<Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
@@ -54,8 +55,8 @@ class ExactFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @param  Builder<Model>  $builder
+     * @return Builder<Model>
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {

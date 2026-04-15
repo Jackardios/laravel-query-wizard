@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Sorts;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Sorts\AbstractSort;
 
@@ -36,9 +38,9 @@ final class CountSort extends AbstractSort
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  Builder<Model>  $subject
      * @param  'asc'|'desc'  $direction
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<Model>
      */
     public function apply(mixed $subject, string $direction): mixed
     {
@@ -64,7 +66,7 @@ final class CountSort extends AbstractSort
         $suffix = ' as '.$wrappedAlias;
 
         foreach ($subject->getQuery()->columns ?? [] as $column) {
-            if ($column instanceof \Illuminate\Database\Query\Expression) {
+            if ($column instanceof Expression) {
                 $sql = $column->getValue($grammar);
                 if (is_string($sql) && str_ends_with($sql, $suffix)) {
                     return true;

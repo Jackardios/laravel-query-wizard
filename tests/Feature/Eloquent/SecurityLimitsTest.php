@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Facades\Config;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
@@ -84,7 +85,7 @@ class SecurityLimitsTest extends TestCase
         $this
             ->createEloquentWizardWithIncludes('simpleAlias')
             ->allowedIncludes(
-                \Jackardios\QueryWizard\Eloquent\EloquentInclude::relationship('relatedModels.nestedRelatedModels.deepNested', 'simpleAlias')
+                EloquentInclude::relationship('relatedModels.nestedRelatedModels.deepNested', 'simpleAlias')
             )
             ->get();
     }
@@ -98,7 +99,7 @@ class SecurityLimitsTest extends TestCase
         $models = $this
             ->createEloquentWizardWithIncludes('simpleAlias')
             ->allowedIncludes(
-                \Jackardios\QueryWizard\Eloquent\EloquentInclude::relationship('relatedModels.nestedRelatedModels', 'simpleAlias')
+                EloquentInclude::relationship('relatedModels.nestedRelatedModels', 'simpleAlias')
             )
             ->get();
 

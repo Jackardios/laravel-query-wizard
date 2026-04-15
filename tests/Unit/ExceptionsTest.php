@@ -18,6 +18,7 @@ use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ExceptionsTest extends TestCase
 {
@@ -80,7 +81,7 @@ class ExceptionsTest extends TestCase
     {
         $this->assertTrue(is_subclass_of(
             InvalidQuery::class,
-            \Symfony\Component\HttpKernel\Exception\HttpException::class
+            HttpException::class
         ));
     }
 

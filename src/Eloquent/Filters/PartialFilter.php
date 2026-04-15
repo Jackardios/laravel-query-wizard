@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Filter by partial match (LIKE %value%).
@@ -32,8 +33,8 @@ final class PartialFilter extends ExactFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @param  Builder<Model>  $builder
+     * @return Builder<Model>
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {

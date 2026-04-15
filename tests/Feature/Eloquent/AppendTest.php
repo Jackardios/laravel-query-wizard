@@ -6,8 +6,11 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
+use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
+use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModelWithBuiltInAppends;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
@@ -160,19 +163,19 @@ class AppendTest extends TestCase
     #[Test]
     public function it_applies_default_appends_from_schema(): void
     {
-        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        $schema = new class extends ResourceSchema
         {
             public function model(): string
             {
                 return AppendModel::class;
             }
 
-            public function appends(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            public function appends(QueryWizardInterface $wizard): array
             {
                 return ['fullname', 'reversename'];
             }
 
-            public function defaultAppends(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            public function defaultAppends(QueryWizardInterface $wizard): array
             {
                 return ['fullname'];
             }
@@ -603,7 +606,7 @@ class AppendTest extends TestCase
     {
         config()->set('query-wizard.limits.max_append_depth', 1);
 
-        $this->expectException(\Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded::class);
+        $this->expectException(MaxAppendDepthExceeded::class);
 
         $this
             ->createEloquentWizardFromQuery([

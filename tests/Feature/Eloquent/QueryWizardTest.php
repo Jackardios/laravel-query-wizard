@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,8 @@ use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
+use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
@@ -274,7 +277,7 @@ class QueryWizardTest extends TestCase
     #[Test]
     public function wizard_first_or_fail_throws_exception_when_not_found(): void
     {
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ModelNotFoundException::class);
 
         EloquentQueryWizard::for(TestModel::class)
             ->where('id', 99999)
@@ -1038,7 +1041,7 @@ class QueryWizardTest extends TestCase
             'filter' => ['name' => $targetModel->name],
         ]));
 
-        $this->expectException(\Jackardios\QueryWizard\Exceptions\InvalidFilterQuery::class);
+        $this->expectException(InvalidFilterQuery::class);
 
         (new EloquentQueryWizard(TestModel::query(), $params))
             ->allowedFilters('name', 'id')
@@ -1051,7 +1054,7 @@ class QueryWizardTest extends TestCase
     {
         $params = new QueryParametersManager(new Request(['sort' => 'name']));
 
-        $this->expectException(\Jackardios\QueryWizard\Exceptions\InvalidSortQuery::class);
+        $this->expectException(InvalidSortQuery::class);
 
         (new EloquentQueryWizard(TestModel::query(), $params))
             ->allowedSorts('name', 'id')
@@ -1132,7 +1135,7 @@ class QueryWizardTest extends TestCase
 
         // Schema allows 'name' and 'id', but explicit call only allows 'name'
         // So filtering by 'id' should throw exception
-        $this->expectException(\Jackardios\QueryWizard\Exceptions\InvalidFilterQuery::class);
+        $this->expectException(InvalidFilterQuery::class);
 
         (new EloquentQueryWizard(TestModel::query(), $params))
             ->schema($schema)

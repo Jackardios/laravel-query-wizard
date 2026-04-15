@@ -11,6 +11,7 @@ use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
+use Znck\Eloquent\Traits\BelongsToThrough;
 
 #[Group('integration')]
 #[Group('belongs-to-through')]
@@ -24,7 +25,7 @@ class BelongsToThroughIntegrationTest extends TestCase
     {
         parent::setUp();
 
-        if (! trait_exists(\Znck\Eloquent\Traits\BelongsToThrough::class)) {
+        if (! trait_exists(BelongsToThrough::class)) {
             self::markTestSkipped('staudenmeir/belongs-to-through is not installed.');
         }
 

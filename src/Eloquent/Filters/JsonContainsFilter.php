@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 
 /**
@@ -62,9 +63,9 @@ final class JsonContainsFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  Builder<Model>  $subject
      * @param  array|mixed  $value
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
@@ -90,7 +91,7 @@ final class JsonContainsFilter extends AbstractFilter
      * Qualify base column and convert dot notation to JSON arrow notation.
      * e.g., 'meta.roles' becomes 'table.meta->roles'
      *
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  Builder<Model>  $subject
      */
     protected function resolveQualifiedJsonColumn(mixed $subject, string $propertyName): string
     {

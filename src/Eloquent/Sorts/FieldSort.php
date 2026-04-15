@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Sorts;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Sorts\AbstractSort;
 
 /**
@@ -29,9 +30,9 @@ final class FieldSort extends AbstractSort
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  Builder<Model>  $subject
      * @param  'asc'|'desc'  $direction
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<Model>
      */
     public function apply(mixed $subject, string $direction): mixed
     {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
@@ -320,7 +321,7 @@ class OctaneCompatibilityTest extends TestCase
         $result = $wizard->get();
 
         // Result should be a collection, not tied to wizard
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Collection::class, $result);
+        $this->assertInstanceOf(Collection::class, $result);
 
         // Wizard can be unset without affecting result
         unset($wizard);

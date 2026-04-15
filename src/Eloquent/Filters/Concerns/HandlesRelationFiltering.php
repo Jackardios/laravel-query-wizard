@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters\Concerns;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
 
@@ -50,7 +51,7 @@ trait HandlesRelationFiltering
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
+     * @param  Builder<Model>  $builder
      */
     protected function isRelationProperty(Builder $builder, string $property): bool
     {
@@ -73,8 +74,8 @@ trait HandlesRelationFiltering
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @param  Builder<Model>  $builder
+     * @return Builder<Model>
      */
     protected function applyRelationFilter(Builder $builder, string $property, mixed $value): Builder
     {
@@ -92,10 +93,10 @@ trait HandlesRelationFiltering
      * Apply the filter logic on a specific query and column.
      * This method is called both for direct filtering and for relation filtering (inside whereHas).
      *
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder  The query builder
+     * @param  Builder<Model>  $builder  The query builder
      * @param  mixed  $value  The filter value (can be scalar, array, or null)
      * @param  string  $column  The column name to filter on
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<Model>
      */
     abstract protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder;
 }

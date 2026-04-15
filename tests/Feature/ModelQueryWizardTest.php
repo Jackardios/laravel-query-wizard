@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Tests\Feature;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
@@ -15,6 +16,7 @@ use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\QueryParametersManager;
+use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
@@ -60,7 +62,7 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function it_can_be_created_with_for_method(): void
     {
-        $result = \Jackardios\QueryWizard\ModelQueryWizard::for($this->model)
+        $result = ModelQueryWizard::for($this->model)
             ->process();
 
         $this->assertInstanceOf(TestModel::class, $result);
@@ -677,20 +679,20 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function it_can_set_schema_fluently(): void
     {
-        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        $schema = new class extends ResourceSchema
         {
             public function model(): string
             {
                 return TestModel::class;
             }
 
-            public function includes(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            public function includes(QueryWizardInterface $wizard): array
             {
                 return ['relatedModels'];
             }
         };
 
-        $result = \Jackardios\QueryWizard\ModelQueryWizard::for($this->model)
+        $result = ModelQueryWizard::for($this->model)
             ->schema($schema)
             ->process();
 
@@ -701,14 +703,14 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function schema_method_provides_includes_configuration(): void
     {
-        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        $schema = new class extends ResourceSchema
         {
             public function model(): string
             {
                 return TestModel::class;
             }
 
-            public function includes(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            public function includes(QueryWizardInterface $wizard): array
             {
                 return ['relatedModels'];
             }
@@ -727,14 +729,14 @@ class ModelQueryWizardTest extends TestCase
     {
         $appendModel = AppendModel::factory()->create();
 
-        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        $schema = new class extends ResourceSchema
         {
             public function model(): string
             {
                 return AppendModel::class;
             }
 
-            public function appends(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            public function appends(QueryWizardInterface $wizard): array
             {
                 return ['fullname'];
             }
@@ -778,14 +780,14 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function explicit_allowed_includes_override_schema(): void
     {
-        $schema = new class extends \Jackardios\QueryWizard\Schema\ResourceSchema
+        $schema = new class extends ResourceSchema
         {
             public function model(): string
             {
                 return TestModel::class;
             }
 
-            public function includes(\Jackardios\QueryWizard\Contracts\QueryWizardInterface $wizard): array
+            public function includes(QueryWizardInterface $wizard): array
             {
                 return ['relatedModels', 'nestedRelatedModels'];
             }

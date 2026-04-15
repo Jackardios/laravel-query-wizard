@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -114,7 +115,7 @@ class BatchMethodsTest extends TestCase
             ->createEloquentWizardFromQuery([], AppendModel::class)
             ->lazy(3);
 
-        $this->assertInstanceOf(\Illuminate\Support\LazyCollection::class, $result);
+        $this->assertInstanceOf(LazyCollection::class, $result);
     }
 
     // ========== Cursor Tests ==========
@@ -152,7 +153,7 @@ class BatchMethodsTest extends TestCase
             ->createEloquentWizardFromQuery([], AppendModel::class)
             ->cursor();
 
-        $this->assertInstanceOf(\Illuminate\Support\LazyCollection::class, $result);
+        $this->assertInstanceOf(LazyCollection::class, $result);
     }
 
     // ========== ChunkById Tests ==========

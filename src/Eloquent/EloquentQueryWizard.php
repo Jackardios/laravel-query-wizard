@@ -8,6 +8,7 @@ use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Pagination\Cursor;
@@ -33,7 +34,7 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  *
  * Handles list queries with filters, sorts, includes, fields, and appends.
  *
- * @mixin \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>
+ * @mixin Builder<Model>
  *
  * @extends BaseQueryWizard<Builder<Model>|Relation<Model, Model, mixed>>
  *
@@ -156,7 +157,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      *
      * @param  array<int, string>|string  $columns
      *
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException<Model>
+     * @throws ModelNotFoundException<Model>
      */
     public function firstOrFail(array|string $columns = ['*']): Model
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
 use Jackardios\QueryWizard\Eloquent\Filters\Concerns\ParsesRangeValues;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
@@ -50,9 +51,9 @@ abstract class AbstractRangeFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $subject
+     * @param  Builder<Model>  $subject
      * @param  array<string, mixed>|mixed  $value
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<Model>
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
@@ -103,9 +104,9 @@ abstract class AbstractRangeFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $builder
+     * @param  Builder<Model>  $builder
      * @param  array<string, mixed>|mixed  $value
-     * @return Builder<\Illuminate\Database\Eloquent\Model>
+     * @return Builder<Model>
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {

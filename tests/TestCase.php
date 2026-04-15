@@ -2,6 +2,7 @@
 
 namespace Jackardios\QueryWizard\Tests;
 
+use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Jackardios\QueryWizard\QueryWizardServiceProvider;
 use Jackardios\QueryWizard\Tests\Concerns\AssertsQueryLog;
@@ -15,7 +16,7 @@ abstract class TestCase extends Orchestra
     use RefreshDatabase;
 
     /**
-     * @param  \Illuminate\Foundation\Application  $app
+     * @param  Application  $app
      */
     protected function getPackageProviders($app): array
     {
