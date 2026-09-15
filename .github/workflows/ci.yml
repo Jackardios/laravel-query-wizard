@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [main, master, '*.x']
     types: [opened, synchronize, reopened, ready_for_review]
+  # Dependants track this package by dev-master, so a green build here can go
+  # stale without a single commit on either side. Re-run weekly.
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Keyed by event too: without it a push to master shares a group with the
+  # scheduled run on the same ref and cancel-in-progress kills the canary.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -96,6 +103,81 @@ jobs:
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --memory-limit=512M
+
+  downstream-elastic:
+    name: Downstream (elastic-query-wizard)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout laravel-query-wizard
+        uses: actions/checkout@v4
+        with:
+          path: laravel-query-wizard
+
+      - name: Checkout elastic-query-wizard
+        uses: actions/checkout@v4
+        with:
+          repository: jackardios/elastic-query-wizard
+          ref: master
+          path: elastic-query-wizard
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, json
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-downstream-composer-${{ hashFiles('elastic-query-wizard/composer.json') }}
+          restore-keys: ${{ runner.os }}-downstream-composer-
+
+      # elastic-query-wizard requires jackardios/laravel-query-wizard:dev-master.
+      # Resolve that constraint against this checkout instead of Packagist, so the
+      # commit under test is the one the downstream package is compiled against.
+      - name: Resolve the dependency against this checkout
+        working-directory: elastic-query-wizard
+        run: |
+          composer config repositories.laravel-query-wizard \
+            '{"type":"path","url":"../laravel-query-wizard","options":{"symlink":false,"versions":{"jackardios/laravel-query-wizard":"dev-master"}}}'
+
+      - name: Install dependencies
+        working-directory: elastic-query-wizard
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      # Guards against the path repository being silently ignored, which would
+      # turn this job into a second copy of the downstream package's own CI.
+      - name: Confirm the local checkout was used
+        working-directory: elastic-query-wizard
+        run: |
+          php -r '
+            $lock = json_decode(file_get_contents("composer.lock"), true);
+            foreach ($lock["packages"] as $package) {
+                if ($package["name"] !== "jackardios/laravel-query-wizard") {
+                    continue;
+                }
+                $type = $package["dist"]["type"] ?? "?";
+                echo "resolved from: {$type}\n";
+                exit($type === "path" ? 0 : 1);
+            }
+            fwrite(STDERR, "jackardios/laravel-query-wizard is not installed\n");
+            exit(1);
+          '
+
+      - name: Run PHPStan
+        working-directory: elastic-query-wizard
+        run: vendor/bin/phpstan analyse --memory-limit=512M
+
+      # The Unit suite needs no Elasticsearch or MySQL and is what catches a
+      # removed or reshaped base-class method.
+      - name: Run unit tests
+        working-directory: elastic-query-wizard
+        run: vendor/bin/phpunit --testsuite=Unit --colors=always
 
   code-style:
     name: Code Style (Pint)

@@ -23,6 +23,20 @@ final class QueryWizardConfig
         return (string) config(self::CONFIG_PREFIX.'.exists_suffix', 'Exists');
     }
 
+    /**
+     * Resolve the alias suffix an include type appends by default.
+     *
+     * The config key is provided by the include itself (e.g. `count_suffix`), so
+     * this stays generic instead of hard-coding one accessor per include type.
+     */
+    public function getIncludeAliasSuffix(string $configKey, ?string $default = null): string
+    {
+        // Cast rather than type-check: an app that sets the suffix to null is
+        // blanking it on purpose, and must keep getting '' rather than silently
+        // having the default suffix restored.
+        return (string) config(self::CONFIG_PREFIX.'.'.$configKey, $default);
+    }
+
     public function getArrayValueSeparator(): string
     {
         return (string) config(self::CONFIG_PREFIX.'.array_value_separator', ',');

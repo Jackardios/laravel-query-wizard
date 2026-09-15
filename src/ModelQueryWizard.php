@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Concerns\HandlesAppends;
 use Jackardios\QueryWizard\Concerns\HandlesConfiguration;
 use Jackardios\QueryWizard\Concerns\HandlesFields;
@@ -616,10 +615,6 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     public function getResourceKey(): string
     {
-        if ($this->schema !== null) {
-            return $this->normalizePublicName($this->schema->type());
-        }
-
-        return $this->normalizePublicName(Str::camel(class_basename($this->model)));
+        return $this->resolveDefaultResourceKey($this->model);
     }
 }

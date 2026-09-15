@@ -63,7 +63,7 @@ trait HandlesIncludes
 
             $configKey = $include->getSuffixConfigKey();
             $suffix = $configKey !== null
-                ? (string) config('query-wizard.'.$configKey, $include->getDefaultAliasSuffix())
+                ? $this->getConfig()->getIncludeAliasSuffix($configKey, $include->getDefaultAliasSuffix())
                 : null;
             $include = $include->withDefaultAlias($suffix);
 

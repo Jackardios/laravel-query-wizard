@@ -300,16 +300,14 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Build the query and prepare post-processing trees used after execution.
+     * Prepare the relation sparse-fields tree as part of the build.
      *
-     * @return Builder<Model>|Relation<Model, Model, mixed>
+     * Kept inside build() rather than deferred to post-processing so that an
+     * invalid ?fields request still fails before the query is executed.
      */
-    public function build(): mixed
+    protected function finalizeBuild(): void
     {
-        $subject = parent::build();
         $this->prepareRelationFieldData();
-
-        return $subject;
     }
 
     /**
@@ -365,20 +363,21 @@ class EloquentQueryWizard extends BaseQueryWizard
         parent::invalidateBuild();
     }
 
+    /**
+     * Only the taint flags are reset: a fresh clone has not been handed out or
+     * modified through the proxy yet.
+     *
+     * The derived post-processing state (append tree, relation field tree, root
+     * field masks, runtime attribute maps) is left in place. It describes the
+     * subject this clone carries over, and only build() can rebuild it - so
+     * clearing it here would leave a cloned built wizard unable to ever apply
+     * its sparse fieldsets or appends again.
+     */
     public function __clone(): void
     {
         parent::__clone();
         $this->proxyModified = false;
         $this->subjectEscaped = false;
-        $this->resetSafeRelationSelectState();
-        $this->relationFieldTree = $this->emptyRelationFieldTree();
-        $this->relationFieldTreePrepared = false;
-        $this->appendTree = $this->emptyAppendTree();
-        $this->appendTreePrepared = false;
-        $this->safeRootHiddenFields = [];
-        $this->rootVisibleFields = null;
-        $this->runtimeRootAttributeNamesByField = [];
-        $this->alwaysVisibleRuntimeRootAttributes = [];
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
@@ -469,11 +468,7 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     public function getResourceKey(): string
     {
-        if ($this->schema !== null) {
-            return $this->normalizePublicName($this->schema->type());
-        }
-
-        return $this->normalizePublicName(Str::camel(class_basename($this->subject->getModel())));
+        return $this->resolveDefaultResourceKey($this->subject->getModel());
     }
 
     /**

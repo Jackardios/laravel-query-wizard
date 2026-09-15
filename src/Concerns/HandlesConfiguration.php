@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Support\NameConverter;
 
 /**
@@ -64,6 +65,22 @@ trait HandlesConfiguration
         }
 
         return $result;
+    }
+
+    /**
+     * Resolve the default sparse-fieldset resource key.
+     *
+     * The schema type wins when a schema is set, otherwise the model's short class
+     * name is used. The result is always normalized so it lines up with the public
+     * parameter naming convention.
+     *
+     * @param  object|class-string  $model
+     */
+    protected function resolveDefaultResourceKey(object|string $model): string
+    {
+        $type = $this->getSchema()?->type();
+
+        return $this->normalizePublicName($type ?? Str::camel(class_basename($model)));
     }
 
     protected function normalizePublicName(string $name): string

@@ -383,16 +383,29 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         }
 
         $this->applyTapCallbacks();
+        $this->prepareBuild();
         $this->applyFiltersToSubject();
         $this->applySortsToSubject();
         $this->applyIncludesToSubject();
         $this->applyFieldsToSubject();
+        $this->finalizeBuild();
 
         $this->built = true;
         $this->builtScopeSignature = $currentScopeSignature;
 
         return $this->subject;
     }
+
+    /**
+     * Hook invoked after tap callbacks and before any query shaping is applied.
+     */
+    protected function prepareBuild(): void {}
+
+    /**
+     * Hook invoked once query shaping has been applied and before the build is
+     * marked as complete.
+     */
+    protected function finalizeBuild(): void {}
 
     /**
      * Get the underlying subject without building.
@@ -453,26 +466,21 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         $requestedFilterNames = $this->extractRequestedFilterNames();
 
         $this->validateFiltersLimit(count($requestedFilterNames));
-        $this->validateRequestedFilterNames($requestedFilterNames, array_keys($filters));
+        $this->validateRequestedFilterNames($requestedFilterNames, $this->resolveAllowedFilterNames($filters));
 
+        $shadowedFilterNames = $this->resolveShadowedFilterNames($filters);
         $resolvedFilters = [];
 
         foreach ($filters as $name => $filter) {
-            $value = $this->resolveFilterValue($filter);
-
-            if ($value === null) {
+            if (isset($shadowedFilterNames[$name])) {
                 continue;
             }
 
-            $this->validateIncomingFilterValueShape($filter, $value);
-
-            $preparedValue = $filter->prepareValue($value);
+            $preparedValue = $this->resolvePreparedFilterValue($filter);
 
             if ($preparedValue === null) {
                 continue;
             }
-
-            $this->validatePreparedFilterValueShape($filter, $preparedValue);
 
             $resolvedFilters[$name] = [
                 'filter' => $filter,
@@ -481,6 +489,36 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         }
 
         return $resolvedFilters;
+    }
+
+    /**
+     * Resolve, validate and prepare a single filter value.
+     *
+     * Raw value -> incoming shape validation -> prepareValue() -> prepared shape
+     * validation. Returns null when the filter must be skipped.
+     *
+     * Override to support composite filters that resolve their leaves instead of
+     * a single request key.
+     */
+    protected function resolvePreparedFilterValue(FilterInterface $filter): mixed
+    {
+        $value = $this->resolveFilterValue($filter);
+
+        if ($value === null) {
+            return null;
+        }
+
+        $this->validateIncomingFilterValueShape($filter, $value);
+
+        $preparedValue = $filter->prepareValue($value);
+
+        if ($preparedValue === null) {
+            return null;
+        }
+
+        $this->validatePreparedFilterValueShape($filter, $preparedValue);
+
+        return $preparedValue;
     }
 
     /**
@@ -774,11 +812,25 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         return empty($schemaSorts);
     }
 
+    /**
+     * A clone carries the subject forward exactly as it stands.
+     *
+     * The build flag is deliberately left alone. Rebuilding from the pristine
+     * subject would drop anything the caller applied through the builder proxy
+     * (->where(), ->orderBy(), ...), and leaving the flag set while reusing the
+     * built subject would re-apply filters and sorts on top of themselves.
+     * Carrying both across keeps the clone consistent with its source.
+     *
+     * Derived post-processing state describes this same subject, so subclasses
+     * carry it over rather than clearing it - clearing state that only build()
+     * can regenerate is what leaves a cloned wizard permanently incomplete.
+     */
     public function __clone(): void
     {
         if (is_object($this->subject)) {
             $this->subject = clone $this->subject;
         }
+
         if (isset($this->originalSubject) && is_object($this->originalSubject)) {
             $this->originalSubject = clone $this->originalSubject;
         }

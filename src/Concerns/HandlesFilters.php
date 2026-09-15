@@ -71,6 +71,32 @@ trait HandlesFilters
     }
 
     /**
+     * Names accepted as filter keys in the request.
+     *
+     * Override when a filter is composite: a container contributes the names of
+     * its leaves instead of its own name.
+     *
+     * @param  array<string, FilterInterface>  $filters
+     * @return array<int, string>
+     */
+    protected function resolveAllowedFilterNames(array $filters): array
+    {
+        return array_keys($filters);
+    }
+
+    /**
+     * Effective filters whose request key is consumed by another filter and which
+     * therefore must not be applied on their own.
+     *
+     * @param  array<string, FilterInterface>  $filters
+     * @return array<string, true>
+     */
+    protected function resolveShadowedFilterNames(array $filters): array
+    {
+        return [];
+    }
+
+    /**
      * Extract all requested filter names from request.
      *
      * Uses set-based counting to prevent duplicate filter names from being counted multiple times.
@@ -80,7 +106,7 @@ trait HandlesFilters
     protected function extractRequestedFilterNames(): array
     {
         $filters = $this->getEffectiveFilters();
-        $allowedFilterNamesIndex = array_flip(array_keys($filters));
+        $allowedFilterNamesIndex = array_flip($this->resolveAllowedFilterNames($filters));
         /** @var array<string, true> $requestedFilterNamesSet */
         $requestedFilterNamesSet = [];
 

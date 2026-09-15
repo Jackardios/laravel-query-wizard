@@ -19,6 +19,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
+use Jackardios\QueryWizard\Tests\App\Models\AppendModelWithBuiltInAppends;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -734,6 +735,79 @@ class QueryWizardTest extends TestCase
 
         $this->assertCount(5, $cloneModels);
         $this->assertCount(1, $originalModels);
+    }
+
+    #[Test]
+    public function clone_of_a_built_wizard_still_applies_post_processing(): void
+    {
+        AppendModel::factory()->count(2)->create();
+
+        $params = new QueryParametersManager(new Request(['append' => 'fullname']));
+
+        $wizard = (new EloquentQueryWizard(AppendModel::query(), $params))
+            ->allowedAppends('fullname');
+
+        // Build first: this is what used to poison the clone, because __clone()
+        // wiped the append tree while leaving the build flag set.
+        $wizard->build();
+
+        $clone = clone $wizard;
+        $models = $clone->get();
+
+        $this->assertCount(2, $models);
+        $this->assertArrayHasKey('fullname', $models->first()->toArray());
+    }
+
+    #[Test]
+    public function clone_of_a_built_wizard_keeps_the_root_sparse_fieldset_mask(): void
+    {
+        AppendModelWithBuiltInAppends::factory()->count(2)->create();
+
+        $params = new QueryParametersManager(new Request(['fields' => 'firstname']));
+
+        // A model with built-in $appends forces a full root SELECT, so the sparse
+        // fieldset is enforced by masking during post-processing rather than by the
+        // query itself - which is exactly the state __clone() used to discard.
+        $wizard = (new EloquentQueryWizard(AppendModelWithBuiltInAppends::query(), $params))
+            ->allowedFields('firstname', 'lastname');
+
+        $wizard->build();
+
+        $clone = clone $wizard;
+        $row = $clone->get()->first()->toArray();
+
+        $this->assertArrayHasKey('firstname', $row);
+        $this->assertArrayNotHasKey('lastname', $row);
+    }
+
+    #[Test]
+    public function clone_of_a_built_wizard_does_not_reapply_filters(): void
+    {
+        $params = new QueryParametersManager(new Request(['filter' => ['id' => 1]]));
+
+        $wizard = (new EloquentQueryWizard(TestModel::query(), $params))
+            ->allowedFilters('id');
+
+        $wizard->build();
+
+        $clone = clone $wizard;
+
+        $this->assertCount(1, $clone->get());
+        $this->assertSame(1, substr_count($clone->toQuery()->toSql(), '"id" = ?'));
+    }
+
+    #[Test]
+    public function clone_keeps_constraints_applied_through_the_builder_proxy(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)->allowedFilters('name');
+
+        // Goes straight onto the subject via __call(), not through the wizard's
+        // own filter pipeline - a scope applied this way must survive cloning.
+        $wizard->where('id', 12345);
+
+        $clone = clone $wizard;
+
+        $this->assertStringContainsString('"id" = ?', $clone->toSql());
     }
 
     #[Test]
