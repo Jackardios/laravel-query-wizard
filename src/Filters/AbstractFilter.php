@@ -30,6 +30,8 @@ abstract class AbstractFilter implements FilterInterface
 
     protected bool $structuredInputAllowed = false;
 
+    protected bool $splitValues = true;
+
     protected function __construct(
         protected string $property,
         protected ?string $alias = null,
@@ -159,6 +161,33 @@ abstract class AbstractFilter implements FilterInterface
         $this->structuredInputAllowed = false;
 
         return $this;
+    }
+
+    /**
+     * Split string request values by the filters separator (`a,b` → ['a', 'b']).
+     */
+    public function withValueSplitting(): static
+    {
+        $this->splitValues = true;
+
+        return $this;
+    }
+
+    /**
+     * Keep string request values whole, e.g. for free-text search that may contain the separator.
+     *
+     * Lists sent as `?filter[name][]=a&filter[name][]=b` still arrive as arrays.
+     */
+    public function withoutValueSplitting(): static
+    {
+        $this->splitValues = false;
+
+        return $this;
+    }
+
+    public function shouldSplitValues(): bool
+    {
+        return $this->splitValues;
     }
 
     /**

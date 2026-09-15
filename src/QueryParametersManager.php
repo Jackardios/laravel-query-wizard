@@ -32,6 +32,13 @@ class QueryParametersManager
     /** @var Collection<string, mixed>|null */
     protected ?Collection $filters = null;
 
+    /**
+     * Filter values as sent, without separator splitting.
+     *
+     * @var Collection<string, mixed>|null
+     */
+    protected ?Collection $unsplitFilters = null;
+
     /** @var array<string, Collection<int, Sort>|Collection<int, string>|Collection<string, array<string>>> */
     protected array $simpleParameterCache = [];
 
@@ -249,8 +256,29 @@ class QueryParametersManager
      */
     public function getFilters(): Collection
     {
-        if ($this->filters instanceof Collection) {
-            return $this->filters;
+        $this->loadFilters();
+
+        /** @var Collection<string, mixed> */
+        return $this->filters;
+    }
+
+    /**
+     * Filter values as sent, without separator splitting.
+     *
+     * @return Collection<string, mixed>
+     */
+    public function getUnsplitFilters(): Collection
+    {
+        $this->loadFilters();
+
+        /** @var Collection<string, mixed> */
+        return $this->unsplitFilters;
+    }
+
+    protected function loadFilters(): void
+    {
+        if ($this->filters instanceof Collection && $this->unsplitFilters instanceof Collection) {
+            return;
         }
 
         $filtersParameterName = $this->config->getFiltersParameterName();
@@ -258,12 +286,10 @@ class QueryParametersManager
 
         try {
             $this->filters = $this->parseFiltersParameter($rawValue);
+            $this->unsplitFilters = $this->parseFiltersParameter($rawValue, false);
         } catch (\InvalidArgumentException $exception) {
             throw InvalidFilterQuery::invalidFormat($exception->getMessage());
         }
-
-        /** @var Collection<string, mixed> */
-        return $this->filters;
     }
 
     /**
@@ -324,6 +350,7 @@ class QueryParametersManager
     public function setFiltersParameter(mixed $filtersParameter): static
     {
         $this->filters = $this->parseFiltersParameter($filtersParameter);
+        $this->unsplitFilters = $this->parseFiltersParameter($filtersParameter, false);
         $this->bumpStateVersion();
 
         return $this;
@@ -336,11 +363,14 @@ class QueryParametersManager
      * 2. Nested path: filters['some']['foo']['bar']
      * 3. Partial paths: filters['some.foo']['bar'], filters['some']['foo.bar']
      *
+     * With $splitValues = false, string values are returned as sent instead of
+     * being split by the filters separator.
+     *
      * @return mixed The filter value or null if not found
      */
-    public function getFilterValue(string $name): mixed
+    public function getFilterValue(string $name, bool $splitValues = true): mixed
     {
-        $filters = $this->getFilters();
+        $filters = $splitValues ? $this->getFilters() : $this->getUnsplitFilters();
 
         if ($filters->has($name)) {
             return $filters->get($name);
@@ -439,6 +469,7 @@ class QueryParametersManager
     public function reset(): static
     {
         $this->filters = null;
+        $this->unsplitFilters = null;
         $this->simpleParameterCache = [];
         $this->simpleParameterPresenceCache = [];
         $this->parsers = [];
@@ -571,7 +602,7 @@ class QueryParametersManager
     /**
      * @return Collection<string, mixed>
      */
-    protected function parseFiltersParameter(mixed $filtersParameter): Collection
+    protected function parseFiltersParameter(mixed $filtersParameter, bool $splitValues = true): Collection
     {
         if (is_string($filtersParameter)) {
             throw new \InvalidArgumentException(
@@ -581,8 +612,8 @@ class QueryParametersManager
         }
 
         $filtersArray = is_array($filtersParameter) ? $filtersParameter : [];
-        $parsed = collect($filtersArray)->map(function ($value) {
-            return $this->getFilterTransformer()->transform($value);
+        $parsed = collect($filtersArray)->map(function ($value) use ($splitValues) {
+            return $this->getFilterTransformer()->transform($value, $splitValues);
         });
 
         /** @var Collection<string, mixed> */

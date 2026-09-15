@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
  *
  * Handles:
  * - Empty string to null conversion (filter not applied)
- * - Comma-separated string to array conversion
+ * - Comma-separated string to array conversion (unless splitting is disabled)
  * - Recursive array transformation
  */
 final class FilterValueTransformer
@@ -22,15 +22,18 @@ final class FilterValueTransformer
 
     /**
      * Transform a filter value.
+     *
+     * With $split = false, strings are kept whole (only '' becomes null), for
+     * filters whose value is free text that may contain the separator.
      */
-    public function transform(mixed $value): mixed
+    public function transform(mixed $value, bool $split = true): mixed
     {
         if (is_array($value)) {
-            return $this->transformArray($value);
+            return $this->transformArray($value, $split);
         }
 
         if (is_string($value)) {
-            return $this->transformString($value);
+            return $this->transformString($value, $split);
         }
 
         return $value;
@@ -42,11 +45,11 @@ final class FilterValueTransformer
      * @param  array<mixed>  $values
      * @return array<mixed>
      */
-    private function transformArray(array $values): array
+    private function transformArray(array $values, bool $split): array
     {
         $result = [];
         foreach ($values as $key => $value) {
-            $result[$key] = $this->transform($value);
+            $result[$key] = $this->transform($value, $split);
         }
 
         return $result;
@@ -56,16 +59,16 @@ final class FilterValueTransformer
      * Transform a string filter value.
      *
      * - Empty string → null (filter not applied)
-     * - 'a,b,c' → ['a', 'b', 'c']
+     * - 'a,b,c' → ['a', 'b', 'c'] when splitting is enabled
      */
-    private function transformString(string $value): mixed
+    private function transformString(string $value, bool $split): mixed
     {
         if ($value === '') {
             return null;
         }
 
-        if ($this->arraySeparator !== '' && Str::contains($value, $this->arraySeparator)) {
-            return $this->transformArray($this->splitToArray($value));
+        if ($split && $this->arraySeparator !== '' && Str::contains($value, $this->arraySeparator)) {
+            return $this->transformArray($this->splitToArray($value), $split);
         }
 
         return $value;

@@ -217,6 +217,39 @@ class QueryParametersManagerTest extends TestCase
         $this->assertFalse($manager->hasFilter('status'));
     }
 
+    #[Test]
+    public function get_filter_value_keeps_separator_when_splitting_is_disabled(): void
+    {
+        $request = new Request(['filter' => [
+            'title' => 'ЖК (ЗАО, Москва)',
+            'author' => ['name' => 'Doe, John'],
+            'meta.tag' => 'a,b',
+        ]]);
+        $manager = new QueryParametersManager($request);
+
+        $this->assertSame(['ЖК (ЗАО', 'Москва)'], $manager->getFilterValue('title'));
+        $this->assertSame('ЖК (ЗАО, Москва)', $manager->getFilterValue('title', false));
+        $this->assertSame('Doe, John', $manager->getFilterValue('author.name', false));
+        $this->assertSame('a,b', $manager->getFilterValue('meta.tag', false));
+        $this->assertSame('ЖК (ЗАО, Москва)', $manager->getUnsplitFilters()->get('title'));
+    }
+
+    #[Test]
+    public function unsplit_filters_follow_manually_set_parameter_and_reset(): void
+    {
+        $manager = new QueryParametersManager(new Request(['filter' => ['title' => 'from, request']]));
+
+        $manager->setFiltersParameter(['title' => 'manual, value']);
+
+        $this->assertSame(['manual', 'value'], $manager->getFilterValue('title'));
+        $this->assertSame('manual, value', $manager->getFilterValue('title', false));
+
+        $manager->reset();
+
+        $this->assertSame(['from', 'request'], $manager->getFilterValue('title'));
+        $this->assertSame('from, request', $manager->getFilterValue('title', false));
+    }
+
     // ========== Includes Tests ==========
     #[Test]
     public function it_returns_empty_collection_when_no_includes(): void

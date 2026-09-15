@@ -101,6 +101,9 @@ return [
      *
      * Example: Use semicolon for filters to allow commas in filter values:
      *   'separators' => ['filters' => ';']
+     *
+     * To keep commas in a single filter only, call withoutValueSplitting() on it.
+     * Partial filters never split their value.
      */
     'separators' => [
         // 'includes' => ',',

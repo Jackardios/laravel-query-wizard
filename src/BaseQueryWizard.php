@@ -532,7 +532,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         $hasFilterInRequest = $this->getParametersManager()->hasFilter($name);
 
         if ($hasFilterInRequest) {
-            $value = $this->getFilterValueFromRequest($name);
+            $splitValues = ! $filter instanceof AbstractFilter || $filter->shouldSplitValues();
+            $value = $this->getFilterValueFromRequest($name, $splitValues);
 
             if ($value === null && $this->config->shouldApplyFilterDefaultOnNull()) {
                 return $this->getFilterDefault($filter);

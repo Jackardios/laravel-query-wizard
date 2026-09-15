@@ -77,7 +77,7 @@ $wizard->getSubject();                  // Get underlying builder without buildi
 | Type | Factory | Request |
 |------|---------|---------|
 | Exact | `EloquentFilter::exact('col')` | `?filter[col]=value` |
-| Partial | `EloquentFilter::partial('col')` | `?filter[col]=val` (LIKE %val%) |
+| Partial | `EloquentFilter::partial('col')` | `?filter[col]=val` (LIKE %val%, value not split by commas) |
 | Scope | `EloquentFilter::scope('name')` | `?filter[name]=arg` |
 | Trashed | `EloquentFilter::trashed()` | `?filter[trashed]=with\|only` |
 | Null | `EloquentFilter::null('col')` | `?filter[col]=true` (IS NULL) |
@@ -118,6 +118,7 @@ EloquentFilter::exact('status')
     ->prepareValueWith(fn($v) => strtolower($v))
     ->when(fn($value) => $value !== 'all') // Skip if returns false
     ->asBoolean()                         // Convert 'true'/'false'/'1'/'0'/'yes'/'no' to bool
+    ->withoutValueSplitting()             // Keep 'a,b' whole (default for PartialFilter; withValueSplitting() reverts)
 
 // Filter-specific
 ->withoutRelationConstraint()             // ExactFilter, PartialFilter, NullFilter, OperatorFilter

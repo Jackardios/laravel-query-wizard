@@ -168,7 +168,7 @@ EloquentQueryWizard::for(User::class)
 | Type | Factory | Request Example |
 |------|---------|-----------------|
 | Exact | `EloquentFilter::exact('status')` | `?filter[status]=active` |
-| Partial | `EloquentFilter::partial('name')` | `?filter[name]=john` (LIKE %john%) |
+| Partial | `EloquentFilter::partial('name')` | `?filter[name]=john` (LIKE %john%; the value is one phrase, commas included) |
 | Scope | `EloquentFilter::scope('popular')` | `?filter[popular]=5000` |
 | Trashed | `EloquentFilter::trashed()` | `?filter[trashed]=with\|only` |
 | Null | `EloquentFilter::null('deleted_at')` | `?filter[deleted_at]=true` (IS NULL) |
@@ -191,8 +191,13 @@ EloquentFilter::exact('status')
     ->prepareValueWith(fn($v) => strtolower($v))  // Transform before applying
     ->when(fn($v) => $v !== 'all')             // Skip filter if returns false
     ->allowStructuredInput()                   // Accept structured raw input, still validate prepared value
+    ->withoutValueSplitting()                  // Keep 'a,b' as one string instead of ['a', 'b']
     ->asBoolean()                              // Convert 'true'/'1'/'yes' to bool
 ```
+
+String values are split by the filters separator (`?filter[status]=active,pending` → `['active', 'pending']`) for every
+filter except `partial`, whose value is a search phrase. Use `withoutValueSplitting()` / `withValueSplitting()` to change
+that per filter; a list sent as `?filter[name][]=a&filter[name][]=b` always arrives as an array.
 
 **Filter-specific modifiers:**
 

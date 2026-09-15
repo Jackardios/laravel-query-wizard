@@ -152,6 +152,42 @@ class FilterValueTransformerTest extends TestCase
         $this->assertEquals('single_value', $result);
     }
 
+    // ========== Splitting Disabled Tests ==========
+
+    #[Test]
+    public function it_keeps_separator_in_string_when_splitting_is_disabled(): void
+    {
+        $transformer = new FilterValueTransformer;
+
+        $this->assertSame('ЖК (ЗАО, Москва)', $transformer->transform('ЖК (ЗАО, Москва)', false));
+    }
+
+    #[Test]
+    public function it_does_not_trim_string_when_splitting_is_disabled(): void
+    {
+        $transformer = new FilterValueTransformer;
+
+        $this->assertSame(' a , b ', $transformer->transform(' a , b ', false));
+    }
+
+    #[Test]
+    public function it_transforms_empty_string_to_null_when_splitting_is_disabled(): void
+    {
+        $transformer = new FilterValueTransformer;
+
+        $this->assertNull($transformer->transform('', false));
+    }
+
+    #[Test]
+    public function it_transforms_arrays_without_splitting_when_splitting_is_disabled(): void
+    {
+        $transformer = new FilterValueTransformer;
+
+        $result = $transformer->transform(['a,b', '', ['nested' => 'c,d']], false);
+
+        $this->assertSame(['a,b', null, ['nested' => 'c,d']], $result);
+    }
+
     // ========== Array Input Tests ==========
 
     #[Test]

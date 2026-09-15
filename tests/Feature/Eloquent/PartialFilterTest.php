@@ -157,4 +157,70 @@ class PartialFilterTest extends EloquentFilterTestCase
         $this->assertCount(1, $models);
         $this->assertEquals($uniqueModel->id, $models->first()->id);
     }
+
+    #[Test]
+    public function partial_filter_matches_phrase_containing_separator_as_a_whole(): void
+    {
+        // ASCII on purpose: SQLite's LOWER() folds only ASCII letters.
+        $target = TestModel::factory()->create(['name' => 'Screens in Tower (West, Moscow)']);
+        TestModel::factory()->create(['name' => 'Screens in Tower (West']);
+        TestModel::factory()->create(['name' => 'Moscow) only']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'tower (west, moscow)'])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($target->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function partial_filter_splits_by_separator_when_value_splitting_is_enabled(): void
+    {
+        $alpha = TestModel::factory()->create(['name' => 'SplitAlphaName']);
+        $beta = TestModel::factory()->create(['name' => 'SplitBetaName']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'SplitAlpha,SplitBeta'])
+            ->allowedFilters(EloquentFilter::partial('name')->withValueSplitting())
+            ->get();
+
+        $this->assertCount(2, $models);
+        $this->assertTrue($models->contains('id', $alpha->id));
+        $this->assertTrue($models->contains('id', $beta->id));
+    }
+
+    #[Test]
+    public function partial_filter_escapes_escape_character(): void
+    {
+        $target = TestModel::factory()->create(['name' => 'wow!% sale']);
+        TestModel::factory()->create(['name' => 'wow% sale']);
+        TestModel::factory()->create(['name' => 'wow!x sale']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => 'wow!%'])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->get();
+
+        $this->assertCount(1, $models);
+        $this->assertEquals($target->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function partial_filter_sql_keeps_every_placeholder_visible_to_pdo_parsers(): void
+    {
+        // pdo_pgsql rewrites `?` itself and reads `'\'` as an unterminated literal,
+        // hiding the placeholders after it (SQLSTATE[HY093]). SQLite never rewrites
+        // placeholders, so guard the generated SQL instead of relying on the driver.
+        $query = $this
+            ->createEloquentWizardWithFilters(['name' => ['first', 'second', 'third']])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->toQuery();
+
+        $sql = $query->toSql();
+
+        $this->assertStringNotContainsString('\\', $sql);
+        $this->assertSame(count($query->getBindings()), substr_count($sql, '?'));
+    }
 }

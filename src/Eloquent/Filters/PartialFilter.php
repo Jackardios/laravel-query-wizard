@@ -13,9 +13,18 @@ use Illuminate\Database\Eloquent\Model;
  * Case-insensitive search that matches any part of the column value.
  * If all values in array are empty strings or null, the filter
  * silently returns without modifying the query.
+ *
+ * The request value is a search phrase, so it is not split by the filters
+ * separator: `?filter[name]=Moscow, Russia` matches that whole phrase. Pass
+ * a list (`?filter[name][]=a&filter[name][]=b`) to match any of several
+ * phrases, or call withValueSplitting() to restore separator splitting.
  */
 final class PartialFilter extends ExactFilter
 {
+    private const LIKE_ESCAPE_CHARACTER = '!';
+
+    protected bool $splitValues = false;
+
     /**
      * Create a new partial filter.
      *
@@ -43,7 +52,10 @@ final class PartialFilter extends ExactFilter
             ->getGrammar()
             ->wrap($builder->qualifyColumn($column));
 
-        $sql = "LOWER({$wrappedColumn}) LIKE ? ESCAPE '\\'";
+        // A backslash escape character breaks drivers that rewrite `?` placeholders
+        // themselves (pdo_pgsql reads `'\'` as an unterminated literal and hides
+        // every later placeholder), so escape with a character no parser treats specially.
+        $sql = "LOWER({$wrappedColumn}) LIKE ? ESCAPE '".self::LIKE_ESCAPE_CHARACTER."'";
 
         if (is_array($value)) {
             $filteredValues = array_filter($value, static fn ($v): bool => $v !== '' && $v !== null);
@@ -72,10 +84,12 @@ final class PartialFilter extends ExactFilter
      */
     private function escapeLikeValue(string $value): string
     {
-        return str_replace(
-            ['\\', '%', '_'],
-            ['\\\\', '\\%', '\\_'],
-            $value
-        );
+        $escape = self::LIKE_ESCAPE_CHARACTER;
+
+        return strtr($value, [
+            $escape => $escape.$escape,
+            '%' => $escape.'%',
+            '_' => $escape.'_',
+        ]);
     }
 }

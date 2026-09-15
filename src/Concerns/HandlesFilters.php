@@ -65,9 +65,9 @@ trait HandlesFilters
         return $this->cachedEffectiveFilters = $result;
     }
 
-    protected function getFilterValueFromRequest(string $name): mixed
+    protected function getFilterValueFromRequest(string $name, bool $splitValues = true): mixed
     {
-        return $this->getParametersManager()->getFilterValue($name);
+        return $this->getParametersManager()->getFilterValue($name, $splitValues);
     }
 
     /**

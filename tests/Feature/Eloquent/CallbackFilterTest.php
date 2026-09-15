@@ -154,4 +154,38 @@ class CallbackFilterTest extends EloquentFilterTestCase
 
         $this->assertEquals('transform_me', $receivedValue);
     }
+
+    #[Test]
+    public function callback_filter_receives_values_split_by_separator_by_default(): void
+    {
+        $receivedValue = null;
+
+        $this
+            ->createEloquentWizardWithFilters(['custom' => 'first, second'])
+            ->allowedFilters(
+                EloquentFilter::callback('custom', function ($query, $value) use (&$receivedValue) {
+                    $receivedValue = $value;
+                })
+            )
+            ->get();
+
+        $this->assertSame(['first', 'second'], $receivedValue);
+    }
+
+    #[Test]
+    public function callback_filter_receives_whole_value_without_value_splitting(): void
+    {
+        $receivedValue = null;
+
+        $this
+            ->createEloquentWizardWithFilters(['custom' => 'first, second'])
+            ->allowedFilters(
+                EloquentFilter::callback('custom', function ($query, $value) use (&$receivedValue) {
+                    $receivedValue = $value;
+                })->withoutValueSplitting()
+            )
+            ->get();
+
+        $this->assertSame('first, second', $receivedValue);
+    }
 }

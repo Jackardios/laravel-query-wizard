@@ -118,6 +118,7 @@ All configuration methods must be called before `process()`. After processing, c
 | `prepareValueWith($callback)` | Transform value before applying |
 | `when($callback)` | Conditionally skip filter |
 | `allowStructuredInput()` | Skip raw shape validation and validate only the prepared value shape |
+| `withValueSplitting()` / `withoutValueSplitting()` | Split string values by the filters separator, or keep them whole (default: split; `partial` keeps them whole) |
 | `asBoolean()` | Convert 'true'/'1'/'yes' to boolean |
 
 ### Built-in Filter Value Shapes
