@@ -1117,6 +1117,66 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    public function default_fields_apply_when_only_relation_fields_are_requested(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => ['relatedModels' => 'id'],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->defaultFields('id', 'name')
+            ->firstOrFail()
+            ->toArray();
+
+        $this->assertSame(['id', 'name', 'related_models'], array_keys($result));
+        $this->assertSame(['id'], array_keys($result['related_models'][0]));
+    }
+
+    #[Test]
+    public function default_fields_apply_when_the_fields_parameter_is_null(): void
+    {
+        DB::enableQueryLog();
+
+        $this
+            ->createEloquentWizardFromQuery(['fields' => null])
+            ->allowedFields('id', 'name', 'created_at')
+            ->defaultFields('id', 'name')
+            ->get();
+
+        $this->assertQueryLogContains('select "test_models"."id", "test_models"."name" from "test_models"');
+    }
+
+    #[Test]
+    public function default_fields_apply_when_an_ignored_unknown_fieldset_is_requested(): void
+    {
+        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        DB::enableQueryLog();
+
+        $this
+            ->createEloquentWizardWithFields(['unknown' => 'id'])
+            ->allowedFields('id', 'name', 'created_at')
+            ->defaultFields('id', 'name')
+            ->get();
+
+        $this->assertQueryLogContains('select "test_models"."id", "test_models"."name" from "test_models"');
+    }
+
+    #[Test]
+    public function dotted_default_fields_are_rejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Default field `relatedModels.id` names a relation field.');
+
+        $this
+            ->createEloquentWizardFromQuery()
+            ->allowedFields('id', 'relatedModels.id')
+            ->defaultFields('id', 'relatedModels.id')
+            ->get();
+    }
+
+    #[Test]
     public function explicit_empty_fields_disable_default_fields(): void
     {
         $result = $this

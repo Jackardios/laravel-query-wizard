@@ -70,19 +70,22 @@ trait HandlesFields
      * Get effective default fields.
      *
      * When 'fields.use_allowed_as_default' is enabled, falls back to allowed fields
-     * if no explicit defaults are configured.
+     * if no explicit defaults are configured. Default fields belong to the root
+     * resource, so a dotted one is a configuration error.
      *
      * @return array<string>
+     *
+     * @throws \InvalidArgumentException When a default field names a relation field
      */
     protected function getEffectiveDefaultFields(): array
     {
         if ($this->defaultFieldsExplicitlySet) {
-            return $this->normalizePublicPaths($this->defaultFields);
+            return $this->rootDefaultFields($this->defaultFields);
         }
 
         $schemaDefaults = $this->getSchema()?->defaultFields($this);
         if (! empty($schemaDefaults)) {
-            return $this->normalizePublicPaths($schemaDefaults);
+            return $this->rootDefaultFields($schemaDefaults);
         }
 
         if ($this->getConfig()->shouldUseAllowedFieldsAsDefault()) {
@@ -90,6 +93,25 @@ trait HandlesFields
         }
 
         return [];
+    }
+
+    /**
+     * @param  array<string>  $fields
+     * @return array<string>
+     */
+    private function rootDefaultFields(array $fields): array
+    {
+        $fields = $this->normalizePublicPaths($fields);
+
+        foreach ($fields as $field) {
+            if (str_contains($field, '.')) {
+                throw new \InvalidArgumentException(
+                    "Default field `{$field}` names a relation field. Default fields apply to the root resource only."
+                );
+            }
+        }
+
+        return $fields;
     }
 
     /**
@@ -336,6 +358,8 @@ trait HandlesFields
      *
      * Returns validated fields array or null if no field filtering should be applied.
      * Throws InvalidFieldQuery if validation fails and exceptions are enabled.
+     * Without a root fieldset in the request the default fields apply, even
+     * when fieldsets of relations are requested.
      *
      * @return array<string>|null Validated fields or null for no filtering
      *
@@ -344,24 +368,16 @@ trait HandlesFields
     protected function resolveValidatedRootFields(): ?array
     {
         $resourceKey = $this->getResourceKey();
-        $requestedFields = $this->getRequestedFieldsForResource($resourceKey);
-        $requestAbsent = $this->isFieldsRequestEmpty();
-        $usingDefaults = false;
+        $requestAbsent = ! $this->hasRequestedFieldsForResource($resourceKey);
 
         if ($requestAbsent) {
-            $defaultFields = $this->getEffectiveDefaultFields();
-            if (! empty($defaultFields)) {
-                $fields = $defaultFields;
-                $usingDefaults = true;
-            } else {
+            $fields = $this->getEffectiveDefaultFields();
+
+            if ($fields === []) {
                 return null;
             }
         } else {
-            if (! $this->hasRequestedFieldsForResource($resourceKey)) {
-                return null;
-            }
-
-            $fields = $requestedFields;
+            $fields = $this->getRequestedFieldsForResource($resourceKey);
         }
 
         $allowedFields = $this->getEffectiveFields();
