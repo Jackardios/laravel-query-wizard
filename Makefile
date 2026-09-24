@@ -1,4 +1,4 @@
-.PHONY: test unit-test feature-test coverage lint format-check format static-analysis ci test-matrix test-full-matrix install update help build-images
+.PHONY: test unit-test feature-test coverage lint format-check format static-analysis ci ci-full test-matrix test-lowest install update help build-images
 
 .DEFAULT_GOAL := help
 
@@ -10,8 +10,8 @@ CYAN   := \033[36m
 RESET  := \033[0m
 
 # Supported versions for matrix testing
-PHP_VERSIONS := 8.1 8.2 8.3 8.4
-LARAVEL_VERSIONS := 10 11 12
+PHP_VERSIONS := 8.2 8.3 8.4 8.5
+LARAVEL_VERSIONS := 12 13
 
 # Docker image for matrix testing
 DOCKER_IMAGE_PREFIX := laravel-query-wizard-php
@@ -49,24 +49,24 @@ test-matrix: build-images ## Run tests on all PHP/Laravel versions via Docker
 	@passed=0; failed=0; skipped=0; \
 	for php_version in $(PHP_VERSIONS); do \
 		for laravel_version in $(LARAVEL_VERSIONS); do \
-			if [ "$$php_version" = "8.1" ] && [ "$$laravel_version" != "10" ]; then \
-				printf "$(YELLOW)⊘ PHP $$php_version / Laravel $$laravel_version - skipped (Laravel $$laravel_version requires PHP 8.2+)$(RESET)\n"; \
+			if [ "$$php_version" = "8.2" ] && [ "$$laravel_version" = "13" ]; then \
+				printf "$(YELLOW)⊘ PHP $$php_version / Laravel $$laravel_version - skipped (Laravel 13 requires PHP 8.3+)$(RESET)\n"; \
 				skipped=$$((skipped + 1)); \
 				continue; \
 			fi; \
 			printf "\n$(CYAN)▶ PHP $$php_version / Laravel $$laravel_version$(RESET)\n"; \
 			case $$laravel_version in \
-				10) testbench_version=8 ;; \
-				11) testbench_version=9 ;; \
 				12) testbench_version=10 ;; \
+				13) testbench_version=11 ;; \
 			esac; \
 			if docker run --rm \
 				-v "$$(pwd):/src:ro" \
 				-v $(COMPOSER_CACHE_VOLUME):/root/.composer/cache \
 				-w /app \
 				$(DOCKER_IMAGE_PREFIX):$$php_version sh -c "\
-					cp -r /src/. /app/ && \
+					tar -C /src --exclude=./vendor --exclude=./composer.lock --exclude=./.git -cf - . | tar -C /app -xf - && \
 					composer update \
+						--with='laravel/framework:^$$laravel_version.0' \
 						--with='orchestra/testbench:^$$testbench_version.0' \
 						--prefer-dist --no-interaction --no-progress && \
 					vendor/bin/phpunit --colors=always \
@@ -84,6 +84,19 @@ test-matrix: build-images ## Run tests on all PHP/Laravel versions via Docker
 	printf "$(CYAN)════════════════════════════════════════════════════════════$(RESET)\n"; \
 	[ $$failed -eq 0 ]
 
+test-lowest: build-images ## Run tests with the lowest supported dependencies (PHP 8.2 / Laravel 12)
+	@printf "$(YELLOW)→ Running tests with lowest dependencies$(RESET)\n"
+	@docker run --rm \
+		-v "$$(pwd):/src:ro" \
+		-v $(COMPOSER_CACHE_VOLUME):/root/.composer/cache \
+		-w /app \
+		$(DOCKER_IMAGE_PREFIX):8.2 sh -c "\
+			tar -C /src --exclude=./vendor --exclude=./composer.lock --exclude=./.git -cf - . | tar -C /app -xf - && \
+			composer update --prefer-lowest --prefer-stable --prefer-dist --no-interaction --no-progress && \
+			vendor/bin/phpunit --colors=always \
+		"
+	@printf "$(GREEN)✔ Lowest dependencies passed$(RESET)\n"
+
 ##@ Code Quality
 
 lint: format-check static-analysis ## Quick lint check (no tests)
@@ -100,7 +113,7 @@ format: ## Fix code style
 
 static-analysis: ## Run PHPStan static analysis
 	@printf "$(YELLOW)→ Running static analysis$(RESET)\n"
-	@vendor/bin/phpstan analyse --memory-limit=512M
+	@vendor/bin/phpstan analyse --memory-limit=1G
 	@printf "$(GREEN)✔ Static analysis passed$(RESET)\n"
 
 ##@ CI
