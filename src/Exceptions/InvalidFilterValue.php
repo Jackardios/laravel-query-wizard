@@ -56,6 +56,9 @@ class InvalidFilterValue extends InvalidQuery
         if (is_string($value)) {
             return $value;
         }
+        if (is_float($value) && is_nan($value)) {
+            return 'NAN';
+        }
         if (is_scalar($value) || $value === null) {
             return (string) $value;
         }

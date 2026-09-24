@@ -80,6 +80,13 @@ class ExceptionsTest extends TestCase
     }
 
     #[Test]
+    public function invalid_filter_value_formats_non_finite_floats(): void
+    {
+        $this->assertSame('Filter value `NAN` is invalid for filter `price`.', InvalidFilterValue::make(NAN, 'price')->getMessage());
+        $this->assertSame('Filter value `-INF` is invalid for filter `price`.', InvalidFilterValue::make(-INF, 'price')->getMessage());
+    }
+
+    #[Test]
     public function subclasses_built_with_the_http_exception_signature_get_the_default_code(): void
     {
         $exception = new class(422, 'Invalid range.') extends InvalidQuery {};
