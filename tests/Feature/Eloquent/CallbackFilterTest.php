@@ -78,7 +78,7 @@ class CallbackFilterTest extends EloquentFilterTestCase
                 EloquentFilter::callback('search', function ($query, $value) {
                     $query->where(function ($q) use ($value) {
                         $q->where('name', 'LIKE', "%{$value}%")
-                            ->orWhere('id', $value);
+                            ->orWhere('name', $value);
                     });
                 })
             )

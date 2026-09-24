@@ -35,7 +35,7 @@ class JsonContainsFilterTest extends TestCase
 
         $sqlLower = strtolower($sql);
         $this->assertTrue(
-            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each'),
+            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each') || str_contains($sqlLower, '::jsonb @>'),
             "Expected JSON filtering SQL, got: {$sql}"
         );
     }
@@ -50,8 +50,8 @@ class JsonContainsFilterTest extends TestCase
             ->toSql();
 
         $sqlLower = strtolower($sql);
-        // matchAll = AND logic: two separate json_contains/json_each clauses
-        $jsonCount = substr_count($sqlLower, 'json_contains') + substr_count($sqlLower, 'json_each');
+        // matchAll = AND logic: two separate JSON containment clauses
+        $jsonCount = substr_count($sqlLower, 'json_contains') + substr_count($sqlLower, 'json_each') + substr_count($sqlLower, '::jsonb @>');
         $this->assertGreaterThanOrEqual(2, $jsonCount, "Expected at least 2 JSON checks for AND logic, got: {$sql}");
     }
 
@@ -98,7 +98,7 @@ class JsonContainsFilterTest extends TestCase
 
         $sqlLower = strtolower($sql);
         $this->assertTrue(
-            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each'),
+            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each') || str_contains($sqlLower, '::jsonb @>'),
             "Expected JSON filtering SQL, got: {$sql}"
         );
         // The column should reference 'tags', not 'labels'

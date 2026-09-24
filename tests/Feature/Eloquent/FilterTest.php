@@ -328,10 +328,10 @@ class FilterTest extends EloquentFilterTestCase
             ->toQuery()
             ->toSql();
 
-        // SQLite uses json_each, MySQL uses json_contains
+        // SQLite uses json_each, MySQL json_contains, PostgreSQL the jsonb @> operator
         $sqlLower = strtolower($sql);
         $this->assertTrue(
-            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each'),
+            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each') || str_contains($sqlLower, '::jsonb @>'),
             "Expected JSON filtering SQL, got: {$sql}"
         );
     }
@@ -345,10 +345,10 @@ class FilterTest extends EloquentFilterTestCase
             ->toQuery()
             ->toSql();
 
-        // SQLite uses json_each, MySQL uses json_contains
+        // SQLite uses json_each, MySQL json_contains, PostgreSQL the jsonb @> operator
         $sqlLower = strtolower($sql);
         $this->assertTrue(
-            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each'),
+            str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each') || str_contains($sqlLower, '::jsonb @>'),
             "Expected JSON filtering SQL, got: {$sql}"
         );
     }

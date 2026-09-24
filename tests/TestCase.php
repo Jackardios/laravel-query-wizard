@@ -5,6 +5,7 @@ namespace Jackardios\QueryWizard\Tests;
 use Faker\Generator;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\QueryWizardServiceProvider;
 use Jackardios\QueryWizard\Tests\Concerns\AssertsQueryLog;
 use Jackardios\QueryWizard\Tests\Concerns\QueryWizardTestingHelpers;
@@ -38,6 +39,22 @@ abstract class TestCase extends Orchestra
 
         $this->app->make(Generator::class)->seed(20260924);
         $this->forwardDeprecationsToPhpunit();
+        $this->restartPostgresSequences();
+    }
+
+    /**
+     * RefreshDatabase rolls rows back but not PostgreSQL sequences, so ids would
+     * keep growing across tests. SQLite already starts every test at 1.
+     */
+    private function restartPostgresSequences(): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        foreach (DB::select('select sequencename from pg_sequences where schemaname = current_schema()') as $sequence) {
+            DB::statement('alter sequence "'.$sequence->sequencename.'" restart with 1');
+        }
     }
 
     /**

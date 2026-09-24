@@ -332,7 +332,8 @@ class OperatorFilterTest extends EloquentFilterTestCase
             ->toQuery()
             ->toSql();
 
-        $this->assertStringContainsString('"test_models"."name" LIKE ?', $sql);
+        // PostgreSQL casts the column to text for LIKE
+        $this->assertMatchesRegularExpression('/"test_models"\."name"(::text)? LIKE \?/', $sql);
     }
 
     #[Test]

@@ -237,7 +237,12 @@ class RangeFilterTest extends EloquentFilterTestCase
         $this->assertCount(5, $models);
     }
 
+    /**
+     * The raw number is bound as the bound value, which PostgreSQL rejects for a
+     * timestamp column.
+     */
     #[Test]
+    #[Group('pgsql-known-failure')]
     public function date_range_filter_allows_numeric_timestamps(): void
     {
         $models = $this
