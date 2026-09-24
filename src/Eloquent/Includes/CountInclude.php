@@ -23,6 +23,12 @@ final class CountInclude extends AbstractInclude
      */
     public static function make(string $relation, ?string $alias = null): static
     {
+        if (str_contains($relation, '.')) {
+            throw new \InvalidArgumentException(
+                "A count include does not support nested relations (`{$relation}`). Use a callback include instead."
+            );
+        }
+
         return new self($relation, $alias);
     }
 

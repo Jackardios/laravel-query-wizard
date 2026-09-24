@@ -25,6 +25,12 @@ final class ExistsInclude extends AbstractInclude
      */
     public static function make(string $relation, ?string $alias = null): static
     {
+        if (str_contains($relation, '.')) {
+            throw new \InvalidArgumentException(
+                "An exists include does not support nested relations (`{$relation}`). Use a callback include instead."
+            );
+        }
+
         return new self($relation, $alias);
     }
 

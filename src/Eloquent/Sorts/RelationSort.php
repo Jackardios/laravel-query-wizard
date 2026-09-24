@@ -57,6 +57,12 @@ final class RelationSort extends AbstractSort
             );
         }
 
+        if (str_contains($relation, '.')) {
+            throw new \InvalidArgumentException(
+                "A relation sort does not support nested relations (`{$relation}`). Use a callback sort instead."
+            );
+        }
+
         return new self($relation, $column, $aggregate, $alias);
     }
 
@@ -88,10 +94,8 @@ final class RelationSort extends AbstractSort
      */
     public function apply(mixed $subject, string $direction): mixed
     {
-        $aggregateColumn = str_replace('.', '_', Str::snake($this->property)).'_'.$this->aggregate.'_'.$this->column;
+        $aggregateColumn = Str::snake($this->property).'_'.$this->aggregate.'_'.$this->column;
 
-        // Use "relation as alias" syntax to control the aggregate column name,
-        // avoiding mismatch with Laravel's internal naming for nested relations
         $subject->withAggregate("{$this->property} as {$aggregateColumn}", $this->column, $this->aggregate);
         $subject->orderBy($aggregateColumn, $direction);
 

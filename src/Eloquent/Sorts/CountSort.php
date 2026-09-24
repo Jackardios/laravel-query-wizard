@@ -28,6 +28,12 @@ final class CountSort extends AbstractSort
      */
     public static function make(string $relation, ?string $alias = null): static
     {
+        if (str_contains($relation, '.')) {
+            throw new \InvalidArgumentException(
+                "A count sort does not support nested relations (`{$relation}`). Use a callback sort instead."
+            );
+        }
+
         return new self($relation, $alias);
     }
 

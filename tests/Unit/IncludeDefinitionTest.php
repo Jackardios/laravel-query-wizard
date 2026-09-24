@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Closure;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\Includes\CountInclude;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Includes\CallbackInclude;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -156,15 +158,6 @@ class IncludeDefinitionTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_nested_count(): void
-    {
-        $include = EloquentInclude::count('posts.comments');
-
-        $this->assertEquals('posts.comments', $include->getRelation());
-        $this->assertEquals('count', $include->getType());
-    }
-
-    #[Test]
     public function count_include_alias_not_mutated_by_get_effective_includes(): void
     {
         // CountInclude without alias should not have its original mutated
@@ -184,5 +177,36 @@ class IncludeDefinitionTest extends TestCase
         // Clone should have the alias
         $this->assertEquals('postsCount', $cloned->getAlias());
         $this->assertEquals('postsCount', $cloned->getName());
+    }
+
+    #[Test]
+    #[DataProvider('nestedAggregateIncludes')]
+    public function count_and_exists_includes_reject_nested_relations(Closure $make, string $message): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage($message);
+
+        $make();
+    }
+
+    /**
+     * @return array<string, array{Closure, string}>
+     */
+    public static function nestedAggregateIncludes(): array
+    {
+        return [
+            'count' => [
+                fn () => EloquentInclude::count('posts.comments'),
+                'A count include does not support nested relations (`posts.comments`). Use a callback include instead.',
+            ],
+            'exists' => [
+                fn () => EloquentInclude::exists('posts.comments'),
+                'An exists include does not support nested relations (`posts.comments`).',
+            ],
+            'count from a string' => [
+                fn () => RelationshipInclude::fromString('posts.commentsCount', 'Count'),
+                'A count include does not support nested relations (`posts.comments`).',
+            ],
+        ];
     }
 }

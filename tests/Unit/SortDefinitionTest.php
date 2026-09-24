@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Closure;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\RelationSort;
 use Jackardios\QueryWizard\Sorts\CallbackSort;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -167,5 +169,32 @@ class SortDefinitionTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         RelationSort::make('posts', 'created_at', 'max; DROP TABLE users');
+    }
+
+    #[Test]
+    #[DataProvider('nestedAggregateSorts')]
+    public function aggregate_sorts_reject_nested_relations(Closure $make, string $message): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage($message);
+
+        $make();
+    }
+
+    /**
+     * @return array<string, array{Closure, string}>
+     */
+    public static function nestedAggregateSorts(): array
+    {
+        return [
+            'count' => [
+                fn () => EloquentSort::count('posts.comments'),
+                'A count sort does not support nested relations (`posts.comments`). Use a callback sort instead.',
+            ],
+            'relation' => [
+                fn () => EloquentSort::relation('posts.comments', 'votes', 'sum'),
+                'A relation sort does not support nested relations (`posts.comments`).',
+            ],
+        ];
     }
 }
