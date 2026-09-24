@@ -154,6 +154,7 @@ trait HandlesFields
             ? []
             : $this->extractRelationFields($allowedFields);
         $policy = NamePolicy::allowing($allowedFields);
+        $denyPolicy = $this->fieldDenyPolicy();
         $relationFieldMap = [];
 
         foreach ($requestedRelationFields as $requestedKey => $requestedFields) {
@@ -180,28 +181,31 @@ trait HandlesFields
                 $exceptionsDisabled
             );
 
-            if (! $allFieldsAllowed) {
-                $validFields = [];
-                $invalidFields = [];
+            $validFields = [];
+            $invalidFields = [];
+            $disallowedFound = false;
 
-                foreach ($normalizedRequestedFields as $field) {
-                    if ($policy->allowsAttribute($requestedKey, $field)) {
-                        $validFields[] = $field;
-                    } else {
-                        $invalidFields[] = $field;
-                    }
+            foreach ($normalizedRequestedFields as $field) {
+                if (! $allFieldsAllowed && ! $policy->allowsAttribute($requestedKey, $field)) {
+                    $invalidFields[] = $field;
+                } elseif ($this->isFieldTokenDisallowed($denyPolicy, $requestedKey, $field)) {
+                    $invalidFields[] = $field;
+                    $disallowedFound = true;
+                } else {
+                    $validFields[] = $field;
+                }
+            }
+
+            if (! empty($invalidFields)) {
+                if (! $exceptionsDisabled) {
+                    throw $this->fieldsNotAllowed(
+                        $this->prefixGroupFields($requestedKey, $invalidFields),
+                        $allowedRelationFieldList,
+                        $disallowedFound
+                    );
                 }
 
-                if (! empty($invalidFields)) {
-                    if (! $exceptionsDisabled) {
-                        throw InvalidFieldQuery::fieldsNotAllowed(
-                            collect($this->prefixGroupFields($requestedKey, $invalidFields)),
-                            collect($allowedRelationFieldList),
-                        );
-                    }
-
-                    $normalizedRequestedFields = $validFields;
-                }
+                $normalizedRequestedFields = $validFields;
             }
 
             if (in_array('*', $normalizedRequestedFields, true)) {
@@ -359,32 +363,25 @@ trait HandlesFields
         }
 
         $allowedFields = $this->getEffectiveFields();
+        $exceptionsDisabled = $this->getConfig()->isInvalidFieldQueryExceptionDisabled();
+        $policy = NamePolicy::allowing($allowedFields);
+        $denyPolicy = $this->fieldDenyPolicy();
 
         if (! $requestAbsent) {
             $fields = $this->withoutMalformedFieldTokens(
                 $fields,
                 $allowedFields,
-                NamePolicy::allowing($allowedFields),
+                $policy,
                 '',
-                $this->getConfig()->isInvalidFieldQueryExceptionDisabled()
+                $exceptionsDisabled
             );
-        }
-
-        // Global wildcard in allowed - permit any requested fields
-        if (in_array('*', $allowedFields, true)) {
-            // If client requested '*', return null (all fields)
-            if (in_array('*', $fields, true)) {
-                return null;
-            }
-
-            return $fields;
         }
 
         if (empty($allowedFields)) {
             if (
                 ! $requestAbsent
                 && $fields !== []
-                && ! $this->getConfig()->isInvalidFieldQueryExceptionDisabled()
+                && ! $exceptionsDisabled
             ) {
                 throw InvalidFieldQuery::fieldsNotAllowed(
                     collect($fields),
@@ -395,23 +392,27 @@ trait HandlesFields
             return $requestAbsent ? null : [];
         }
 
-        $policy = NamePolicy::allowing($allowedFields);
         $validFields = [];
         $invalidFields = [];
+        $disallowedFound = false;
 
         foreach ($fields as $field) {
-            if ($policy->allowsAttribute('', $field)) {
+            if (! $policy->allowsAttribute('', $field)) {
+                if (! $requestAbsent) {
+                    $invalidFields[] = $field;
+                }
+            } elseif ($this->isFieldTokenDisallowed($denyPolicy, '', $field)) {
+                if (! $requestAbsent) {
+                    $invalidFields[] = $field;
+                    $disallowedFound = true;
+                }
+            } else {
                 $validFields[] = $field;
-            } elseif (! $requestAbsent) {
-                $invalidFields[] = $field;
             }
         }
 
-        if (! empty($invalidFields) && ! $this->getConfig()->isInvalidFieldQueryExceptionDisabled()) {
-            throw InvalidFieldQuery::fieldsNotAllowed(
-                collect($invalidFields),
-                collect($allowedFields)
-            );
+        if (! empty($invalidFields) && ! $exceptionsDisabled) {
+            throw $this->fieldsNotAllowed($invalidFields, $allowedFields, $disallowedFound);
         }
 
         // If '*' was validated as allowed, return null (all fields)
@@ -424,6 +425,43 @@ trait HandlesFields
         }
 
         return $requestAbsent ? null : [];
+    }
+
+    /**
+     * Whether disallowedFields() denies a token the allow-list permits.
+     *
+     * A requested `*` is never denied: it selects the same columns as sending
+     * no fieldset, and disallowed fields are not hidden then either.
+     */
+    private function isFieldTokenDisallowed(?NamePolicy $denyPolicy, string $group, string $field): bool
+    {
+        return $denyPolicy !== null
+            && $field !== '*'
+            && $denyPolicy->denies($this->normalizePublicPath($group === '' ? $field : "{$group}.{$field}"));
+    }
+
+    private function fieldDenyPolicy(): ?NamePolicy
+    {
+        return $this->disallowedFields === [] ? null : $this->denyPolicyFor($this->disallowedFields);
+    }
+
+    /**
+     * @param  array<string>  $fields
+     * @param  array<string>  $allowedFields
+     */
+    private function fieldsNotAllowed(array $fields, array $allowedFields, bool $disallowed): InvalidFieldQuery
+    {
+        if (! $disallowed) {
+            return InvalidFieldQuery::fieldsNotAllowed(collect($fields), collect($allowedFields));
+        }
+
+        $joinedFields = implode(', ', $fields);
+
+        return new InvalidFieldQuery(
+            collect($fields),
+            collect($allowedFields),
+            "Requested field(s) `{$joinedFields}` are not allowed."
+        );
     }
 
     /**

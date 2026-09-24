@@ -173,19 +173,36 @@ trait HandlesAppends
         bool $exceptionsDisabled
     ): array {
         $policy = NamePolicy::allowing($allowed);
+        $denyPolicy = $this->disallowedAppends === [] ? null : $this->denyPolicyFor($this->disallowedAppends);
         $valid = [];
         $invalid = [];
+        $disallowedFound = false;
 
         foreach ($attributes as $attr) {
-            if ($policy->allowsAttribute($path, $attr)) {
+            $name = $path !== '' ? "{$path}.{$attr}" : $attr;
+
+            if (! $policy->allowsAttribute($path, $attr)) {
+                if ($canThrow) {
+                    $invalid[] = $name;
+                }
+            } elseif ($denyPolicy !== null && $denyPolicy->denies($this->normalizePublicPath($name))) {
+                if ($canThrow) {
+                    $invalid[] = $name;
+                    $disallowedFound = true;
+                }
+            } else {
                 $valid[] = $attr;
-            } elseif ($canThrow) {
-                $invalid[] = $path !== '' ? "{$path}.{$attr}" : $attr;
             }
         }
 
         if (! empty($invalid) && ! $exceptionsDisabled) {
-            throw InvalidAppendQuery::appendsNotAllowed(collect($invalid), collect($allowed));
+            if (! $disallowedFound) {
+                throw InvalidAppendQuery::appendsNotAllowed(collect($invalid), collect($allowed));
+            }
+
+            $joinedAppends = implode(', ', $invalid);
+
+            throw new InvalidAppendQuery(collect($invalid), collect($allowed), "Requested append(s) `{$joinedAppends}` are not allowed.");
         }
 
         return $valid;
