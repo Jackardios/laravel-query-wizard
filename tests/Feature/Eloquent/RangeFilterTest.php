@@ -309,7 +309,7 @@ class RangeFilterTest extends EloquentFilterTestCase
     #[Test]
     public function date_range_filter_upper_date_includes_the_last_four_digit_day(): void
     {
-        $this->models->first()->forceFill(['created_at' => '9999-12-31 10:00:00'])->save();
+        $this->models->first()->forceFill(['created_at' => '9999-12-31 23:59:59'])->save();
 
         $models = $this
             ->createEloquentWizardWithFilters(['created_at' => ['to' => '9999-12-31']])
@@ -388,11 +388,24 @@ class RangeFilterTest extends EloquentFilterTestCase
     public function date_range_filter_unix_timestamp_mode_takes_timestamps_and_dates(): void
     {
         $query = $this
-            ->createEloquentWizardWithFilters(['created_at' => ['from' => '1706702400', 'to' => '2024-01-31T12:00:00+02:00']])
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => ' 1706702400 ', 'to' => '2024-01-31T12:00:00+02:00']])
             ->allowedFilters(EloquentFilter::dateRange('created_at')->asUnixTimestamp())
             ->toQuery();
 
+        $this->assertStringEndsWith('"created_at" >= ? and "test_models"."created_at" <= ?', $query->toSql());
         $this->assertSame([1706702400, 1706695200], $query->getBindings());
+    }
+
+    #[Test]
+    public function date_range_filter_unix_timestamp_upper_bound_is_inclusive(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['to' => '1706702400']])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->asUnixTimestamp())
+            ->toQuery();
+
+        $this->assertStringEndsWith('"created_at" <= ?', $query->toSql());
+        $this->assertSame([1706702400], $query->getBindings());
     }
 
     #[Test]

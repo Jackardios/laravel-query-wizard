@@ -202,6 +202,8 @@ class FilterValueParserTest extends TestCase
             'hour offset' => ['2024-01-01T10:00:00+03', '2024-01-01 10:00:00.000000 +03:00', false],
             'fraction' => ['2024-01-01T10:00:00.123456789Z', '2024-01-01 13:00:00.123456 +03:00', false],
             'surrounding whitespace' => [' 2024-01-01 ', '2024-01-01 00:00:00.000000 +03:00', true],
+            'last second of the day' => ['2024-01-31T23:59:59+03:00', '2024-01-31 23:59:59.000000 +03:00', false],
+            'largest offset' => ['2024-01-31T23:59:59+23:59', '2024-01-31 03:00:59.000000 +03:00', false],
         ];
     }
 
@@ -228,6 +230,7 @@ class FilterValueParserTest extends TestCase
             'minute 60' => ['2024-01-01T10:60:00'],
             'second 60' => ['2024-01-01T10:00:60'],
             'offset hour 24' => ['2024-01-01T10:00:00+24:00'],
+            'offset minute 60' => ['2024-01-01T10:00:00+03:60'],
             'decoded plus' => ['2024-01-01T10:00:00 03:00'],
             'date with offset' => ['2024-01-01+03:00'],
             'relative' => ['tomorrow'],
@@ -268,6 +271,7 @@ class FilterValueParserTest extends TestCase
             FilterValueParser::lenientDate('yesterday', 'created_at', $timezone)?->value->format('Y-m-d H:i:s')
         );
         $this->assertSame('2024-02-01 00:00:00', FilterValueParser::lenientDate('1 February 2024', 'created_at', $timezone)?->value->format('Y-m-d H:i:s'));
+        $this->assertTrue(FilterValueParser::lenientDate(' 2024-01-01 ', 'created_at', $timezone)?->dateOnly);
         $this->assertNull(FilterValueParser::lenientDate('', 'created_at', $timezone));
     }
 
@@ -278,6 +282,7 @@ class FilterValueParserTest extends TestCase
     {
         return [
             'single letter' => ['a'],
+            'padded single letter' => [' a '],
             'military zone letter' => ['Z'],
             'impossible iso day' => ['2023-02-29'],
             'gibberish' => ['not a date'],
