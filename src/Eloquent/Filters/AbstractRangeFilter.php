@@ -71,7 +71,7 @@ abstract class AbstractRangeFilter extends AbstractFilter
         }
 
         if (array_is_list($value)) {
-            if (count($value) < 2) {
+            if (count($value) !== 2) {
                 return $this->invalidRangeValueShapeMessage();
             }
 
@@ -140,6 +140,6 @@ abstract class AbstractRangeFilter extends AbstractFilter
 
     protected function invalidRangeValueShapeMessage(): string
     {
-        return "Filter `{$this->getName()}` expects an array with `{$this->minKey}`/`{$this->maxKey}` keys or a flat list with at least two values.";
+        return "Filter `{$this->getName()}` expects an array with `{$this->minKey}`/`{$this->maxKey}` keys or a flat list of two values.";
     }
 }

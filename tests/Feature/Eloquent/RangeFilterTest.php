@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Carbon;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -59,6 +60,18 @@ class RangeFilterTest extends EloquentFilterTestCase
             ->get();
 
         $this->assertCount(3, $models);
+    }
+
+    #[Test]
+    public function a_range_list_of_more_than_two_values_is_rejected(): void
+    {
+        $this->expectException(InvalidFilterQuery::class);
+        $this->expectExceptionMessage('expects an array with `min`/`max` keys or a flat list of two values.');
+
+        $this
+            ->createEloquentWizardWithFilters(['id' => '2,4,6'])
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->get();
     }
 
     #[Test]
