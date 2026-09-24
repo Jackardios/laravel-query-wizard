@@ -565,6 +565,8 @@ trait HandlesSafeRelationSelect
      */
     protected function appendColumns(array &$target, array $source, bool $normalize = false): void
     {
+        $present = array_fill_keys($target, true);
+
         foreach ($source as $column) {
             if (! is_string($column)) {
                 continue;
@@ -579,10 +581,11 @@ trait HandlesSafeRelationSelect
                 $column = $this->normalizeColumnName($column);
             }
 
-            if ($column === '' || in_array($column, $target, true)) {
+            if ($column === '' || isset($present[$column])) {
                 continue;
             }
 
+            $present[$column] = true;
             $target[] = $column;
         }
     }

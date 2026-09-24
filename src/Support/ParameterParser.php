@@ -69,24 +69,26 @@ final class ParameterParser
             return collect();
         }
 
-        return collect($value)
-            ->map(function (mixed $field): ?string {
-                if (is_string($field)) {
-                    $field = trim($field);
+        $sorts = [];
 
-                    return $field !== '' ? $field : null;
-                }
+        foreach ($value as $field) {
+            if (is_string($field)) {
+                $field = trim($field);
+            } elseif (is_int($field) || is_float($field)) {
+                $field = (string) $field;
+            } else {
+                continue;
+            }
 
-                if (is_int($field) || is_float($field)) {
-                    return (string) $field;
-                }
+            if ($field === '') {
+                continue;
+            }
 
-                return null;
-            })
-            ->filter(static fn (?string $field): bool => $field !== null)
-            ->map(fn (string $field) => new Sort($field))
-            ->unique(fn (Sort $sort) => $sort->getField())
-            ->values();
+            $sort = new Sort($field);
+            $sorts[$sort->getField()] ??= $sort;
+        }
+
+        return collect(array_values($sorts));
     }
 
     /**

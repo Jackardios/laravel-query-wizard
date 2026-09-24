@@ -177,6 +177,16 @@ class ParameterParserTest extends TestCase
     }
 
     #[Test]
+    public function it_keeps_the_first_sort_of_each_field_in_request_order(): void
+    {
+        $parser = new ParameterParser;
+
+        $result = $parser->parseSorts(['-name', 'created_at', 'name', 7, '-created_at', ' id ', '-7']);
+
+        $this->assertSame(['-name', 'created_at', '7', 'id'], $result->map(fn ($sort) => $sort->getDirection() === 'desc' ? '-'.$sort->getField() : $sort->getField())->all());
+    }
+
+    #[Test]
     public function it_filters_empty_sort_values(): void
     {
         $parser = new ParameterParser;
