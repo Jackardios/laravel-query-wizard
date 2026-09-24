@@ -22,8 +22,8 @@ abstract class AbstractFilter implements FilterInterface
 {
     protected mixed $default = null;
 
-    /** @var (Closure(mixed): mixed)|null */
-    protected ?Closure $prepareValueCallback = null;
+    /** @var list<Closure(mixed): mixed> */
+    protected array $valuePreparers = [];
 
     /** @var (Closure(mixed): bool)|null */
     protected ?Closure $whenCallback = null;
@@ -62,13 +62,16 @@ abstract class AbstractFilter implements FilterInterface
     }
 
     /**
-     * Set a callback to transform the value before applying.
+     * Add a callback that transforms the value before applying.
+     *
+     * Callbacks, including the one asBoolean() adds, run in the order they were
+     * added, each receiving the previous result. A null result skips the filter.
      *
      * @param  Closure(mixed): mixed  $callback
      */
     public function prepareValueWith(Closure $callback): static
     {
-        $this->prepareValueCallback = $callback;
+        $this->valuePreparers[] = $callback;
 
         return $this;
     }
@@ -128,7 +131,7 @@ abstract class AbstractFilter implements FilterInterface
      * Prepare the filter value before applying.
      *
      * Checks the when() condition first - returns null if condition is false.
-     * Then applies prepareValueWith() callback if set.
+     * Then runs the prepareValueWith() callbacks in order, stopping at null.
      */
     public function prepareValue(mixed $value): mixed
     {
@@ -136,9 +139,15 @@ abstract class AbstractFilter implements FilterInterface
             return null;
         }
 
-        return $this->prepareValueCallback !== null
-            ? ($this->prepareValueCallback)($value)
-            : $value;
+        foreach ($this->valuePreparers as $preparer) {
+            if ($value === null) {
+                return null;
+            }
+
+            $value = $preparer($value);
+        }
+
+        return $value;
     }
 
     /**

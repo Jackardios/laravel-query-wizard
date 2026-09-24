@@ -329,4 +329,34 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(JsonContainsFilter::class, $filter);
     }
+
+    #[Test]
+    public function value_preparers_run_in_the_order_they_were_added(): void
+    {
+        $filter = EloquentFilter::exact('name')
+            ->prepareValueWith(fn (string $value) => trim($value))
+            ->prepareValueWith(fn (string $value) => strtoupper($value));
+
+        $this->assertSame('AB', $filter->prepareValue(' ab '));
+    }
+
+    #[Test]
+    public function as_boolean_takes_its_place_in_the_preparer_order(): void
+    {
+        $negatedAfter = EloquentFilter::exact('flag')->asBoolean()->prepareValueWith(fn (bool $value) => ! $value);
+        $mappedBefore = EloquentFilter::exact('flag')->prepareValueWith(fn (string $value) => $value === 'enabled' ? 'yes' : $value)->asBoolean();
+
+        $this->assertFalse($negatedAfter->prepareValue('true'));
+        $this->assertTrue($mappedBefore->prepareValue('enabled'));
+    }
+
+    #[Test]
+    public function a_null_preparer_result_skips_the_rest(): void
+    {
+        $filter = EloquentFilter::exact('flag')
+            ->prepareValueWith(fn () => null)
+            ->asBoolean();
+
+        $this->assertNull($filter->prepareValue('true'));
+    }
 }
