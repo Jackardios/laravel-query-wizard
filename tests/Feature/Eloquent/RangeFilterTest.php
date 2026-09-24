@@ -138,7 +138,13 @@ class RangeFilterTest extends EloquentFilterTestCase
             ->toQuery();
 
         $this->assertSame([2, 3.5], $query->getBindings());
-        $this->assertEqualsCanonicalizing([2, 3], $query->get()->modelKeys());
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => ' 2 ', 'max' => '+3']])
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->get();
+
+        $this->assertEqualsCanonicalizing([2, 3], $models->modelKeys());
     }
 
     #[Test]

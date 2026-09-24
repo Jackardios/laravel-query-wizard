@@ -582,7 +582,13 @@ class OperatorFilterTest extends EloquentFilterTestCase
             ->toQuery();
 
         $this->assertSame([2.5], $query->getBindings());
-        $this->assertEqualsCanonicalizing([3, 4, 5], $query->get()->modelKeys());
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '> 2'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->get();
+
+        $this->assertEqualsCanonicalizing([3, 4, 5], $models->modelKeys());
     }
 
     #[Test]
