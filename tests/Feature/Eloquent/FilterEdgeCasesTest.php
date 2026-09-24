@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -66,16 +67,100 @@ class FilterEdgeCasesTest extends TestCase
     }
 
     #[Test]
-    public function whitespace_only_filter_value_is_applied(): void
+    #[DataProvider('blankValues')]
+    public function blank_filter_values_are_absent(mixed $value): void
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['name' => ' '])
+        $sql = $this
+            ->createEloquentWizardWithFilters(['name' => $value])
             ->allowedFilters('name')
-            ->get();
+            ->toQuery()
+            ->toSql();
 
-        // ' ' (space) is NOT empty string, so it's applied as a filter value
-        // No model has name ' ', so 0 results
-        $this->assertCount(0, $models);
+        $this->assertSame('select * from "test_models"', $sql);
+    }
+
+    #[Test]
+    #[DataProvider('blankUnsplitValues')]
+    public function blank_partial_filter_values_are_absent(mixed $value): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['search' => $value])
+            ->allowedFilters(EloquentFilter::partial('name')->alias('search'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models"', $sql);
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function blankValues(): array
+    {
+        return [
+            'separators' => [' , ,'],
+            ...self::blankUnsplitValues(),
+        ];
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function blankUnsplitValues(): array
+    {
+        return [
+            'whitespace' => [' '],
+            'list of empty strings' => [['', ' ']],
+            'list of nulls' => [[null]],
+            'nested blank list' => [[[''], null]],
+        ];
+    }
+
+    #[Test]
+    public function a_blank_structured_value_is_absent(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => '', 'max' => ' ']])
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models"', $sql);
+    }
+
+    #[Test]
+    public function a_blank_passthrough_value_is_not_captured(): void
+    {
+        $passthrough = $this
+            ->createEloquentWizardWithFilters(['context' => ','])
+            ->allowedFilters(EloquentFilter::passthrough('context'))
+            ->getPassthroughFilters();
+
+        $this->assertTrue($passthrough->isEmpty());
+    }
+
+    #[Test]
+    public function a_comma_separated_default_is_passed_whole(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters([])
+            ->allowedFilters(EloquentFilter::exact('name')->default('a,b'))
+            ->toQuery();
+
+        $this->assertSame('select * from "test_models" where "test_models"."name" = ?', $query->toSql());
+        $this->assertSame(['a,b'], $query->getBindings());
+    }
+
+    #[Test]
+    public function a_blank_default_is_absent(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters([])
+            ->allowedFilters(EloquentFilter::exact('name')->default([]))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models"', $sql);
     }
 
     #[Test]
@@ -124,6 +209,24 @@ class FilterEdgeCasesTest extends TestCase
 
         $this->assertCount(1, $models);
         $this->assertEquals($targetModel->name, $models->first()->name);
+    }
+
+    #[Test]
+    #[DataProvider('blankValues')]
+    public function blank_filter_values_fall_back_to_default_when_opt_in_enabled(mixed $value): void
+    {
+        Config::set('query-wizard.apply_filter_default_on_null', true);
+
+        $targetModel = TestModel::query()->firstOrFail();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => $value])
+            ->allowedFilters(
+                EloquentFilter::exact('name')->default($targetModel->name)
+            )
+            ->get();
+
+        $this->assertSame([$targetModel->id], $models->modelKeys());
     }
 
     #[Test]

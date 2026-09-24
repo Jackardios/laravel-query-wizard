@@ -23,6 +23,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
+use Jackardios\QueryWizard\Support\FilterValueParser;
 use Jackardios\QueryWizard\Values\Sort;
 use Throwable;
 
@@ -586,24 +587,30 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      * Resolve raw filter value from request/default according to filter presence rules.
      *
      * Priority: request value > filter->getDefault() > schema->defaultFilters()
+     *
+     * A blank value (see FilterValueParser::isBlank()) is absent: null is returned,
+     * or the default when `apply_filter_default_on_null` is enabled.
      */
     protected function resolveFilterValue(FilterInterface $filter): mixed
     {
         $name = $this->normalizePublicPath($filter->getName());
-        $hasFilterInRequest = $this->getParametersManager()->hasFilter($name);
 
-        if ($hasFilterInRequest) {
+        if ($this->getParametersManager()->hasFilter($name)) {
             $splitValues = ! $filter instanceof AbstractFilter || $filter->shouldSplitValues();
             $value = $this->getFilterValueFromRequest($name, $splitValues);
 
-            if ($value === null && $this->config->shouldApplyFilterDefaultOnNull()) {
-                return $this->getFilterDefault($filter);
+            if (! FilterValueParser::isBlank($value)) {
+                return $value;
             }
 
-            return $value;
+            if (! $this->config->shouldApplyFilterDefaultOnNull()) {
+                return null;
+            }
         }
 
-        return $this->getFilterDefault($filter);
+        $default = $this->getFilterDefault($filter);
+
+        return FilterValueParser::isBlank($default) ? null : $default;
     }
 
     /**
