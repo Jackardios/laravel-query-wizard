@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
+use Jackardios\QueryWizard\Support\FilterValueParser;
+
 /**
  * Filter by numeric range (min/max).
  *
  * Expects: ?filter[property][min]=X&filter[property][max]=Y
+ *
+ * A bound that is not a decimal number is rejected with a 400.
  */
 final class RangeFilter extends AbstractRangeFilter
 {
@@ -28,18 +32,10 @@ final class RangeFilter extends AbstractRangeFilter
     }
 
     /**
-     * Reject non-numeric values for range boundaries.
+     * Read a bound as a decimal number.
      */
-    protected function normalizeRangeValue(mixed $value): mixed
+    protected function normalizeRangeValue(mixed $value, ?string $key = null): mixed
     {
-        if ($value === '' || $value === null) {
-            return null;
-        }
-
-        if (! is_numeric($value)) {
-            return null;
-        }
-
-        return $value;
+        return FilterValueParser::number($value, $this, $key);
     }
 }

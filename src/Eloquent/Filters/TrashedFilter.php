@@ -7,12 +7,13 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
+use Jackardios\QueryWizard\Support\FilterValueParser;
 
 /**
  * Filter for soft-deleted models.
  *
  * Values: 'with'/'true' (include trashed), 'only' (only trashed), 'without'/'false' (exclude trashed)
- * Invalid values leave the query unmodified.
+ * Any other value is rejected with a 400.
  */
 final class TrashedFilter extends AbstractFilter
 {
@@ -43,40 +44,12 @@ final class TrashedFilter extends AbstractFilter
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
-        if ($value === true) {
-            $value = 'with';
-        } elseif ($value === false) {
-            $value = 'without';
-        }
-
-        $normalized = is_string($value) ? strtolower($value) : $value;
-
-        if ($normalized === 'true') {
-            $normalized = 'with';
-        } elseif ($normalized === 'false') {
-            $normalized = 'without';
-        }
-
-        if ($normalized === 'with') {
-            /** @phpstan-ignore method.notFound */
-            $subject->withTrashed();
-
-            return $subject;
-        }
-
-        if ($normalized === 'only') {
-            /** @phpstan-ignore method.notFound */
-            $subject->onlyTrashed();
-
-            return $subject;
-        }
-
-        if ($normalized === 'without') {
-            /** @phpstan-ignore method.notFound */
-            $subject->withoutTrashed();
-
-            return $subject;
-        }
+        match (FilterValueParser::trashedMode($value, $this)) {
+            'with' => $subject->withTrashed(), // @phpstan-ignore method.notFound
+            'only' => $subject->onlyTrashed(), // @phpstan-ignore method.notFound
+            'without' => $subject->withoutTrashed(), // @phpstan-ignore method.notFound
+            null => null,
+        };
 
         return $subject;
     }

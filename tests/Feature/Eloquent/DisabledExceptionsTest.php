@@ -6,6 +6,8 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -54,6 +56,19 @@ class DisabledExceptionsTest extends TestCase
 
         $this->assertCount(1, $models);
         $this->assertEquals($target->name, $models->first()->name);
+    }
+
+    #[Test]
+    public function the_filter_flag_does_not_hide_values_a_filter_cannot_read(): void
+    {
+        config()->set('query-wizard.disable_invalid_filter_query_exception', true);
+
+        $this->expectException(InvalidFilterValue::class);
+
+        $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => 'abc'], 'not_real' => 'value'])
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->get();
     }
 
     // ========== Sorts ==========

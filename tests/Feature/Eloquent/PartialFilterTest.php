@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -237,5 +239,41 @@ class PartialFilterTest extends EloquentFilterTestCase
 
         $this->assertNotEmpty($expected);
         $this->assertEqualsCanonicalizing($expected, $models->modelKeys());
+    }
+
+    #[Test]
+    #[DataProvider('nonTextValues')]
+    public function partial_filter_rejects_values_that_are_not_text(mixed $value): void
+    {
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage('Expected text.');
+
+        $this
+            ->createEloquentWizardWithFilters([])
+            ->allowedFilters(EloquentFilter::partial('name')->default($value))
+            ->toQuery();
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function nonTextValues(): array
+    {
+        return [
+            'true' => [true],
+            'false' => [false],
+            'boolean in a list' => [['a', true]],
+        ];
+    }
+
+    #[Test]
+    public function partial_filter_searches_numbers_as_text(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters([])
+            ->allowedFilters(EloquentFilter::partial('name')->default(12))
+            ->toQuery();
+
+        $this->assertSame(['%12%'], $query->getBindings());
     }
 }

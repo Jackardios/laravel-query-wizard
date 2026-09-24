@@ -104,39 +104,41 @@ class RangeFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function range_filter_ignores_non_numeric_min(): void
+    #[DataProvider('nonNumericBounds')]
+    public function range_filter_rejects_bounds_that_are_not_numbers(array $value, string $reason): void
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['id' => ['min' => 'abc', 'max' => 3]])
-            ->allowedFilters(EloquentFilter::range('id'))
-            ->get();
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage($reason);
 
-        // Only max should be applied (no min constraint)
-        $this->assertTrue($models->every(fn ($m) => $m->id <= 3));
+        $this
+            ->createEloquentWizardWithFilters(['id' => $value])
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->toQuery();
+    }
+
+    /**
+     * @return array<string, array{array<mixed>, string}>
+     */
+    public static function nonNumericBounds(): array
+    {
+        return [
+            'text min' => [['min' => 'abc', 'max' => 3], 'Expected a decimal number for `min`.'],
+            'text max' => [['min' => 2, 'max' => 'xyz'], 'Expected a decimal number for `max`.'],
+            'exponent' => [['min' => '1e3'], 'Expected a decimal number for `min`.'],
+            'list' => [['1', 'abc'], 'Expected a decimal number for `max`.'],
+        ];
     }
 
     #[Test]
-    public function range_filter_ignores_non_numeric_max(): void
+    public function range_filter_binds_numbers(): void
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['id' => ['min' => 2, 'max' => 'xyz']])
+        $query = $this
+            ->createEloquentWizardWithFilters(['id' => ['min' => ' 2 ', 'max' => '3.5']])
             ->allowedFilters(EloquentFilter::range('id'))
-            ->get();
+            ->toQuery();
 
-        // Only min should be applied (no max constraint)
-        $this->assertTrue($models->every(fn ($m) => $m->id >= 2));
-    }
-
-    #[Test]
-    public function range_filter_ignores_both_non_numeric_values(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithFilters(['id' => ['min' => 'abc', 'max' => 'xyz']])
-            ->allowedFilters(EloquentFilter::range('id'))
-            ->get();
-
-        // Both non-numeric — no range constraint applied
-        $this->assertCount(5, $models);
+        $this->assertSame([2, 3.5], $query->getBindings());
+        $this->assertEqualsCanonicalizing([2, 3], $query->get()->modelKeys());
     }
 
     #[Test]

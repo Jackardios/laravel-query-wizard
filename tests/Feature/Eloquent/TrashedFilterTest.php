@@ -7,8 +7,10 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\SoftDeleteModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -207,37 +209,28 @@ class TrashedFilterTest extends TestCase
     }
 
     #[Test]
-    public function it_leaves_query_unmodified_for_numeric_values(): void
+    #[DataProvider('unreadableTrashedValues')]
+    public function it_rejects_values_that_are_not_a_trashed_mode(string $value): void
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => '1'], SoftDeleteModel::class)
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage('Expected one of: with, only, without.');
+
+        $this
+            ->createEloquentWizardWithFilters(['trashed' => $value], SoftDeleteModel::class)
             ->allowedFilters(EloquentFilter::trashed())
             ->get();
-
-        $this->assertCount(3, $models);
     }
 
-    #[Test]
-    public function it_leaves_query_unmodified_for_zero(): void
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function unreadableTrashedValues(): array
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => '0'], SoftDeleteModel::class)
-            ->allowedFilters(EloquentFilter::trashed())
-            ->get();
-
-        $this->assertCount(3, $models);
-    }
-
-    #[Test]
-    public function it_handles_invalid_trashed_value_gracefully(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithFilters(['trashed' => 'invalid_value'], SoftDeleteModel::class)
-            ->allowedFilters(EloquentFilter::trashed())
-            ->get();
-
-        // Invalid value leaves query unmodified — default soft delete scope still applies
-        $this->assertCount(3, $models);
+        return [
+            'one' => ['1'],
+            'zero' => ['0'],
+            'text' => ['invalid_value'],
+        ];
     }
 
     #[Test]

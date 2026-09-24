@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -268,5 +270,42 @@ class ExactFilterTest extends EloquentFilterTestCase
             ->toSql();
 
         $this->assertStringContainsString('"test_models"."name"', $sql);
+    }
+
+    #[Test]
+    public function as_boolean_reads_a_list_item_by_item(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters(['is_visible' => 'yes,OFF'])
+            ->allowedFilters(EloquentFilter::exact('is_visible')->asBoolean())
+            ->toQuery();
+
+        $this->assertStringEndsWith('"is_visible" in (?, ?)', $query->toSql());
+        $this->assertSame([true, false], $query->getBindings());
+    }
+
+    #[Test]
+    #[DataProvider('nonBooleanValues')]
+    public function as_boolean_rejects_values_that_are_not_booleans(string $value): void
+    {
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage('Expected a boolean (true, false, 1, 0, yes, no, on or off).');
+
+        $this
+            ->createEloquentWizardWithFilters(['is_visible' => $value])
+            ->allowedFilters(EloquentFilter::exact('is_visible')->asBoolean())
+            ->toQuery();
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function nonBooleanValues(): array
+    {
+        return [
+            'text' => ['maybe'],
+            'number' => ['2'],
+            'text in a list' => ['true,maybe'],
+        ];
     }
 }

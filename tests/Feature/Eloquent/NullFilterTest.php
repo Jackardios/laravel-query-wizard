@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -92,56 +93,38 @@ class NullFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function null_filter_with_invalid_value_skips_filter(): void
-    {
-        // Invalid values that can't be interpreted as boolean should skip the filter
-        $sql = $this
-            ->createEloquentWizardWithFilters(['name' => 'invalid'])
-            ->allowedFilters(EloquentFilter::null('name'))
-            ->toQuery()
-            ->toSql();
-
-        // 'invalid' is not a valid boolean — filter should be skipped entirely
-        $this->assertStringNotContainsString('is null', strtolower($sql));
-        $this->assertStringNotContainsString('is not null', strtolower($sql));
-    }
-
-    #[Test]
-    public function null_filter_with_numeric_value_skips_filter(): void
-    {
-        // Numeric values like '123' can't be parsed as boolean — filter should be skipped
-        $sql = $this
-            ->createEloquentWizardWithFilters(['name' => '123'])
-            ->allowedFilters(EloquentFilter::null('name'))
-            ->toQuery()
-            ->toSql();
-
-        $this->assertStringNotContainsString('is null', strtolower($sql));
-        $this->assertStringNotContainsString('is not null', strtolower($sql));
-    }
-
-    #[Test]
-    public function null_filter_strict_mode_throws_on_invalid_value(): void
+    #[DataProvider('nonBooleanValues')]
+    public function null_filter_rejects_values_that_are_not_booleans(string $value): void
     {
         $this->expectException(InvalidFilterValue::class);
-        $this->expectExceptionMessage('is invalid for filter');
+        $this->expectExceptionMessage('Expected a boolean (true, false, 1, 0, yes, no, on or off).');
 
         $this
-            ->createEloquentWizardWithFilters(['name' => 'invalid'])
-            ->allowedFilters(EloquentFilter::null('name')->strict())
-            ->toQuery()
-            ->toSql();
+            ->createEloquentWizardWithFilters(['name' => $value])
+            ->allowedFilters(EloquentFilter::null('name'))
+            ->toQuery();
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function nonBooleanValues(): array
+    {
+        return [
+            'text' => ['invalid'],
+            'number' => ['123'],
+        ];
     }
 
     #[Test]
-    public function null_filter_strict_mode_accepts_valid_boolean(): void
+    public function null_filter_reads_booleans_in_any_letter_case(): void
     {
         $sql = $this
-            ->createEloquentWizardWithFilters(['name' => 'true'])
-            ->allowedFilters(EloquentFilter::null('name')->strict())
+            ->createEloquentWizardWithFilters(['name' => 'ON'])
+            ->allowedFilters(EloquentFilter::null('name'))
             ->toQuery()
             ->toSql();
 
-        $this->assertStringContainsString('is null', strtolower($sql));
+        $this->assertStringEndsWith('"name" is null', $sql);
     }
 }

@@ -50,6 +50,11 @@ class CallbackFilter extends AbstractFilter
         return 'callback';
     }
 
+    protected function supportsBooleanLists(): bool
+    {
+        return false;
+    }
+
     public function apply(mixed $subject, mixed $value): mixed
     {
         $result = ($this->callback)($subject, $value, $this->property);

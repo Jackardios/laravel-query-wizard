@@ -6,6 +6,8 @@ namespace Jackardios\QueryWizard\Filters;
 
 use Closure;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
+use Jackardios\QueryWizard\Support\FilterValueParser;
 
 /**
  * Base class for filter implementations.
@@ -239,16 +241,41 @@ abstract class AbstractFilter implements FilterInterface
     /**
      * Treat the filter value as boolean.
      *
-     * Converts string values like 'true', 'false', '1', '0', 'yes', 'no'
-     * to PHP booleans using filter_var(). Useful for boolean database columns.
-     *
-     * Non-boolean values become null (filter skipped).
+     * Reads true, false, 1, 0, yes, no, on and off, in any letter case, as PHP
+     * booleans; anything else is rejected with a 400. A list is read item by
+     * item, unless the filter takes a single value (see supportsBooleanLists()).
      */
     public function asBoolean(): static
     {
-        return $this->prepareValueWith(
-            static fn (mixed $value) => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
-        );
+        return $this->prepareValueWith(function (mixed $value): bool|array|null {
+            if (! is_array($value)) {
+                return FilterValueParser::boolean($value, $this);
+            }
+
+            if (! $this->supportsBooleanLists()) {
+                throw InvalidFilterValue::make($value, $this, 'Expected a single boolean, not a list.');
+            }
+
+            $booleans = [];
+
+            foreach ($value as $item) {
+                $boolean = FilterValueParser::boolean($item, $this);
+
+                if ($boolean !== null) {
+                    $booleans[] = $boolean;
+                }
+            }
+
+            return $booleans === [] ? null : $booleans;
+        });
+    }
+
+    /**
+     * Whether asBoolean() may turn a list into a list of booleans.
+     */
+    protected function supportsBooleanLists(): bool
+    {
+        return true;
     }
 
     protected function validateScalarOnlyValueShape(mixed $value): ?string

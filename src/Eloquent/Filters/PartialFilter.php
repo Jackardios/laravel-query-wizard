@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Support\LikeClause;
 
 /**
@@ -13,7 +14,8 @@ use Jackardios\QueryWizard\Support\LikeClause;
  *
  * Case-insensitive search that matches any part of the column value.
  * If all values in array are empty strings or null, the filter
- * silently returns without modifying the query.
+ * silently returns without modifying the query. A value that is not text or
+ * a number, such as a boolean, is rejected with a 400.
  *
  * The request value is a search phrase, so it is not split by the filters
  * separator: `?filter[name]=Moscow, Russia` matches that whole phrase. Pass
@@ -42,16 +44,39 @@ final class PartialFilter extends ExactFilter
 
     protected function hasEffectiveConstraint(mixed $value): bool
     {
-        return ! is_array($value) || $this->searchableValues($value) !== [];
+        if (is_array($value)) {
+            return $this->searchableValues($value) !== [];
+        }
+
+        $this->searchableValue($value);
+
+        return true;
     }
 
     /**
      * @param  array<mixed>  $values
-     * @return array<mixed>
+     * @return array<string|int|float>
      */
     private function searchableValues(array $values): array
     {
-        return array_filter($values, static fn ($v): bool => $v !== '' && $v !== null);
+        $searchable = [];
+
+        foreach ($values as $value) {
+            if ($value !== '' && $value !== null) {
+                $searchable[] = $this->searchableValue($value);
+            }
+        }
+
+        return $searchable;
+    }
+
+    private function searchableValue(mixed $value): string|int|float
+    {
+        if (is_string($value) || is_int($value) || is_float($value)) {
+            return $value;
+        }
+
+        throw InvalidFilterValue::make($value, $this, 'Expected text.');
     }
 
     /**
@@ -77,7 +102,7 @@ final class PartialFilter extends ExactFilter
             return $builder;
         }
 
-        $builder->whereRaw($sql, [LikeClause::containing((string) $value, lowercase: true)]);
+        $builder->whereRaw($sql, [LikeClause::containing((string) $this->searchableValue($value), lowercase: true)]);
 
         return $builder;
     }

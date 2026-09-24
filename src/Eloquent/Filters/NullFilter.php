@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
-use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
+use Jackardios\QueryWizard\Support\FilterValueParser;
 
 /**
  * Filter by NULL/NOT NULL values.
@@ -20,15 +20,14 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
  * - Truthy value → WHERE column IS NULL
  * - Falsy value → WHERE column IS NOT NULL
  *
- * When invertLogic is true, the behavior is reversed.
+ * When invertLogic is true, the behavior is reversed. A value that is not a
+ * boolean (true/false, 1/0, yes/no, on/off) is rejected with a 400.
  */
 final class NullFilter extends AbstractFilter
 {
     use HandlesRelationFiltering;
 
     protected bool $invertLogic = false;
-
-    protected bool $strictMode = false;
 
     /**
      * Create a new null filter.
@@ -67,21 +66,6 @@ final class NullFilter extends AbstractFilter
         return $this;
     }
 
-    /**
-     * Enable strict mode: throw exception for invalid boolean values.
-     *
-     * By default, invalid values (not recognizable as boolean) are silently skipped.
-     * With strict mode enabled, an InvalidFilterValue exception is thrown.
-     *
-     * Note: This method mutates the current instance.
-     */
-    public function strict(): static
-    {
-        $this->strictMode = true;
-
-        return $this;
-    }
-
     public function getType(): string
     {
         return 'null';
@@ -103,7 +87,7 @@ final class NullFilter extends AbstractFilter
 
     protected function hasEffectiveConstraint(mixed $value): bool
     {
-        return $this->strictMode || filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null;
+        return FilterValueParser::boolean($value, $this) !== null;
     }
 
     /**
@@ -114,13 +98,9 @@ final class NullFilter extends AbstractFilter
     {
         $qualifiedColumn = $builder->qualifyColumn($column);
 
-        $isTruthy = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $isTruthy = FilterValueParser::boolean($value, $this);
 
         if ($isTruthy === null) {
-            if ($this->strictMode) {
-                throw InvalidFilterValue::make($value, $this, 'Expected a boolean: true/false, 1/0, yes/no or on/off.');
-            }
-
             return $builder;
         }
 

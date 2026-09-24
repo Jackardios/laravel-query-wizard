@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -187,5 +188,32 @@ class CallbackFilterTest extends EloquentFilterTestCase
             ->get();
 
         $this->assertSame('first, second', $receivedValue);
+    }
+
+    #[Test]
+    public function as_boolean_passes_a_boolean_to_the_callback(): void
+    {
+        $received = null;
+
+        $this
+            ->createEloquentWizardWithFilters(['visible' => 'No'])
+            ->allowedFilters(EloquentFilter::callback('visible', function ($query, $value) use (&$received) {
+                $received = $value;
+            })->asBoolean())
+            ->toQuery();
+
+        $this->assertFalse($received);
+    }
+
+    #[Test]
+    public function as_boolean_rejects_a_list_for_a_callback(): void
+    {
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage('Expected a single boolean, not a list.');
+
+        $this
+            ->createEloquentWizardWithFilters(['visible' => 'true,false'])
+            ->allowedFilters(EloquentFilter::callback('visible', fn () => null)->asBoolean())
+            ->toQuery();
     }
 }

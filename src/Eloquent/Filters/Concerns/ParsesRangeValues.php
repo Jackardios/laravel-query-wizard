@@ -25,22 +25,24 @@ trait ParsesRangeValues
 
         if (array_is_list($value) && count($value) >= 2) {
             return [
-                $this->normalizeRangeValue($value[0]),
-                $this->normalizeRangeValue($value[1]),
+                $this->normalizeRangeValue($value[0], $startKey),
+                $this->normalizeRangeValue($value[1], $endKey),
             ];
         }
 
         return [
-            $this->normalizeRangeValue($value[$startKey] ?? null),
-            $this->normalizeRangeValue($value[$endKey] ?? null),
+            $this->normalizeRangeValue($value[$startKey] ?? null, $startKey),
+            $this->normalizeRangeValue($value[$endKey] ?? null, $endKey),
         ];
     }
 
     /**
      * Normalize range value - empty strings become null.
      * Subclasses can override to add type-specific validation.
+     *
+     * @param  string|null  $key  The request key of the bound, for error messages
      */
-    protected function normalizeRangeValue(mixed $value): mixed
+    protected function normalizeRangeValue(mixed $value, ?string $key = null): mixed
     {
         if ($value === '' || $value === null) {
             return null;

@@ -282,23 +282,34 @@ class RelationFilterTest extends EloquentFilterTestCase
         return [
             'exact prepared to an empty list' => ['exact-empty', 'x'],
             'partial prepared to blank items' => ['partial-blank', 'x'],
-            'range without numeric bounds' => ['range', ['min' => 'abc']],
+            'range prepared to blank bounds' => ['range-blank', ['min' => '1']],
             'date range prepared to blank bounds' => ['date-range-blank', ['from' => '2024-01-31']],
-            'null with a non-boolean' => ['null', 'maybe'],
             'dynamic operator without operand' => ['dynamic', '>='],
             'operator prepared to an empty list' => ['operator-empty', 'x'],
         ];
     }
 
     #[Test]
-    public function a_strict_null_filter_still_rejects_a_non_boolean_on_a_relation(): void
+    #[DataProvider('unreadableRelationValues')]
+    public function a_relation_filter_rejects_a_value_it_cannot_read(string $filter, mixed $value): void
     {
         $this->expectException(InvalidFilterValue::class);
 
         $this
-            ->createEloquentWizardWithFilters(['relatedModels.name' => 'maybe'])
-            ->allowedFilters(EloquentFilter::null('relatedModels.name')->strict())
+            ->createEloquentWizardWithFilters(['relatedModels.name' => $value])
+            ->allowedFilters($this->relationFilter($filter))
             ->toQuery();
+    }
+
+    /**
+     * @return array<string, array{string, mixed}>
+     */
+    public static function unreadableRelationValues(): array
+    {
+        return [
+            'null with a non-boolean' => ['null', 'maybe'],
+            'range with a non-numeric bound' => ['range', ['min' => 'abc']],
+        ];
     }
 
     #[Test]
@@ -321,6 +332,7 @@ class RelationFilterTest extends EloquentFilterTestCase
             'exact-empty' => EloquentFilter::exact($property)->prepareValueWith(fn () => []),
             'partial-blank' => EloquentFilter::partial($property)->prepareValueWith(fn () => ['', null]),
             'range' => EloquentFilter::range($property),
+            'range-blank' => EloquentFilter::range($property)->prepareValueWith(fn () => ['min' => ' ']),
             'date-range-blank' => EloquentFilter::dateRange($property)->prepareValueWith(fn () => ['from' => ' ', 'to' => '']),
             'null' => EloquentFilter::null($property),
             'dynamic' => EloquentFilter::operator($property, FilterOperator::DYNAMIC),
