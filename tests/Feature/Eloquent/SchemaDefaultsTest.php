@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
+use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
@@ -96,6 +97,11 @@ class SchemaDefaultsTest extends TestCase
             public function defaultFilters(QueryWizardInterface $wizard): array
             {
                 return $this->overrides['defaultFilters'] ?? [];
+            }
+
+            public function defaultFields(QueryWizardInterface $wizard): array
+            {
+                return $this->overrides['defaultFields'] ?? [];
             }
         };
     }
@@ -283,5 +289,57 @@ class SchemaDefaultsTest extends TestCase
             ->toSql();
 
         $this->assertEquals($viaSchema, $viaForSchema);
+    }
+
+    // ========== Explicitly empty defaults ==========
+
+    #[Test]
+    public function default_calls_without_arguments_turn_off_schema_defaults(): void
+    {
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->schema($this->createTestModelSchema(['defaultFields' => ['id']]))
+            ->defaultSorts()
+            ->defaultIncludes()
+            ->defaultAppends()
+            ->defaultFields()
+            ->get();
+
+        $this->assertSame('select * from "test_models"', DB::getQueryLog()[0]['query']);
+        $this->assertCount(1, DB::getQueryLog());
+        $this->assertArrayNotHasKey('fullname', $models->first()->toArray());
+    }
+
+    #[Test]
+    public function default_fields_without_arguments_skip_the_allowed_fields_fallback(): void
+    {
+        config()->set('query-wizard.fields.use_allowed_as_default', true);
+
+        $sql = $this
+            ->createEloquentWizardFromQuery()
+            ->allowedFields('id', 'name')
+            ->defaultFields()
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models"', $sql);
+    }
+
+    #[Test]
+    public function model_wizard_default_calls_without_arguments_turn_off_schema_defaults(): void
+    {
+        $model = (new ModelQueryWizard(TestModel::query()->firstOrFail()))
+            ->schema($this->createTestModelSchema(['defaultFields' => ['id']]))
+            ->defaultIncludes()
+            ->defaultAppends()
+            ->defaultFields()
+            ->process();
+
+        $this->assertFalse($model->relationLoaded('relatedModels'));
+        $this->assertArrayNotHasKey('fullname', $model->toArray());
+        $this->assertArrayHasKey('name', $model->toArray());
     }
 }

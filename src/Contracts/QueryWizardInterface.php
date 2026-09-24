@@ -37,6 +37,8 @@ interface QueryWizardInterface
     /**
      * Set default includes.
      *
+     * Replaces the schema defaults; call it without arguments for no defaults.
+     *
      * @param  string|array<string>  ...$names
      */
     public function defaultIncludes(string|array ...$names): static;
@@ -58,6 +60,9 @@ interface QueryWizardInterface
     /**
      * Set default fields.
      *
+     * Replaces the schema defaults and the `fields.use_allowed_as_default` fallback;
+     * call it without arguments for no defaults (all columns).
+     *
      * @param  string|array<string>  ...$fields
      */
     public function defaultFields(string|array ...$fields): static;
@@ -78,6 +83,8 @@ interface QueryWizardInterface
 
     /**
      * Set default appends.
+     *
+     * Replaces the schema defaults; call it without arguments for no defaults.
      *
      * @param  string|array<string>  ...$appends
      */

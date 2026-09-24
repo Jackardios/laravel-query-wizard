@@ -129,12 +129,15 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     /**
      * Set default includes.
      *
+     * Replaces the schema defaults; call it without arguments for no defaults.
+     *
      * @param  string|array<string>  ...$names
      */
     public function defaultIncludes(string|array ...$names): static
     {
         $this->ensureMutableBeforeProcessing();
         $this->defaultIncludes = $this->flattenStringArray($names);
+        $this->defaultIncludesExplicitlySet = true;
         $this->invalidateProcessedState(true);
 
         return $this;
@@ -175,6 +178,9 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     /**
      * Set default fields.
      *
+     * Replaces the schema defaults and the `fields.use_allowed_as_default` fallback;
+     * call it without arguments for no defaults (all columns).
+     *
      * Applied only when request parameter is completely absent.
      *
      * @param  string|array<string>  ...$fields
@@ -183,6 +189,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     {
         $this->ensureMutableBeforeProcessing();
         $this->defaultFields = $this->flattenStringArray($fields);
+        $this->defaultFieldsExplicitlySet = true;
         $this->invalidateProcessedState();
 
         return $this;
@@ -220,12 +227,15 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     /**
      * Set default appends.
      *
+     * Replaces the schema defaults; call it without arguments for no defaults.
+     *
      * @param  string|array<string>  ...$appends
      */
     public function defaultAppends(string|array ...$appends): static
     {
         $this->ensureMutableBeforeProcessing();
         $this->defaultAppends = $this->flattenStringArray($appends);
+        $this->defaultAppendsExplicitlySet = true;
         $this->invalidateProcessedState();
 
         return $this;

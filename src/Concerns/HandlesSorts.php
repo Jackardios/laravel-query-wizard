@@ -26,6 +26,8 @@ trait HandlesSorts
     /** @var array<string> */
     protected array $defaultSorts = [];
 
+    protected bool $defaultSortsExplicitlySet = false;
+
     /** @var array<string, SortInterface>|null */
     protected ?array $cachedEffectiveSorts = null;
 
@@ -76,7 +78,7 @@ trait HandlesSorts
      */
     protected function getEffectiveDefaultSorts(): array
     {
-        $defaults = ! empty($this->defaultSorts)
+        $defaults = $this->defaultSortsExplicitlySet
             ? $this->defaultSorts
             : ($this->getSchema()?->defaultSorts($this) ?? []);
 

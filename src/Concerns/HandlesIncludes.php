@@ -32,6 +32,8 @@ trait HandlesIncludes
     /** @var array<string> */
     protected array $defaultIncludes = [];
 
+    protected bool $defaultIncludesExplicitlySet = false;
+
     /** @var array<IncludeInterface>|null */
     protected ?array $cachedEffectiveIncludes = null;
 
@@ -110,7 +112,7 @@ trait HandlesIncludes
      */
     protected function getEffectiveDefaultIncludes(): array
     {
-        $defaults = ! empty($this->defaultIncludes)
+        $defaults = $this->defaultIncludesExplicitlySet
             ? $this->defaultIncludes
             : ($this->getSchema()?->defaultIncludes($this) ?? []);
 

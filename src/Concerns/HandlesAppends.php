@@ -30,6 +30,8 @@ trait HandlesAppends
     /** @var array<string> */
     protected array $defaultAppends = [];
 
+    protected bool $defaultAppendsExplicitlySet = false;
+
     /**
      * @return array<IncludeInterface>
      */
@@ -309,7 +311,7 @@ trait HandlesAppends
      */
     protected function getEffectiveDefaultAppends(): array
     {
-        $defaults = ! empty($this->defaultAppends)
+        $defaults = $this->defaultAppendsExplicitlySet
             ? $this->defaultAppends
             : ($this->getSchema()?->defaultAppends($this) ?? []);
 

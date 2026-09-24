@@ -211,6 +211,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     /**
      * Set default sorts.
      *
+     * Replaces the schema defaults; call it without arguments for no defaults.
+     *
      * @param  string|Sort|array<string|Sort>  ...$sorts
      */
     public function defaultSorts(string|Sort|array ...$sorts): static
@@ -226,6 +228,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             }
         }
         $this->defaultSorts = $flatSorts;
+        $this->defaultSortsExplicitlySet = true;
         $this->invalidateBuild();
 
         return $this;
@@ -261,11 +264,14 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     /**
      * Set default includes.
      *
+     * Replaces the schema defaults; call it without arguments for no defaults.
+     *
      * @param  string|array<string>  ...$names
      */
     public function defaultIncludes(string|array ...$names): static
     {
         $this->defaultIncludes = $this->flattenStringArray($names);
+        $this->defaultIncludesExplicitlySet = true;
         $this->invalidateBuild();
 
         return $this;
@@ -305,6 +311,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     /**
      * Set default fields.
      *
+     * Replaces the schema defaults and the `fields.use_allowed_as_default` fallback;
+     * call it without arguments for no defaults (all columns).
+     *
      * Applied only when request parameter is completely absent.
      *
      * @param  string|array<string>  ...$fields
@@ -312,6 +321,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     public function defaultFields(string|array ...$fields): static
     {
         $this->defaultFields = $this->flattenStringArray($fields);
+        $this->defaultFieldsExplicitlySet = true;
         $this->invalidateBuild();
 
         return $this;
@@ -347,11 +357,14 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     /**
      * Set default appends.
      *
+     * Replaces the schema defaults; call it without arguments for no defaults.
+     *
      * @param  string|array<string>  ...$appends
      */
     public function defaultAppends(string|array ...$appends): static
     {
         $this->defaultAppends = $this->flattenStringArray($appends);
+        $this->defaultAppendsExplicitlySet = true;
         $this->invalidateBuild();
 
         return $this;

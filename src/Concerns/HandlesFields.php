@@ -29,6 +29,8 @@ trait HandlesFields
     /** @var array<string> */
     protected array $defaultFields = [];
 
+    protected bool $defaultFieldsExplicitlySet = false;
+
     /**
      * Get the resource key for sparse fieldsets.
      */
@@ -74,7 +76,7 @@ trait HandlesFields
      */
     protected function getEffectiveDefaultFields(): array
     {
-        if (! empty($this->defaultFields)) {
+        if ($this->defaultFieldsExplicitlySet) {
             return $this->normalizePublicPaths($this->defaultFields);
         }
 
