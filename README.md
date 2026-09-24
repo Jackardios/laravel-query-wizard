@@ -612,10 +612,11 @@ EloquentFilter::scope('byAuthor')->withModelBinding()
 **Warning:** Model binding resolves by ID **without authorization checks**. Add checks in your scope if needed. Because
 a missing ID and an existing one may produce different results, binding also tells a client which IDs exist.
 
-### Cursor Pagination
+### Values Exposed by Sorting
 
 A cursor encodes the values of the columns the query is ordered by, including columns hidden by a sparse fieldset.
-Clients can decode it, so don't sort by columns whose values they must not see.
+Clients can decode it, so don't sort by columns whose values they must not see. Count and aggregate sorts add their
+value to each model (`posts_count`, `orders_max_total`); without a root fieldset it is serialized with the model.
 
 ## Configuration
 

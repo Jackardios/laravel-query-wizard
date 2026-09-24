@@ -46,7 +46,8 @@ EloquentFilter::exact('is_active')
 ```
 
 **Blank values are absent.** `null`, a whitespace-only string, `,`, `[]=`, a list of blanks and a range with blank bounds
-add no condition (before: `where name in ('')` → empty result, or `where name = ' '`, or a 500 on a scope). With
+add no condition (before: `where name in ('')` → empty result, or `where name = ' '`, or a 500 on a scope). Blank
+items in a partial or LIKE list are dropped (before: `['foo', ' ']` added `LIKE '% %'`). With
 `apply_filter_default_on_null`, the default applies to all of them. A blank `default()` (for example `[]`) is no default.
 `default('a,b')` is passed whole, not split.
 
@@ -149,7 +150,8 @@ a later TypeError).
   the wizard's subject and dropped the filters).
 - Cloning a wizard that received builder calls or exposed its builder keeps that state: reconfiguring the clone throws
   `LogicException`. Create a new wizard instead.
-- A build that throws is rolled back, so a retry does not apply taps, filters or sorts twice.
+- A build that throws is rolled back, so a retry does not apply taps, filters or sorts twice. A builder already handed
+  out with `toQuery()`, `getSubject()` or `build()` is kept as it is.
 - `find()`, `findMany()`, `findOrFail()`, `findOr()`, `findSole()`, `sole()`, `firstWhere()` and `firstOr()` through the
   wizard post-process their results. New wrappers: `lazyById()`, `lazyByIdDesc()`, `chunkByIdDesc()`, `eachById()`,
   `each()`, `chunkMap()`. The `*ById` methods and `cursorPaginate()` work with sparse fieldsets that leave out their

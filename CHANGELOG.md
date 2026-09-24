@@ -31,14 +31,14 @@ and from `dev-master` snapshots. The entries below cover the changes made before
 
 - Filter values a filter cannot read are rejected with a 400 instead of skipping the filter: `asBoolean()`, null,
   trashed, range, date range, DYNAMIC operator and partial filters.
-- Blank filter values (whitespace, `,`, lists of blanks) are absent; relation filters without a condition add no
-  `whereHas`.
+- Blank filter values (whitespace, `,`, lists of blanks) are absent, and blank items are dropped from partial and LIKE
+  lists; relation filters without a condition add no `whereHas`.
 - Date range bounds must be dates or ISO 8601 date-times, are read in the application timezone, and a date-only `to`
   covers the whole day. `dateFormat()` formats every bound.
 - DYNAMIC operators compare ISO dates and decimal numbers; operators inside lists are rejected.
 - `LIKE`/`NOT_LIKE` operators match literally, accept lists and do not split values by default.
 - `prepareValueWith()` calls chain instead of replacing each other.
-- Scope filters check the number and types of values against the scope's signature.
+- Scope filters check the number of values, and values for `int`/`float` parameters, against the scope's signature.
 - Range filter lists must hold exactly two values.
 - A request filter key belongs to the deepest allowed filter name.
 - Callback filters, sorts and includes replace the subject only with an instance of its class.
@@ -63,10 +63,12 @@ and from `dev-master` snapshots. The entries below cover the changes made before
 - Count/exists includes no longer duplicate a count already selected by a sort or the developer.
 - `cursorPaginate()` and `chunkById()` work when the fieldset leaves out their order columns.
 - `cursor()` loads includes.
-- A failed build is rolled back instead of applying taps and filters twice on retry.
+- A failed build is rolled back instead of applying taps and filters twice on retry (unless the builder was already
+  handed out with `toQuery()`, `getSubject()` or `build()`).
 - `ModelQueryWizard` loads `exists` includes and validates the request before touching the model.
 - `disallowedIncludes()` also matches an aliased include's relation path.
 - Relation subjects (`for($user->posts())`) work with filters and sparse fieldsets.
+- Relation filters recognize relations registered with `resolveRelationUsing()`.
 - Partial filters work on non-text PostgreSQL columns.
 - Sort parsing and field selection run in linear time; snake-case conversion uses a bounded cache.
 - The scoped `QueryParametersManager` follows a rebound request.
