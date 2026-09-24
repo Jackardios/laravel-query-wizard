@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Support\EloquentSubject;
 
 /**
  * Trait for filters that support automatic relation filtering.
@@ -48,6 +49,27 @@ trait HandlesRelationFiltering
         $this->withRelationConstraint = false;
 
         return $this;
+    }
+
+    /**
+     * Apply the filter to a builder or relation subject.
+     *
+     * Dot-notation properties that name a relation go through whereHas()
+     * unless the relation constraint is disabled. A relation subject is
+     * constrained through its underlying builder and returned as is.
+     *
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
+     * @return Builder<Model>|Relation<Model, Model, mixed>
+     */
+    protected function applyToSubject(Builder|Relation $subject, mixed $value): Builder|Relation
+    {
+        $builder = EloquentSubject::builder($subject);
+
+        $result = $this->withRelationConstraint && $this->isRelationProperty($builder, $this->property)
+            ? $this->applyRelationFilter($builder, $this->property, $value)
+            : $this->applyOnQuery($builder, $value, $this->property);
+
+        return $subject instanceof Relation ? $subject : $result;
     }
 
     /**

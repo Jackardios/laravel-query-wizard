@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
 use Jackardios\QueryWizard\Enums\FilterOperator;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
@@ -57,16 +58,12 @@ class OperatorFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<Model>  $subject
-     * @return Builder<Model>
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
+     * @return Builder<Model>|Relation<Model, Model, mixed>
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
-        if ($this->withRelationConstraint && $this->isRelationProperty($subject, $this->property)) {
-            return $this->applyRelationFilter($subject, $this->property, $value);
-        }
-
-        return $this->applyOnQuery($subject, $value, $this->property);
+        return $this->applyToSubject($subject, $value);
     }
 
     /**

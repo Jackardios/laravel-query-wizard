@@ -6,9 +6,11 @@ namespace Jackardios\QueryWizard\Eloquent\Sorts;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Sorts\AbstractSort;
+use Jackardios\QueryWizard\Support\EloquentSubject;
 
 /**
  * Sort by relationship count.
@@ -57,15 +59,16 @@ final class CountSort extends AbstractSort
 
     private function hasCountColumn(mixed $subject, string $alias): bool
     {
-        if (! $subject instanceof Builder) {
+        if (! $subject instanceof Builder && ! $subject instanceof Relation) {
             return false;
         }
 
-        $grammar = $subject->getQuery()->getGrammar();
+        $query = EloquentSubject::baseQuery($subject);
+        $grammar = $query->getGrammar();
         $wrappedAlias = $grammar->wrap($alias);
         $suffix = ' as '.$wrappedAlias;
 
-        foreach ($subject->getQuery()->columns ?? [] as $column) {
+        foreach ($query->columns ?? [] as $column) {
             if ($column instanceof Expression) {
                 $sql = $column->getValue($grammar);
                 if (is_string($sql) && str_ends_with($sql, $suffix)) {

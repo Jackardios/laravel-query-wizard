@@ -29,6 +29,7 @@ use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
+use Jackardios\QueryWizard\Support\EloquentSubject;
 
 /**
  * Query wizard for Eloquent Builder queries.
@@ -616,7 +617,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         $preserved = [];
 
-        foreach ($this->subject->getQuery()->columns ?? [] as $column) {
+        foreach (EloquentSubject::baseQuery($this->subject)->columns ?? [] as $column) {
             if (! $this->shouldPreserveSelectedColumn($column)) {
                 continue;
             }
@@ -688,7 +689,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     private function stringifySelectedColumn(mixed $column): ?string
     {
         if ($column instanceof Expression) {
-            $sql = $column->getValue($this->subject->getQuery()->getGrammar());
+            $sql = $column->getValue(EloquentSubject::baseQuery($this->subject)->getGrammar());
 
             return is_string($sql) ? $sql : null;
         }
@@ -721,7 +722,7 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     private function ensureChunkByIdColumnSelected(?string $column, ?string $alias): void
     {
-        $selectedColumns = $this->subject->getQuery()->columns;
+        $selectedColumns = EloquentSubject::baseQuery($this->subject)->columns;
 
         if ($selectedColumns === null || in_array('*', $selectedColumns, true)) {
             return;
