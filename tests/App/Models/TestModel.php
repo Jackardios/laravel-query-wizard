@@ -84,7 +84,7 @@ class TestModel extends Model
 
     public function scopeIdAtLeast(Builder $query, float $id): Builder
     {
-        return $query->where('id', '>=', $id);
+        return $query->where('id', '>=', (int) ceil($id));
     }
 
     public function scopeIdIn(Builder $query, int ...$ids): Builder
