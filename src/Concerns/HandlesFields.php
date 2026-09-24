@@ -172,6 +172,14 @@ trait HandlesFields
                 continue;
             }
 
+            $normalizedRequestedFields = $this->withoutMalformedFieldTokens(
+                $normalizedRequestedFields,
+                $allowedFields,
+                $policy,
+                $requestedKey,
+                $exceptionsDisabled
+            );
+
             if (! $allFieldsAllowed) {
                 $validFields = [];
                 $invalidFields = [];
@@ -352,6 +360,16 @@ trait HandlesFields
 
         $allowedFields = $this->getEffectiveFields();
 
+        if (! $requestAbsent) {
+            $fields = $this->withoutMalformedFieldTokens(
+                $fields,
+                $allowedFields,
+                NamePolicy::allowing($allowedFields),
+                '',
+                $this->getConfig()->isInvalidFieldQueryExceptionDisabled()
+            );
+        }
+
         // Global wildcard in allowed - permit any requested fields
         if (in_array('*', $allowedFields, true)) {
             // If client requested '*', return null (all fields)
@@ -406,5 +424,66 @@ trait HandlesFields
         }
 
         return $requestAbsent ? null : [];
+    }
+
+    /**
+     * Drop, or reject with a 400, requested tokens that can't be field names.
+     *
+     * A dotted token is never a field of the fieldset it was sent in. A token
+     * that only a wildcard allows has to be an identifier, so it can't carry an
+     * alias or an expression into the select. Names allowed explicitly pass,
+     * and tokens no rule allows are left to the "not allowed" check.
+     *
+     * @param  array<string>  $fields
+     * @param  array<string>  $allowedFields
+     * @return array<string>
+     */
+    private function withoutMalformedFieldTokens(
+        array $fields,
+        array $allowedFields,
+        NamePolicy $policy,
+        string $group,
+        bool $exceptionsDisabled
+    ): array {
+        $wellFormed = [];
+
+        foreach ($fields as $field) {
+            if ($this->isWellFormedFieldToken($field, $allowedFields, $policy, $group)) {
+                $wellFormed[] = $field;
+
+                continue;
+            }
+
+            if (! $exceptionsDisabled) {
+                $token = $group === '' ? $field : "{$group}.{$field}";
+
+                throw InvalidFieldQuery::invalidFormat("`{$token}` is not a valid field name.");
+            }
+        }
+
+        return $wellFormed;
+    }
+
+    /**
+     * @param  array<string>  $allowedFields
+     */
+    private function isWellFormedFieldToken(string $field, array $allowedFields, NamePolicy $policy, string $group): bool
+    {
+        if ($field === '*') {
+            return true;
+        }
+
+        if (str_contains($field, '.')) {
+            return false;
+        }
+
+        if (
+            ! $policy->allowsAttribute($group, $field)
+            || in_array($group === '' ? $field : "{$group}.{$field}", $allowedFields, true)
+        ) {
+            return true;
+        }
+
+        return preg_match('/^(?!\d+\z)[\p{L}\p{N}_$][\p{L}\p{M}\p{N}_$]*\z/u', $field) === 1;
     }
 }
