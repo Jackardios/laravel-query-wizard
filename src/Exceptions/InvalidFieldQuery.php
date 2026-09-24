@@ -33,7 +33,7 @@ class InvalidFieldQuery extends InvalidQuery
             $message = "Requested field(s) `{$joinedUnknownFields}` are not allowed. Allowed field(s) are `{$joinedAllowedFields}`.";
         }
 
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message);
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: 'field_not_allowed', parameter: self::parameterName('fields'));
     }
 
     /**

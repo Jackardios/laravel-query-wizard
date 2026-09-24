@@ -33,7 +33,7 @@ class InvalidAppendQuery extends InvalidQuery
             $message = "Requested append(s) `{$joinedUnknownAppends}` are not allowed. Allowed append(s) are `{$joinedAllowedAppends}`.";
         }
 
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message);
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: 'append_not_allowed', parameter: self::parameterName('appends'));
     }
 
     /**

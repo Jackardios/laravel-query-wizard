@@ -11,17 +11,62 @@ use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
+use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ExceptionsTest extends TestCase
 {
+    /**
+     * @return array<string, array{InvalidQuery, string, string}>
+     */
+    public static function errorCodes(): array
+    {
+        return [
+            'filter not allowed' => [InvalidFilterQuery::filtersNotAllowed(collect(['a']), collect()), 'filter_not_allowed', 'filter'],
+            'filter format' => [InvalidFilterQuery::invalidFormat('x'), 'invalid_filter_format', 'filter'],
+            'filter value' => [InvalidFilterValue::make('x', 'status'), 'invalid_filter_value', 'filter'],
+            'sort not allowed' => [InvalidSortQuery::sortsNotAllowed(collect(['a']), collect()), 'sort_not_allowed', 'sort'],
+            'sort format' => [InvalidSortQuery::invalidFormat(), 'invalid_sort_format', 'sort'],
+            'include not allowed' => [InvalidIncludeQuery::includesNotAllowed(collect(['a']), collect()), 'include_not_allowed', 'include'],
+            'field not allowed' => [InvalidFieldQuery::fieldsNotAllowed(collect(['a']), collect()), 'field_not_allowed', 'fields'],
+            'append not allowed' => [InvalidAppendQuery::appendsNotAllowed(collect(['a']), collect()), 'append_not_allowed', 'append'],
+            'filters count' => [MaxFiltersCountExceeded::create(2, 1), 'max_filters_count_exceeded', 'filter'],
+            'sorts count' => [MaxSortsCountExceeded::create(2, 1), 'max_sorts_count_exceeded', 'sort'],
+            'includes count' => [MaxIncludesCountExceeded::create(2, 1), 'max_includes_count_exceeded', 'include'],
+            'include depth' => [MaxIncludeDepthExceeded::create('a.b', 2, 1), 'max_include_depth_exceeded', 'include'],
+            'appends count' => [MaxAppendsCountExceeded::create(2, 1), 'max_appends_count_exceeded', 'append'],
+            'append depth' => [MaxAppendDepthExceeded::create('a.b', 2, 1), 'max_append_depth_exceeded', 'append'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('errorCodes')]
+    public function every_exception_exposes_an_error_code_and_its_parameter(InvalidQuery $exception, string $errorCode, string $parameter): void
+    {
+        $this->assertSame($errorCode, $exception->errorCode);
+        $this->assertSame($parameter, $exception->parameter);
+        $this->assertSame(400, $exception->getStatusCode());
+    }
+
+    #[Test]
+    public function subclasses_built_with_the_http_exception_signature_get_the_default_code(): void
+    {
+        $exception = new class(422, 'Invalid range.') extends InvalidQuery {};
+
+        $this->assertSame('invalid_query', $exception->errorCode);
+        $this->assertNull($exception->parameter);
+        $this->assertSame(422, $exception->getStatusCode());
+        $this->assertSame('Invalid range.', $exception->getMessage());
+    }
+
     // ========== InvalidFilterValue Tests ==========
     #[Test]
     public function invalid_filter_value_has_correct_message(): void

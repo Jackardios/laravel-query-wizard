@@ -19,7 +19,7 @@ class MaxAppendDepthExceeded extends QueryLimitExceeded
         $this->maxDepth = $maxDepth;
 
         $message = "Append `{$append}` has depth {$depth} which exceeds the maximum allowed depth of {$maxDepth}.";
-        parent::__construct($message);
+        parent::__construct($message, 'max_append_depth_exceeded', self::parameterName('appends'));
     }
 
     public static function create(string $append, int $depth, int $maxDepth): self

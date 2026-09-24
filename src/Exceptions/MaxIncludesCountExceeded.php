@@ -16,7 +16,7 @@ class MaxIncludesCountExceeded extends QueryLimitExceeded
         $this->maxCount = $maxCount;
 
         $message = "The number of requested includes ({$count}) exceeds the maximum allowed ({$maxCount}).";
-        parent::__construct($message);
+        parent::__construct($message, 'max_includes_count_exceeded', self::parameterName('includes'));
     }
 
     public static function create(int $count, int $maxCount): self

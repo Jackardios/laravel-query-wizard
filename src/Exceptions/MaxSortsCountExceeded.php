@@ -16,7 +16,7 @@ class MaxSortsCountExceeded extends QueryLimitExceeded
         $this->maxCount = $maxCount;
 
         $message = "The number of requested sorts ({$count}) exceeds the maximum allowed ({$maxCount}).";
-        parent::__construct($message);
+        parent::__construct($message, 'max_sorts_count_exceeded', self::parameterName('sorts'));
     }
 
     public static function create(int $count, int $maxCount): self

@@ -19,8 +19,12 @@ class InvalidSortQuery extends InvalidQuery
      * @param  Collection<int, string>  $unknownSorts
      * @param  Collection<int, string>  $allowedSorts
      */
-    public function __construct(Collection $unknownSorts, Collection $allowedSorts, ?string $message = null)
-    {
+    public function __construct(
+        Collection $unknownSorts,
+        Collection $allowedSorts,
+        ?string $message = null,
+        string $errorCode = 'sort_not_allowed'
+    ) {
         $this->unknownSorts = $unknownSorts;
         $this->allowedSorts = $allowedSorts;
 
@@ -35,7 +39,7 @@ class InvalidSortQuery extends InvalidQuery
             }
         }
 
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message);
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: $errorCode, parameter: self::parameterName('sorts'));
     }
 
     /**
@@ -49,12 +53,13 @@ class InvalidSortQuery extends InvalidQuery
 
     public static function invalidFormat(?string $details = null): self
     {
-        $message = 'The `sort` parameter has an invalid format.';
+        $parameter = self::parameterName('sorts');
+        $message = "The `{$parameter}` parameter has an invalid format.";
 
         if ($details !== null && $details !== '') {
             $message .= ' '.$details;
         }
 
-        return new self(collect(), collect(), $message);
+        return new self(collect(), collect(), $message, 'invalid_sort_format');
     }
 }

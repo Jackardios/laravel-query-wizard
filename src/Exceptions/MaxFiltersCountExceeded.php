@@ -16,7 +16,7 @@ class MaxFiltersCountExceeded extends QueryLimitExceeded
         $this->maxCount = $maxCount;
 
         $message = "The number of requested filters ({$count}) exceeds the maximum allowed ({$maxCount}).";
-        parent::__construct($message);
+        parent::__construct($message, 'max_filters_count_exceeded', self::parameterName('filters'));
     }
 
     public static function create(int $count, int $maxCount): self

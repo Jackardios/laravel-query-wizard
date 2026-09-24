@@ -19,7 +19,7 @@ class MaxIncludeDepthExceeded extends QueryLimitExceeded
         $this->maxDepth = $maxDepth;
 
         $message = "Include `{$include}` has depth {$depth} which exceeds the maximum allowed depth of {$maxDepth}.";
-        parent::__construct($message);
+        parent::__construct($message, 'max_include_depth_exceeded', self::parameterName('includes'));
     }
 
     public static function create(string $include, int $depth, int $maxDepth): self

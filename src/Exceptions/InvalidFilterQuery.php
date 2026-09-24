@@ -19,8 +19,12 @@ class InvalidFilterQuery extends InvalidQuery
      * @param  Collection<int, string>  $unknownFilters
      * @param  Collection<int, string>  $allowedFilters
      */
-    public function __construct(Collection $unknownFilters, Collection $allowedFilters, ?string $message = null)
-    {
+    public function __construct(
+        Collection $unknownFilters,
+        Collection $allowedFilters,
+        ?string $message = null,
+        string $errorCode = 'filter_not_allowed'
+    ) {
         $this->unknownFilters = $unknownFilters;
         $this->allowedFilters = $allowedFilters;
 
@@ -35,7 +39,7 @@ class InvalidFilterQuery extends InvalidQuery
             }
         }
 
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message);
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: $errorCode, parameter: self::parameterName('filters'));
     }
 
     /**
@@ -49,10 +53,13 @@ class InvalidFilterQuery extends InvalidQuery
 
     public static function invalidFormat(string $details): self
     {
+        $parameter = self::parameterName('filters');
+
         return new self(
             collect([]),
             collect([]),
-            "Invalid `filter` parameter format. {$details}"
+            "Invalid `{$parameter}` parameter format. {$details}",
+            'invalid_filter_format'
         );
     }
 }

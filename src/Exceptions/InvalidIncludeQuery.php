@@ -35,7 +35,7 @@ class InvalidIncludeQuery extends InvalidQuery
             $message .= 'No includes are allowed.';
         }
 
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message);
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: 'include_not_allowed', parameter: self::parameterName('includes'));
     }
 
     /**

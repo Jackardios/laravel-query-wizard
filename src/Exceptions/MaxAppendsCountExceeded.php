@@ -16,7 +16,7 @@ class MaxAppendsCountExceeded extends QueryLimitExceeded
         $this->maxCount = $maxCount;
 
         $message = "The number of requested appends ({$count}) exceeds the maximum allowed ({$maxCount}).";
-        parent::__construct($message);
+        parent::__construct($message, 'max_appends_count_exceeded', self::parameterName('appends'));
     }
 
     public static function create(int $count, int $maxCount): self

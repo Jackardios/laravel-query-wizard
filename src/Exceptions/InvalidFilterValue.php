@@ -14,7 +14,7 @@ class InvalidFilterValue extends InvalidQuery
 
     public function __construct(int $statusCode, string $message, string $filterName = '', mixed $filterValue = null)
     {
-        parent::__construct($statusCode, $message);
+        parent::__construct($statusCode, $message, errorCode: 'invalid_filter_value', parameter: self::parameterName('filters'));
         $this->filterName = $filterName;
         $this->filterValue = $filterValue;
     }

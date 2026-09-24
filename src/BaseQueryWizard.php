@@ -673,8 +673,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $sortRequested = $parameters->hasSimpleParameter('sorts');
         if ($sortRequested && $requestedSorts->isEmpty()) {
+            $parameter = $this->config->getSortsParameterName() ?: 'sort';
+
             throw InvalidSortQuery::invalidFormat(
-                'The `sort` parameter must contain at least one sort field when present.'
+                "The `{$parameter}` parameter must contain at least one sort field when present."
             );
         }
 
