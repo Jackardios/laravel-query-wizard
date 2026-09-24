@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
@@ -98,7 +99,8 @@ trait HandlesAppends
                     $attributes,
                     $allowed,
                     ! $useDefaults,
-                    $exceptionsDisabled
+                    $exceptionsDisabled,
+                    ''
                 );
                 if (! empty($valid)) {
                     $validGrouped[''] = $valid;
@@ -140,7 +142,8 @@ trait HandlesAppends
                 $attributes,
                 $allowed,
                 ! $useDefaults,
-                $exceptionsDisabled
+                $exceptionsDisabled,
+                $relationPath
             );
 
             if ($loaded && ! empty($valid)) {
@@ -170,6 +173,8 @@ trait HandlesAppends
      * @param  array<string>  $attributes
      * @param  array<string>  $allowed
      * @param  bool  $canThrow  Whether to throw exceptions for invalid attributes
+     * @param  string|null  $modelPath  Relation path of the model carrying the attributes ('' for the
+     *                                  root), whose accessors back attributes a wildcard allows; null skips that check
      * @return array<string>
      */
     protected function filterValidAttributes(
@@ -177,16 +182,30 @@ trait HandlesAppends
         array $attributes,
         array $allowed,
         bool $canThrow,
-        bool $exceptionsDisabled
+        bool $exceptionsDisabled,
+        ?string $modelPath = null
     ): array {
         $policy = NamePolicy::allowing($allowed);
         $denyPolicy = $this->disallowedAppends === [] ? null : $this->denyPolicyFor($this->disallowedAppends);
         $valid = [];
         $invalid = [];
         $disallowedFound = false;
+        $model = false;
 
         foreach ($attributes as $attr) {
             $name = $path !== '' ? "{$path}.{$attr}" : $attr;
+
+            if ($modelPath !== null && $policy->allowsAttribute($path, $attr) && ! $policy->allowsAttributeByName($path, $attr)) {
+                $model = $model === false ? $this->resolveAppendAccessorModel($modelPath) : $model;
+
+                if ($model !== null && ! $model->hasGetMutator($attr) && ! $model->hasAttributeGetMutator($attr)) {
+                    if ($canThrow) {
+                        $invalid[] = $name;
+                    }
+
+                    continue;
+                }
+            }
 
             if (! $policy->allowsAttribute($path, $attr)) {
                 if ($canThrow) {
@@ -213,6 +232,18 @@ trait HandlesAppends
         }
 
         return $valid;
+    }
+
+    /**
+     * The model whose accessors back appends at a relation path ('' for the root).
+     *
+     * An append that only a wildcard allows must name an accessor of this model,
+     * so `allowedAppends('*')` can't reach columns or unknown names. Null skips
+     * that check.
+     */
+    protected function resolveAppendAccessorModel(string $relationPath): ?Model
+    {
+        return null;
     }
 
     /**

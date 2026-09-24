@@ -68,6 +68,14 @@ final class NamePolicy
         return isset($this->allowed[$path.'.'.$attribute]) || isset($this->allowed[$path.'.*']);
     }
 
+    /**
+     * Whether the attribute is allowed by its own name, not only through a wildcard.
+     */
+    public function allowsAttributeByName(string $path, string $attribute): bool
+    {
+        return isset($this->allowed[$path === '' ? $attribute : $path.'.'.$attribute]);
+    }
+
     public function denies(string $name): bool
     {
         if ($this->deniesAll || isset($this->denied[$name])) {

@@ -17,6 +17,7 @@ use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -575,6 +576,57 @@ class AppendTest extends TestCase
         $array = $result->toArray();
         // Relation not loaded, so no related_models key
         $this->assertArrayNotHasKey('related_models', $array);
+    }
+
+    #[Test]
+    #[DataProvider('namesWithoutAccessor')]
+    public function a_wildcard_only_allows_appends_backed_by_an_accessor(string $append): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery(['include' => 'relatedModels', 'append' => $append], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('*', 'relatedModels.*')
+            ->get();
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function namesWithoutAccessor(): array
+    {
+        return [
+            'root column' => ['name'],
+            'root unknown name' => ['missing'],
+            'relation column' => ['relatedModels.name'],
+            'relation unknown name' => ['relatedModels.missing'],
+        ];
+    }
+
+    #[Test]
+    public function a_wildcard_allows_appends_backed_by_an_accessor(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery(['include' => 'relatedModels', 'append' => 'fullname,relatedModels.formatted_name'], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('*', 'relatedModels.*')
+            ->first()
+            ->toArray();
+
+        $this->assertArrayHasKey('fullname', $result);
+        $this->assertArrayHasKey('formatted_name', $result['related_models'][0]);
+    }
+
+    #[Test]
+    public function the_model_wizard_checks_wildcard_appends_for_an_accessor(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createModelWizardFromQuery(['append' => 'missing'], TestModel::query()->firstOrFail())
+            ->allowedAppends('*')
+            ->process();
     }
 
     #[Test]

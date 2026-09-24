@@ -18,6 +18,7 @@ use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
+use Jackardios\QueryWizard\Support\RelationResolver;
 
 /**
  * Wizard for processing already-loaded Model instances.
@@ -636,6 +637,13 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     /**
      * Normalize a string include to an IncludeInterface instance.
      */
+    protected function resolveAppendAccessorModel(string $relationPath): ?Model
+    {
+        return $relationPath === ''
+            ? $this->model
+            : (new RelationResolver($this->model))->resolve($relationPath)?->getRelated();
+    }
+
     protected function normalizeStringToInclude(string $name): IncludeInterface
     {
         return RelationshipInclude::fromString($name, $this->config->getCountSuffix(), $this->config->getExistsSuffix());

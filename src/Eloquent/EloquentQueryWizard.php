@@ -31,6 +31,7 @@ use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\EagerLoads;
 use Jackardios\QueryWizard\Support\EloquentSubject;
+use Jackardios\QueryWizard\Support\RelationResolver;
 
 /**
  * Query wizard for Eloquent Builder queries.
@@ -527,6 +528,13 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         parent::__clone();
         $this->state = clone $this->state;
+    }
+
+    protected function resolveAppendAccessorModel(string $relationPath): ?Model
+    {
+        $model = EloquentSubject::builder($this->subject)->getModel();
+
+        return $relationPath === '' ? $model : (new RelationResolver($model))->resolve($relationPath)?->getRelated();
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
