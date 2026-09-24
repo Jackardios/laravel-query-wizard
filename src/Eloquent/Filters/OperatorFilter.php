@@ -171,8 +171,9 @@ class OperatorFilter extends AbstractFilter
 
         if (! $operator->supportsArrayValues()) {
             throw InvalidFilterValue::make(
-                'Array values are only supported for = and != operators',
-                $this->getName()
+                $values,
+                $this,
+                'Lists of values are only supported by the = and != operators.'
             );
         }
 

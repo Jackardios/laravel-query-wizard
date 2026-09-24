@@ -157,7 +157,7 @@ final class ScopeFilter extends AbstractFilter
             $result = $class->newInstance()->resolveRouteBinding($value);
 
             if ($result === null) {
-                throw InvalidFilterValue::make($value, $this->getName());
+                throw InvalidFilterValue::make($value, $this, "Expected the key of an existing {$class->getShortName()}.");
             }
 
             $values[$index] = $result;

@@ -116,7 +116,7 @@ final class NullFilter extends AbstractFilter
 
         if ($isTruthy === null) {
             if ($this->strictMode) {
-                throw InvalidFilterValue::make($value, $this->getName());
+                throw InvalidFilterValue::make($value, $this, 'Expected a boolean: true/false, 1/0, yes/no or on/off.');
             }
 
             return $builder;

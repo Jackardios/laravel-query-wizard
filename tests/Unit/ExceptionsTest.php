@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Jackardios\QueryWizard\Eloquent\Filters\ExactFilter;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
@@ -54,6 +55,26 @@ class ExceptionsTest extends TestCase
         $this->assertSame($errorCode, $exception->errorCode);
         $this->assertSame($parameter, $exception->parameter);
         $this->assertSame(400, $exception->getStatusCode());
+    }
+
+    #[Test]
+    public function invalid_filter_value_accepts_a_filter_and_a_reason(): void
+    {
+        $exception = InvalidFilterValue::make(['a' => 1], ExactFilter::make('status', 'state'), 'Expected a scalar.');
+
+        $this->assertSame('Filter value `{"a":1}` is invalid for filter `state`. Expected a scalar.', $exception->getMessage());
+        $this->assertSame('state', $exception->filterName);
+        $this->assertSame(['a' => 1], $exception->filterValue);
+        $this->assertSame('Expected a scalar.', $exception->reason);
+    }
+
+    #[Test]
+    public function invalid_filter_value_reason_is_optional(): void
+    {
+        $exception = InvalidFilterValue::make('x', 'status');
+
+        $this->assertSame('Filter value `x` is invalid for filter `status`.', $exception->getMessage());
+        $this->assertNull($exception->reason);
     }
 
     #[Test]

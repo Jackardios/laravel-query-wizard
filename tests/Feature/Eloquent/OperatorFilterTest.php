@@ -267,6 +267,9 @@ class OperatorFilterTest extends EloquentFilterTestCase
     public function it_throws_exception_for_array_values_with_greater_than(): void
     {
         $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage(
+            'Filter value `[1,2,3]` is invalid for filter `id`. Lists of values are only supported by the = and != operators.'
+        );
 
         $this
             ->createEloquentWizardWithFilters(['id' => [1, 2, 3]])
