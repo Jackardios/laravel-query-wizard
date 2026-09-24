@@ -572,11 +572,11 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     }
 
     /**
-     * Get the configuration instance.
+     * Get the configuration, as of the current build.
      */
     public function getConfig(): QueryWizardConfig
     {
-        return $this->config;
+        return $this->configSnapshot($this->config);
     }
 
     /**

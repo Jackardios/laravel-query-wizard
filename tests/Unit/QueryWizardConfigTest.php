@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Unit;
 
 use Illuminate\Support\Facades\Config;
+use InvalidArgumentException;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionClassConstant;
 
 class QueryWizardConfigTest extends TestCase
 {
@@ -175,15 +178,6 @@ class QueryWizardConfigTest extends TestCase
 
         $this->assertEquals('off', $this->config->getRelationSelectMode());
         $this->assertFalse($this->config->isSafeRelationSelectEnabled());
-    }
-
-    #[Test]
-    public function it_falls_back_to_safe_for_invalid_relation_select_mode(): void
-    {
-        Config::set('query-wizard.optimizations.relation_select_mode', 'unsupported');
-
-        $this->assertEquals('safe', $this->config->getRelationSelectMode());
-        $this->assertTrue($this->config->isSafeRelationSelectEnabled());
     }
 
     // ========== Parameter Names Tests ==========
@@ -444,64 +438,113 @@ class QueryWizardConfigTest extends TestCase
         $this->assertEquals(5, $this->config->getMaxAppendDepth());
     }
 
-    // ========== Negative Limits Tests ==========
+    // ========== Validation Tests ==========
     #[Test]
-    public function it_returns_null_for_negative_max_include_depth(): void
+    #[DataProvider('invalidLimits')]
+    public function it_rejects_limits_that_are_not_positive_integers(mixed $value): void
     {
-        Config::set('query-wizard.limits.max_include_depth', -5);
+        Config::set('query-wizard.limits.max_filters_count', $value);
 
-        $this->assertNull($this->config->getMaxIncludeDepth());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Config `query-wizard.limits.max_filters_count` must be a positive integer, or null to disable the limit.');
+
+        $this->config->getMaxFiltersCount();
+    }
+
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function invalidLimits(): array
+    {
+        return [
+            'zero' => [0],
+            'zero string' => ['0'],
+            'empty string' => [''],
+            'negative' => [-5],
+            'negative string' => ['-1'],
+            'false' => [false],
+            'true' => [true],
+            'text' => ['abc'],
+            'fraction' => [1.5],
+            'fraction string' => ['1.5'],
+            'array' => [[10]],
+        ];
     }
 
     #[Test]
-    public function it_returns_null_for_zero_max_include_depth(): void
+    public function it_reads_a_digit_string_limit_as_an_integer(): void
     {
-        Config::set('query-wizard.limits.max_include_depth', 0);
+        Config::set('query-wizard.limits.max_filters_count', '15');
 
-        $this->assertNull($this->config->getMaxIncludeDepth());
+        $this->assertSame(15, $this->config->getMaxFiltersCount());
     }
 
     #[Test]
-    public function it_returns_null_for_negative_max_includes_count(): void
+    public function a_missing_key_takes_the_package_default(): void
     {
-        Config::set('query-wizard.limits.max_includes_count', -1);
+        Config::set('query-wizard.limits', ['max_filters_count' => 50]);
+        Config::set('query-wizard.parameters', ['filters' => 'where']);
 
-        $this->assertNull($this->config->getMaxIncludesCount());
+        $this->assertSame(50, $this->config->getMaxFiltersCount());
+        $this->assertSame(5, $this->config->getMaxSortsCount());
+        $this->assertSame(3, $this->config->getMaxIncludeDepth());
+        $this->assertSame('where', $this->config->getFiltersParameterName());
+        $this->assertSame('sort', $this->config->getSortsParameterName());
     }
 
     #[Test]
-    public function it_returns_null_for_negative_max_filters_count(): void
+    public function an_empty_configuration_takes_the_package_defaults(): void
     {
-        Config::set('query-wizard.limits.max_filters_count', -10);
+        Config::set('query-wizard', null);
 
-        $this->assertNull($this->config->getMaxFiltersCount());
+        $this->assertSame(20, $this->config->getMaxFiltersCount());
+        $this->assertSame('filter', $this->config->getFiltersParameterName());
+        $this->assertSame(',', $this->config->getFiltersSeparator());
+        $this->assertSame('query_string', $this->config->getRequestDataSource());
+        $this->assertSame('safe', $this->config->getRelationSelectMode());
+        $this->assertSame('Count', $this->config->getCountSuffix());
     }
 
     #[Test]
-    public function it_returns_null_for_negative_max_sorts_count(): void
+    public function the_package_defaults_match_the_config_file(): void
     {
-        Config::set('query-wizard.limits.max_sorts_count', -3);
+        $defaults = (new ReflectionClassConstant(QueryWizardConfig::class, 'DEFAULTS'))->getValue();
 
-        $this->assertNull($this->config->getMaxSortsCount());
+        $this->assertSame(require __DIR__.'/../../config/query-wizard.php', $defaults);
     }
 
     #[Test]
-    public function it_returns_null_for_negative_max_appends_count(): void
+    public function a_null_parameter_name_disables_the_parameter(): void
     {
-        Config::set('query-wizard.limits.max_appends_count', -2);
+        Config::set('query-wizard.parameters.appends', null);
 
-        $this->assertNull($this->config->getMaxAppendsCount());
+        $this->assertNull($this->config->getAppendsParameterName());
     }
 
     #[Test]
-    public function it_returns_null_for_negative_max_append_depth(): void
+    #[DataProvider('invalidParameterNames')]
+    public function it_rejects_parameter_names_that_are_not_strings(mixed $value): void
     {
-        Config::set('query-wizard.limits.max_append_depth', -1);
+        Config::set('query-wizard.parameters.filters', $value);
 
-        $this->assertNull($this->config->getMaxAppendDepth());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Config `query-wizard.parameters.filters` must be a non-empty string, or null to disable the parameter.');
+
+        $this->config->getFiltersParameterName();
     }
 
-    // ========== Request Data Source Validation Tests ==========
+    /**
+     * @return array<string, array{mixed}>
+     */
+    public static function invalidParameterNames(): array
+    {
+        return [
+            'empty string' => [''],
+            'array' => [['filter']],
+            'number' => [1],
+        ];
+    }
+
     #[Test]
     public function it_normalizes_request_data_source_case(): void
     {
@@ -519,28 +562,54 @@ class QueryWizardConfigTest extends TestCase
     }
 
     #[Test]
-    public function it_falls_back_to_query_string_for_invalid_request_data_source(): void
+    #[DataProvider('invalidChoices')]
+    public function it_rejects_unknown_choices(string $key, mixed $value, string $message): void
     {
-        Config::set('query-wizard.request_data_source', 'invalid_source');
+        Config::set("query-wizard.{$key}", $value);
 
-        $this->assertEquals('query_string', $this->config->getRequestDataSource());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage($message);
+
+        $key === 'request_data_source' ? $this->config->getRequestDataSource() : $this->config->getRelationSelectMode();
     }
 
-    // ========== Separator Validation Tests ==========
-    #[Test]
-    public function it_falls_back_to_default_for_empty_separator(): void
+    /**
+     * @return array<string, array{string, mixed, string}>
+     */
+    public static function invalidChoices(): array
     {
-        Config::set('query-wizard.separators.filters', '');
-
-        $this->assertEquals(',', $this->config->getFiltersSeparator());
+        return [
+            'unknown data source' => ['request_data_source', 'invalid_source', 'Config `query-wizard.request_data_source` must be one of: query_string, body.'],
+            'data source array' => ['request_data_source', ['body'], 'Config `query-wizard.request_data_source` must be one of: query_string, body.'],
+            'unknown select mode' => ['optimizations.relation_select_mode', 'unsupported', 'Config `query-wizard.optimizations.relation_select_mode` must be one of: off, safe.'],
+            'null select mode' => ['optimizations.relation_select_mode', null, 'Config `query-wizard.optimizations.relation_select_mode` must be one of: off, safe.'],
+        ];
     }
 
     #[Test]
-    public function it_falls_back_to_default_for_too_long_separator(): void
+    #[DataProvider('invalidSeparators')]
+    public function it_rejects_separators_that_are_not_short_strings(string $key, mixed $value, string $message): void
     {
-        Config::set('query-wizard.separators.filters', 'this-is-way-too-long');
+        Config::set("query-wizard.{$key}", $value);
 
-        $this->assertEquals(',', $this->config->getFiltersSeparator());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage($message);
+
+        $this->config->getFiltersSeparator();
+    }
+
+    /**
+     * @return array<string, array{string, mixed, string}>
+     */
+    public static function invalidSeparators(): array
+    {
+        return [
+            'empty' => ['separators.filters', '', 'Config `query-wizard.separators.filters` must be a non-empty string of at most 10 characters.'],
+            'too long' => ['separators.filters', 'this-is-way-too-long', 'Config `query-wizard.separators.filters` must be a non-empty string of at most 10 characters.'],
+            'array' => ['separators.filters', ['|'], 'Config `query-wizard.separators.filters` must be a non-empty string of at most 10 characters.'],
+            'empty fallback' => ['array_value_separator', '', 'Config `query-wizard.array_value_separator` must be a non-empty string of at most 10 characters.'],
+            'not a list of separators' => ['separators', ';', 'Config `query-wizard.separators` must be an array of separators keyed by parameter type.'],
+        ];
     }
 
     #[Test]
@@ -549,5 +618,26 @@ class QueryWizardConfigTest extends TestCase
         Config::set('query-wizard.separators.filters', '1234567890');
 
         $this->assertEquals('1234567890', $this->config->getFiltersSeparator());
+    }
+
+    #[Test]
+    public function a_null_suffix_blanks_it(): void
+    {
+        Config::set('query-wizard.count_suffix', null);
+
+        $this->assertSame('', $this->config->getCountSuffix());
+    }
+
+    // ========== Snapshot Tests ==========
+    #[Test]
+    public function a_snapshot_keeps_the_values_it_was_taken_with(): void
+    {
+        Config::set('query-wizard.limits.max_filters_count', 7);
+        $snapshot = $this->config->snapshot();
+
+        Config::set('query-wizard.limits.max_filters_count', 9);
+
+        $this->assertSame(7, $snapshot->getMaxFiltersCount());
+        $this->assertSame(9, $this->config->getMaxFiltersCount());
     }
 }

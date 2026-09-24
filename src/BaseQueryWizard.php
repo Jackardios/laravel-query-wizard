@@ -106,11 +106,11 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     abstract protected function applyFields(array $fields): void;
 
     /**
-     * Get the configuration instance.
+     * Get the configuration, as of the current build.
      */
     public function getConfig(): QueryWizardConfig
     {
-        return $this->config;
+        return $this->configSnapshot($this->config);
     }
 
     /**

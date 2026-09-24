@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Config;
 
+use InvalidArgumentException;
+
 /**
  * Centralized configuration access for Query Wizard.
+ *
+ * Getters read `config('query-wizard')` on each call, unless the instance is a
+ * snapshot (see snapshot()), which keeps the values it was taken with. A key
+ * missing from the configuration takes the package default, and an invalid
+ * value throws InvalidArgumentException naming the key.
  */
 final class QueryWizardConfig
 {
@@ -13,14 +20,73 @@ final class QueryWizardConfig
 
     private const VALID_REQUEST_DATA_SOURCES = ['query_string', 'body'];
 
+    private const VALID_RELATION_SELECT_MODES = ['off', 'safe'];
+
+    private const MAX_SEPARATOR_LENGTH = 10;
+
+    /**
+     * Package defaults, the same as config/query-wizard.php.
+     */
+    private const DEFAULTS = [
+        'parameters' => [
+            'includes' => 'include',
+            'filters' => 'filter',
+            'sorts' => 'sort',
+            'fields' => 'fields',
+            'appends' => 'append',
+        ],
+        'count_suffix' => 'Count',
+        'exists_suffix' => 'Exists',
+        'disable_invalid_filter_query_exception' => false,
+        'disable_invalid_sort_query_exception' => false,
+        'disable_invalid_include_query_exception' => false,
+        'disable_invalid_field_query_exception' => false,
+        'disable_invalid_append_query_exception' => false,
+        'request_data_source' => 'query_string',
+        'apply_filter_default_on_null' => false,
+        'array_value_separator' => ',',
+        'naming' => [
+            'convert_parameters_to_snake_case' => false,
+        ],
+        'separators' => [],
+        'optimizations' => [
+            'relation_select_mode' => 'safe',
+        ],
+        'fields' => [
+            'use_allowed_as_default' => false,
+        ],
+        'limits' => [
+            'max_includes_count' => 10,
+            'max_include_depth' => 3,
+            'max_filters_count' => 20,
+            'max_appends_count' => 20,
+            'max_append_depth' => 3,
+            'max_sorts_count' => 5,
+        ],
+    ];
+
+    /**
+     * @param  array<array-key, mixed>|null  $values  Fixed configuration values, or null to read config() live
+     */
+    public function __construct(private readonly ?array $values = null) {}
+
+    /**
+     * A copy that keeps the current configuration values, so a build reads
+     * config() once however many settings it uses.
+     */
+    public function snapshot(): self
+    {
+        return new self($this->values());
+    }
+
     public function getCountSuffix(): string
     {
-        return (string) config(self::CONFIG_PREFIX.'.count_suffix', 'Count');
+        return $this->getIncludeAliasSuffix('count_suffix', 'Count');
     }
 
     public function getExistsSuffix(): string
     {
-        return (string) config(self::CONFIG_PREFIX.'.exists_suffix', 'Exists');
+        return $this->getIncludeAliasSuffix('exists_suffix', 'Exists');
     }
 
     /**
@@ -31,29 +97,43 @@ final class QueryWizardConfig
      */
     public function getIncludeAliasSuffix(string $configKey, ?string $default = null): string
     {
-        // Cast rather than type-check: an app that sets the suffix to null is
-        // blanking it on purpose, and must keep getting '' rather than silently
-        // having the default suffix restored.
-        return (string) config(self::CONFIG_PREFIX.'.'.$configKey, $default);
+        [$found, $value] = $this->find($configKey);
+
+        // An app that sets the suffix to null is blanking it on purpose, and
+        // must keep getting '' rather than silently having the default restored.
+        if (! $found) {
+            return (string) $default;
+        }
+
+        if ($value !== null && ! is_scalar($value)) {
+            throw self::invalid($configKey, 'must be a string');
+        }
+
+        return (string) $value;
     }
 
     public function getArrayValueSeparator(): string
     {
-        return (string) config(self::CONFIG_PREFIX.'.array_value_separator', ',');
+        return $this->separatorAt('array_value_separator', $this->get('array_value_separator'));
     }
 
     public function getSeparator(string $type): string
     {
-        $separators = config(self::CONFIG_PREFIX.'.separators', []);
+        $separators = $this->get('separators');
 
-        if (is_array($separators) && isset($separators[$type])) {
-            $separator = (string) $separators[$type];
-            if ($separator !== '' && mb_strlen($separator) <= 10) {
-                return $separator;
-            }
+        if ($separators === null) {
+            return $this->getArrayValueSeparator();
         }
 
-        return $this->getArrayValueSeparator();
+        if (! is_array($separators)) {
+            throw self::invalid('separators', 'must be an array of separators keyed by parameter type');
+        }
+
+        $separator = $separators[$type] ?? null;
+
+        return $separator === null
+            ? $this->getArrayValueSeparator()
+            : $this->separatorAt("separators.{$type}", $separator);
     }
 
     public function getIncludesSeparator(): string
@@ -83,14 +163,15 @@ final class QueryWizardConfig
 
     public function shouldConvertParametersToSnakeCase(): bool
     {
-        return (bool) config(self::CONFIG_PREFIX.'.naming.convert_parameters_to_snake_case', false);
+        return (bool) $this->get('naming.convert_parameters_to_snake_case');
     }
 
+    /**
+     * @return 'off'|'safe'
+     */
     public function getRelationSelectMode(): string
     {
-        $mode = strtolower((string) config(self::CONFIG_PREFIX.'.optimizations.relation_select_mode', 'safe'));
-
-        return in_array($mode, ['off', 'safe'], true) ? $mode : 'safe';
+        return $this->oneOf('optimizations.relation_select_mode', self::VALID_RELATION_SELECT_MODES);
     }
 
     public function isSafeRelationSelectEnabled(): bool
@@ -100,37 +181,35 @@ final class QueryWizardConfig
 
     public function getFieldsParameterName(): ?string
     {
-        return config(self::CONFIG_PREFIX.'.parameters.fields');
+        return $this->parameterName('fields');
     }
 
     public function getAppendsParameterName(): ?string
     {
-        return config(self::CONFIG_PREFIX.'.parameters.appends');
+        return $this->parameterName('appends');
     }
 
     public function getFiltersParameterName(): ?string
     {
-        return config(self::CONFIG_PREFIX.'.parameters.filters');
+        return $this->parameterName('filters');
     }
 
     public function getIncludesParameterName(): ?string
     {
-        return config(self::CONFIG_PREFIX.'.parameters.includes');
+        return $this->parameterName('includes');
     }
 
     public function getSortsParameterName(): ?string
     {
-        return config(self::CONFIG_PREFIX.'.parameters.sorts');
+        return $this->parameterName('sorts');
     }
 
+    /**
+     * @return 'query_string'|'body'
+     */
     public function getRequestDataSource(): string
     {
-        $value = config(self::CONFIG_PREFIX.'.request_data_source', 'query_string');
-        $normalized = strtolower(trim((string) $value));
-
-        return in_array($normalized, self::VALID_REQUEST_DATA_SOURCES, true)
-            ? $normalized
-            : 'query_string';
+        return $this->oneOf('request_data_source', self::VALID_REQUEST_DATA_SOURCES);
     }
 
     public function shouldUseRequestBody(): bool
@@ -140,77 +219,192 @@ final class QueryWizardConfig
 
     public function shouldApplyFilterDefaultOnNull(): bool
     {
-        return (bool) config(self::CONFIG_PREFIX.'.apply_filter_default_on_null', false);
+        return (bool) $this->get('apply_filter_default_on_null');
     }
 
     public function isInvalidFilterQueryExceptionDisabled(): bool
     {
-        return (bool) config(self::CONFIG_PREFIX.'.disable_invalid_filter_query_exception', false);
+        return (bool) $this->get('disable_invalid_filter_query_exception');
     }
 
     public function isInvalidSortQueryExceptionDisabled(): bool
     {
-        return (bool) config(self::CONFIG_PREFIX.'.disable_invalid_sort_query_exception', false);
+        return (bool) $this->get('disable_invalid_sort_query_exception');
     }
 
     public function isInvalidIncludeQueryExceptionDisabled(): bool
     {
-        return (bool) config(self::CONFIG_PREFIX.'.disable_invalid_include_query_exception', false);
+        return (bool) $this->get('disable_invalid_include_query_exception');
     }
 
     public function isInvalidFieldQueryExceptionDisabled(): bool
     {
-        return (bool) config(self::CONFIG_PREFIX.'.disable_invalid_field_query_exception', false);
+        return (bool) $this->get('disable_invalid_field_query_exception');
     }
 
     public function isInvalidAppendQueryExceptionDisabled(): bool
     {
-        return (bool) config(self::CONFIG_PREFIX.'.disable_invalid_append_query_exception', false);
+        return (bool) $this->get('disable_invalid_append_query_exception');
     }
 
     public function getMaxIncludeDepth(): ?int
     {
-        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_include_depth'));
+        return $this->limit('max_include_depth');
     }
 
     public function getMaxIncludesCount(): ?int
     {
-        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_includes_count'));
+        return $this->limit('max_includes_count');
     }
 
     public function getMaxFiltersCount(): ?int
     {
-        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_filters_count'));
+        return $this->limit('max_filters_count');
     }
 
     public function getMaxSortsCount(): ?int
     {
-        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_sorts_count'));
+        return $this->limit('max_sorts_count');
     }
 
     public function getMaxAppendsCount(): ?int
     {
-        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_appends_count'));
+        return $this->limit('max_appends_count');
     }
 
     public function getMaxAppendDepth(): ?int
     {
-        return $this->normalizeLimit(config(self::CONFIG_PREFIX.'.limits.max_append_depth'));
+        return $this->limit('max_append_depth');
     }
 
     public function shouldUseAllowedFieldsAsDefault(): bool
     {
-        return (bool) config(self::CONFIG_PREFIX.'.fields.use_allowed_as_default', false);
+        return (bool) $this->get('fields.use_allowed_as_default');
     }
 
-    private function normalizeLimit(mixed $value): ?int
+    /**
+     * @return array<array-key, mixed>
+     */
+    private function values(): array
     {
+        if ($this->values !== null) {
+            return $this->values;
+        }
+
+        $values = config(self::CONFIG_PREFIX);
+
+        return is_array($values) ? $values : [];
+    }
+
+    /**
+     * The configured value, or the package default when the key is missing.
+     */
+    private function get(string $key): mixed
+    {
+        [$found, $value] = $this->find($key);
+
+        return $found ? $value : self::defaultFor($key);
+    }
+
+    /**
+     * @return array{bool, mixed} Whether the key is set (even to null), and its value
+     */
+    private function find(string $key): array
+    {
+        $value = $this->values();
+
+        foreach (explode('.', $key) as $segment) {
+            if (! is_array($value) || ! array_key_exists($segment, $value)) {
+                return [false, null];
+            }
+
+            $value = $value[$segment];
+        }
+
+        return [true, $value];
+    }
+
+    private static function defaultFor(string $key): mixed
+    {
+        $value = self::DEFAULTS;
+
+        foreach (explode('.', $key) as $segment) {
+            if (! is_array($value) || ! array_key_exists($segment, $value)) {
+                return null;
+            }
+
+            $value = $value[$segment];
+        }
+
+        return $value;
+    }
+
+    private function limit(string $name): ?int
+    {
+        $key = "limits.{$name}";
+        $value = $this->get($key);
+
         if ($value === null) {
             return null;
         }
 
-        $intValue = (int) $value;
+        if (is_string($value) && preg_match('/^\d+\z/', $value) === 1) {
+            $value = filter_var($value, FILTER_VALIDATE_INT);
+        }
 
-        return $intValue > 0 ? $intValue : null;
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+
+        throw self::invalid($key, 'must be a positive integer, or null to disable the limit');
+    }
+
+    private function parameterName(string $group): ?string
+    {
+        $key = "parameters.{$group}";
+        $value = $this->get($key);
+
+        if ($value === null || (is_string($value) && $value !== '')) {
+            return $value;
+        }
+
+        throw self::invalid($key, 'must be a non-empty string, or null to disable the parameter');
+    }
+
+    private function separatorAt(string $key, mixed $value): string
+    {
+        if (is_string($value) && $value !== '' && mb_strlen($value) <= self::MAX_SEPARATOR_LENGTH) {
+            return $value;
+        }
+
+        throw self::invalid($key, 'must be a non-empty string of at most '.self::MAX_SEPARATOR_LENGTH.' characters');
+    }
+
+    /**
+     * @template T of string
+     *
+     * @param  list<T>  $allowed
+     * @return T
+     */
+    private function oneOf(string $key, array $allowed): string
+    {
+        $value = $this->get($key);
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            foreach ($allowed as $option) {
+                if ($normalized === $option) {
+                    return $option;
+                }
+            }
+        }
+
+        throw self::invalid($key, 'must be one of: '.implode(', ', $allowed));
+    }
+
+    private static function invalid(string $key, string $requirement): InvalidArgumentException
+    {
+        return new InvalidArgumentException('Config `'.self::CONFIG_PREFIX.".{$key}` {$requirement}.");
     }
 }

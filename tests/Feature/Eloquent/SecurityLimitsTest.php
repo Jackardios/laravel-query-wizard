@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
+use InvalidArgumentException;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
@@ -19,6 +20,7 @@ use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionProperty;
@@ -498,7 +500,7 @@ class SecurityLimitsTest extends TestCase
     {
         Config::set('query-wizard.limits.max_append_depth', 1);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The depth of default append `relatedModels.formattedName` (2) exceeds the `limits.max_append_depth` limit (1) for client input.');
 
         // Relation must be included for its appends to be validated
@@ -518,7 +520,7 @@ class SecurityLimitsTest extends TestCase
     {
         Config::set('query-wizard.limits.max_appends_count', 1);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The number of default appends (2) exceeds the `limits.max_appends_count` limit (1) for client input.');
 
         $this
@@ -533,7 +535,7 @@ class SecurityLimitsTest extends TestCase
     {
         Config::set('query-wizard.limits.max_sorts_count', 1);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The number of default sorts (2) exceeds the `limits.max_sorts_count` limit (1) for client input.');
 
         $this
@@ -548,7 +550,7 @@ class SecurityLimitsTest extends TestCase
     {
         Config::set('query-wizard.limits.max_sorts_count', 1);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         $this
             ->createEloquentWizardFromQuery([], TestModel::class)
@@ -576,7 +578,7 @@ class SecurityLimitsTest extends TestCase
     {
         Config::set('query-wizard.limits.max_includes_count', 1);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The number of default includes (2) exceeds the `limits.max_includes_count` limit (1) for client input.');
 
         $this
@@ -591,7 +593,7 @@ class SecurityLimitsTest extends TestCase
     {
         Config::set('query-wizard.limits.max_include_depth', 1);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The depth of default include `relatedModels.nestedRelatedModels` (2) exceeds the `limits.max_include_depth` limit (1) for client input.');
 
         $this
@@ -606,7 +608,7 @@ class SecurityLimitsTest extends TestCase
     {
         Config::set('query-wizard.limits.max_includes_count', 1);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         (new ModelQueryWizard(TestModel::query()->firstOrFail(), new QueryParametersManager(new Request([]))))
             ->allowedIncludes('relatedModels', 'otherRelatedModels')
@@ -695,80 +697,53 @@ class SecurityLimitsTest extends TestCase
         $this->assertNotEmpty($models);
     }
 
-    // ========== Negative Limits Bypass Tests ==========
+    // ========== Invalid Limits ==========
 
     #[Test]
-    public function it_treats_negative_filter_count_as_disabled(): void
+    #[DataProvider('limitsThatDoNotDisable')]
+    public function a_limit_that_is_not_a_positive_integer_is_a_configuration_error(string $limit, mixed $value): void
     {
-        // Negative limits should be treated as disabled (null), not bypass validation
-        Config::set('query-wizard.limits.max_filters_count', -5);
+        Config::set("query-wizard.limits.{$limit}", $value);
 
-        $models = $this
-            ->createEloquentWizardWithFilters([
-                'name' => 'test',
-                'id' => 1,
-                'created_at' => '2021-01-01',
-            ])
-            ->allowedFilters('name', 'id', 'created_at')
-            ->get();
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Config `query-wizard.limits.{$limit}` must be a positive integer, or null to disable the limit.");
 
-        // Should work (limit disabled)
-        $this->assertIsIterable($models);
-    }
-
-    #[Test]
-    public function it_treats_zero_filter_count_as_disabled(): void
-    {
-        Config::set('query-wizard.limits.max_filters_count', 0);
-
-        $models = $this
-            ->createEloquentWizardWithFilters([
-                'name' => 'test',
-                'id' => 1,
-            ])
+        $this
+            ->createEloquentWizardWithFilters(['name' => 'test', 'id' => 1])
             ->allowedFilters('name', 'id')
+            ->allowedSorts('name')
+            ->allowedIncludes('relatedModels')
             ->get();
+    }
 
-        // Should work (limit disabled)
-        $this->assertIsIterable($models);
+    /**
+     * @return array<string, array{string, mixed}>
+     */
+    public static function limitsThatDoNotDisable(): array
+    {
+        return [
+            'negative filters count' => ['max_filters_count', -5],
+            'zero filters count' => ['max_filters_count', 0],
+            'empty filters count from env' => ['max_filters_count', ''],
+            'text filters count' => ['max_filters_count', 'abc'],
+        ];
     }
 
     #[Test]
-    public function it_treats_negative_includes_count_as_disabled(): void
+    public function a_configuration_change_applies_from_the_next_build(): void
     {
-        Config::set('query-wizard.limits.max_includes_count', -10);
+        $wizard = $this
+            ->createEloquentWizardWithFilters(['name' => 'test', 'id' => 1])
+            ->allowedFilters('name', 'id');
 
-        $models = $this
-            ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels,morphModels')
-            ->allowedIncludes('relatedModels', 'otherRelatedModels', 'morphModels')
-            ->get();
+        $wizard->getPassthroughFilters();
+        $this->assertSame(20, $wizard->getConfig()->getMaxFiltersCount());
 
-        $this->assertNotEmpty($models);
-    }
+        Config::set('query-wizard.limits.max_filters_count', 1);
+        $this->assertSame(20, $wizard->getConfig()->getMaxFiltersCount());
 
-    #[Test]
-    public function it_treats_negative_sorts_count_as_disabled(): void
-    {
-        Config::set('query-wizard.limits.max_sorts_count', -1);
+        $this->expectException(MaxFiltersCountExceeded::class);
 
-        $models = $this
-            ->createEloquentWizardWithSorts('name,-id,created_at')
-            ->allowedSorts('name', 'id', 'created_at')
-            ->get();
-
-        $this->assertNotEmpty($models);
-    }
-
-    #[Test]
-    public function it_treats_negative_include_depth_as_disabled(): void
-    {
-        Config::set('query-wizard.limits.max_include_depth', -3);
-
-        $models = $this
-            ->createEloquentWizardWithIncludes('relatedModels.nestedRelatedModels')
-            ->allowedIncludes('relatedModels.nestedRelatedModels')
-            ->get();
-
-        $this->assertNotEmpty($models);
+        $wizard->get();
     }
 }

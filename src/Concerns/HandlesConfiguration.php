@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Support\NamePolicy;
 
@@ -19,6 +20,8 @@ trait HandlesConfiguration
     use RequiresWizardContext;
 
     private ?bool $normalizePublicInputMemo = null;
+
+    private ?QueryWizardConfig $configSnapshot = null;
 
     /** @var list<array{array<string>, bool, NamePolicy}> */
     private array $denyPolicyMemo = [];
@@ -127,6 +130,15 @@ trait HandlesConfiguration
     }
 
     /**
+     * The configuration as of the current build: config() is read once, when
+     * the build first needs a setting.
+     */
+    private function configSnapshot(QueryWizardConfig $config): QueryWizardConfig
+    {
+        return $this->configSnapshot ??= $config->snapshot();
+    }
+
+    /**
      * Re-read memoized configuration on the next use.
      *
      * Called when a build starts and whenever the wizard is reconfigured, so a
@@ -134,6 +146,7 @@ trait HandlesConfiguration
      */
     private function forgetConfigurationMemo(): void
     {
+        $this->configSnapshot = null;
         $this->normalizePublicInputMemo = null;
         $this->denyPolicyMemo = [];
     }
