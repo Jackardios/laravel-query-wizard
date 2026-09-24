@@ -18,6 +18,11 @@ trait HandlesConfiguration
 {
     use RequiresWizardContext;
 
+    private ?bool $normalizePublicInputMemo = null;
+
+    /** @var list<array{array<string>, bool, NamePolicy}> */
+    private array $denyPolicyMemo = [];
+
     /**
      * Flatten definitions array (handle variadic with nested arrays).
      *
@@ -110,11 +115,56 @@ trait HandlesConfiguration
 
     protected function shouldNormalizePublicInput(): bool
     {
+        if ($this->normalizePublicInputMemo !== null) {
+            return $this->normalizePublicInputMemo;
+        }
+
         try {
-            return $this->getConfig()->shouldConvertParametersToSnakeCase();
+            return $this->normalizePublicInputMemo = $this->getConfig()->shouldConvertParametersToSnakeCase();
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    /**
+     * Re-read memoized configuration on the next use.
+     *
+     * Called when a build starts and whenever the wizard is reconfigured, so a
+     * runtime config change is picked up by the next build.
+     */
+    private function forgetConfigurationMemo(): void
+    {
+        $this->normalizePublicInputMemo = null;
+        $this->denyPolicyMemo = [];
+    }
+
+    /**
+     * Deny policy for a raw deny list, memoized by the list itself.
+     *
+     * Keying on the list (not on an invalidation hook) keeps the memo correct
+     * even when a subclass reassigns a deny list without invalidating the build.
+     *
+     * @param  array<string>  $disallowed
+     */
+    private function denyPolicyFor(array $disallowed): NamePolicy
+    {
+        $normalize = $this->shouldNormalizePublicInput();
+
+        foreach ($this->denyPolicyMemo as [$list, $listNormalize, $policy]) {
+            if ($listNormalize === $normalize && $list === $disallowed) {
+                return $policy;
+            }
+        }
+
+        $policy = NamePolicy::denying($this->normalizePublicPaths($disallowed));
+
+        if (count($this->denyPolicyMemo) >= 8) {
+            array_shift($this->denyPolicyMemo);
+        }
+
+        $this->denyPolicyMemo[] = [$disallowed, $normalize, $policy];
+
+        return $policy;
     }
 
     /**
@@ -154,7 +204,7 @@ trait HandlesConfiguration
             return $items;
         }
 
-        $policy = NamePolicy::denying($this->normalizePublicPaths($disallowed));
+        $policy = $this->denyPolicyFor($disallowed);
 
         return array_values(array_filter(
             $items,
@@ -174,8 +224,7 @@ trait HandlesConfiguration
      */
     protected function isNameDisallowed(string $name, array $disallowed): bool
     {
-        return NamePolicy::denying($this->normalizePublicPaths($disallowed))
-            ->denies($this->normalizePublicPath($name));
+        return $this->denyPolicyFor($disallowed)->denies($this->normalizePublicPath($name));
     }
 
     /**

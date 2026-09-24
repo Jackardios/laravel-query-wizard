@@ -245,6 +245,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
             return $this->model;
         }
 
+        $this->forgetConfigurationMemo();
         $effectiveIncludes = $this->getEffectiveIncludes();
         $requestedIncludeNames = $this->resolveRequestedIncludeNames($effectiveIncludes);
         $this->cleanUnwantedRelations($effectiveIncludes, $requestedIncludeNames);
@@ -578,6 +579,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         }
 
         $this->resetSafeRelationSelectState();
+        $this->forgetConfigurationMemo();
         $this->processed = false;
         $this->processedScopeSignature = null;
     }

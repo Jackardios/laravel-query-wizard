@@ -967,6 +967,20 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    public function snake_case_setting_changed_before_the_build_applies_to_it(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithFields(['test_model' => 'id'])
+            ->allowedFilters('name')
+            ->allowedFields('id', 'name');
+        $wizard->getPassthroughFilters();
+
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $this->assertSame(['id'], array_keys($wizard->get()->first()->getAttributes()));
+    }
+
+    #[Test]
     public function all_invalid_root_fields_hide_all_visible_root_attributes_when_exception_disabled(): void
     {
         config()->set('query-wizard.disable_invalid_field_query_exception', true);

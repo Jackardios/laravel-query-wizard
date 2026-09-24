@@ -224,6 +224,24 @@ class FilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function the_latest_disallowed_filters_call_wins(): void
+    {
+        $targetModel = $this->models->first();
+
+        $wizard = $this
+            ->createEloquentWizardWithFilters(['name' => $targetModel->name])
+            ->allowedFilters('name', 'id')
+            ->disallowedFilters('id');
+        $wizard->getPassthroughFilters();
+        $this->assertSame([$targetModel->id], (clone $wizard)->get()->pluck('id')->all());
+
+        $wizard->disallowedFilters('name');
+
+        $this->expectException(InvalidFilterQuery::class);
+        $wizard->get();
+    }
+
+    #[Test]
     public function filter_when_with_value_check(): void
     {
         // Only apply filter when value is not 'all'
