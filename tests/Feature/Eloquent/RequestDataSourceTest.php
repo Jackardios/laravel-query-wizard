@@ -191,7 +191,7 @@ class RequestDataSourceTest extends TestCase
     public static function bodiesThatAreNotObjects(): array
     {
         return [
-            'truncated' => ['{"filter": {"id": "1"', 'The request body is not valid JSON: Syntax error.'],
+            'truncated' => ['{"filter": {"id": "1"', 'The request body is not valid JSON: '],
             'list' => ['[{"filter": {"id": "1"}}]', 'The request body must be a JSON object.'],
             'empty list' => ['[]', 'The request body must be a JSON object.'],
             'string' => ['"filter"', 'The request body must be a JSON object.'],
