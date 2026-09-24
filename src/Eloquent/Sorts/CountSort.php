@@ -6,9 +6,6 @@ namespace Jackardios\QueryWizard\Eloquent\Sorts;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Database\Query\Expression;
-use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Sorts\AbstractSort;
 use Jackardios\QueryWizard\Support\EloquentSubject;
 
@@ -46,37 +43,14 @@ final class CountSort extends AbstractSort
      */
     public function apply(mixed $subject, string $direction): mixed
     {
-        $countColumn = Str::snake($this->property).'_count';
+        $countColumn = EloquentSubject::aggregateAlias($this->property, 'count');
 
-        if (! $this->hasCountColumn($subject, $countColumn)) {
+        if (! EloquentSubject::hasSelectAlias($subject, $countColumn)) {
             $subject->withCount($this->property);
         }
 
         $subject->orderBy($countColumn, $direction);
 
         return $subject;
-    }
-
-    private function hasCountColumn(mixed $subject, string $alias): bool
-    {
-        if (! $subject instanceof Builder && ! $subject instanceof Relation) {
-            return false;
-        }
-
-        $query = EloquentSubject::baseQuery($subject);
-        $grammar = $query->getGrammar();
-        $wrappedAlias = $grammar->wrap($alias);
-        $suffix = ' as '.$wrappedAlias;
-
-        foreach ($query->columns ?? [] as $column) {
-            if ($column instanceof Expression) {
-                $sql = $column->getValue($grammar);
-                if (is_string($sql) && str_ends_with($sql, $suffix)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Includes\AbstractInclude;
+use Jackardios\QueryWizard\Support\EloquentSubject;
 
 /**
  * Include for checking relationship existence via withExists().
@@ -48,6 +49,10 @@ final class ExistsInclude extends AbstractInclude
      */
     public function apply(mixed $subject): mixed
     {
+        if (EloquentSubject::selectsAggregate($subject, $this->relation, 'exists')) {
+            return $subject;
+        }
+
         return $subject->withExists($this->relation);
     }
 }

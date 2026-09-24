@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Includes\AbstractInclude;
+use Jackardios\QueryWizard\Support\EloquentSubject;
 
 /**
  * Include for loading relationship counts via withCount().
@@ -46,6 +47,10 @@ final class CountInclude extends AbstractInclude
      */
     public function apply(mixed $subject): mixed
     {
+        if (EloquentSubject::selectsAggregate($subject, $this->relation, 'count')) {
+            return $subject;
+        }
+
         return $subject->withCount($this->relation);
     }
 }

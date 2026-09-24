@@ -434,6 +434,52 @@ class AuditRegressionTest extends TestCase
         $this->assertSame(5, $models->first()->related_models_count);
     }
 
+    #[Test]
+    public function count_sort_and_count_include_share_one_count_subquery(): void
+    {
+        ['low' => $low, 'medium' => $medium, 'high' => $high] = $this->createCountSortFixture();
+
+        $wizard = $this
+            ->createEloquentWizardFromQuery(
+                ['sort' => '-popularity', 'include' => 'relatedModelsCount'],
+                TestModel::query()->whereKey([$low->id, $medium->id, $high->id])
+            )
+            ->allowedSorts(EloquentSort::count('relatedModels')->alias('popularity'))
+            ->allowedIncludes('relatedModelsCount');
+
+        $this->assertSame(1, substr_count($wizard->toQuery()->toSql(), 'as "related_models_count"'));
+
+        $models = $wizard->get();
+
+        $this->assertSame([$high->id, $medium->id, $low->id], $models->pluck('id')->all());
+        $this->assertSame(5, (int) $models->first()->related_models_count);
+    }
+
+    #[Test]
+    public function exists_include_does_not_repeat_an_exists_subquery_already_selected(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithIncludes('relatedModelsExists', TestModel::query()->withExists('relatedModels'))
+            ->allowedIncludes('relatedModelsExists')
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame(1, substr_count($sql, 'as "related_models_exists"'));
+    }
+
+    #[Test]
+    public function count_include_still_counts_when_another_relation_count_is_selected(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithIncludes('relatedModelsCount', TestModel::query()->withCount('otherRelatedModels'))
+            ->allowedIncludes('relatedModelsCount')
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame(1, substr_count($sql, 'as "related_models_count"'));
+        $this->assertSame(1, substr_count($sql, 'as "other_related_models_count"'));
+    }
+
     /**
      * @return array{low: TestModel, medium: TestModel, high: TestModel}
      */
