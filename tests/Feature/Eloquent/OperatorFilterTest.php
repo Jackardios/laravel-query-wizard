@@ -334,6 +334,20 @@ class OperatorFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function a_like_list_ignores_whitespace_items(): void
+    {
+        TestModel::factory()->create(['name' => 'with space']);
+        $target = TestModel::factory()->create(['name' => 'first_match']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => ['first_m', ' ']])
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->get();
+
+        $this->assertSame([$target->id], $models->modelKeys());
+    }
+
+    #[Test]
     public function a_not_like_list_excludes_every_value(): void
     {
         TestModel::factory()->create(['name' => 'first_match']);

@@ -143,7 +143,7 @@ class OperatorFilter extends AbstractFilter
      */
     protected function applyLike(Builder $builder, string $column, bool $not, array $values): Builder
     {
-        $values = array_values(array_filter($values, static fn (mixed $value): bool => $value !== '' && $value !== null));
+        $values = array_values(array_filter($values, static fn (mixed $value): bool => ! FilterValueParser::isBlank($value)));
 
         if ($values === []) {
             return $builder;

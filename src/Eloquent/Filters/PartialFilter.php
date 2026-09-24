@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
+use Jackardios\QueryWizard\Support\FilterValueParser;
 use Jackardios\QueryWizard\Support\LikeClause;
 
 /**
@@ -62,7 +63,7 @@ final class PartialFilter extends ExactFilter
         $searchable = [];
 
         foreach ($values as $value) {
-            if ($value !== '' && $value !== null) {
+            if (! FilterValueParser::isBlank($value)) {
                 $searchable[] = $this->searchableValue($value);
             }
         }

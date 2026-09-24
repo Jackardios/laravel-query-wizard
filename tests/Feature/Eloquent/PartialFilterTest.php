@@ -72,6 +72,20 @@ class PartialFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function partial_filter_ignores_whitespace_items_in_a_list(): void
+    {
+        TestModel::factory()->create(['name' => 'with space']);
+        $target = TestModel::factory()->create(['name' => 'target']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => ['targ', ' ']])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->get();
+
+        $this->assertSame([$target->id], $models->modelKeys());
+    }
+
+    #[Test]
     public function default_filter_works_with_partial_filter(): void
     {
         TestModel::factory()->create(['name' => 'default_partial_test']);
