@@ -18,48 +18,80 @@ final class DotNotationTreeBuilder
      */
     public static function build(array $grouped, string $leafKey = 'values'): array
     {
-        /** @var array<string, mixed> $tree */
-        $tree = [$leafKey => [], 'relations' => []];
+        $rootValues = [];
+        $relations = [];
 
         foreach ($grouped as $path => $values) {
             if ($path === '') {
-                $tree[$leafKey] = array_merge($tree[$leafKey], $values);
+                $rootValues = array_merge($rootValues, $values);
 
                 continue;
             }
 
-            $segments = explode('.', (string) $path);
-
-            /** @var array<string, mixed> $node */
-            $node = &$tree;
-
-            foreach ($segments as $segment) {
-                if (! isset($node['relations'][$segment])) {
-                    $node['relations'][$segment] = [$leafKey => [], 'relations' => []];
-                }
-                /** @var array<string, mixed> $node */
-                $node = &$node['relations'][$segment];
-            }
-
-            /** @var array<string> $existingValues */
-            $existingValues = $node[$leafKey] ?? [];
-
-            if (in_array('*', $values, true)) {
-                $node[$leafKey] = ['*'];
-            } elseif (! in_array('*', $existingValues, true)) {
-                $existingIndex = array_flip($existingValues);
-                foreach ($values as $value) {
-                    if (! isset($existingIndex[$value])) {
-                        $existingValues[] = $value;
-                        $existingIndex[$value] = true;
-                    }
-                }
-                $node[$leafKey] = $existingValues;
-            }
-
-            unset($node);
+            $relations = self::insert($relations, explode('.', (string) $path), $values, $leafKey);
         }
 
-        return $tree;
+        return [$leafKey => $rootValues, 'relations' => $relations];
+    }
+
+    /**
+     * @param  array<string, mixed>  $relations
+     * @param  list<string>  $segments
+     * @param  array<string>  $values
+     * @return array<string, mixed>
+     */
+    private static function insert(array $relations, array $segments, array $values, string $leafKey): array
+    {
+        $segment = array_shift($segments);
+
+        if ($segment === null) {
+            return $relations;
+        }
+
+        $node = $relations[$segment] ?? null;
+        $nodeValues = is_array($node) && is_array($node[$leafKey] ?? null) ? $node[$leafKey] : [];
+        $nodeRelations = is_array($node) && is_array($node['relations'] ?? null) ? $node['relations'] : [];
+
+        if ($segments === []) {
+            $nodeValues = self::mergeValues($nodeValues, $values);
+        } else {
+            $nodeRelations = self::insert($nodeRelations, $segments, $values, $leafKey);
+        }
+
+        $relations[$segment] = [$leafKey => $nodeValues, 'relations' => $nodeRelations];
+
+        return $relations;
+    }
+
+    /**
+     * @param  array<mixed>  $existingValues
+     * @param  array<string>  $values
+     * @return array<mixed>
+     */
+    private static function mergeValues(array $existingValues, array $values): array
+    {
+        if (in_array('*', $values, true)) {
+            return ['*'];
+        }
+
+        if (in_array('*', $existingValues, true)) {
+            return $existingValues;
+        }
+
+        $existingIndex = [];
+        foreach ($existingValues as $value) {
+            if (is_string($value)) {
+                $existingIndex[$value] = true;
+            }
+        }
+
+        foreach ($values as $value) {
+            if (! isset($existingIndex[$value])) {
+                $existingValues[] = $value;
+                $existingIndex[$value] = true;
+            }
+        }
+
+        return $existingValues;
     }
 }

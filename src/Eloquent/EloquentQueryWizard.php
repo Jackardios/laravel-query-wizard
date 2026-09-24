@@ -629,7 +629,11 @@ class EloquentQueryWizard extends BaseQueryWizard
                 continue;
             }
 
-            $this->subject = $this->applyIncludeKeepingEagerLoads($include, $this->subject);
+            $subject = $this->applyIncludeKeepingEagerLoads($include, $this->subject);
+
+            if ($subject instanceof Builder || $subject instanceof Relation) {
+                $this->subject = $subject;
+            }
 
             if ($select !== null) {
                 EagerLoads::merge($this->subject, $include->getRelation(), $select);
@@ -706,9 +710,17 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function applyPostProcessingToResults(mixed $results): void
     {
-        $this->applySafeRootFieldMaskToResults($results);
+        $processable = $results instanceof Model || $results instanceof \Traversable || is_array($results);
+
+        if ($processable) {
+            $this->applySafeRootFieldMaskToResults($results);
+        }
+
         $this->prepareAppendTree();
-        $this->applyRelationPostProcessingToResults($results, $this->state->appendTree, $this->state->relationFieldTree);
+
+        if ($processable) {
+            $this->applyRelationPostProcessingToResults($results, $this->state->appendTree, $this->state->relationFieldTree);
+        }
     }
 
     /**

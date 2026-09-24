@@ -74,6 +74,6 @@ class CallbackInclude extends AbstractInclude implements ProvidesRuntimeAttribut
     {
         $result = ($this->callback)($subject, $this->relation);
 
-        return $result instanceof $subject ? $result : $subject;
+        return is_object($subject) && $result instanceof $subject ? $result : $subject;
     }
 }

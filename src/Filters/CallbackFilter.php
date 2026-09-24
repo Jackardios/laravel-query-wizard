@@ -59,6 +59,6 @@ class CallbackFilter extends AbstractFilter
     {
         $result = ($this->callback)($subject, $value, $this->property);
 
-        return $result instanceof $subject ? $result : $subject;
+        return is_object($subject) && $result instanceof $subject ? $result : $subject;
     }
 }

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Support\RelationResolver;
@@ -159,7 +161,9 @@ trait HandlesSafeRelationSelect
     protected function applySafeRelationSelectToQuery(mixed $query, array $columns): void
     {
         if (! $query instanceof Relation) {
-            $query->select($columns);
+            if ($query instanceof Builder || $query instanceof QueryBuilder) {
+                $query->select($columns);
+            }
 
             return;
         }

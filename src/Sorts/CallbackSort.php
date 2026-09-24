@@ -54,6 +54,6 @@ class CallbackSort extends AbstractSort
     {
         $result = ($this->callback)($subject, $direction, $this->property);
 
-        return $result instanceof $subject ? $result : $subject;
+        return is_object($subject) && $result instanceof $subject ? $result : $subject;
     }
 }

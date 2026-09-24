@@ -146,6 +146,8 @@ final class ParameterParser
     /**
      * @param  iterable<mixed>  $items
      *
+     * @phpstan-assert iterable<scalar|null> $items
+     *
      * @throws \InvalidArgumentException
      */
     private function assertFlatList(iterable $items): void

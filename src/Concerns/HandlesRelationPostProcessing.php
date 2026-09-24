@@ -43,29 +43,52 @@ trait HandlesRelationPostProcessing
     protected function withRuntimeAttributesInFieldTree(array $fieldTree, array $attributesByOwner): array
     {
         foreach ($attributesByOwner as $relationPath => $attributes) {
-            if ($relationPath === '') {
-                continue;
+            if ($relationPath !== '') {
+                $fieldTree = $this->withFieldsInFieldTreeNode($fieldTree, explode('.', $relationPath), array_values($attributes));
             }
-
-            $node = &$fieldTree;
-            foreach (explode('.', $relationPath) as $segment) {
-                if (! isset($node['relations'][$segment])) {
-                    unset($node);
-
-                    continue 2;
-                }
-
-                $node = &$node['relations'][$segment];
-            }
-
-            if (! in_array('*', $node['fields'], true)) {
-                $node['fields'] = array_values(array_unique(array_merge($node['fields'], array_values($attributes))));
-            }
-
-            unset($node);
         }
 
         return $fieldTree;
+    }
+
+    /**
+     * Add fields to the node at a relation path, unless that node is missing
+     * or already takes every field.
+     *
+     * @param  array{fields: array<string>, relations: array<string, mixed>}  $node
+     * @param  list<string>  $segments
+     * @param  list<string>  $fields
+     * @return array{fields: array<string>, relations: array<string, mixed>}
+     */
+    private function withFieldsInFieldTreeNode(array $node, array $segments, array $fields): array
+    {
+        $segment = array_shift($segments);
+
+        if ($segment === null) {
+            if (! in_array('*', $node['fields'], true)) {
+                $node['fields'] = array_values(array_unique(array_merge($node['fields'], $fields)));
+            }
+
+            return $node;
+        }
+
+        $child = $node['relations'][$segment] ?? null;
+
+        if (! self::isFieldTreeNode($child)) {
+            return $node;
+        }
+
+        $node['relations'][$segment] = $this->withFieldsInFieldTreeNode($child, $segments, $fields);
+
+        return $node;
+    }
+
+    /**
+     * @phpstan-assert-if-true array{fields: array<string>, relations: array<string, mixed>} $node
+     */
+    private static function isFieldTreeNode(mixed $node): bool
+    {
+        return is_array($node) && is_array($node['fields'] ?? null) && is_array($node['relations'] ?? null);
     }
 
     /**

@@ -16,6 +16,7 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Support\FilterValueParser;
 use Jackardios\QueryWizard\Support\LikeClause;
 use Jackardios\QueryWizard\Support\ParsedDate;
+use Stringable;
 
 /**
  * Filter with configurable SQL operators.
@@ -149,14 +150,23 @@ class OperatorFilter extends AbstractFilter
         $sql = LikeClause::for($builder, $column, not: $not);
 
         if (count($values) === 1) {
-            return $builder->whereRaw($sql, [LikeClause::containing((string) $values[0])]);
+            return $builder->whereRaw($sql, [LikeClause::containing($this->likeText($values[0]))]);
         }
 
         return $builder->where(function (Builder $query) use ($values, $sql, $not): void {
             foreach ($values as $value) {
-                $query->whereRaw($sql, [LikeClause::containing((string) $value)], $not ? 'and' : 'or');
+                $query->whereRaw($sql, [LikeClause::containing($this->likeText($value))], $not ? 'and' : 'or');
             }
         });
+    }
+
+    private function likeText(mixed $value): string
+    {
+        if (is_scalar($value) || $value instanceof Stringable) {
+            return (string) $value;
+        }
+
+        throw InvalidFilterValue::make($value, $this, 'Expected text.');
     }
 
     /**

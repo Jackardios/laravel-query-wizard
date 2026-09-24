@@ -61,7 +61,7 @@ final class RelationshipInclude extends AbstractInclude
     public function apply(mixed $subject): mixed
     {
         if (! $subject instanceof Builder && ! $subject instanceof Relation) {
-            return $subject->with($this->relation);
+            return is_object($subject) && method_exists($subject, 'with') ? $subject->with($this->relation) : $subject;
         }
 
         EagerLoads::merge($subject, $this->relation);
