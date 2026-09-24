@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Eloquent;
 
+use Illuminate\Contracts\Database\Query\Expression as ExpressionContract;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -637,7 +638,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * @return array<int, Expression<float|int|string>|string>
+     * @return array<int, ExpressionContract|string>
      */
     private function collectPreservedSelectExpressions(): array
     {
@@ -648,7 +649,7 @@ class EloquentQueryWizard extends BaseQueryWizard
                 continue;
             }
 
-            /** @var Expression<float|int|string>|string $column */
+            /** @var ExpressionContract|string $column */
             $preserved[] = $column;
         }
 
@@ -656,7 +657,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * @param  array<int, Expression<float|int|string>|string>  $columns
+     * @param  array<int, ExpressionContract|string>  $columns
      * @return array<string>
      */
     private function collectPreservedSelectAliases(array $columns): array
@@ -675,7 +676,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * @param  array<int, Expression<float|int|string>|string>  $columns
+     * @param  array<int, ExpressionContract|string>  $columns
      */
     private function restorePreservedSelectExpressions(array $columns): void
     {

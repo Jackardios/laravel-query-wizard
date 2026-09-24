@@ -28,3 +28,8 @@ parameters:
         -
             message: '#Instanceof between .* and .* will always evaluate to true#'
             reportUnmatched: false
+        # Laravel 13 types whereRaw()/orWhereRaw() SQL as literal-string; PartialFilter builds it from a grammar-wrapped column
+        -
+            identifier: argument.type
+            path: src/Eloquent/Filters/PartialFilter.php
+            reportUnmatched: false
