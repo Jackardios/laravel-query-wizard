@@ -10,6 +10,8 @@ use Closure;
  * Filter using a custom callback function.
  *
  * The callback receives ($subject, $value, $property) parameters.
+ * A returned object of the subject's class becomes the new subject; any other
+ * return value is ignored.
  * This is a generic implementation that can be used across different query builders.
  *
  * @phpstan-consistent-constructor
@@ -50,6 +52,8 @@ class CallbackFilter extends AbstractFilter
 
     public function apply(mixed $subject, mixed $value): mixed
     {
-        return ($this->callback)($subject, $value, $this->property) ?? $subject;
+        $result = ($this->callback)($subject, $value, $this->property);
+
+        return $result instanceof $subject ? $result : $subject;
     }
 }

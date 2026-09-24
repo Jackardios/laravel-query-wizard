@@ -10,6 +10,8 @@ use Closure;
  * Sort using a custom callback function.
  *
  * The callback receives ($subject, $direction, $property) parameters.
+ * A returned object of the subject's class becomes the new subject; any other
+ * return value is ignored.
  * This is a generic implementation that can be used across different query builders.
  *
  * @phpstan-consistent-constructor
@@ -50,6 +52,8 @@ class CallbackSort extends AbstractSort
 
     public function apply(mixed $subject, string $direction): mixed
     {
-        return ($this->callback)($subject, $direction, $this->property) ?? $subject;
+        $result = ($this->callback)($subject, $direction, $this->property);
+
+        return $result instanceof $subject ? $result : $subject;
     }
 }
