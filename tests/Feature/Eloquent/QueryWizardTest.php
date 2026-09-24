@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -808,6 +809,41 @@ class QueryWizardTest extends TestCase
         $clone = clone $wizard;
 
         $this->assertStringContainsString('"id" = ?', $clone->toSql());
+    }
+
+    #[Test]
+    public function proxy_returns_other_builders_without_replacing_the_subject(): void
+    {
+        $wizard = $this->createEloquentWizardWithFilters(['name' => 'x'])->allowedFilters('name');
+
+        $relation = $wizard->getRelation('relatedModels');
+        $clone = $wizard->clone();
+
+        $this->assertInstanceOf(Relation::class, $relation);
+        $this->assertInstanceOf(Builder::class, $clone);
+        $this->assertNotSame($wizard->toQuery(), $clone);
+        $this->assertStringContainsString('from "test_models" where "test_models"."name" = ?', $wizard->toSql());
+    }
+
+    #[Test]
+    public function proxy_on_a_relation_subject_returns_its_query_without_replacing_the_subject(): void
+    {
+        $model = TestModel::factory()->create();
+        $wizard = EloquentQueryWizard::for($model->relatedThroughPivotModels());
+
+        $query = $wizard->getQuery();
+
+        $this->assertInstanceOf(Builder::class, $query);
+        $this->assertInstanceOf(Relation::class, $wizard->toQuery());
+    }
+
+    #[Test]
+    public function proxy_still_returns_the_wizard_for_fluent_calls(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class);
+
+        $this->assertSame($wizard, $wizard->where('id', 1)->orderBy('name'));
+        $this->assertStringContainsString('where "id" = ? order by "name" asc', $wizard->toSql());
     }
 
     #[Test]

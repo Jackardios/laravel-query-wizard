@@ -944,6 +944,9 @@ class EloquentQueryWizard extends BaseQueryWizard
     /**
      * Proxy method calls to the underlying query builder.
      *
+     * A call that returns the subject itself returns the wizard; anything else,
+     * including a different builder or relation, is returned as it is.
+     *
      * @param  array<int, mixed>  $arguments
      */
     public function __call(string $name, array $arguments): mixed
@@ -953,13 +956,6 @@ class EloquentQueryWizard extends BaseQueryWizard
         $result = $this->subject->$name(...$arguments);
 
         if ($result === $this->subject) {
-            $this->proxyModified = true;
-
-            return $this;
-        }
-
-        if ($result instanceof Builder || $result instanceof Relation) {
-            $this->subject = $result;
             $this->proxyModified = true;
 
             return $this;
