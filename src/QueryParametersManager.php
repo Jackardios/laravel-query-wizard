@@ -11,11 +11,14 @@ use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
+use Jackardios\QueryWizard\Exceptions\InvalidRequestBody;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Support\FilterValueTransformer;
 use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Support\ParameterParser;
 use Jackardios\QueryWizard\Values\Sort;
+use JsonException;
+use stdClass;
 
 /**
  * Manages query parameters from HTTP requests.
@@ -29,7 +32,7 @@ class QueryParametersManager
 
     private static function missing(): object
     {
-        return self::$missing ??= new \stdClass;
+        return self::$missing ??= new stdClass;
     }
 
     /** @var Collection<string, mixed>|null */
@@ -554,11 +557,41 @@ class QueryParametersManager
             return $this->strictBodyPayload = [];
         }
 
-        $payload = $this->request->isJson()
-            ? $this->request->json()->all()
-            : $this->request->request->all();
+        if (! $this->request->isJson()) {
+            return $this->strictBodyPayload = $this->request->request->all();
+        }
 
+        /** @var array<array-key, mixed> $payload */
+        $payload = $this->request->json()->all();
+
+        if ($payload === [] || array_is_list($payload)) {
+            $this->assertJsonObjectBody($this->request->getContent());
+        }
+
+        /** @var array<string, mixed> $payload */
         return $this->strictBodyPayload = $payload;
+    }
+
+    /**
+     * A JSON body that is not blank must be a JSON object.
+     *
+     * @throws InvalidRequestBody
+     */
+    protected function assertJsonObjectBody(string $content): void
+    {
+        if (trim($content) === '') {
+            return;
+        }
+
+        try {
+            $decoded = json_decode($content, false, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            throw InvalidRequestBody::malformedJson($exception->getMessage());
+        }
+
+        if (! $decoded instanceof stdClass) {
+            throw InvalidRequestBody::notAnObject();
+        }
     }
 
     /**
