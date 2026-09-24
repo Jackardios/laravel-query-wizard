@@ -73,7 +73,7 @@ trait HandlesIncludes
 
             $name = $include->getName();
 
-            if (! empty($disallowed) && $this->isNameDisallowed($name, $disallowed)) {
+            if (! empty($disallowed) && $this->isIncludeDisallowed($include, $name, $disallowed)) {
                 continue;
             }
 
@@ -81,6 +81,24 @@ trait HandlesIncludes
         }
 
         return $this->cachedEffectiveIncludes = $result;
+    }
+
+    /**
+     * A relationship include is also denied by its relation path, so an alias
+     * can't load a disallowed relation. Count and exists includes only load
+     * an aggregate and are matched by name alone.
+     *
+     * @param  array<string>  $disallowed
+     */
+    private function isIncludeDisallowed(IncludeInterface $include, string $name, array $disallowed): bool
+    {
+        if ($this->isNameDisallowed($name, $disallowed)) {
+            return true;
+        }
+
+        return $include->getType() === 'relationship'
+            && $include->getRelation() !== $name
+            && $this->isNameDisallowed($include->getRelation(), $disallowed);
     }
 
     /**
