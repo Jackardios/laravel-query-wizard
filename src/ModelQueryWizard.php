@@ -471,8 +471,8 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
                 continue;
             }
 
-            $relationsToLoad[$relationPath] = static function ($query) use ($columns): void {
-                $query->select($columns);
+            $relationsToLoad[$relationPath] = function ($query) use ($columns): void {
+                $this->applySafeRelationSelectToQuery($query, $columns);
             };
         }
 

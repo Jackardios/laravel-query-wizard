@@ -378,10 +378,20 @@ class EloquentQueryWizard extends BaseQueryWizard
             return;
         }
 
+        $eagerLoadColumns = $this->resolveRootEagerLoadColumns();
+
+        if ($eagerLoadColumns === null) {
+            return;
+        }
+
         $preservedSelectExpressions = $this->collectPreservedSelectExpressions();
         $preservedSelectAliases = $this->collectPreservedSelectAliases($preservedSelectExpressions);
 
         $fields = $this->applySafeRootFieldRequirements($fields);
+
+        if (! in_array('*', $fields, true)) {
+            $this->appendColumns($fields, $eagerLoadColumns);
+        }
         $fields = $this->excludeRuntimeOnlyRootFieldsFromSelect($fields, $preservedSelectAliases);
 
         if (! empty($fields) && $fields !== ['*']) {
@@ -424,8 +434,8 @@ class EloquentQueryWizard extends BaseQueryWizard
             $columns = $include->getType() === 'relationship'
                 ? $this->getSafeRelationSelectColumns($include->getRelation())
                 : null;
-            $select = $columns === null ? null : static function ($query) use ($columns): void {
-                $query->select($columns);
+            $select = $columns === null ? null : function ($query) use ($columns): void {
+                $this->applySafeRelationSelectToQuery($query, $columns);
             };
 
             if ($include instanceof RelationshipInclude) {
@@ -445,6 +455,22 @@ class EloquentQueryWizard extends BaseQueryWizard
     public function getResourceKey(): string
     {
         return $this->resolveDefaultResourceKey($this->subject->getModel());
+    }
+
+    /**
+     * Root columns the registered eager loads need, or null when the root has to keep all columns.
+     *
+     * @return array<string>|null
+     */
+    private function resolveRootEagerLoadColumns(): ?array
+    {
+        if (! $this->getConfig()->isSafeRelationSelectEnabled()) {
+            return [];
+        }
+
+        $names = $this->topLevelEagerLoadNames(EloquentSubject::builder($this->subject)->getEagerLoads());
+
+        return $names === [] ? [] : $this->resolveParentColumnsForEagerLoads($this->subject->getModel(), $names);
     }
 
     /**

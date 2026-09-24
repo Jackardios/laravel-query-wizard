@@ -34,7 +34,7 @@ final class RelationResolver
         $relation = null;
 
         foreach (explode('.', $path) as $segment) {
-            if ($segment === '' || ! method_exists($model, $segment)) {
+            if ($segment === '' || (! method_exists($model, $segment) && $model->relationResolver($model::class, $segment) === null)) {
                 return $this->cache[$path] = null;
             }
 

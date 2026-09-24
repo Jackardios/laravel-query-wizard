@@ -118,6 +118,78 @@ trait HandlesSafeRelationSelect
     }
 
     /**
+     * Parent columns the given eager loads need to match their models.
+     *
+     * Returns null when one of the relations can't be resolved or its key
+     * columns are unknown; the parent query then has to keep all its columns.
+     *
+     * @param  array<string>  $relationNames  Top-level relation names
+     * @return array<string>|null
+     */
+    protected function resolveParentColumnsForEagerLoads(Model $parent, array $relationNames): ?array
+    {
+        $columns = [];
+        $resolver = new RelationResolver($parent);
+
+        foreach ($relationNames as $relationName) {
+            $relation = $resolver->resolve($relationName);
+            $required = $relation === null ? [] : $this->resolveParentRequiredColumns($relation);
+
+            if ($required === []) {
+                return null;
+            }
+
+            $this->appendColumns($columns, $required, true);
+        }
+
+        return $columns;
+    }
+
+    /**
+     * Narrow an eager-load query to the safe relation columns.
+     *
+     * Runs as an eager-load constraint, when the relation query already knows
+     * its own eager loads (the related model's `$with` and nested includes),
+     * so the columns those need are selected too.
+     *
+     * @param  array<string>  $columns
+     */
+    protected function applySafeRelationSelectToQuery(mixed $query, array $columns): void
+    {
+        if (! $query instanceof Relation) {
+            $query->select($columns);
+
+            return;
+        }
+
+        $eagerLoadNames = $this->topLevelEagerLoadNames($query->getQuery()->getEagerLoads());
+
+        if ($eagerLoadNames !== []) {
+            $eagerLoadColumns = $this->resolveParentColumnsForEagerLoads($query->getRelated(), $eagerLoadNames);
+
+            if ($eagerLoadColumns === null) {
+                return;
+            }
+
+            $this->appendColumns($columns, $this->qualifySafeRelationColumns($query, $eagerLoadColumns));
+        }
+
+        $query->select($columns);
+    }
+
+    /**
+     * @param  array<string, mixed>  $eagerLoads
+     * @return array<string>
+     */
+    protected function topLevelEagerLoadNames(array $eagerLoads): array
+    {
+        return array_values(array_filter(
+            array_keys($eagerLoads),
+            static fn (string $name): bool => ! str_contains($name, '.')
+        ));
+    }
+
+    /**
      * Normalize and deduplicate relation paths.
      *
      * @param  array<string>  $paths
