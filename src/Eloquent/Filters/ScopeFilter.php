@@ -230,7 +230,7 @@ final class ScopeFilter extends AbstractFilter
         return match (true) {
             is_int($value), is_bool($value) => true,
             is_float($value) => is_finite($value) && floor($value) === $value,
-            is_string($value) => filter_var(trim($value), FILTER_VALIDATE_INT) !== false,
+            is_string($value) => filter_var((string) preg_replace('/^([+-]?)0+(?=\d)/', '$1', trim($value)), FILTER_VALIDATE_INT) !== false,
             default => false,
         };
     }

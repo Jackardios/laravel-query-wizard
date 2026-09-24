@@ -125,6 +125,9 @@ class FilterValueParserTest extends TestCase
             'integer string' => [' 42 ', 42],
             'signed integer string' => ['+42', 42],
             'negative integer string' => ['-42', -42],
+            'leading zeros' => ['007', 7],
+            'negative leading zeros' => ['-007', -7],
+            'zeros' => ['00', 0],
             'decimal string' => ['19.99', 19.99],
             'leading dot' => ['.5', 0.5],
             'negative leading dot' => ['-.5', -0.5],
@@ -297,6 +300,7 @@ class FilterValueParserTest extends TestCase
         $this->assertSame(1700000000, FilterValueParser::unixTimestamp(1700000000, 'created_at'));
         $this->assertSame(1700000000, FilterValueParser::unixTimestamp(' 1700000000 ', 'created_at'));
         $this->assertSame(-1, FilterValueParser::unixTimestamp('-1', 'created_at'));
+        $this->assertSame(7, FilterValueParser::unixTimestamp('007', 'created_at'));
         $this->assertNull(FilterValueParser::unixTimestamp('', 'created_at'));
 
         foreach (['1700000000.5', '99999999999999999999', 'now', 1.0] as $value) {

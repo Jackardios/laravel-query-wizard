@@ -145,6 +145,7 @@ final class FilterValueParser
                 return (float) $number;
             }
 
+            $number = self::withoutLeadingZeros($number);
             $integer = filter_var($number, FILTER_VALIDATE_INT);
 
             return $integer !== false ? $integer : ltrim($number, '+');
@@ -225,7 +226,7 @@ final class FilterValueParser
         }
 
         if (is_string($value) && preg_match(self::INTEGER_PATTERN, $timestamp = trim($value)) === 1) {
-            $integer = filter_var($timestamp, FILTER_VALIDATE_INT);
+            $integer = filter_var(self::withoutLeadingZeros($timestamp), FILTER_VALIDATE_INT);
 
             if ($integer !== false) {
                 return $integer;
@@ -344,5 +345,13 @@ final class FilterValueParser
         $reason = $key === null ? "Expected {$expected}." : "Expected {$expected} for `{$key}`.";
 
         return InvalidFilterValue::make($value, $filter, $reason);
+    }
+
+    /**
+     * FILTER_VALIDATE_INT rejects leading zeros, which a request may carry ('007').
+     */
+    private static function withoutLeadingZeros(string $integer): string
+    {
+        return (string) preg_replace('/^([+-]?)0+(?=\d)/', '$1', $integer);
     }
 }

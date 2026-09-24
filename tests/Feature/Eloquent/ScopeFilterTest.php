@@ -218,6 +218,17 @@ class ScopeFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function integers_with_leading_zeros_fit_an_int_parameter(): void
+    {
+        $models = $this
+            ->createEloquentWizardWithFilters(['idAbove' => '00'])
+            ->allowedFilters(EloquentFilter::scope('idAbove'))
+            ->get();
+
+        $this->assertCount($this->models->count(), $models);
+    }
+
+    #[Test]
     public function model_binding_works_for_attribute_scopes(): void
     {
         $model = $this->models->last();
