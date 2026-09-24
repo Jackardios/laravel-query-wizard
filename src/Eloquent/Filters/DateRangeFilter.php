@@ -4,22 +4,41 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
+use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Jackardios\QueryWizard\Support\FilterValueParser;
 
 /**
  * Filter by date range (from/to).
  *
  * Expects: ?filter[property][from]=X&filter[property][to]=Y
+ *
+ * A bound is a date (Y-m-d) or an ISO 8601 date-time; anything else is
+ * rejected with a 400 unless lenient() is used. Bounds are read in the
+ * application timezone, and a date-time with an offset is converted to it.
+ * A date names the whole day, so `to=2024-01-31` matches all of January 31.
  */
 final class DateRangeFilter extends AbstractRangeFilter
 {
+    private const UNIX_TIMESTAMP_FORMAT = 'U';
+
     protected string $minKey = 'from';
 
     protected string $maxKey = 'to';
 
     protected ?string $dateFormat = null;
 
-    protected bool $strictDateParsing = false;
+    protected bool $lenient = false;
+
+    /**
+     * Bounds resolved by hasEffectiveConstraint(), handed to applyOnQuery().
+     *
+     * @var array{0: mixed, 1: list<array{0: string, 1: mixed}>}|null
+     */
+    private ?array $resolvedBounds = null;
 
     /**
      * Create a new date range filter.
@@ -57,7 +76,11 @@ final class DateRangeFilter extends AbstractRangeFilter
     }
 
     /**
-     * Set the date format for DateTime values.
+     * Set the format bounds are compared in, for a column that does not hold
+     * dates in the database's own format.
+     *
+     * 'U' compares whole seconds since the Unix epoch and also accepts
+     * timestamps in the request (see asUnixTimestamp()).
      *
      * Note: This method mutates the current instance.
      */
@@ -69,16 +92,24 @@ final class DateRangeFilter extends AbstractRangeFilter
     }
 
     /**
-     * Enable strict date parsing mode.
-     *
-     * By default, strtotime() is used which accepts relative dates like "tomorrow", "+1 week".
-     * With strict mode, only standard date formats (Y-m-d, Y-m-d H:i:s, ISO 8601) are accepted.
+     * Compare an integer column holding Unix timestamps; the request may send
+     * timestamps as well as dates. Same as dateFormat('U').
      *
      * Note: This method mutates the current instance.
      */
-    public function strict(): static
+    public function asUnixTimestamp(): static
     {
-        $this->strictDateParsing = true;
+        return $this->dateFormat(self::UNIX_TIMESTAMP_FORMAT);
+    }
+
+    /**
+     * Also accept any date PHP can read, such as "yesterday" or "-1 week".
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function lenient(): static
+    {
+        $this->lenient = true;
 
         return $this;
     }
@@ -88,51 +119,91 @@ final class DateRangeFilter extends AbstractRangeFilter
         return 'date_range';
     }
 
-    protected function normalizeRangeValue(mixed $value): mixed
+    protected function hasEffectiveConstraint(mixed $value): bool
     {
-        if ($value === '' || $value === null) {
+        $bounds = $this->resolveBounds($value);
+        $this->resolvedBounds = $bounds === [] ? null : [$value, $bounds];
+
+        return $bounds !== [];
+    }
+
+    /**
+     * @param  Builder<Model>  $builder
+     * @param  array<string, mixed>|mixed  $value
+     * @return Builder<Model>
+     */
+    protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
+    {
+        $qualifiedColumn = $builder->qualifyColumn($column);
+        $bounds = $this->resolvedBounds !== null && $this->resolvedBounds[0] === $value
+            ? $this->resolvedBounds[1]
+            : $this->resolveBounds($value);
+        $this->resolvedBounds = null;
+
+        foreach ($bounds as [$operator, $bound]) {
+            $builder->where($qualifiedColumn, $operator, $bound);
+        }
+
+        return $builder;
+    }
+
+    /**
+     * @return list<array{0: string, 1: mixed}>
+     */
+    private function resolveBounds(mixed $value): array
+    {
+        [$from, $to] = $this->parseRangeValue($value, $this->minKey, $this->maxKey);
+
+        if ($from === null && $to === null) {
+            return [];
+        }
+
+        $timezone = new DateTimeZone(date_default_timezone_get());
+
+        return array_values(array_filter([
+            $this->resolveBound($from, $this->minKey, false, $timezone),
+            $this->resolveBound($to, $this->maxKey, true, $timezone),
+        ]));
+    }
+
+    /**
+     * @return array{0: string, 1: mixed}|null
+     */
+    private function resolveBound(mixed $value, string $key, bool $upper, DateTimeZone $timezone): ?array
+    {
+        if ($this->dateFormat === self::UNIX_TIMESTAMP_FORMAT && self::looksLikeTimestamp($value)) {
+            $timestamp = FilterValueParser::unixTimestamp($value, $this, $key);
+
+            return $timestamp === null ? null : [$upper ? '<=' : '>=', $timestamp];
+        }
+
+        $date = $this->lenient
+            ? FilterValueParser::lenientDate($value, $this, $timezone, $key)
+            : FilterValueParser::isoDate($value, $this, $timezone, $key);
+
+        if ($date === null) {
             return null;
         }
 
-        if ($value instanceof DateTimeInterface) {
-            return $value;
+        if ($date->dateOnly && $upper) {
+            return ['<', $this->formatBound($date->value->modify('+1 day'), true)];
         }
 
-        if (is_numeric($value)) {
-            return $value;
-        }
-
-        if (is_string($value)) {
-            if ($this->strictDateParsing) {
-                return $this->parseStrictDate($value);
-            }
-
-            return strtotime($value) === false ? null : $value;
-        }
-
-        return null;
+        return [$upper ? '<=' : '>=', $this->formatBound($date->value, $date->dateOnly)];
     }
 
-    protected function parseStrictDate(string $value): ?string
+    private function formatBound(DateTimeImmutable $instant, bool $dateOnly): DateTimeInterface|int|string
     {
-        $formats = ['Y-m-d', 'Y-m-d H:i:s', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i:sP'];
-
-        foreach ($formats as $format) {
-            $parsed = \DateTimeImmutable::createFromFormat($format, $value);
-            if ($parsed !== false && $parsed->format($format) === $value) {
-                return $value;
-            }
-        }
-
-        return null;
+        return match (true) {
+            $this->dateFormat === self::UNIX_TIMESTAMP_FORMAT => $instant->getTimestamp(),
+            $this->dateFormat !== null => $instant->format($this->dateFormat),
+            $dateOnly => $instant->format('Y-m-d'),
+            default => $instant,
+        };
     }
 
-    protected function formatValue(mixed $value): mixed
+    private static function looksLikeTimestamp(mixed $value): bool
     {
-        if ($value instanceof DateTimeInterface && $this->dateFormat !== null) {
-            return $value->format($this->dateFormat);
-        }
-
-        return $value;
+        return is_int($value) || (is_string($value) && preg_match('/^[+-]?\d+\z/', trim($value)) === 1);
     }
 }

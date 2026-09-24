@@ -161,8 +161,8 @@ class RelationFilterTest extends EloquentFilterTestCase
             ->toSql();
 
         $this->assertStringContainsString('exists', strtolower($sql));
-        $this->assertStringContainsString('>=', $sql);
-        $this->assertStringContainsString('<=', $sql);
+        $this->assertStringContainsString('>= ?', $sql);
+        $this->assertStringContainsString('< ?', $sql);
     }
 
     #[Test]
@@ -283,7 +283,7 @@ class RelationFilterTest extends EloquentFilterTestCase
             'exact prepared to an empty list' => ['exact-empty', 'x'],
             'partial prepared to blank items' => ['partial-blank', 'x'],
             'range without numeric bounds' => ['range', ['min' => 'abc']],
-            'date range without dates' => ['date-range', ['from' => 'not a date']],
+            'date range prepared to blank bounds' => ['date-range-blank', ['from' => '2024-01-31']],
             'null with a non-boolean' => ['null', 'maybe'],
             'dynamic operator without operand' => ['dynamic', '>='],
             'operator prepared to an empty list' => ['operator-empty', 'x'],
@@ -321,7 +321,7 @@ class RelationFilterTest extends EloquentFilterTestCase
             'exact-empty' => EloquentFilter::exact($property)->prepareValueWith(fn () => []),
             'partial-blank' => EloquentFilter::partial($property)->prepareValueWith(fn () => ['', null]),
             'range' => EloquentFilter::range($property),
-            'date-range' => EloquentFilter::dateRange($property),
+            'date-range-blank' => EloquentFilter::dateRange($property)->prepareValueWith(fn () => ['from' => ' ', 'to' => '']),
             'null' => EloquentFilter::null($property),
             'dynamic' => EloquentFilter::operator($property, FilterOperator::DYNAMIC),
             'operator-empty' => EloquentFilter::operator($property, FilterOperator::EQUAL)->prepareValueWith(fn () => []),

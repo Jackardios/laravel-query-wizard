@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use Closure;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -219,130 +224,189 @@ class RangeFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function date_range_filter_ignores_invalid_from_date(): void
+    #[DataProvider('invalidDates')]
+    public function date_range_filter_rejects_values_that_are_not_iso_dates(mixed $value): void
     {
-        $to = Carbon::now()->addDays(1);
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage('Expected a date (Y-m-d) or an ISO 8601 date-time for `from`.');
 
-        $models = $this
-            ->createEloquentWizardWithFilters(['created_at' => [
-                'from' => 'not-a-date',
-                'to' => $to->toDateTimeString(),
-            ]])
+        $this
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => $value]])
             ->allowedFilters(EloquentFilter::dateRange('created_at'))
-            ->get();
-
-        $this->assertCount(5, $models);
-    }
-
-    #[Test]
-    public function date_range_filter_ignores_invalid_to_date(): void
-    {
-        $from = Carbon::now()->subDays(1);
-
-        $models = $this
-            ->createEloquentWizardWithFilters(['created_at' => [
-                'from' => $from->toDateTimeString(),
-                'to' => 'not-a-date',
-            ]])
-            ->allowedFilters(EloquentFilter::dateRange('created_at'))
-            ->get();
-
-        $this->assertCount(5, $models);
+            ->toQuery();
     }
 
     /**
-     * The raw number is bound as the bound value, which PostgreSQL rejects for a
-     * timestamp column.
+     * @return array<string, array{mixed}>
      */
-    #[Test]
-    #[Group('pgsql-known-failure')]
-    public function date_range_filter_allows_numeric_timestamps(): void
+    public static function invalidDates(): array
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['created_at' => [
-                'from' => 0,
-            ]])
-            ->allowedFilters(EloquentFilter::dateRange('created_at'))
-            ->get();
-
-        $this->assertCount(5, $models);
+        return [
+            'text' => ['not-a-date'],
+            'relative' => ['yesterday'],
+            'day out of range' => ['2024-02-30'],
+            'hour out of range' => ['2024-01-31T25:00'],
+            'local format' => ['31.01.2024'],
+            'compact date' => ['20240131'],
+            'timestamp string' => ['1706702400'],
+            'timestamp' => [1706702400],
+        ];
     }
 
     #[Test]
-    public function date_range_filter_accepts_relative_dates_by_default(): void
+    #[DataProvider('isoBounds')]
+    public function date_range_filter_reads_iso_dates_in_the_app_timezone(string $from, string $bound): void
     {
-        // Relative dates like "yesterday" are accepted by default (via strtotime validation)
-        // Note: actual database filtering depends on database support for these strings
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => $from]])
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
+            ->toQuery();
+
+        $this->assertStringEndsWith('where "test_models"."created_at" >= ?', $query->toSql());
+        $this->assertSame([$bound], $query->getConnection()->prepareBindings($query->getBindings()));
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function isoBounds(): array
+    {
+        return [
+            'date' => ['2024-01-31', '2024-01-31'],
+            'date-time' => ['2024-01-31 10:15:30', '2024-01-31 10:15:30'],
+            'without seconds' => ['2024-01-31T10:15', '2024-01-31 10:15:00'],
+            'utc' => ['2024-01-31T10:15:30Z', '2024-01-31 10:15:30'],
+            'offset' => ['2024-01-31T10:15:30+03:00', '2024-01-31 07:15:30'],
+            'fraction' => ['2024-01-31T10:15:30.250-02:00', '2024-01-31 12:15:30'],
+            'padded' => [' 2024-01-31 ', '2024-01-31'],
+        ];
+    }
+
+    #[Test]
+    public function date_range_filter_upper_date_includes_the_whole_day(): void
+    {
+        $late = $this->models->first();
+        $late->forceFill(['created_at' => '2024-01-31 23:30:00'])->save();
+
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => '2024-01-31', 'to' => '2024-01-31']])
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
+            ->toQuery();
+
+        $this->assertStringEndsWith('"created_at" >= ? and "test_models"."created_at" < ?', $query->toSql());
+        $this->assertSame(['2024-01-31', '2024-02-01'], $query->getBindings());
+        $this->assertSame([$late->id], $query->get()->modelKeys());
+    }
+
+    #[Test]
+    public function date_range_filter_upper_date_time_is_inclusive(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['to' => '2024-01-31T23:30:00']])
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
+            ->toQuery();
+
+        $this->assertStringEndsWith('"created_at" <= ?', $query->toSql());
+        $this->assertSame(['2024-01-31 23:30:00'], $query->getConnection()->prepareBindings($query->getBindings()));
+    }
+
+    #[Test]
+    public function date_range_filter_converts_date_objects_to_the_app_timezone(): void
+    {
+        $this->withTimezone('Europe/Moscow', function (): void {
+            $query = $this
+                ->createEloquentWizardWithFilters([])
+                ->allowedFilters(EloquentFilter::dateRange('created_at')->default([
+                    'from' => new DateTimeImmutable('2024-01-31 10:00:00', new DateTimeZone('UTC')),
+                ]))
+                ->toQuery();
+
+            $this->assertSame(['2024-01-31 13:00:00'], $query->getConnection()->prepareBindings($query->getBindings()));
+        });
+    }
+
+    #[Test]
+    public function date_range_filter_dates_start_at_midnight_in_the_app_timezone(): void
+    {
+        $this->withTimezone('Asia/Tokyo', function (): void {
+            $query = $this
+                ->createEloquentWizardWithFilters(['created_at' => ['from' => '2024-01-31', 'to' => '2024-01-31']])
+                ->allowedFilters(EloquentFilter::dateRange('created_at')->asUnixTimestamp())
+                ->toQuery();
+
+            $this->assertSame([1706626800, 1706713200], $query->getBindings());
+        });
+    }
+
+    #[Test]
+    public function date_range_filter_lenient_mode_accepts_relative_dates(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => '-1 week', 'to' => '2024-01-31']])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->lenient())
+            ->toQuery();
+
+        $bindings = $query->getConnection()->prepareBindings($query->getBindings());
+        $this->assertSame('2024-02-01', $bindings[1]);
+        $this->assertStringStartsWith((new DateTimeImmutable('-1 week'))->format('Y-m-d '), $bindings[0]);
+    }
+
+    #[Test]
+    public function date_range_filter_lenient_mode_rejects_single_letters(): void
+    {
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage('Expected a date for `to`.');
+
+        $this
+            ->createEloquentWizardWithFilters(['created_at' => ['to' => 'x']])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->lenient())
+            ->toQuery();
+    }
+
+    #[Test]
+    public function date_range_filter_unix_timestamp_mode_takes_timestamps_and_dates(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => '1706702400', 'to' => '2024-01-31T12:00:00+02:00']])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->asUnixTimestamp())
+            ->toQuery();
+
+        $this->assertSame([1706702400, 1706695200], $query->getBindings());
+    }
+
+    #[Test]
+    public function date_range_filter_formats_bounds_with_the_date_format(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => '2024-01-31T10:15:30Z', 'to' => '2024-01-31']])
+            ->allowedFilters(EloquentFilter::dateRange('created_at')->dateFormat('Y-m-d H:i'))
+            ->toQuery();
+
+        $this->assertStringEndsWith('"created_at" >= ? and "test_models"."created_at" < ?', $query->toSql());
+        $this->assertSame(['2024-01-31 10:15', '2024-02-01 00:00'], $query->getBindings());
+    }
+
+    #[Test]
+    public function date_range_filter_blank_bounds_are_absent(): void
+    {
         $sql = $this
-            ->createEloquentWizardWithFilters(['created_at' => [
-                'from' => '-1 week',
-                'to' => '+1 week',
-            ]])
+            ->createEloquentWizardWithFilters(['created_at' => ['from' => ' ', 'to' => '2024-01-31']])
             ->allowedFilters(EloquentFilter::dateRange('created_at'))
             ->toQuery()
             ->toSql();
 
-        // Both from and to should be applied since they pass strtotime validation
-        $this->assertStringContainsString('>=', $sql);
-        $this->assertStringContainsString('<=', $sql);
+        $this->assertStringEndsWith('where "test_models"."created_at" < ?', $sql);
     }
 
-    #[Test]
-    public function date_range_filter_strict_mode_rejects_relative_dates(): void
+    private function withTimezone(string $timezone, Closure $callback): void
     {
-        $sql = $this
-            ->createEloquentWizardWithFilters(['created_at' => [
-                'from' => 'yesterday',
-                'to' => '2030-12-31',
-            ]])
-            ->allowedFilters(EloquentFilter::dateRange('created_at')->strict())
-            ->toQuery()
-            ->toSql();
+        $previous = date_default_timezone_get();
+        date_default_timezone_set($timezone);
 
-        // 'yesterday' should be rejected in strict mode, only 'to' applied
-        $this->assertStringContainsString('<=', $sql);
-        $this->assertStringNotContainsString('>=', $sql);
-    }
-
-    #[Test]
-    public function date_range_filter_strict_mode_accepts_standard_dates(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithFilters(['created_at' => [
-                'from' => '2020-01-01',
-                'to' => '2030-12-31',
-            ]])
-            ->allowedFilters(EloquentFilter::dateRange('created_at')->strict())
-            ->get();
-
-        $this->assertCount(5, $models);
-    }
-
-    #[Test]
-    public function date_range_filter_strict_mode_accepts_datetime_format(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithFilters(['created_at' => [
-                'from' => '2020-01-01 00:00:00',
-                'to' => '2030-12-31 23:59:59',
-            ]])
-            ->allowedFilters(EloquentFilter::dateRange('created_at')->strict())
-            ->get();
-
-        $this->assertCount(5, $models);
-    }
-
-    #[Test]
-    public function date_range_filter_strict_mode_accepts_iso8601_format(): void
-    {
-        $models = $this
-            ->createEloquentWizardWithFilters(['created_at' => [
-                'from' => '2020-01-01T00:00:00',
-                'to' => '2030-12-31T23:59:59',
-            ]])
-            ->allowedFilters(EloquentFilter::dateRange('created_at')->strict())
-            ->get();
-
-        $this->assertCount(5, $models);
+        try {
+            $callback();
+        } finally {
+            date_default_timezone_set($previous);
+        }
     }
 }
