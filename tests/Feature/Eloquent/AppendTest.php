@@ -578,6 +578,59 @@ class AppendTest extends TestCase
     }
 
     #[Test]
+    public function a_relation_append_that_is_not_allowed_is_rejected_without_includes(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery(['append' => 'relatedModels.upperName'], TestModel::class)
+            ->allowedAppends('relatedModels.formattedName')
+            ->get();
+    }
+
+    #[Test]
+    public function a_relation_append_that_is_not_allowed_is_rejected_when_the_relation_is_not_included(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery(['append' => 'relatedModels.upperName'], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->get();
+    }
+
+    #[Test]
+    public function an_allowed_relation_append_is_not_applied_when_the_relation_is_not_included(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery(['append' => 'relatedModels.formattedName'], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.formattedName')
+            ->first();
+
+        $this->assertArrayNotHasKey('related_models', $result->toArray());
+    }
+
+    #[Test]
+    public function appends_through_an_alias_and_the_relation_name_are_merged(): void
+    {
+        $result = $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'related,relatedModels',
+                'append' => 'related.formattedName,relatedModels.upperName',
+            ], TestModel::class)
+            ->allowedIncludes(EloquentInclude::relationship('relatedModels')->alias('related'), 'relatedModels')
+            ->allowedAppends('related.formattedName', 'relatedModels.upperName')
+            ->first();
+
+        $related = $result->toArray()['related_models'][0];
+
+        $this->assertArrayHasKey('formattedName', $related);
+        $this->assertArrayHasKey('upperName', $related);
+    }
+
+    #[Test]
     public function nested_append_applies_to_all_models_in_collection(): void
     {
         $results = $this

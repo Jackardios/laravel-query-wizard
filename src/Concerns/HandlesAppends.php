@@ -87,8 +87,6 @@ trait HandlesAppends
 
         $maxDepth = $this->getConfig()->getMaxAppendDepth();
         $exceptionsDisabled = $this->getConfig()->isInvalidAppendQueryExceptionDisabled();
-        $allowedRelationAppendList = $this->extractRelationAttributes($allowed);
-
         $validGrouped = [];
 
         foreach ($grouped as $key => $attributes) {
@@ -109,32 +107,21 @@ trait HandlesAppends
                 continue;
             }
 
-            $relationPath = $includeNameToPathMap[$key] ?? null;
-            if ($relationPath === null) {
-                if (
-                    ! $useDefaults
-                    && ! $exceptionsDisabled
-                    && ! empty($includeNameToPathMap)
-                ) {
-                    throw InvalidAppendQuery::appendsNotAllowed(
-                        collect($this->prefixGroupAttributes($key, $attributes)),
-                        collect($allowedRelationAppendList)
-                    );
-                }
-
-                continue;
-            }
-
-            if (! isset($includedRelationPaths[$relationPath])) {
-                continue;
-            }
-
             if (empty($attributes)) {
                 continue;
             }
 
+            // Requested relation appends are validated even when the relation is
+            // not loaded; they only apply to a loaded relation.
+            $relationPath = $includeNameToPathMap[$key] ?? null;
+            $loaded = $relationPath !== null && isset($includedRelationPaths[$relationPath]);
+
+            if ($useDefaults && ! $loaded) {
+                continue;
+            }
+
             // Validate depth (based on relation path, not alias)
-            $depth = substr_count($relationPath, '.') + 2;
+            $depth = substr_count($relationPath ?? $key, '.') + 2;
             if ($useDefaults) {
                 $this->assertDefaultWithinLimit(
                     "The depth of default append `{$relationPath}.{$attributes[0]}`",
@@ -143,7 +130,7 @@ trait HandlesAppends
                     'max_append_depth'
                 );
             } elseif ($maxDepth !== null && $depth > $maxDepth) {
-                throw MaxAppendDepthExceeded::create("{$relationPath}.{$attributes[0]}", $depth, $maxDepth);
+                throw MaxAppendDepthExceeded::create(($relationPath ?? $key).".{$attributes[0]}", $depth, $maxDepth);
             }
 
             // Validate using the request key (include name/alias), not the relation path
@@ -155,8 +142,9 @@ trait HandlesAppends
                 ! $useDefaults,
                 $exceptionsDisabled
             );
-            if (! empty($valid)) {
-                $validGrouped[$relationPath] = $valid;
+
+            if ($loaded && ! empty($valid)) {
+                $validGrouped[$relationPath] = array_values(array_unique(array_merge($validGrouped[$relationPath] ?? [], $valid)));
             }
         }
 

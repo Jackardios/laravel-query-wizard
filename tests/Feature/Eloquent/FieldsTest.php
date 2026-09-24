@@ -1177,6 +1177,18 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    public function a_relation_fieldset_is_validated_when_the_relation_is_not_included(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this
+            ->createEloquentWizardWithFields(['relatedModels' => 'name'])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'relatedModels.id')
+            ->get();
+    }
+
+    #[Test]
     public function explicit_empty_fields_disable_default_fields(): void
     {
         $result = $this
