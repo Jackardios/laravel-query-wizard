@@ -4,7 +4,7 @@ includes:
 parameters:
     paths:
         - src
-    level: 7
+    level: 8
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
         # Values come from user configuration and request data, so string-typed PHPDoc is not a runtime guarantee
