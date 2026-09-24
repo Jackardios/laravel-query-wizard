@@ -229,6 +229,22 @@ class EagerLoadKeysTest extends TestCase
         $this->assertSame(['marker' => 'dev'], $models->first()->relatedModels->first()->toArray());
     }
 
+    #[Test]
+    public function relation_fieldset_works_with_one_of_many_relations(): void
+    {
+        $models = $this->wizard(TestModelWithEagerLoads::query()->without('relatedModels'), [
+            'include' => 'latestRelatedModel',
+            'fields' => ['latestRelatedModel' => 'name'],
+        ])
+            ->allowedIncludes('latestRelatedModel')
+            ->allowedFields('latestRelatedModel.name')
+            ->get();
+
+        $latest = RelatedModel::query()->where('test_model_id', $models->first()->id)->orderByDesc('id')->firstOrFail();
+
+        $this->assertSame(['name' => $latest->name], $models->first()->latestRelatedModel->toArray());
+    }
+
     /**
      * @param  Builder<Model>  $subject
      * @param  array<string, mixed>  $query

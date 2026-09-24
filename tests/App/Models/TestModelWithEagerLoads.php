@@ -3,6 +3,7 @@
 namespace Jackardios\QueryWizard\Tests\App\Models;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Test model that always eager loads its related models.
@@ -35,5 +36,10 @@ class TestModelWithEagerLoads extends TestModel
         return $this->hasMany(RelatedModel::class, 'test_model_id')
             ->select('related_models.*')
             ->selectRaw("'marked' as marker");
+    }
+
+    public function latestRelatedModel(): HasOne
+    {
+        return $this->hasOne(RelatedModel::class, 'test_model_id')->latestOfMany();
     }
 }
