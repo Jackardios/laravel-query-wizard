@@ -101,6 +101,11 @@ final class NullFilter extends AbstractFilter
         return $this->applyToSubject($subject, $value);
     }
 
+    protected function hasEffectiveConstraint(mixed $value): bool
+    {
+        return $this->strictMode || filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null;
+    }
+
     /**
      * @param  Builder<Model>  $builder
      * @return Builder<Model>

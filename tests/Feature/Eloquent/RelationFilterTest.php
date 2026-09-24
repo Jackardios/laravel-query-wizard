@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Enums\FilterOperator;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -255,5 +259,72 @@ class RelationFilterTest extends EloquentFilterTestCase
             ->toSql();
 
         $this->assertStringNotContainsString('exists', strtolower($sql));
+    }
+
+    #[Test]
+    #[DataProvider('valuesWithoutConstraint')]
+    public function a_relation_filter_without_a_constraint_adds_no_where_has(string $filter, mixed $value): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => $value])
+            ->allowedFilters($this->relationFilter($filter))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models"', $sql);
+    }
+
+    /**
+     * @return array<string, array{string, mixed}>
+     */
+    public static function valuesWithoutConstraint(): array
+    {
+        return [
+            'exact prepared to an empty list' => ['exact-empty', 'x'],
+            'partial prepared to blank items' => ['partial-blank', 'x'],
+            'range without numeric bounds' => ['range', ['min' => 'abc']],
+            'date range without dates' => ['date-range', ['from' => 'not a date']],
+            'null with a non-boolean' => ['null', 'maybe'],
+            'dynamic operator without operand' => ['dynamic', '>='],
+            'operator prepared to an empty list' => ['operator-empty', 'x'],
+        ];
+    }
+
+    #[Test]
+    public function a_strict_null_filter_still_rejects_a_non_boolean_on_a_relation(): void
+    {
+        $this->expectException(InvalidFilterValue::class);
+
+        $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => 'maybe'])
+            ->allowedFilters(EloquentFilter::null('relatedModels.name')->strict())
+            ->toQuery();
+    }
+
+    #[Test]
+    public function a_relation_filter_with_a_constraint_still_adds_where_has(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => ['min' => '1']])
+            ->allowedFilters($this->relationFilter('range'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringContainsString('exists', $sql);
+    }
+
+    private function relationFilter(string $filter): FilterInterface
+    {
+        $property = 'relatedModels.name';
+
+        return match ($filter) {
+            'exact-empty' => EloquentFilter::exact($property)->prepareValueWith(fn () => []),
+            'partial-blank' => EloquentFilter::partial($property)->prepareValueWith(fn () => ['', null]),
+            'range' => EloquentFilter::range($property),
+            'date-range' => EloquentFilter::dateRange($property),
+            'null' => EloquentFilter::null($property),
+            'dynamic' => EloquentFilter::operator($property, FilterOperator::DYNAMIC),
+            'operator-empty' => EloquentFilter::operator($property, FilterOperator::EQUAL)->prepareValueWith(fn () => []),
+        };
     }
 }

@@ -63,6 +63,10 @@ trait HandlesRelationFiltering
      */
     protected function applyToSubject(Builder|Relation $subject, mixed $value): Builder|Relation
     {
+        if (! $this->hasEffectiveConstraint($value)) {
+            return $subject;
+        }
+
         $builder = EloquentSubject::builder($subject);
 
         $result = $this->withRelationConstraint && $this->isRelationProperty($builder, $this->property)
@@ -70,6 +74,17 @@ trait HandlesRelationFiltering
             : $this->applyOnQuery($builder, $value, $this->property);
 
         return $subject instanceof Relation ? $subject : $result;
+    }
+
+    /**
+     * Whether applyOnQuery() adds a condition for the value.
+     *
+     * A value the filter ignores must not reach whereHas(), which on its own
+     * would drop the rows without related records.
+     */
+    protected function hasEffectiveConstraint(mixed $value): bool
+    {
+        return true;
     }
 
     /**

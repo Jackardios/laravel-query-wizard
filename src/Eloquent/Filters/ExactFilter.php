@@ -51,6 +51,11 @@ class ExactFilter extends AbstractFilter
         return $this->applyToSubject($subject, $value);
     }
 
+    protected function hasEffectiveConstraint(mixed $value): bool
+    {
+        return $value !== [];
+    }
+
     /**
      * @param  Builder<Model>  $builder
      * @return Builder<Model>

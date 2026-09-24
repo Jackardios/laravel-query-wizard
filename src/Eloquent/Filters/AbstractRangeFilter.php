@@ -99,6 +99,13 @@ abstract class AbstractRangeFilter extends AbstractFilter
         return $hasBoundaryKey ? null : $this->invalidRangeValueShapeMessage();
     }
 
+    protected function hasEffectiveConstraint(mixed $value): bool
+    {
+        [$min, $max] = $this->parseRangeValue($value, $this->minKey, $this->maxKey);
+
+        return $min !== null || $max !== null;
+    }
+
     /**
      * @param  Builder<Model>  $builder
      * @param  array<string, mixed>|mixed  $value

@@ -41,6 +41,20 @@ final class PartialFilter extends ExactFilter
         return 'partial';
     }
 
+    protected function hasEffectiveConstraint(mixed $value): bool
+    {
+        return ! is_array($value) || $this->searchableValues($value) !== [];
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<mixed>
+     */
+    private function searchableValues(array $values): array
+    {
+        return array_filter($values, static fn ($v): bool => $v !== '' && $v !== null);
+    }
+
     /**
      * @param  Builder<Model>  $builder
      * @return Builder<Model>
@@ -58,7 +72,7 @@ final class PartialFilter extends ExactFilter
         $sql = "LOWER({$wrappedColumn}) LIKE ? ESCAPE '".self::LIKE_ESCAPE_CHARACTER."'";
 
         if (is_array($value)) {
-            $filteredValues = array_filter($value, static fn ($v): bool => $v !== '' && $v !== null);
+            $filteredValues = $this->searchableValues($value);
             if (count($filteredValues) === 0) {
                 return $builder;
             }

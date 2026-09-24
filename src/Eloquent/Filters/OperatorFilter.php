@@ -71,6 +71,19 @@ class OperatorFilter extends AbstractFilter
         return $this->applyToSubject($subject, $value);
     }
 
+    protected function hasEffectiveConstraint(mixed $value): bool
+    {
+        if ($this->operator === FilterOperator::DYNAMIC) {
+            [$operator, $value] = $this->parseDynamicOperator($value);
+
+            if ($operator === null) {
+                return false;
+            }
+        }
+
+        return $value !== [];
+    }
+
     /**
      * @param  Builder<Model>  $builder
      * @return Builder<Model>
