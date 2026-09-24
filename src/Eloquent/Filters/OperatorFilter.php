@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use DateTimeInterface;
+use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -12,13 +13,20 @@ use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
 use Jackardios\QueryWizard\Enums\FilterOperator;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
+use Jackardios\QueryWizard\Support\FilterValueParser;
 use Jackardios\QueryWizard\Support\LikeClause;
+use Jackardios\QueryWizard\Support\ParsedDate;
 
 /**
  * Filter with configurable SQL operators.
  *
  * Supports static operators (=, !=, >, >=, <, <=, LIKE, NOT LIKE) or dynamic
  * operator parsing from the filter value itself.
+ *
+ * With DYNAMIC, the operand of >, >=, < and <= must be a decimal number or an
+ * ISO 8601 date, read in the application timezone; anything else is rejected
+ * with a 400. A date names the whole day, so `<=2024-01-31` matches all of
+ * January 31. An operator without an operand is absent.
  *
  * @phpstan-consistent-constructor
  */
@@ -155,55 +163,39 @@ class OperatorFilter extends AbstractFilter
      * Parse dynamic operator from value string.
      *
      * Supports: >=, <=, !=, <>, >, <. Lists, numbers, booleans and dates
-     * are compared for equality.
+     * are compared for equality. See FilterValueParser::dynamic().
      *
      * @return array{0: FilterOperator|null, 1: mixed}
      */
     protected function parseDynamicOperator(mixed $value): array
     {
-        if (is_array($value) || is_int($value) || is_float($value) || is_bool($value) || $value instanceof DateTimeInterface) {
-            return [FilterOperator::EQUAL, $value];
-        }
+        $parsed = FilterValueParser::dynamic($value, $this, new DateTimeZone(date_default_timezone_get()));
 
-        if (! is_string($value) || $value === '') {
+        if ($parsed === null) {
             return [null, null];
         }
 
-        if (preg_match('/^(>=|<=|!=|<>|>|<)(.*)$/', $value, $matches)) {
-            $operatorString = $matches[1];
-            $actualValue = $matches[2];
+        [$operator, $operand] = $parsed;
 
-            if ($actualValue === '') {
-                return [null, null];
-            }
-
-            $operator = match ($operatorString) {
-                '>=' => FilterOperator::GREATER_THAN_OR_EQUAL,
-                '<=' => FilterOperator::LESS_THAN_OR_EQUAL,
-                '!=' => FilterOperator::NOT_EQUAL,
-                '<>' => FilterOperator::NOT_EQUAL,
-                '>' => FilterOperator::GREATER_THAN,
-                default => FilterOperator::LESS_THAN,
-            };
-
-            if ($this->requiresNumericValue($operator) && ! is_numeric($actualValue)) {
-                return [null, null];
-            }
-
-            return [$operator, $actualValue];
-        }
-
-        return [FilterOperator::EQUAL, $value];
+        return $operand instanceof ParsedDate ? self::dateComparison($operator, $operand) : [$operator, $operand];
     }
 
-    protected function requiresNumericValue(FilterOperator $operator): bool
+    /**
+     * A date names the whole day: `>D` starts the next day and `<=D` ends before it.
+     *
+     * @return array{0: FilterOperator, 1: DateTimeInterface|string}
+     */
+    private static function dateComparison(FilterOperator $operator, ParsedDate $date): array
     {
-        return in_array($operator, [
-            FilterOperator::GREATER_THAN,
-            FilterOperator::GREATER_THAN_OR_EQUAL,
-            FilterOperator::LESS_THAN,
-            FilterOperator::LESS_THAN_OR_EQUAL,
-        ], true);
+        if (! $date->dateOnly) {
+            return [$operator, $date->value];
+        }
+
+        return match ($operator) {
+            FilterOperator::GREATER_THAN => [FilterOperator::GREATER_THAN_OR_EQUAL, $date->value->modify('+1 day')->format('Y-m-d')],
+            FilterOperator::LESS_THAN_OR_EQUAL => [FilterOperator::LESS_THAN, $date->value->modify('+1 day')->format('Y-m-d')],
+            default => [$operator, $date->value->format('Y-m-d')],
+        };
     }
 
     /**

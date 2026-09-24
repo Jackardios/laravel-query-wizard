@@ -8,6 +8,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Enums\FilterOperator;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -505,48 +506,95 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
     // ========== Dynamic Operator Numeric Validation Tests ==========
     #[Test]
-    public function dynamic_operator_skips_non_numeric_greater_than(): void
+    #[DataProvider('unreadableComparisons')]
+    public function dynamic_operator_rejects_operands_that_are_not_numbers_or_dates(string $value, string $reason): void
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['id' => '>abc'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
-            ->get();
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage($reason);
 
-        // Filter should be skipped entirely for non-numeric value with comparison operator
-        $this->assertCount(5, $models);
+        $this
+            ->createEloquentWizardWithFilters(['id' => $value])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->toQuery();
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function unreadableComparisons(): array
+    {
+        return [
+            'text after >' => ['>text', 'Expected a number or an ISO 8601 date after `>`.'],
+            'text after >=' => ['>=text', 'Expected a number or an ISO 8601 date after `>=`.'],
+            'text after <' => ['<text', 'Expected a number or an ISO 8601 date after `<`.'],
+            'text after <=' => ['<=text', 'Expected a number or an ISO 8601 date after `<=`.'],
+            'exponent' => ['>1e3', 'Expected a number or an ISO 8601 date after `>`.'],
+            'invalid date' => ['>2024-02-30', 'Expected a number or an ISO 8601 date after `>`.'],
+            'operator in a list' => ['>=1,2', 'Operators are not allowed inside a list.'],
+        ];
     }
 
     #[Test]
-    public function dynamic_operator_skips_non_numeric_greater_than_or_equal(): void
+    #[DataProvider('dateComparisons')]
+    public function dynamic_operator_date_names_the_whole_day(string $value, string $sqlOperator, string $bound): void
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['id' => '>=xyz'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
-            ->get();
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => $value])
+            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::DYNAMIC))
+            ->toQuery();
 
-        $this->assertCount(5, $models);
+        $this->assertStringEndsWith("\"created_at\" {$sqlOperator} ?", $query->toSql());
+        $this->assertSame([$bound], $query->getBindings());
+    }
+
+    /**
+     * @return array<string, array{string, string, string}>
+     */
+    public static function dateComparisons(): array
+    {
+        return [
+            'from the day' => ['>=2024-01-31', '>=', '2024-01-31'],
+            'after the day' => ['>2024-01-31', '>=', '2024-02-01'],
+            'before the day' => ['<2024-01-31', '<', '2024-01-31'],
+            'up to the end of the day' => ['<=2024-01-31', '<', '2024-02-01'],
+            'up to the end of the year' => ['<=2024-12-31', '<', '2025-01-01'],
+        ];
     }
 
     #[Test]
-    public function dynamic_operator_skips_non_numeric_less_than(): void
+    public function dynamic_operator_reads_date_times_in_the_app_timezone(): void
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['id' => '<not_a_number'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
-            ->get();
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => '<=2024-01-31T10:15:00+03:00'])
+            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::DYNAMIC))
+            ->toQuery();
 
-        $this->assertCount(5, $models);
+        $this->assertStringEndsWith('"created_at" <= ?', $query->toSql());
+        $this->assertSame(['2024-01-31 07:15:00'], $query->getConnection()->prepareBindings($query->getBindings()));
     }
 
     #[Test]
-    public function dynamic_operator_skips_non_numeric_less_than_or_equal(): void
+    public function dynamic_operator_binds_numbers(): void
     {
-        $models = $this
-            ->createEloquentWizardWithFilters(['id' => '<=text'])
+        $query = $this
+            ->createEloquentWizardWithFilters(['id' => '> 2.5'])
             ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
-            ->get();
+            ->toQuery();
 
-        $this->assertCount(5, $models);
+        $this->assertSame([2.5], $query->getBindings());
+        $this->assertEqualsCanonicalizing([3, 4, 5], $query->get()->modelKeys());
+    }
+
+    #[Test]
+    public function dynamic_operator_with_a_blank_operand_is_absent(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['id' => '>=  '])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models"', $sql);
     }
 
     #[Test]
