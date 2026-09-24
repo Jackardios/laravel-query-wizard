@@ -45,6 +45,7 @@ class ExecutingMethodsTest extends TestCase
             'findSole' => [fn ($wizard, $id) => $wizard->findSole($id)],
             'sole' => [fn ($wizard, $id) => $wizard->whereKey($id)->sole()],
             'firstWhere' => [fn ($wizard, $id) => $wizard->firstWhere('id', $id)],
+            'firstWhere with a closure' => [fn ($wizard, $id) => $wizard->firstWhere(fn ($query) => $query->whereKey($id))],
             'firstOr' => [fn ($wizard, $id) => $wizard->whereKey($id)->firstOr(fn () => null)],
         ];
     }

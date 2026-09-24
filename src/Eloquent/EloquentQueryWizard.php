@@ -65,6 +65,14 @@ class EloquentQueryWizard extends BaseQueryWizard
         'firstor' => true,
     ];
 
+    /**
+     * Finders whose closure argument is a fallback rather than a constraint.
+     */
+    private const FALLBACK_PROXY_METHODS = [
+        'findor' => true,
+        'firstor' => true,
+    ];
+
     /** @var Builder<Model>|Relation<Model, Model, mixed> */
     protected mixed $subject;
 
@@ -1131,7 +1139,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         $postProcess = isset(self::POST_PROCESSED_PROXY_METHODS[strtolower($name)]);
         $usedFallback = false;
 
-        if ($postProcess) {
+        if (isset(self::FALLBACK_PROXY_METHODS[strtolower($name)])) {
             foreach ($arguments as $index => $argument) {
                 if ($argument instanceof \Closure) {
                     $arguments[$index] = static function (mixed ...$args) use ($argument, &$usedFallback): mixed {
