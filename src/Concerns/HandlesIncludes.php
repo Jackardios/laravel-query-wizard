@@ -6,7 +6,9 @@ namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
+use Jackardios\QueryWizard\Contracts\ProvidesRuntimeAttributes;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
@@ -264,6 +266,50 @@ trait HandlesIncludes
         }
 
         return EagerLoads::preserving($subject, static fn ($subject): mixed => $include->apply($subject));
+    }
+
+    /**
+     * Attributes the given includes add to the models, grouped by the relation
+     * path of the models that carry them ('' for the root).
+     *
+     * Each group maps a requested field name to the attribute it shows: the
+     * attribute itself, and for count and exists includes also the include name.
+     *
+     * @param  array<int, string>  $includeNames
+     * @param  array<string, IncludeInterface>  $includesIndex
+     * @return array<string, array<string, string>>
+     */
+    protected function resolveRuntimeAttributesByOwner(array $includeNames, array $includesIndex): array
+    {
+        $attributesByOwner = [];
+
+        foreach ($includeNames as $includeName) {
+            $include = $includesIndex[$includeName] ?? null;
+
+            if ($include instanceof ProvidesRuntimeAttributes) {
+                $relation = $include->getRelation();
+                $lastDot = strrpos($relation, '.');
+                $owner = $lastDot === false ? '' : substr($relation, 0, $lastDot);
+
+                foreach ($include->runtimeAttributes() as $attribute) {
+                    $attributesByOwner[$owner][$this->normalizePublicPath($attribute)] = $attribute;
+                }
+            } elseif ($include !== null && in_array($include->getType(), ['count', 'exists'], true)) {
+                $attribute = $this->resolveRuntimeAttributeNameForInclude($include);
+
+                $attributesByOwner[''][$this->normalizePublicPath($includeName)] = $attribute;
+                $attributesByOwner[''][$this->normalizePublicPath($attribute)] = $attribute;
+            }
+        }
+
+        return $attributesByOwner;
+    }
+
+    protected function resolveRuntimeAttributeNameForInclude(IncludeInterface $include): string
+    {
+        $relation = str_replace('.', '_', Str::snake($include->getRelation()));
+
+        return "{$relation}_{$include->getType()}";
     }
 
     protected function invalidateIncludeCache(): void

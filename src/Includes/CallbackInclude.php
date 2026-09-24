@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Includes;
 
 use Closure;
+use Jackardios\QueryWizard\Contracts\ProvidesRuntimeAttributes;
 
 /**
  * Include using a custom callback function.
@@ -14,10 +15,13 @@ use Closure;
  *
  * @phpstan-consistent-constructor
  */
-class CallbackInclude extends AbstractInclude
+class CallbackInclude extends AbstractInclude implements ProvidesRuntimeAttributes
 {
     /** @var Closure(mixed, string): mixed */
     protected Closure $callback;
+
+    /** @var list<string> */
+    protected array $runtimeAttributes = [];
 
     /**
      * @param  Closure(mixed, string): mixed  $callback
@@ -46,6 +50,22 @@ class CallbackInclude extends AbstractInclude
     public function getType(): string
     {
         return 'callback';
+    }
+
+    /**
+     * Declare attributes the callback adds to the models, such as a
+     * `withCount()` alias, so sparse fieldsets keep them visible.
+     */
+    public function withRuntimeAttributes(string ...$attributes): static
+    {
+        $this->runtimeAttributes = array_values($attributes);
+
+        return $this;
+    }
+
+    public function runtimeAttributes(): array
+    {
+        return $this->runtimeAttributes;
     }
 
     public function apply(mixed $subject): mixed

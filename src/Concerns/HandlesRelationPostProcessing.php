@@ -34,6 +34,41 @@ trait HandlesRelationPostProcessing
     }
 
     /**
+     * Keep runtime attributes visible in the relation fieldsets that narrow their models.
+     *
+     * @param  array{fields: array<string>, relations: array<string, mixed>}  $fieldTree
+     * @param  array<string, array<string, string>>  $attributesByOwner  Relation path => requested name => attribute
+     * @return array{fields: array<string>, relations: array<string, mixed>}
+     */
+    protected function withRuntimeAttributesInFieldTree(array $fieldTree, array $attributesByOwner): array
+    {
+        foreach ($attributesByOwner as $relationPath => $attributes) {
+            if ($relationPath === '') {
+                continue;
+            }
+
+            $node = &$fieldTree;
+            foreach (explode('.', $relationPath) as $segment) {
+                if (! isset($node['relations'][$segment])) {
+                    unset($node);
+
+                    continue 2;
+                }
+
+                $node = &$node['relations'][$segment];
+            }
+
+            if (! in_array('*', $node['fields'], true)) {
+                $node['fields'] = array_values(array_unique(array_merge($node['fields'], array_values($attributes))));
+            }
+
+            unset($node);
+        }
+
+        return $fieldTree;
+    }
+
+    /**
      * @param  array{appends: array<string>, relations: array<string, mixed>}  $appendTree
      * @param  array{fields: array<string>, relations: array<string, mixed>}  $fieldTree
      */

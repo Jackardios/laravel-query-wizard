@@ -41,4 +41,7 @@ final class EloquentBuildState
 
     /** @var array<string> */
     public array $alwaysVisibleRuntimeRootAttributes = [];
+
+    /** @var array<string, array<string, string>> */
+    public array $runtimeRelationAttributes = [];
 }

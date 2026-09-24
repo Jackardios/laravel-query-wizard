@@ -581,11 +581,10 @@ class EloquentQueryWizard extends BaseQueryWizard
         }
 
         $this->prepareSafeRelationSelectPlan($this->subject->getModel(), $relationshipPaths);
+        $this->registerRuntimeAttributes($validRequestedIncludes, $includesIndex);
 
         foreach ($validRequestedIncludes as $includeName) {
             $include = $includesIndex[$includeName];
-
-            $this->registerRuntimeVisibleInclude($includeName, $include);
 
             $columns = $include->getType() === 'relationship'
                 ? $this->getSafeRelationSelectColumns($include->getRelation())
@@ -655,7 +654,10 @@ class EloquentQueryWizard extends BaseQueryWizard
         }
 
         $relationFieldMap = $this->buildValidatedRelationFieldMap();
-        $this->state->relationFieldTree = $this->buildRelationFieldTree($relationFieldMap);
+        $this->state->relationFieldTree = $this->withRuntimeAttributesInFieldTree(
+            $this->buildRelationFieldTree($relationFieldMap),
+            $this->state->runtimeRelationAttributes
+        );
         $this->state->relationFieldTreePrepared = true;
     }
 
@@ -885,27 +887,19 @@ class EloquentQueryWizard extends BaseQueryWizard
         return is_string($column) ? $column : null;
     }
 
-    private function registerRuntimeVisibleInclude(string $includeName, IncludeInterface $include): void
+    /**
+     * @param  array<int, string>  $includeNames
+     * @param  array<string, IncludeInterface>  $includesIndex
+     */
+    private function registerRuntimeAttributes(array $includeNames, array $includesIndex): void
     {
-        if (! in_array($include->getType(), ['count', 'exists'], true)) {
-            return;
-        }
+        $attributesByOwner = $this->resolveRuntimeAttributesByOwner($includeNames, $includesIndex);
 
-        $runtimeAttribute = $this->resolveRuntimeAttributeNameForInclude($include);
-        $normalizedIncludeName = $this->normalizePublicPath($includeName);
+        $this->state->runtimeRootAttributeNamesByField = $attributesByOwner[''] ?? [];
+        $this->state->alwaysVisibleRuntimeRootAttributes = array_values(array_unique($this->state->runtimeRootAttributeNamesByField));
 
-        $this->state->runtimeRootAttributeNamesByField[$normalizedIncludeName] = $runtimeAttribute;
-
-        if (! in_array($runtimeAttribute, $this->state->alwaysVisibleRuntimeRootAttributes, true)) {
-            $this->state->alwaysVisibleRuntimeRootAttributes[] = $runtimeAttribute;
-        }
-    }
-
-    private function resolveRuntimeAttributeNameForInclude(IncludeInterface $include): string
-    {
-        $relation = str_replace('.', '_', Str::snake($include->getRelation()));
-
-        return "{$relation}_{$include->getType()}";
+        unset($attributesByOwner['']);
+        $this->state->runtimeRelationAttributes = $attributesByOwner;
     }
 
     /**

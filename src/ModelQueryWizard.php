@@ -52,6 +52,9 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     protected ?string $processedScopeSignature = null;
 
+    /** @var array<string, array<string, string>> */
+    private array $runtimeAttributesByOwner = [];
+
     public function __construct(
         Model $model,
         ?QueryParametersManager $parameters = null,
@@ -431,10 +434,12 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         $this->validateIncludesLimit(count($requested));
 
         $allowedIndex = $this->buildIncludesIndex($effectiveIncludes);
+        $this->runtimeAttributesByOwner = $this->resolveRuntimeAttributesByOwner($requested, $allowedIndex);
 
         /** @var array<int, string> $relationshipRequests */
         $relationshipRequests = [];
         $countsToLoad = [];
+        $existsToLoad = [];
         $callbackIncludes = [];
 
         foreach ($requested as $includeName) {
@@ -451,6 +456,8 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 
             if ($include->getType() === 'count') {
                 $countsToLoad[] = $include->getRelation();
+            } elseif ($include->getType() === 'exists') {
+                $existsToLoad[] = $include->getRelation();
             } elseif ($include->getType() === 'callback') {
                 $callbackIncludes[] = $include;
             } elseif ($include->getType() === 'relationship') {
@@ -485,15 +492,27 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         if (! empty($countsToLoad)) {
             $this->model->loadCount($countsToLoad);
         }
+        if (! empty($existsToLoad)) {
+            $this->model->loadExists($existsToLoad);
+        }
     }
 
     protected function hideDisallowedFields(): void
     {
         $validFields = $this->resolveValidatedRootFields();
 
-        if ($validFields !== null) {
-            $this->hideModelAttributesExcept($this->model, $validFields);
+        if ($validFields === null) {
+            return;
         }
+
+        $runtimeAttributes = $this->runtimeAttributesByOwner[''] ?? [];
+        $visibleFields = array_values($runtimeAttributes);
+
+        foreach ($validFields as $field) {
+            $visibleFields[] = $runtimeAttributes[$this->normalizePublicPath($field)] ?? $field;
+        }
+
+        $this->hideModelAttributesExcept($this->model, array_values(array_unique($visibleFields)));
     }
 
     /**
@@ -501,7 +520,10 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     protected function applyRelationPostProcessing(): void
     {
-        $relationFieldTree = $this->buildRelationFieldTree($this->buildValidatedRelationFieldMap());
+        $relationFieldTree = $this->withRuntimeAttributesInFieldTree(
+            $this->buildRelationFieldTree($this->buildValidatedRelationFieldMap()),
+            $this->runtimeAttributesByOwner
+        );
 
         $appendTree = $this->getValidRequestedAppendsTree();
 
