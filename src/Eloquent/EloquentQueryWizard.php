@@ -384,9 +384,16 @@ class EloquentQueryWizard extends BaseQueryWizard
         $fields = $this->excludeRuntimeOnlyRootFieldsFromSelect($fields, $preservedSelectAliases);
 
         if (! empty($fields) && $fields !== ['*']) {
+            // select() drops the select bindings too. Only preserved expressions
+            // can carry placeholders and they are re-added in their original
+            // order, so the original bindings line up with them again.
+            $selectBindings = EloquentSubject::baseQuery($this->subject)->bindings['select'];
+
             $qualifiedFields = $this->qualifyColumns($fields);
             $this->subject->select($qualifiedFields);
             $this->restorePreservedSelectExpressions($preservedSelectExpressions);
+
+            EloquentSubject::baseQuery($this->subject)->setBindings($selectBindings, 'select');
         }
     }
 

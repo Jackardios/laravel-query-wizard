@@ -967,6 +967,26 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    public function root_fieldset_keeps_the_bindings_of_preserved_select_expressions(): void
+    {
+        $target = $this->models->first();
+        RelatedModel::factory()->create(['test_model_id' => $target->id, 'name' => 'needle']);
+
+        $subject = TestModel::query()
+            ->withCount(['relatedModels as needle_count' => fn ($query) => $query->where('name', 'needle')])
+            ->whereKey($target->id);
+
+        $wizard = $this->createEloquentWizardWithFields(['testModel' => 'id,name'], $subject)
+            ->allowedFields('id', 'name');
+
+        $this->assertSame(1, (int) $wizard->get()->first()->needle_count);
+        $this->assertSame(
+            substr_count($wizard->toQuery()->toSql(), '?'),
+            count($wizard->toQuery()->getBindings())
+        );
+    }
+
+    #[Test]
     public function snake_case_setting_changed_before_the_build_applies_to_it(): void
     {
         $wizard = $this
