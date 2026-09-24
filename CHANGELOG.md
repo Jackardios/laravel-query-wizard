@@ -74,6 +74,12 @@ and from `dev-master` snapshots. The entries below cover the changes made before
 - The scoped `QueryParametersManager` follows a rebound request.
 - Several 500 errors on malformed input are now 400s.
 
+### Security
+
+- Under `allowedFields('*')`, a field name that differs from a disallowed field or a `$hidden` model attribute only in
+  letter case is rejected. On MySQL, which matches column names without regard to case, `fields=NAME` returned the value
+  of a hidden or disallowed `name` column.
+
 ### Removed
 
 - `NullFilter::strict()` and `DateRangeFilter::strict()`: strict parsing is the default.

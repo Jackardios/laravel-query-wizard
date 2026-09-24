@@ -41,6 +41,11 @@ trait HandlesFields
      */
     abstract protected function getEffectiveIncludes(): array;
 
+    abstract protected function resolveAppendAccessorModel(string $relationPath): ?Model;
+
+    /** @var array{array<string>, bool, array<string, array<string, true>>}|null */
+    private ?array $lowercaseDisallowedFieldsMemo = null;
+
     /**
      * Get effective fields (what client CAN request via ?fields).
      *
@@ -179,6 +184,7 @@ trait HandlesFields
             : $this->extractRelationFields($allowedFields);
         $policy = NamePolicy::allowing($allowedFields);
         $denyPolicy = $this->fieldDenyPolicy();
+        $caseProtectedNames = [];
         $relationFieldMap = [];
 
         foreach ($requestedRelationFields as $requestedKey => $requestedFields) {
@@ -212,7 +218,10 @@ trait HandlesFields
             foreach ($normalizedRequestedFields as $field) {
                 if (! $allFieldsAllowed && ! $policy->allowsAttribute($requestedKey, $field)) {
                     $invalidFields[] = $field;
-                } elseif ($this->isFieldTokenDisallowed($denyPolicy, $requestedKey, $field)) {
+                } elseif (
+                    $this->isFieldTokenDisallowed($denyPolicy, $requestedKey, $field)
+                    || $this->isCaseVariantOfProtectedField($requestedKey, $field, $relationPath, $policy, $caseProtectedNames)
+                ) {
                     $invalidFields[] = $field;
                     $disallowedFound = true;
                 } else {
@@ -384,6 +393,7 @@ trait HandlesFields
         $exceptionsDisabled = $this->getConfig()->isInvalidFieldQueryExceptionDisabled();
         $policy = NamePolicy::allowing($allowedFields);
         $denyPolicy = $this->fieldDenyPolicy();
+        $caseProtectedNames = [];
 
         if (! $requestAbsent) {
             $fields = $this->withoutMalformedFieldTokens(
@@ -419,7 +429,10 @@ trait HandlesFields
                 if (! $requestAbsent) {
                     $invalidFields[] = $field;
                 }
-            } elseif ($this->isFieldTokenDisallowed($denyPolicy, '', $field)) {
+            } elseif (
+                $this->isFieldTokenDisallowed($denyPolicy, '', $field)
+                || (! $requestAbsent && $this->isCaseVariantOfProtectedField('', $field, '', $policy, $caseProtectedNames))
+            ) {
                 if (! $requestAbsent) {
                     $invalidFields[] = $field;
                     $disallowedFound = true;
@@ -461,6 +474,85 @@ trait HandlesFields
     private function fieldDenyPolicy(): ?NamePolicy
     {
         return $this->disallowedFields === [] ? null : $this->denyPolicyFor($this->disallowedFields);
+    }
+
+    /**
+     * Whether a token only a wildcard allows names a disallowed or hidden field in another letter case.
+     *
+     * MySQL matches column names without regard to case and returns them as
+     * written, so `NAME` would read the `name` column past disallowedFields()
+     * and the model's hidden attributes, which both compare names exactly.
+     *
+     * @param  array<string, array<string, true|string>>  $caseProtectedNames  Filled per fieldset on demand
+     */
+    private function isCaseVariantOfProtectedField(
+        string $group,
+        string $field,
+        ?string $relationPath,
+        NamePolicy $policy,
+        array &$caseProtectedNames
+    ): bool {
+        if ($field === '*' || $relationPath === null || $policy->allowsAttributeByName($group, $field)) {
+            return false;
+        }
+
+        $caseProtectedNames[$group] ??= $this->caseProtectedNames($group, $relationPath);
+        $name = $this->normalizePublicPath($field);
+        $protected = $caseProtectedNames[$group][self::lowercase($name)] ?? null;
+
+        return $protected === true || ($protected !== null && $protected !== $name);
+    }
+
+    /**
+     * Protected names of one fieldset, lowercased: true for a disallowed name,
+     * the name itself for a hidden attribute (which may be requested exactly).
+     *
+     * @return array<string, true|string>
+     */
+    private function caseProtectedNames(string $group, string $relationPath): array
+    {
+        $names = [];
+
+        foreach ($this->resolveAppendAccessorModel($relationPath)?->getHidden() ?? [] as $hidden) {
+            $names[self::lowercase($hidden)] = $hidden;
+        }
+
+        return ($this->lowercaseDisallowedFieldNamesByGroup()[$this->normalizePublicPath($group)] ?? []) + $names;
+    }
+
+    /**
+     * Disallowed field names, lowercased and grouped by the fieldset they name.
+     *
+     * @return array<string, array<string, true>>
+     */
+    private function lowercaseDisallowedFieldNamesByGroup(): array
+    {
+        $normalize = $this->shouldNormalizePublicInput();
+
+        if (
+            $this->lowercaseDisallowedFieldsMemo !== null
+            && $this->lowercaseDisallowedFieldsMemo[0] === $this->disallowedFields
+            && $this->lowercaseDisallowedFieldsMemo[1] === $normalize
+        ) {
+            return $this->lowercaseDisallowedFieldsMemo[2];
+        }
+
+        $byGroup = [];
+
+        foreach ($this->normalizePublicPaths($this->disallowedFields) as $disallowed) {
+            $dot = strrpos($disallowed, '.');
+            $group = $dot === false ? '' : substr($disallowed, 0, $dot);
+            $byGroup[$group][self::lowercase($dot === false ? $disallowed : substr($disallowed, $dot + 1))] = true;
+        }
+
+        $this->lowercaseDisallowedFieldsMemo = [$this->disallowedFields, $normalize, $byGroup];
+
+        return $byGroup;
+    }
+
+    private static function lowercase(string $name): string
+    {
+        return preg_match('/[\x80-\xff]/', $name) === 1 ? mb_strtolower($name) : strtolower($name);
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
@@ -12,6 +13,7 @@ use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
+use Jackardios\QueryWizard\Tests\App\Models\TestModelWithHiddenName;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -57,6 +59,13 @@ class DisallowedUnderWildcardTest extends TestCase
                 ['*'],
                 ['relatedModels.*'],
                 'relatedModels.name',
+            ],
+            'root field in another letter case' => [['fields' => ['testModel' => 'id,NAME']], ['*'], ['name'], 'NAME'],
+            'relation field in another letter case' => [
+                ['include' => 'relatedModels', 'fields' => ['relatedModels' => 'Name']],
+                ['*'],
+                ['relatedModels.name'],
+                'relatedModels.Name',
             ],
             'relation denied as a whole' => [
                 ['include' => 'relatedModels', 'fields' => ['relatedModels' => 'name']],
@@ -142,6 +151,54 @@ class DisallowedUnderWildcardTest extends TestCase
             ->toSql();
 
         $this->assertSame('select "test_models"."id" from "test_models"', $sql);
+    }
+
+    #[Test]
+    public function hidden_attributes_named_in_another_letter_case_are_rejected_under_wildcards(): void
+    {
+        try {
+            $this->wizard(['fields' => 'id,NAME'], TestModelWithHiddenName::query())
+                ->allowedFields('*')
+                ->get();
+            $this->fail('Expected InvalidFieldQuery');
+        } catch (InvalidFieldQuery $exception) {
+            $this->assertSame('field_not_allowed', $exception->errorCode);
+            $this->assertSame(['NAME'], $exception->unknownFields->all());
+        }
+    }
+
+    #[Test]
+    public function hidden_attributes_in_another_letter_case_are_rejected_next_to_disallowed_fields(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+
+        $this->wizard(['fields' => 'id,NAME'], TestModelWithHiddenName::query())
+            ->allowedFields('*')
+            ->disallowedFields('is_visible')
+            ->get();
+    }
+
+    #[Test]
+    public function hidden_attributes_named_exactly_stay_hidden_under_wildcards(): void
+    {
+        $model = $this->wizard(['fields' => 'id,name'], TestModelWithHiddenName::query())
+            ->allowedFields('*')
+            ->get()
+            ->first();
+
+        $this->assertSame(['id'], array_keys($model->toArray()));
+    }
+
+    #[Test]
+    public function other_fields_in_another_letter_case_pass_under_wildcards(): void
+    {
+        $sql = $this->wizard(['fields' => 'ID'], TestModelWithHiddenName::query())
+            ->allowedFields('*')
+            ->disallowedFields('name')
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select "test_models"."ID" from "test_models"', $sql);
     }
 
     #[Test]
@@ -247,9 +304,10 @@ class DisallowedUnderWildcardTest extends TestCase
 
     /**
      * @param  array<string, mixed>  $query
+     * @param  Builder<TestModel>|null  $subject
      */
-    private function wizard(array $query): EloquentQueryWizard
+    private function wizard(array $query, ?Builder $subject = null): EloquentQueryWizard
     {
-        return new EloquentQueryWizard(TestModel::query(), new QueryParametersManager(new Request($query)));
+        return new EloquentQueryWizard($subject ?? TestModel::query(), new QueryParametersManager(new Request($query)));
     }
 }

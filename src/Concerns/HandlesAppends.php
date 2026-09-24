@@ -238,8 +238,9 @@ trait HandlesAppends
      * The model whose accessors back appends at a relation path ('' for the root).
      *
      * An append that only a wildcard allows must name an accessor of this model,
-     * so `allowedAppends('*')` can't reach columns or unknown names. Null skips
-     * that check.
+     * so `allowedAppends('*')` can't reach columns or unknown names, and a field
+     * only a wildcard allows must not name one of its hidden attributes in
+     * another letter case. Null skips both checks.
      *
      * @api
      */

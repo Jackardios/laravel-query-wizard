@@ -387,7 +387,9 @@ If a `count` / `exists` include is active, `?fields=` still hides normal root co
 Under a wildcard (`allowedFields('*')`), a requested name that is not a column of the table reaches the query and fails
 there (`QueryException`), so list the columns explicitly when clients may send arbitrary names. A root `*` also allows
 every relation fieldset. `disallowedFields()` rejects names a client requests; it does not hide them from a `*` request,
-which still returns all columns. There is no limit on the number of requested fields.
+which still returns all columns. A name that matches a disallowed field or one of the model's `$hidden` attributes in
+another letter case (`NAME` for `name`) is rejected too, since MySQL would return that column under the name as written.
+Other names are returned as written. There is no limit on the number of requested fields.
 
 ### Relation Fields
 

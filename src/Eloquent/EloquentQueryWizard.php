@@ -542,7 +542,16 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         $model = EloquentSubject::builder($this->subject)->getModel();
 
-        return $relationPath === '' ? $model : (new RelationResolver($model))->resolve($relationPath)?->getRelated();
+        return $relationPath === '' ? $model : $this->relationResolverFor($model)->resolve($relationPath)?->getRelated();
+    }
+
+    protected function relationResolverFor(Model $rootModel): RelationResolver
+    {
+        if ($this->state->relationResolver?->getRootModel() !== $rootModel) {
+            $this->state->relationResolver = new RelationResolver($rootModel);
+        }
+
+        return $this->state->relationResolver;
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface

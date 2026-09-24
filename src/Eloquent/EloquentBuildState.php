@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Eloquent;
 
+use Jackardios\QueryWizard\Support\RelationResolver;
+
 /**
  * Post-processing state derived from one build of an EloquentQueryWizard.
  *
@@ -44,4 +46,9 @@ final class EloquentBuildState
 
     /** @var array<string, array<string, string>> */
     public array $runtimeRelationAttributes = [];
+
+    /**
+     * Relations of the subject's model, resolved once for validation and the safe select plan.
+     */
+    public ?RelationResolver $relationResolver = null;
 }

@@ -130,7 +130,8 @@ a later TypeError).
   identifier, else 400 (before: `name as id` aliased columns, `count(*)` caused a 500). JSON selectors such as `meta->x`
   must be allowed explicitly.
 - `disallowedFields()` and `disallowedAppends()` apply to names allowed by a wildcard: a client requesting one gets 400
-  (before: 200).
+  (before: 200). Under a wildcard, a field name that matches a disallowed field or a `$hidden` attribute of the model in
+  another letter case is rejected as well (before: on MySQL, `fields=NAME` returned the hidden `name` column as `NAME`).
 - Root default fields apply whenever the request has no root fieldset, even when relation fieldsets are present
   (before: `fields[posts]=id` disabled the root defaults and returned all columns). A dotted default field throws
   `InvalidArgumentException`.

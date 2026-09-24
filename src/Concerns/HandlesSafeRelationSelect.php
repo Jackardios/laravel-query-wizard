@@ -111,12 +111,23 @@ trait HandlesSafeRelationSelect
             return;
         }
 
-        $resolver = new RelationResolver($rootModel);
+        $resolver = $this->relationResolverFor($rootModel);
         $pathIndex = array_fill_keys($paths, true);
         $appendPathIndex = array_fill_keys($this->resolveRequestedAppendRelationPaths(), true);
 
         $this->computeRootRequiredFields($paths, $resolver);
         $this->computeRelationSelectColumns($paths, $pathIndex, $appendPathIndex, $resolver);
+    }
+
+    /**
+     * The resolver for relations of the given root model.
+     *
+     * A wizard that resolves the same relations elsewhere during a build can
+     * return a shared resolver, so each relation is built once.
+     */
+    protected function relationResolverFor(Model $rootModel): RelationResolver
+    {
+        return new RelationResolver($rootModel);
     }
 
     /**
