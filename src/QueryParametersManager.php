@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
+use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Support\FilterValueTransformer;
 use Jackardios\QueryWizard\Support\NameConverter;
@@ -160,8 +162,8 @@ class QueryParametersManager
             return $collection;
         }
 
-        return $collection->mapWithKeys(function (array $fields, string $key) {
-            $convertedKey = $this->convertPath($key);
+        return $collection->mapWithKeys(function (array $fields, int|string $key) {
+            $convertedKey = $this->convertPath((string) $key);
             $convertedFields = array_map(fn (string $field) => $this->convertName($field), $fields);
 
             return [$convertedKey => $convertedFields];
@@ -581,14 +583,26 @@ class QueryParametersManager
     }
 
     /**
+     * @return Collection<string, array<string>>
+     */
+    private function parseFieldsParameter(string $type, mixed $rawValue): Collection
+    {
+        try {
+            return $this->getParser($type)->parseFields($rawValue);
+        } catch (\InvalidArgumentException $exception) {
+            throw $type === 'fields'
+                ? InvalidFieldQuery::invalidFormat($exception->getMessage())
+                : InvalidAppendQuery::invalidFormat($exception->getMessage());
+        }
+    }
+
+    /**
      * @return Collection<int, string>|Collection<int, Sort>|Collection<string, array<string>>
      */
     protected function parseSimpleParameter(string $type, mixed $rawValue): Collection
     {
         return match ($type) {
-            'fields', 'appends' => $this->convertFieldsCollection(
-                $this->getParser($type)->parseFields($rawValue)
-            ),
+            'fields', 'appends' => $this->convertFieldsCollection($this->parseFieldsParameter($type, $rawValue)),
             'includes' => $this->convertListCollection(
                 $this->getParser($type)->parseList($rawValue)
             ),

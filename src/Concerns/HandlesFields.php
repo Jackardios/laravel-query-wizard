@@ -157,6 +157,7 @@ trait HandlesFields
         $relationFieldMap = [];
 
         foreach ($requestedRelationFields as $requestedKey => $requestedFields) {
+            $requestedKey = (string) $requestedKey;
             $normalizedRequestedFields = array_values(array_unique($requestedFields));
 
             $relationPath = $includeNameToPathMap[$requestedKey] ?? null;

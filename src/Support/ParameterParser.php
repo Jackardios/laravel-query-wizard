@@ -98,6 +98,8 @@ final class ParameterParser
      * 3. Associative array: ['resource' => ['field1', 'field2']]
      *
      * @return Collection<string, array<string>>
+     *
+     * @throws \InvalidArgumentException When a list holds a nested list
      */
     public function parseFields(mixed $value): Collection
     {
@@ -106,6 +108,7 @@ final class ParameterParser
                 ? ['' => []]
                 : $this->parseFieldsString($value);
         } elseif (is_array($value) && $this->isSequentialArray($value)) {
+            $this->assertFlatList($value);
             $joined = implode($this->arraySeparator, $value);
             $value = trim($joined) === ''
                 ? ['' => []]
@@ -132,8 +135,24 @@ final class ParameterParser
                     return [];
                 }
 
+                $this->assertFlatList($fields);
+
                 return $this->parseList($fields)->toArray();
             });
+    }
+
+    /**
+     * @param  iterable<mixed>  $items
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function assertFlatList(iterable $items): void
+    {
+        foreach ($items as $item) {
+            if (is_array($item) || is_object($item)) {
+                throw new \InvalidArgumentException('Nested lists are not supported.');
+            }
+        }
     }
 
     /**

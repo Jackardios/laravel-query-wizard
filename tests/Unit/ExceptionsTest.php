@@ -39,6 +39,8 @@ class ExceptionsTest extends TestCase
             'include not allowed' => [InvalidIncludeQuery::includesNotAllowed(collect(['a']), collect()), 'include_not_allowed', 'include'],
             'field not allowed' => [InvalidFieldQuery::fieldsNotAllowed(collect(['a']), collect()), 'field_not_allowed', 'fields'],
             'append not allowed' => [InvalidAppendQuery::appendsNotAllowed(collect(['a']), collect()), 'append_not_allowed', 'append'],
+            'field format' => [InvalidFieldQuery::invalidFormat(), 'invalid_field_format', 'fields'],
+            'append format' => [InvalidAppendQuery::invalidFormat('x'), 'invalid_append_format', 'append'],
             'filters count' => [MaxFiltersCountExceeded::create(2, 1), 'max_filters_count_exceeded', 'filter'],
             'sorts count' => [MaxSortsCountExceeded::create(2, 1), 'max_sorts_count_exceeded', 'sort'],
             'includes count' => [MaxIncludesCountExceeded::create(2, 1), 'max_includes_count_exceeded', 'include'],
