@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -220,17 +221,44 @@ class ManualPostProcessingTest extends TestCase
     }
 
     #[Test]
-    public function to_query_get_does_not_validate_appends(): void
+    public function to_query_validates_appends(): void
     {
         $wizard = $this
             ->createEloquentWizardWithAppends('notAllowed')
             ->allowedAppends('fullname');
 
-        // toQuery()->get() bypasses append validation (validation is lazy, happens in post-processing)
-        // This would throw InvalidAppendQuery if using $wizard->get() directly
-        $models = $wizard->toQuery()->get();
+        $this->expectException(InvalidAppendQuery::class);
 
-        $this->assertCount(5, $models);
-        $this->assertFalse(array_key_exists('notAllowed', $models->first()->toArray()));
+        $wizard->toQuery();
+    }
+
+    #[Test]
+    public function builder_proxy_calls_validate_appends(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithAppends('notAllowed')
+            ->allowedAppends('fullname');
+
+        $this->expectException(InvalidAppendQuery::class);
+
+        $wizard->count();
+    }
+
+    #[Test]
+    public function a_caught_invalid_append_is_reported_again_on_the_next_call(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithAppends('notAllowed')
+            ->allowedAppends('fullname');
+
+        foreach ([1, 2] as $attempt) {
+            try {
+                $wizard->get();
+                $this->fail("Attempt {$attempt} should have thrown");
+            } catch (InvalidAppendQuery) {
+            }
+        }
+
+        $this->addToAssertionCount(1);
     }
 }

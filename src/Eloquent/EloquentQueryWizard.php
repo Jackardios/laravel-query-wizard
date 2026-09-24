@@ -295,14 +295,16 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Prepare the relation sparse-fields tree as part of the build.
+     * Prepare the relation sparse-fields and append trees as part of the build.
      *
      * Kept inside build() rather than deferred to post-processing so that an
-     * invalid ?fields request still fails before the query is executed.
+     * invalid ?fields or ?append request fails before the query is executed,
+     * also for toQuery() and builder calls that skip post-processing.
      */
     protected function finalizeBuild(): void
     {
         $this->prepareRelationFieldData();
+        $this->prepareAppendTree();
     }
 
     /**
@@ -534,9 +536,9 @@ class EloquentQueryWizard extends BaseQueryWizard
             return;
         }
 
-        $this->state->relationFieldTreePrepared = true;
         $relationFieldMap = $this->buildValidatedRelationFieldMap();
         $this->state->relationFieldTree = $this->buildRelationFieldTree($relationFieldMap);
+        $this->state->relationFieldTreePrepared = true;
     }
 
     private function prepareAppendTree(): void
@@ -545,8 +547,8 @@ class EloquentQueryWizard extends BaseQueryWizard
             return;
         }
 
-        $this->state->appendTreePrepared = true;
         $this->state->appendTree = $this->getValidRequestedAppendsTree();
+        $this->state->appendTreePrepared = true;
     }
 
     /**
