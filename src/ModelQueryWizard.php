@@ -634,9 +634,6 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         return $this->schema;
     }
 
-    /**
-     * Normalize a string include to an IncludeInterface instance.
-     */
     protected function resolveAppendAccessorModel(string $relationPath): ?Model
     {
         return $relationPath === ''
@@ -644,6 +641,9 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
             : (new RelationResolver($this->model))->resolve($relationPath)?->getRelated();
     }
 
+    /**
+     * Normalize a string include to an IncludeInterface instance.
+     */
     protected function normalizeStringToInclude(string $name): IncludeInterface
     {
         return RelationshipInclude::fromString($name, $this->config->getCountSuffix(), $this->config->getExistsSuffix());
