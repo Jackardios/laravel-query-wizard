@@ -149,6 +149,16 @@ class MalformedFieldsTest extends TestCase
                 ['relatedModels.*'],
                 'relatedModels.name as test_model_id',
             ],
+            'alias in a relation fieldset under the root wildcard' => [
+                ['include' => 'relatedModels', 'fields' => ['relatedModels' => 'name as test_model_id']],
+                ['*'],
+                'relatedModels.name as test_model_id',
+            ],
+            'expression in a relation fieldset under the root wildcard' => [
+                ['include' => 'relatedModels', 'fields' => ['relatedModels' => 'count(*)']],
+                ['*'],
+                'relatedModels.count(*)',
+            ],
             'dotted relation field' => [
                 ['include' => 'relatedModels', 'fields' => ['relatedModels' => 'nestedRelatedModels.name']],
                 ['relatedModels.name', 'relatedModels.nestedRelatedModels.name'],

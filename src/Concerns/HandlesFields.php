@@ -534,7 +534,7 @@ trait HandlesFields
         }
 
         if (
-            ! $policy->allowsAttribute($group, $field)
+            (! in_array('*', $allowedFields, true) && ! $policy->allowsAttribute($group, $field))
             || in_array($group === '' ? $field : "{$group}.{$field}", $allowedFields, true)
         ) {
             return true;
