@@ -53,33 +53,7 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     private bool $subjectEscaped = false;
 
-    /** @var array{fields: array<string>, relations: array<string, mixed>} */
-    private array $relationFieldTree = [
-        'fields' => [],
-        'relations' => [],
-    ];
-
-    private bool $relationFieldTreePrepared = false;
-
-    /** @var array{appends: array<string>, relations: array<string, mixed>} */
-    private array $appendTree = [
-        'appends' => [],
-        'relations' => [],
-    ];
-
-    private bool $appendTreePrepared = false;
-
-    /** @var array<string> */
-    private array $safeRootHiddenFields = [];
-
-    /** @var array<string>|null */
-    private ?array $rootVisibleFields = null;
-
-    /** @var array<string, string> */
-    private array $runtimeRootAttributeNamesByField = [];
-
-    /** @var array<string> */
-    private array $alwaysVisibleRuntimeRootAttributes = [];
+    private EloquentBuildState $state;
 
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
@@ -96,6 +70,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->parameters = $parameters ?? app(QueryParametersManager::class);
         $this->config = $config ?? app(QueryWizardConfig::class);
         $this->schema = $schema;
+        $this->state = new EloquentBuildState;
     }
 
     /**
@@ -351,14 +326,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         }
 
         $this->resetSafeRelationSelectState();
-        $this->relationFieldTree = $this->emptyRelationFieldTree();
-        $this->relationFieldTreePrepared = false;
-        $this->appendTree = $this->emptyAppendTree();
-        $this->appendTreePrepared = false;
-        $this->safeRootHiddenFields = [];
-        $this->rootVisibleFields = null;
-        $this->runtimeRootAttributeNamesByField = [];
-        $this->alwaysVisibleRuntimeRootAttributes = [];
+        $this->state = new EloquentBuildState;
         parent::invalidateBuild();
     }
 
@@ -367,14 +335,16 @@ class EloquentQueryWizard extends BaseQueryWizard
      * modified through the proxy yet.
      *
      * The derived post-processing state (append tree, relation field tree, root
-     * field masks, runtime attribute maps) is left in place. It describes the
-     * subject this clone carries over, and only build() can rebuild it - so
+     * field masks, runtime attribute maps) is copied, not cleared. It describes
+     * the subject this clone carries over, and only build() can rebuild it - so
      * clearing it here would leave a cloned built wizard unable to ever apply
-     * its sparse fieldsets or appends again.
+     * its sparse fieldsets or appends again. The copy keeps the clone's later
+     * changes (e.g. chunkById() hiding its key column) out of the source.
      */
     public function __clone(): void
     {
         parent::__clone();
+        $this->state = clone $this->state;
         $this->proxyModified = false;
         $this->subjectEscaped = false;
     }
@@ -399,8 +369,8 @@ class EloquentQueryWizard extends BaseQueryWizard
     protected function applyFields(array $fields): void
     {
         $requestedFields = $fields;
-        $this->rootVisibleFields = $this->resolveVisibleRootFields($requestedFields);
-        $this->safeRootHiddenFields = [];
+        $this->state->rootVisibleFields = $this->resolveVisibleRootFields($requestedFields);
+        $this->state->safeRootHiddenFields = [];
 
         if ($this->shouldKeepFullRootSelectForAppends($requestedFields)) {
             return;
@@ -491,23 +461,23 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function prepareRelationFieldData(): void
     {
-        if ($this->relationFieldTreePrepared) {
+        if ($this->state->relationFieldTreePrepared) {
             return;
         }
 
-        $this->relationFieldTreePrepared = true;
+        $this->state->relationFieldTreePrepared = true;
         $relationFieldMap = $this->buildValidatedRelationFieldMap();
-        $this->relationFieldTree = $this->buildRelationFieldTree($relationFieldMap);
+        $this->state->relationFieldTree = $this->buildRelationFieldTree($relationFieldMap);
     }
 
     private function prepareAppendTree(): void
     {
-        if ($this->appendTreePrepared) {
+        if ($this->state->appendTreePrepared) {
             return;
         }
 
-        $this->appendTreePrepared = true;
-        $this->appendTree = $this->getValidRequestedAppendsTree();
+        $this->state->appendTreePrepared = true;
+        $this->state->appendTree = $this->getValidRequestedAppendsTree();
     }
 
     /**
@@ -517,7 +487,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         $this->applySafeRootFieldMaskToResults($results);
         $this->prepareAppendTree();
-        $this->applyRelationPostProcessingToResults($results, $this->appendTree, $this->relationFieldTree);
+        $this->applyRelationPostProcessingToResults($results, $this->state->appendTree, $this->state->relationFieldTree);
     }
 
     /**
@@ -525,31 +495,35 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function applySafeRootFieldMaskToResults(mixed $results): void
     {
-        if ($this->rootVisibleFields !== null) {
+        $rootVisibleFields = $this->state->rootVisibleFields;
+
+        if ($rootVisibleFields !== null) {
             if ($results instanceof Model) {
-                $this->hideModelAttributesExcept($results, $this->rootVisibleFields);
+                $this->hideModelAttributesExcept($results, $rootVisibleFields);
             } else {
                 foreach ($results as $item) {
                     if ($item instanceof Model) {
-                        $this->hideModelAttributesExcept($item, $this->rootVisibleFields);
+                        $this->hideModelAttributesExcept($item, $rootVisibleFields);
                     }
                 }
             }
         }
 
-        if (empty($this->safeRootHiddenFields)) {
+        $safeRootHiddenFields = $this->state->safeRootHiddenFields;
+
+        if (empty($safeRootHiddenFields)) {
             return;
         }
 
         if ($results instanceof Model) {
-            $results->makeHidden($this->safeRootHiddenFields);
+            $results->makeHidden($safeRootHiddenFields);
 
             return;
         }
 
         foreach ($results as $item) {
             if ($item instanceof Model) {
-                $item->makeHidden($this->safeRootHiddenFields);
+                $item->makeHidden($safeRootHiddenFields);
             }
         }
     }
@@ -575,7 +549,7 @@ class EloquentQueryWizard extends BaseQueryWizard
 
         $this->prepareAppendTree();
 
-        return ! empty($this->appendTree['appends']);
+        return ! empty($this->state->appendTree['appends']);
     }
 
     /**
@@ -589,8 +563,8 @@ class EloquentQueryWizard extends BaseQueryWizard
         foreach ($requestedFields as $field) {
             $normalizedField = $this->normalizePublicPath($field);
 
-            if (isset($this->runtimeRootAttributeNamesByField[$normalizedField])) {
-                $visibleFields[] = $this->runtimeRootAttributeNamesByField[$normalizedField];
+            if (isset($this->state->runtimeRootAttributeNamesByField[$normalizedField])) {
+                $visibleFields[] = $this->state->runtimeRootAttributeNamesByField[$normalizedField];
 
                 continue;
             }
@@ -600,7 +574,7 @@ class EloquentQueryWizard extends BaseQueryWizard
 
         return array_values(array_unique(array_merge(
             $visibleFields,
-            $this->alwaysVisibleRuntimeRootAttributes
+            $this->state->alwaysVisibleRuntimeRootAttributes
         )));
     }
 
@@ -621,7 +595,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         foreach ($fields as $field) {
             $normalizedField = $this->normalizePublicPath($field);
 
-            if (isset($this->runtimeRootAttributeNamesByField[$normalizedField])) {
+            if (isset($this->state->runtimeRootAttributeNamesByField[$normalizedField])) {
                 continue;
             }
 
@@ -731,10 +705,10 @@ class EloquentQueryWizard extends BaseQueryWizard
         $runtimeAttribute = $this->resolveRuntimeAttributeNameForInclude($include);
         $normalizedIncludeName = $this->normalizePublicPath($includeName);
 
-        $this->runtimeRootAttributeNamesByField[$normalizedIncludeName] = $runtimeAttribute;
+        $this->state->runtimeRootAttributeNamesByField[$normalizedIncludeName] = $runtimeAttribute;
 
-        if (! in_array($runtimeAttribute, $this->alwaysVisibleRuntimeRootAttributes, true)) {
-            $this->alwaysVisibleRuntimeRootAttributes[] = $runtimeAttribute;
+        if (! in_array($runtimeAttribute, $this->state->alwaysVisibleRuntimeRootAttributes, true)) {
+            $this->state->alwaysVisibleRuntimeRootAttributes[] = $runtimeAttribute;
         }
     }
 
@@ -762,13 +736,13 @@ class EloquentQueryWizard extends BaseQueryWizard
 
         if ($alias !== null) {
             $this->subject->addSelect("{$qualifiedColumn} as {$alias}");
-            $this->safeRootHiddenFields[] = $alias;
+            $this->state->safeRootHiddenFields[] = $alias;
 
             return;
         }
 
         $this->subject->addSelect($qualifiedColumn);
-        $this->safeRootHiddenFields[] = $columnName;
+        $this->state->safeRootHiddenFields[] = $columnName;
     }
 
     /**

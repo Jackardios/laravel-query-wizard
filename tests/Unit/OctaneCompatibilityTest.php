@@ -285,6 +285,21 @@ class OctaneCompatibilityTest extends TestCase
         $this->assertCount(3, $result2);
     }
 
+    #[Test]
+    public function cloned_built_wizard_gets_its_own_derived_build_state(): void
+    {
+        $this->app->instance('request', new Request(['fields' => ['testModel' => 'name']]));
+
+        $wizard = EloquentQueryWizard::for(TestModel::class)->allowedFields('id', 'name');
+        $wizard->get();
+
+        $clone = clone $wizard;
+        $state = new \ReflectionProperty(EloquentQueryWizard::class, 'state');
+
+        $this->assertNotSame($state->getValue($wizard), $state->getValue($clone));
+        $this->assertEquals($state->getValue($wizard), $state->getValue($clone));
+    }
+
     // ========== Config Independence Tests ==========
 
     #[Test]
