@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
+use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
@@ -1268,5 +1269,75 @@ class FieldsTest extends TestCase
             ->allowedFields('id', 'relatedModels.*')
             ->disallowedFields('relatedModels')
             ->get();
+    }
+
+    #[Test]
+    public function cursor_paginate_selects_the_order_columns_left_out_of_the_fieldset(): void
+    {
+        $page = fn (?string $cursor = null) => $this
+            ->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name'], 'sort' => '-id'])
+            ->allowedFields('name')
+            ->allowedSorts('id')
+            ->cursorPaginate(2, ['*'], 'cursor', $cursor);
+
+        $first = $page();
+        $second = $page($first->nextCursor()?->encode());
+
+        $this->assertSame(
+            $this->models->pluck('id')->sortDesc()->values()->all(),
+            collect([...$first->items(), ...$second->items()])->map(fn ($model) => $model->getAttribute('id'))->all()
+        );
+        $this->assertSame(['name'], array_keys($first->items()[0]->toArray()));
+    }
+
+    #[Test]
+    public function cursor_paginate_without_a_sort_selects_the_key(): void
+    {
+        $page = fn (?string $cursor = null) => $this
+            ->createEloquentWizardWithFields(['testModel' => 'name'])
+            ->allowedFields('name')
+            ->cursorPaginate(2, ['*'], 'cursor', $cursor);
+
+        $first = $page();
+        $second = $page($first->nextCursor()?->encode());
+
+        $this->assertCount(1, $second->items());
+        $this->assertSame(['name'], array_keys($second->items()[0]->toArray()));
+    }
+
+    #[Test]
+    public function cursor_paginate_by_a_count_sort_keeps_the_count_expression(): void
+    {
+        $page = fn (?string $cursor = null) => $this
+            ->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name'], 'sort' => 'relatedModelsCount,id'])
+            ->allowedFields('name')
+            ->allowedSorts(EloquentSort::count('relatedModels')->alias('relatedModelsCount'), 'id')
+            ->cursorPaginate(2, ['*'], 'cursor', $cursor);
+
+        $first = $page();
+        $second = $page($first->nextCursor()?->encode());
+
+        $this->assertCount(2, $first->items());
+        $this->assertCount(1, $second->items());
+    }
+
+    #[Test]
+    public function execution_columns_are_not_hidden_when_the_query_selects_all_columns(): void
+    {
+        $cursorItems = $this
+            ->createEloquentWizardFromQuery([], TestModel::query()->withCount('relatedModels'))
+            ->cursorPaginate(2)
+            ->items();
+
+        $chunked = [];
+        $this
+            ->createEloquentWizardFromQuery([], TestModel::query()->withCount('relatedModels'))
+            ->chunkById(2, function ($models) use (&$chunked): void {
+                $chunked[] = $models->first()->toArray();
+            });
+
+        $this->assertArrayHasKey('id', $cursorItems[0]->toArray());
+        $this->assertArrayHasKey('id', $chunked[0]);
+        $this->assertStringNotContainsString('"test_models"."id" from', collect(DB::getQueryLog())->pluck('query')->implode(' '));
     }
 }

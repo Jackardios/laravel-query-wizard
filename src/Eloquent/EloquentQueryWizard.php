@@ -185,7 +185,11 @@ class EloquentQueryWizard extends BaseQueryWizard
         string $cursorName = 'cursor',
         Cursor|string|null $cursor = null
     ): CursorPaginator {
-        return $this->executePaginatorQuery(fn () => $this->subject->cursorPaginate($perPage, $columns, $cursorName, $cursor));
+        return $this->executePaginatorQuery(function () use ($perPage, $columns, $cursorName, $cursor) {
+            $this->ensureCursorOrderColumnsSelected();
+
+            return $this->subject->cursorPaginate($perPage, $columns, $cursorName, $cursor);
+        });
     }
 
     /**
@@ -246,7 +250,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     public function chunkById(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
     {
         $this->build();
-        $this->ensureChunkByIdColumnSelected($column, $alias);
+        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
 
         return $this->subject->chunkById($count, function (Collection $models) use ($callback) {
             $this->applyPostProcessingToResults($models);
@@ -752,18 +756,60 @@ class EloquentQueryWizard extends BaseQueryWizard
         return "{$relation}_{$include->getType()}";
     }
 
-    private function ensureChunkByIdColumnSelected(?string $column, ?string $alias): void
+    /**
+     * Cursor pagination reads the value of every order column from the last
+     * item (Laravel orders by the key when there is no order), so a narrowed
+     * select has to include them.
+     */
+    private function ensureCursorOrderColumnsSelected(): void
     {
-        $selectedColumns = EloquentSubject::baseQuery($this->subject)->columns;
+        $query = EloquentSubject::baseQuery($this->subject);
 
-        if ($selectedColumns === null || in_array('*', $selectedColumns, true)) {
+        if (! empty($query->unionOrders)) {
             return;
         }
 
-        $columnName = $column ?? $this->subject->getModel()->getKeyName();
+        if (empty($query->orders)) {
+            $this->ensureColumnSelected($this->subject->getModel()->getKeyName());
+
+            return;
+        }
+
+        $table = $this->subject->getModel()->getTable();
+
+        foreach ($query->orders as $order) {
+            $column = $order['column'] ?? null;
+
+            if (! isset($order['direction']) || ! is_string($column) || str_contains($column, '(')) {
+                continue;
+            }
+
+            if (str_contains($column, '.') && Str::beforeLast($column, '.') !== $table) {
+                continue;
+            }
+
+            $columnName = Str::afterLast($column, '.');
+
+            if (! EloquentSubject::hasSelectAlias($this->subject, $columnName)) {
+                $this->ensureColumnSelected($columnName);
+            }
+        }
+    }
+
+    /**
+     * Select a root column the execution needs, hidden from the output.
+     */
+    private function ensureColumnSelected(string $columnName, ?string $alias = null): void
+    {
+        $selectedColumns = EloquentSubject::baseQuery($this->subject)->columns;
+
+        if ($selectedColumns === null || $this->selectsAllColumns($selectedColumns)) {
+            return;
+        }
+
         $qualifiedColumn = $this->subject->qualifyColumn($columnName);
 
-        if ($this->queryAlreadySelectsChunkColumn($selectedColumns, $columnName, $qualifiedColumn, $alias)) {
+        if ($this->queryAlreadySelectsColumn($selectedColumns, $columnName, $qualifiedColumn, $alias)) {
             return;
         }
 
@@ -781,7 +827,21 @@ class EloquentQueryWizard extends BaseQueryWizard
     /**
      * @param  array<int, mixed>  $selectedColumns
      */
-    private function queryAlreadySelectsChunkColumn(
+    private function selectsAllColumns(array $selectedColumns): bool
+    {
+        foreach ($selectedColumns as $selectedColumn) {
+            if (is_string($selectedColumn) && ($selectedColumn === '*' || $selectedColumn === $this->subject->qualifyColumn('*'))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, mixed>  $selectedColumns
+     */
+    private function queryAlreadySelectsColumn(
         array $selectedColumns,
         string $columnName,
         string $qualifiedColumn,
