@@ -12,6 +12,7 @@ use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
 use Jackardios\QueryWizard\Enums\FilterOperator;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
+use Jackardios\QueryWizard\Support\LikeClause;
 
 /**
  * Filter with configurable SQL operators.
@@ -31,6 +32,7 @@ class OperatorFilter extends AbstractFilter
     {
         parent::__construct($property, $alias);
         $this->operator = $operator;
+        $this->splitValues = ! self::isLike($operator);
     }
 
     /**
@@ -102,17 +104,51 @@ class OperatorFilter extends AbstractFilter
             }
         }
 
-        if (is_array($actualValue)) {
-            return $this->applyArrayValue($builder, $qualifiedColumn, $operator, $actualValue);
+        if (self::isLike($operator)) {
+            return $this->applyLike($builder, $column, $operator === FilterOperator::NOT_LIKE, (array) $actualValue);
         }
 
-        if ($operator === FilterOperator::LIKE || $operator === FilterOperator::NOT_LIKE) {
-            $actualValue = '%'.$actualValue.'%';
+        if (is_array($actualValue)) {
+            return $this->applyArrayValue($builder, $qualifiedColumn, $operator, $actualValue);
         }
 
         $builder->where($qualifiedColumn, $operator->getSqlOperator(), $actualValue);
 
         return $builder;
+    }
+
+    private static function isLike(FilterOperator $operator): bool
+    {
+        return $operator === FilterOperator::LIKE || $operator === FilterOperator::NOT_LIKE;
+    }
+
+    /**
+     * Match values containing each search value literally: any of them for
+     * LIKE, none of them for NOT LIKE.
+     *
+     * @param  Builder<Model>  $builder
+     * @param  array<mixed>  $values
+     * @return Builder<Model>
+     */
+    protected function applyLike(Builder $builder, string $column, bool $not, array $values): Builder
+    {
+        $values = array_values(array_filter($values, static fn (mixed $value): bool => $value !== '' && $value !== null));
+
+        if ($values === []) {
+            return $builder;
+        }
+
+        $sql = LikeClause::for($builder, $column, not: $not);
+
+        if (count($values) === 1) {
+            return $builder->whereRaw($sql, [LikeClause::containing((string) $values[0])]);
+        }
+
+        return $builder->where(function (Builder $query) use ($values, $sql, $not): void {
+            foreach ($values as $value) {
+                $query->whereRaw($sql, [LikeClause::containing((string) $value)], $not ? 'and' : 'or');
+            }
+        });
     }
 
     /**

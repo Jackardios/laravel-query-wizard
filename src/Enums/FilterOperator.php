@@ -19,7 +19,7 @@ enum FilterOperator: string
     public function supportsArrayValues(): bool
     {
         return match ($this) {
-            self::EQUAL, self::NOT_EQUAL => true,
+            self::EQUAL, self::NOT_EQUAL, self::LIKE, self::NOT_LIKE => true,
             default => false,
         };
     }

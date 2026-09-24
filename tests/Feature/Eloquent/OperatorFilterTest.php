@@ -315,14 +315,84 @@ class OperatorFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function it_throws_exception_for_array_values_with_like(): void
+    public function a_like_list_matches_any_value(): void
     {
-        $this->expectException(InvalidFilterValue::class);
+        TestModel::factory()->create(['name' => 'first_match']);
+        TestModel::factory()->create(['name' => 'second_match']);
 
-        $this
-            ->createEloquentWizardWithFilters(['name' => ['test1', 'test2']])
+        $names = $this
+            ->createEloquentWizardWithFilters(['name' => ['first_m', 'second_m']])
             ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->get()
+            ->pluck('name')
+            ->sort()
+            ->values()
+            ->all();
+
+        $this->assertSame(['first_match', 'second_match'], $names);
+    }
+
+    #[Test]
+    public function a_not_like_list_excludes_every_value(): void
+    {
+        TestModel::factory()->create(['name' => 'first_match']);
+        TestModel::factory()->create(['name' => 'second_match']);
+
+        $names = $this
+            ->createEloquentWizardWithFilters(['name' => ['first_m', 'second_m']])
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NOT_LIKE))
+            ->get()
+            ->pluck('name');
+
+        $this->assertCount(5, $names);
+        $this->assertNotContains('first_match', $names);
+        $this->assertNotContains('second_match', $names);
+    }
+
+    #[Test]
+    public function like_matches_wildcard_characters_literally(): void
+    {
+        TestModel::factory()->create(['name' => 'a_c 100%']);
+        TestModel::factory()->create(['name' => 'abc 1000']);
+
+        $names = $this
+            ->createEloquentWizardWithFilters(['name' => 'a_c 100%'])
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->get()
+            ->pluck('name')
+            ->all();
+
+        $this->assertSame(['a_c 100%'], $names);
+    }
+
+    #[Test]
+    public function a_like_value_is_not_split_unless_asked(): void
+    {
+        $whole = $this
+            ->createEloquentWizardWithFilters(['name' => 'Moscow, Russia'])
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->toQuery();
+
+        $split = $this
+            ->createEloquentWizardWithFilters(['name' => 'Moscow,Russia'])
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE)->withValueSplitting())
+            ->toQuery();
+
+        $this->assertSame(['%Moscow, Russia%'], $whole->getBindings());
+        $this->assertSame(['%Moscow%', '%Russia%'], $split->getBindings());
+    }
+
+    #[Test]
+    public function like_works_on_non_text_columns(): void
+    {
+        $expected = array_values(array_filter($this->models->modelKeys(), fn (int $id) => str_contains((string) $id, '1')));
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '1'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::LIKE))
             ->get();
+
+        $this->assertEqualsCanonicalizing($expected, $models->modelKeys());
     }
 
     #[Test]
