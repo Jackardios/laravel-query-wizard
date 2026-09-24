@@ -73,6 +73,8 @@ final class QueryWizardConfig
     /**
      * A copy that keeps the current configuration values, so a build reads
      * config() once however many settings it uses.
+     *
+     * @api
      */
     public function snapshot(): self
     {

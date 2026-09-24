@@ -81,6 +81,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      *
      * This ensures that calling build() after configuration changes
      * will re-apply all filters, sorts, includes, and fields.
+     *
+     * @api
      */
     protected function invalidateBuild(): void
     {
@@ -102,6 +104,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      * Apply field selection to subject.
      *
      * @param  array<string>  $fields
+     *
+     * @api
      */
     abstract protected function applyFields(array $fields): void;
 
@@ -444,6 +448,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      *
      * Called with the exception still pending, before it is rethrown. Subclasses
      * that keep state derived from the build reset it here and call the parent.
+     *
+     * @api
      */
     protected function rollbackFailedBuild(): void
     {
@@ -460,12 +466,16 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     /**
      * Hook invoked after tap callbacks and before any query shaping is applied.
+     *
+     * @api
      */
     protected function prepareBuild(): void {}
 
     /**
      * Hook invoked once query shaping has been applied and before the build is
      * marked as complete.
+     *
+     * @api
      */
     protected function finalizeBuild(): void {}
 
@@ -561,6 +571,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      *
      * Override to support composite filters that resolve their leaves instead of
      * a single request key.
+     *
+     * @api
      */
     protected function resolvePreparedFilterValue(FilterInterface $filter): mixed
     {
@@ -631,6 +643,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      * Apply a single filter to the subject.
      *
      * Override this method to customize how individual filters are applied.
+     *
+     * @api
      */
     protected function applyFilter(FilterInterface $filter, mixed $preparedValue): void
     {
@@ -833,6 +847,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      *
      * @param  array<int, string>  $validRequestedIncludes
      * @param  array<string, IncludeInterface>  $includesIndex
+     *
+     * @api
      */
     protected function applyValidatedIncludes(array $validRequestedIncludes, array $includesIndex): void
     {

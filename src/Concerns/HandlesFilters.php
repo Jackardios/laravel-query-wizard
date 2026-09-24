@@ -28,6 +28,9 @@ trait HandlesFilters
     /** @var array<string, list<string>>|null */
     private ?array $cachedNestedFilterNames = null;
 
+    /**
+     * @api
+     */
     abstract protected function normalizeStringToFilter(string $name): FilterInterface;
 
     /**
@@ -81,6 +84,8 @@ trait HandlesFilters
      *
      * @param  array<string, FilterInterface>  $filters
      * @return array<int, string>
+     *
+     * @api
      */
     protected function resolveAllowedFilterNames(array $filters): array
     {
@@ -93,6 +98,8 @@ trait HandlesFilters
      *
      * @param  array<string, FilterInterface>  $filters
      * @return array<string, true>
+     *
+     * @api
      */
     protected function resolveShadowedFilterNames(array $filters): array
     {
@@ -213,6 +220,8 @@ trait HandlesFilters
      * nested under its name.
      *
      * @return array{bool, mixed} Whether the filter is in the request, and its value
+     *
+     * @api
      */
     protected function getOwnFilterValueFromRequest(string $name, bool $splitValues): array
     {

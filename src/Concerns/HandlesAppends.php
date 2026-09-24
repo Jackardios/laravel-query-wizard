@@ -240,6 +240,8 @@ trait HandlesAppends
      * An append that only a wildcard allows must name an accessor of this model,
      * so `allowedAppends('*')` can't reach columns or unknown names. Null skips
      * that check.
+     *
+     * @api
      */
     protected function resolveAppendAccessorModel(string $relationPath): ?Model
     {

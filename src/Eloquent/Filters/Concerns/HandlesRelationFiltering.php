@@ -81,6 +81,8 @@ trait HandlesRelationFiltering
      *
      * A value the filter ignores must not reach whereHas(), which on its own
      * would drop the rows without related records.
+     *
+     * @api
      */
     protected function hasEffectiveConstraint(mixed $value): bool
     {

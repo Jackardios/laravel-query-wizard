@@ -19,6 +19,8 @@ use Jackardios\QueryWizard\Support\FilterValueParser;
  * - Conditional application via when()
  *
  * All modifier methods mutate and return the same instance (fluent pattern).
+ *
+ * @api
  */
 abstract class AbstractFilter implements FilterInterface
 {
@@ -272,6 +274,8 @@ abstract class AbstractFilter implements FilterInterface
 
     /**
      * Whether asBoolean() may turn a list into a list of booleans.
+     *
+     * @api
      */
     protected function supportsBooleanLists(): bool
     {

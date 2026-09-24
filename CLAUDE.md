@@ -2,7 +2,7 @@
 
 Builds Eloquent queries from API request parameters like `?filter[status]=active&include=posts&sort=-created_at&fields[user]=id,name&append=full_name`.
 
-**Requirements:** PHP 8.1+, Laravel 10/11/12
+**Requirements:** PHP 8.2+, Laravel 12.61.1+/13.12.0+
 
 ## Code Style
 
@@ -79,15 +79,15 @@ $wizard->getSubject();                  // Get underlying builder without buildi
 | Exact | `EloquentFilter::exact('col')` | `?filter[col]=value` |
 | Partial | `EloquentFilter::partial('col')` | `?filter[col]=val` (LIKE %val%, value not split by commas) |
 | Scope | `EloquentFilter::scope('name')` | `?filter[name]=arg` |
-| Trashed | `EloquentFilter::trashed()` | `?filter[trashed]=with\|only` |
+| Trashed | `EloquentFilter::trashed()` | `?filter[trashed]=with\|only\|without` |
 | Null | `EloquentFilter::null('col')` | `?filter[col]=true` (IS NULL) |
 | Range | `EloquentFilter::range('col')` | `?filter[col][min]=1&filter[col][max]=10` |
-| DateRange | `EloquentFilter::dateRange('col')` | `?filter[col][from]=...&filter[col][to]=...` |
+| DateRange | `EloquentFilter::dateRange('col')` | `?filter[col][from]=2024-01-01&filter[col][to]=2024-01-31` (ISO 8601, app timezone, date `to` = whole day) |
 | JsonContains | `EloquentFilter::jsonContains('col')` | `?filter[col]=a,b` |
 | Callback | `EloquentFilter::callback('n', fn($q, $v, $p) => ...)` | `?filter[n]=val` |
 | Passthrough | `EloquentFilter::passthrough('n')` | Captured but not applied |
 | Operator | `EloquentFilter::operator('col', FilterOperator::GREATER_THAN)` | `?filter[col]=100` |
-| Operator (dynamic) | `EloquentFilter::operator('col', FilterOperator::DYNAMIC)` | `?filter[col]=>=100` |
+| Operator (dynamic) | `EloquentFilter::operator('col', FilterOperator::DYNAMIC)` | `?filter[col]=>=100` (number or ISO date after `>`/`>=`/`<`/`<=`) |
 
 **FilterOperator enum:** `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`, `LIKE`, `NOT_LIKE`, `DYNAMIC`
 
@@ -115,19 +115,21 @@ All modifiers **mutate** the original object:
 EloquentFilter::exact('status')
     ->alias('state')                      // URL name: ?filter[state]=...
     ->default('active')                   // Default when not in request
-    ->prepareValueWith(fn($v) => strtolower($v))
+    ->prepareValueWith(fn($v) => strtolower($v)) // Chains: preparers run in call order, null skips the filter
     ->when(fn($value) => $value !== 'all') // Skip if returns false
-    ->asBoolean()                         // Convert 'true'/'false'/'1'/'0'/'yes'/'no' to bool
+    ->asBoolean()                         // true/false/1/0/yes/no/on/off → bool, anything else → 400
     ->withoutValueSplitting()             // Keep 'a,b' whole (default for PartialFilter; withValueSplitting() reverts)
 
 // Filter-specific
-->withoutRelationConstraint()             // ExactFilter, PartialFilter, NullFilter, OperatorFilter
+->withoutRelationConstraint()             // Exact, Partial, Null, Operator, Range, DateRange
 ->withModelBinding()                      // ScopeFilter
 ->withInvertedLogic()                     // NullFilter
 ->matchAny()                              // JsonContainsFilter (default: matchAll)
 ->minKey('from')->maxKey('to')            // RangeFilter
 ->fromKey('start')->toKey('end')          // DateRangeFilter
-->dateFormat('Y-m-d')                     // DateRangeFilter
+->dateFormat('Y-m-d')                     // DateRangeFilter (formats every bound)
+->asUnixTimestamp()                       // DateRangeFilter, integer timestamp columns
+->lenient()                               // DateRangeFilter, accept any PHP-parseable date
 ```
 
 ## Schema
@@ -164,26 +166,34 @@ abstract class ResourceSchema {
 'optimizations' => [
     'relation_select_mode' => 'safe',  // Auto-injects FK columns for eager loading
 ],
-'limits' => [
+'limits' => [                        // positive int or null; 0/''/false throw
     'max_includes_count' => 10,
     'max_include_depth' => 3,
     'max_filters_count' => 20,
-    'max_appends_count' => 10,
+    'max_appends_count' => 20,
     'max_append_depth' => 3,
     'max_sorts_count' => 5,
 ],
 ```
+
+Config values are validated when read (`InvalidArgumentException` naming the key); missing keys take the defaults in
+`QueryWizardConfig::DEFAULTS`, which a test keeps equal to `config/query-wizard.php`. Wizards read one snapshot per build.
 
 ## Development
 
 ### Adding a New Filter
 
 1. Create class in `src/Eloquent/Filters/` extending `AbstractFilter`
-2. Implement `getType(): string` and `apply($query, $value)`
+2. Implement `getType(): string` and `apply($query, $value)`; read values with `Support\FilterValueParser` (blank → null, unreadable → `InvalidFilterValue`)
 3. Add factory method to `src/Eloquent/EloquentFilter.php`
 4. Add tests in `tests/Feature/Eloquent/`
 
 ## Common Gotchas
+
+### 0. Unreadable filter values are 400s, blank values are absent
+`asBoolean()`, null, trashed, range, dateRange, DYNAMIC and partial filters throw `InvalidFilterValue` for values they
+cannot read; `disable_invalid_filter_query_exception` only covers unknown filter names. Whitespace, `,` and lists of
+blanks apply no condition.
 
 ### 1. `allowedFilters([])` vs no call
 ```php

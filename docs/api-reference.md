@@ -42,12 +42,23 @@
 | `cursorPaginate($perPage)` | Execute with cursor pagination |
 | `chunk($count, $callback)` | Process results in chunks with post-processing |
 | `chunkById($count, $callback)` | Process results in chunks by ID with post-processing |
+| `chunkByIdDesc($count, $callback)` | Same, in descending key order |
+| `eachById($callback, $count)` | Process each model, chunked by ID, with post-processing |
+| `each($callback, $count)` | Process each model with post-processing |
+| `chunkMap($callback, $count)` | Map each post-processed model, returning a Collection |
 | `lazy($chunkSize)` | Return LazyCollection with post-processing |
-| `cursor()` | Return cursor LazyCollection with post-processing |
-| `toQuery()` | Build and return query builder |
-| `getSubject()` | Get underlying query builder |
+| `lazyById($chunkSize)` / `lazyByIdDesc($chunkSize)` | Return LazyCollection chunked by ID with post-processing |
+| `cursor()` | Return cursor LazyCollection with post-processing; includes are eager loaded per 1000 models |
+| `build()` | Build and return the query builder (`Builder\|Relation`); finalizes configuration |
+| `toQuery()` | Build and return query builder; finalizes configuration |
+| `getSubject()` | Get underlying query builder without building; finalizes configuration |
 | `applyPostProcessingTo($results)` | Apply full post-processing (fields + appends) to results |
 | `getPassthroughFilters()` | Get passthrough filter values using the same validation/default/prepare pipeline as normal filter execution |
+
+Finders called through the wizard (`find()`, `findMany()`, `findOrFail()`, `findOr()`, `findSole()`, `sole()`,
+`firstWhere()`, `firstOr()`) build the query and post-process their results; the result of a `findOr()`/`firstOr()`
+fallback callback is returned untouched. Other builder methods are proxied after the build: a method that returns the
+builder itself returns the wizard, anything else is returned as is.
 
 ## ModelQueryWizard Methods
 
@@ -88,7 +99,8 @@ All configuration methods must be called before `process()`. After processing, c
 - `?append=` means "append nothing" and does not merge `defaultAppends()`.
 - `?fields=` means an explicit empty root fieldset.
 - `?fields[relation]=` means an explicit empty fieldset for that relation.
-- `?sort=` is invalid and throws `InvalidSortQuery`.
+- `?sort=` (also `?sort=-`, `?sort=,`) is invalid and throws `InvalidSortQuery`; with `disable_invalid_sort_query_exception` it counts as absent and default sorts apply.
+- `default*()` called with no arguments means "no defaults" (the schema's defaults are not used).
 - Active `count` / `exists` includes remain visible even when the root fieldset is empty.
 
 ## Filter Factory Methods (EloquentFilter)
@@ -115,20 +127,23 @@ All configuration methods must be called before `process()`. After processing, c
 |--------|-------------|
 | `alias($name)` | URL parameter name |
 | `default($value)` | Default value when absent |
-| `prepareValueWith($callback)` | Transform value before applying |
+| `prepareValueWith($callback)` | Add a step that transforms the value before applying; steps run in call order, a `null` result skips the filter |
 | `when($callback)` | Conditionally skip filter |
 | `allowStructuredInput()` | Skip raw shape validation and validate only the prepared value shape |
 | `withValueSplitting()` / `withoutValueSplitting()` | Split string values by the filters separator, or keep them whole (default: split; `partial` keeps them whole) |
-| `asBoolean()` | Convert 'true'/'1'/'yes' to boolean |
+| `asBoolean()` | Add a step reading `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` (any case) as booleans, item by item for lists; anything else throws `InvalidFilterValue` |
 
 ### Built-in Filter Value Shapes
 
 - `exact`, `partial`, `operator`: scalar or flat list of scalars
 - `scope`: single value or flat list without nested arrays
 - `null`, `trashed`: scalar only
-- `range`, `dateRange`: array with boundary keys or a flat list with at least two values
+- `range`, `dateRange`: array with boundary keys or a flat list of exactly two values
 
-Malformed built-in filter payloads raise `InvalidFilterQuery::invalidFormat(...)`. `disable_invalid_filter_query_exception` does not suppress malformed payload format errors; it only affects unknown filter names.
+Malformed built-in filter payloads raise `InvalidFilterQuery::invalidFormat(...)`. Values a filter cannot read (a
+non-boolean for `asBoolean()`/`null`, a non-number for `range`, a non-ISO date for `dateRange`, ...) raise
+`InvalidFilterValue`. Blank values (whitespace, `,`, lists of blanks) are treated as absent.
+`disable_invalid_filter_query_exception` suppresses neither; it only affects unknown filter names.
 
 Use `allowStructuredInput()` when a built-in filter should intentionally accept structured raw input that will be normalized inside `prepareValueWith()`. The prepared value is still validated against the built-in filter's contract before `apply()` runs.
 
@@ -136,21 +151,24 @@ Use `allowStructuredInput()` when a built-in filter should intentionally accept 
 
 | Filter | Method | Description |
 |--------|--------|-------------|
-| Exact, Partial, Null, Operator | `withoutRelationConstraint()` | Disable `whereHas` for dot notation |
+| Exact, Partial, Null, Operator, Range, DateRange | `withoutRelationConstraint()` | Disable `whereHas` for dot notation |
 | Scope | `withModelBinding()` | Load model by ID |
 | Null | `withInvertedLogic()` | Use IS NOT NULL |
 | JsonContains | `matchAny()` | Match any value (default: `matchAll()`) |
 | Range | `minKey($key)`, `maxKey($key)` | Custom range keys |
 | DateRange | `fromKey($key)`, `toKey($key)` | Custom date keys |
-| DateRange | `dateFormat($format)` | Format DateTime values |
+| DateRange | `dateFormat($format)` | Format every bound for the column (`'U'` = Unix timestamp) |
+| DateRange | `asUnixTimestamp()` | Integer column of Unix timestamps; also accepts timestamps in the request |
+| DateRange | `lenient()` | Also accept any date PHP can parse (`yesterday`, `-1 week`) |
+| Operator (LIKE, NOT_LIKE) | `withValueSplitting()` | Split the value into phrases (default: one phrase) |
 
 ## Sort Factory Methods (EloquentSort)
 
 | Method | Description |
 |--------|-------------|
 | `field($property, $alias)` | Column sort |
-| `count($relation, $alias)` | Relationship count sort |
-| `relation($relation, $column, $aggregate, $alias)` | Relationship aggregate sort (min, max, sum, avg, count, exists) |
+| `count($relation, $alias)` | Relationship count sort (a single relation; nested ones throw `InvalidArgumentException`) |
+| `relation($relation, $column, $aggregate, $alias)` | Relationship aggregate sort (min, max, sum, avg, count, exists; a single relation) |
 | `callback($name, $callback, $alias)` | Custom callback sort |
 
 ## Include Factory Methods (EloquentInclude)
@@ -160,6 +178,6 @@ Use `allowStructuredInput()` when a built-in filter should intentionally accept 
 | `relationship($relation, $alias)` | Eager load relationship |
 | `count($relation, $alias)` | Load relationship count |
 | `exists($relation, $alias)` | Check relationship existence (adds boolean attribute) |
-| `callback($name, $callback, $alias)` | Custom callback include |
+| `callback($name, $callback, $alias)` | Custom callback include; `->withRuntimeAttributes('attr', ...)` keeps the attributes it adds visible under sparse fieldsets |
 
 Count / exists include aliases are request-facing only. The serialized attribute key remains Laravel's default runtime key (for example `posts_count` or `posts_exists`), and those runtime attributes stay visible even when root sparse fieldsets are applied.

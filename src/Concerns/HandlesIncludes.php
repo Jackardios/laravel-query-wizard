@@ -39,6 +39,8 @@ trait HandlesIncludes
 
     /**
      * Normalize a string include to an IncludeInterface instance.
+     *
+     * @api
      */
     abstract protected function normalizeStringToInclude(string $name): IncludeInterface;
 
@@ -281,6 +283,8 @@ trait HandlesIncludes
      * already eager loaded (`with('posts.comments')`, `with('posts')`,
      * `with('posts:id')`), the previous constraint keeps running before the new
      * one. A constraint closure the include passes itself still replaces it.
+     *
+     * @api
      */
     protected function applyIncludeKeepingEagerLoads(IncludeInterface $include, mixed $subject): mixed
     {
@@ -301,6 +305,8 @@ trait HandlesIncludes
      * @param  array<int, string>  $includeNames
      * @param  array<string, IncludeInterface>  $includesIndex
      * @return array<string, array<string, string>>
+     *
+     * @api
      */
     protected function resolveRuntimeAttributesByOwner(array $includeNames, array $includesIndex): array
     {
@@ -328,6 +334,9 @@ trait HandlesIncludes
         return $attributesByOwner;
     }
 
+    /**
+     * @api
+     */
     protected function resolveRuntimeAttributeNameForInclude(IncludeInterface $include): string
     {
         $relation = str_replace('.', '_', Str::snake($include->getRelation()));

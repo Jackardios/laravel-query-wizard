@@ -31,6 +31,9 @@ trait HandlesSorts
     /** @var array<string, SortInterface>|null */
     protected ?array $cachedEffectiveSorts = null;
 
+    /**
+     * @api
+     */
     abstract protected function normalizeStringToSort(string $name): SortInterface;
 
     /**

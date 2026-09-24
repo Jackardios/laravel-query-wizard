@@ -39,6 +39,8 @@ trait HandlesRelationPostProcessing
      * @param  array{fields: array<string>, relations: array<string, mixed>}  $fieldTree
      * @param  array<string, array<string, string>>  $attributesByOwner  Relation path => requested name => attribute
      * @return array{fields: array<string>, relations: array<string, mixed>}
+     *
+     * @api
      */
     protected function withRuntimeAttributesInFieldTree(array $fieldTree, array $attributesByOwner): array
     {

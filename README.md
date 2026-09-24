@@ -140,7 +140,9 @@ EloquentQueryWizard::for(User::where('active', true))
     ->get();
 ```
 
-`toQuery()` and `getSubject()` expose the live underlying builder. Treat them as the point where wizard configuration is finalized, and do not call `allowed*()`, `default*()`, or `schema()` afterwards.
+`toQuery()`, `getSubject()` and `build()` expose the live underlying builder. Treat them as the point where wizard configuration is finalized: calling `allowed*()`, `default*()`, or `schema()` afterwards throws `LogicException`. So does reconfiguring a clone of such a wizard, or of one that received builder calls; create a new wizard instead.
+
+Builder methods called on the wizard (`where()`, `orderBy()`, ...) run after the request's filters and sorts are applied, so an `orderBy()` through the wizard sorts after the requested sorts. Executing methods change the wizard's builder the way they change an Eloquent builder: `first()` adds `limit 1`, `find()` adds a key condition, `cursorPaginate()` adds its order columns.
 
 ## Filtering
 
@@ -170,13 +172,13 @@ EloquentQueryWizard::for(User::class)
 | Exact | `EloquentFilter::exact('status')` | `?filter[status]=active` |
 | Partial | `EloquentFilter::partial('name')` | `?filter[name]=john` (LIKE %john%; the value is one phrase, commas included) |
 | Scope | `EloquentFilter::scope('popular')` | `?filter[popular]=5000` |
-| Trashed | `EloquentFilter::trashed()` | `?filter[trashed]=with\|only` |
+| Trashed | `EloquentFilter::trashed()` | `?filter[trashed]=with\|only\|without` |
 | Null | `EloquentFilter::null('deleted_at')` | `?filter[deleted_at]=true` (IS NULL) |
 | Range | `EloquentFilter::range('price')` | `?filter[price][min]=10&filter[price][max]=100` |
-| Date Range | `EloquentFilter::dateRange('created_at')` | `?filter[created_at][from]=2024-01-01&filter[created_at][to]=2024-12-31` |
+| Date Range | `EloquentFilter::dateRange('created_at')` | `?filter[created_at][from]=2024-01-01&filter[created_at][to]=2024-12-31` (ISO 8601; `to` includes the whole day) |
 | JSON Contains | `EloquentFilter::jsonContains('tags')` | `?filter[tags]=laravel,php` |
 | Operator | `EloquentFilter::operator('age', FilterOperator::GREATER_THAN)` | `?filter[age]=18` (age > 18) |
-| Operator (dynamic) | `EloquentFilter::operator('price', FilterOperator::DYNAMIC)` | `?filter[price]=>=100` (price >= 100) |
+| Operator (dynamic) | `EloquentFilter::operator('price', FilterOperator::DYNAMIC)` | `?filter[price]=>=100` (price >= 100), `?filter[created_at]=<=2024-01-31` |
 | Callback | `EloquentFilter::callback('custom', fn($q, $v, $p) => ...)` | `?filter[custom]=value` |
 | Passthrough | `EloquentFilter::passthrough('context')` | Captured but not applied |
 
@@ -188,15 +190,20 @@ All filters support fluent modifiers:
 EloquentFilter::exact('status')
     ->alias('state')                           // URL parameter name: ?filter[state]=...
     ->default('active')                        // Default value when not in request
-    ->prepareValueWith(fn($v) => strtolower($v))  // Transform before applying
+    ->prepareValueWith(fn($v) => strtolower($v))  // Transform before applying (repeated calls chain in order)
     ->when(fn($v) => $v !== 'all')             // Skip filter if returns false
     ->allowStructuredInput()                   // Accept structured raw input, still validate prepared value
     ->withoutValueSplitting()                  // Keep 'a,b' as one string instead of ['a', 'b']
-    ->asBoolean()                              // Convert 'true'/'1'/'yes' to bool
+    ->asBoolean()                              // Read true/false/1/0/yes/no/on/off as bool; anything else is a 400
 ```
 
+`prepareValueWith()` and `asBoolean()` add steps to one chain that runs in the order the methods were called, each
+step receiving the previous result; a `null` result skips the filter. `asBoolean()` reads a list item by item, so
+`?filter[is_active]=1,0` on an exact filter matches either value; a callback filter takes a single boolean and rejects a
+list.
+
 String values are split by the filters separator (`?filter[status]=active,pending` → `['active', 'pending']`) for every
-filter except `partial`, whose value is a search phrase. Use `withoutValueSplitting()` / `withValueSplitting()` to change
+filter except `partial` and the `LIKE`/`NOT_LIKE` operators, whose value is a search phrase. Use `withoutValueSplitting()` / `withValueSplitting()` to change
 that per filter; a list sent as `?filter[name][]=a&filter[name][]=b` always arrives as an array.
 
 **Filter-specific modifiers:**
@@ -208,7 +215,9 @@ EloquentFilter::range('price')->minKey('from')->maxKey('to')
 // Date range filter
 EloquentFilter::dateRange('created_at')
     ->fromKey('start')->toKey('end')
-    ->dateFormat('Y-m-d')
+    ->dateFormat('Y-m-d')      // Format every bound for a column not stored in the database date format
+    ->lenient()                // Also accept any date PHP can read ("yesterday", "-1 week")
+EloquentFilter::dateRange('created_ts')->asUnixTimestamp()  // Integer column of Unix timestamps; accepts timestamps too
 
 // JSON contains filter
 EloquentFilter::jsonContains('tags')->matchAny()  // Default: matchAll()
@@ -220,20 +229,58 @@ EloquentFilter::null('deleted_at')->withInvertedLogic()  // IS NOT NULL
 EloquentFilter::scope('byAuthor')->withModelBinding()  // Load model by ID
 ```
 
-### Built-in Filter Payload Validation
+### Filter Values
 
 Built-in filters validate the shape of their input before `prepareValueWith()` and `apply()` run.
 
 - `exact`, `partial`, `operator`: scalar or flat list of scalars
 - `scope`: single value or flat list without nested arrays
 - `null`, `trashed`: scalar only
-- `range`, `dateRange`: array with boundary keys (`min`/`max`, `from`/`to`) or a flat list with at least two values
+- `range`, `dateRange`: array with boundary keys (`min`/`max`, `from`/`to`) or a flat list of exactly two values
 
-Malformed payloads such as `?filter[name][foo][bar]=Alpha` now raise `InvalidFilterQuery::invalidFormat(...)` instead of reaching SQL generation or PHP warnings.
+Malformed payloads such as `?filter[name][foo][bar]=Alpha` raise `InvalidFilterQuery::invalidFormat(...)` instead of reaching SQL generation or PHP warnings.
 
 If you intentionally accept structured raw payloads and normalize them in `prepareValueWith()`, opt in with `allowStructuredInput()`. The built-in filter still validates the prepared value shape before applying it to the query.
 
-`disable_invalid_filter_query_exception` only suppresses unknown-filter errors. It does not suppress malformed `filter` payload format errors.
+A blank value is absent: `?filter[name]=`, a value of spaces, `?filter[name]=,` and a list of empty items apply no
+condition (with `apply_filter_default_on_null` enabled, the filter's `default()` applies instead). A value that a
+filter has to read and cannot is rejected with `InvalidFilterValue` (400), whose message says what was expected:
+
+| Filter | Accepts |
+|--------|---------|
+| `asBoolean()` | `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off` (any letter case) |
+| `null` | the same booleans |
+| `trashed` | `with`, `only`, `without` (`true`/`false` for with/without) |
+| `range` | decimal numbers (`10`, `-2.5`); no exponents or hex |
+| `dateRange` | a date (`2024-01-31`) or an ISO 8601 date-time (`2024-01-31T10:00:00+03:00`, `Z`, fractions); see below |
+| `operator` with `DYNAMIC` | after `>`, `>=`, `<`, `<=`: a decimal number or an ISO 8601 date |
+| `partial` | text or numbers (a boolean is rejected) |
+| `scope` | as many values as the scope takes; `int`/`float` parameters need numbers |
+
+**Dates** (`dateRange`, and `DYNAMIC` comparisons) are read in the application timezone; a date-time with an offset is
+converted to it, and so is a `DateTimeInterface` default. A date names the whole day: `to=2024-01-31` and
+`<=2024-01-31` match all of January 31 (`< 2024-02-01`), and `>2024-01-31` starts on February 1. Send `+` in an offset
+as `%2B`, since an unencoded `+` in a query string is a space. `dateFormat()` formats every bound for the column;
+`dateFormat('U')` / `asUnixTimestamp()` compares whole seconds and is meant for integer columns.
+
+**Dynamic operators**: `>=`, `<=`, `>`, `<`, `!=` and `<>` at the start of the value. An operator without a value is
+absent, and an operator inside a list (`?filter[price]=>=1,5`) is rejected. `!=`/`<>` and plain values are compared as
+sent.
+
+**LIKE**: `partial` filters and the `LIKE`/`NOT_LIKE` operators match the value literally; `%` and `_` in the value are
+not wildcards. A list matches any of its phrases (`NOT_LIKE`: none of them). On PostgreSQL the column is compared as
+text, so non-text columns work too, and `LIKE`/`NOT_LIKE` are case-sensitive even on a `citext` column. `partial` lowercases both sides; SQLite's `LOWER()` only folds ASCII letters.
+
+To keep the old "skip what you can't read" behavior for a boolean filter, use your own preparer instead of
+`asBoolean()`:
+
+```php
+EloquentFilter::exact('is_active')
+    ->prepareValueWith(fn ($v) => filter_var($v, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE))
+```
+
+`disable_invalid_filter_query_exception` only suppresses unknown filter names. It never suppresses malformed payloads
+or values a filter cannot read.
 
 ### Relation Filtering
 
@@ -263,7 +310,7 @@ EloquentQueryWizard::for(User::class)
 
 **Request:** `?sort=name` (asc), `?sort=-name` (desc), `?sort=-created_at,name` (multiple)
 
-`?sort=` is treated as an invalid request and throws `InvalidSortQuery`.
+`?sort=` (and variants such as `?sort=-` or `?sort=,`) is treated as an invalid request and throws `InvalidSortQuery`. With `disable_invalid_sort_query_exception` enabled, every empty variant counts as "no sort requested" and the default sorts apply.
 
 ### Available Sort Types
 
@@ -273,6 +320,9 @@ EloquentQueryWizard::for(User::class)
 | Count | `EloquentSort::count('posts')` | Sort by relationship count |
 | Relation | `EloquentSort::relation('orders', 'total', 'sum')` | Sort by aggregate (min, max, sum, avg, count, exists) |
 | Callback | `EloquentSort::callback('custom', fn($q, $dir, $p) => ...)` | Custom logic |
+
+A field sort orders by the qualified column (`users.total`), so it cannot sort by an alias from `select()`/`selectRaw()`.
+Use a callback sort for that: `EloquentSort::callback('total', fn ($q, $dir) => $q->orderBy('total', $dir))`.
 
 ## Including Relationships
 
@@ -306,7 +356,15 @@ EloquentQueryWizard::for(User::class)
 | Exists | `EloquentInclude::exists('posts')` | Check existence with `withExists()` |
 | Callback | `EloquentInclude::callback('custom', fn($q, $rel) => ...)` | Custom logic |
 
-Includes ending with "Count" or "Exists" are auto-detected as count/exists includes.
+Includes ending with "Count" or "Exists" are auto-detected as count/exists includes. Count and exists includes take a
+single relation (`postsCount`); a nested relation such as `posts.commentsCount` throws `InvalidArgumentException` when
+the include is defined. Use a callback include for nested counts.
+
+An include keeps constraints already registered for the same relation (a developer's `with(['posts' => fn ...])`, a
+parent include's select). A callback include that registers its own closure for a relation replaces an existing
+closure, as `with()` does in Laravel; to keep both, read `$query->getEagerLoads()` and call the previous closure from
+yours. Declare attributes a callback include adds with `->withRuntimeAttributes('posts_total')` so sparse fieldsets keep
+them visible.
 
 When root sparse fieldsets are applied, explicit or default `count` / `exists` includes remain visible in the serialized output. Their request alias stays request-facing only; the runtime attribute key still follows Laravel's default naming (`posts_count`, `posts_exists`).
 
@@ -325,6 +383,11 @@ EloquentQueryWizard::for(User::class)
 `?fields=` means an explicit empty root fieldset. `?fields[posts]=` means an explicit empty fieldset for `posts`.
 
 If a `count` / `exists` include is active, `?fields=` still hides normal root columns but keeps the included runtime attribute visible.
+
+Under a wildcard (`allowedFields('*')`), a requested name that is not a column of the table reaches the query and fails
+there (`QueryException`), so list the columns explicitly when clients may send arbitrary names. A root `*` also allows
+every relation fieldset. `disallowedFields()` rejects names a client requests; it does not hide them from a `*` request,
+which still returns all columns. There is no limit on the number of requested fields.
 
 ### Relation Fields
 
@@ -387,7 +450,7 @@ Defaults are applied only when the corresponding parameter is completely absent.
 - `?append=` means "append nothing"
 - `?fields=` means "show no root fields", except active `count` / `exists` include attributes remain visible
 - `?fields[relation]=` means "show no fields for that relation"
-- `?sort=` is invalid and throws `InvalidSortQuery`
+- `?sort=` is invalid and throws `InvalidSortQuery` (with `disable_invalid_sort_query_exception`, the defaults apply)
 
 ## Resource Schemas
 
@@ -513,6 +576,7 @@ $processed = ModelQueryWizard::for($user)
 | Includes | Loads missing with `loadMissing()` |
 | Fields | Hides non-requested with `makeHidden()` |
 | Appends | Adds with `append()` |
+| Relations not requested | Unset from the model (loaded relations not in `?include` are removed) |
 | Filters/Sorts | Ignored |
 
 ## Security
@@ -527,9 +591,15 @@ Built-in protection against resource exhaustion attacks:
 | `max_includes_count` | 10 | Max includes per request |
 | `max_filters_count` | 20 | Max filters per request |
 | `max_appends_count` | 20 | Max appends per request |
+| `max_append_depth` | 3 | Max append nesting (e.g., `posts.author.full_name` = 3) |
 | `max_sorts_count` | 5 | Max sorts per request |
 
-Configure in `config/query-wizard.php`. Set to `null` to disable.
+Configure in `config/query-wizard.php`. Set a limit to `null` to disable it. Any other value that is not a positive
+integer (`0`, `''` from an empty environment variable, `false`, `-1`) throws `InvalidArgumentException` instead of
+silently disabling the limit, and a limit missing from a published `limits` array takes the package default.
+
+Limits apply to what the client sends. Developer defaults (`defaultSorts()`, `defaultIncludes()`, `defaultAppends()`,
+schema defaults) over a limit throw `InvalidArgumentException`, since only the developer can fix them.
 
 ### ScopeFilter Model Binding
 
@@ -539,7 +609,13 @@ By default, `ScopeFilter` passes values as-is. Enable model binding with caution
 EloquentFilter::scope('byAuthor')->withModelBinding()
 ```
 
-**Warning:** Model binding resolves by ID **without authorization checks**. Add checks in your scope if needed.
+**Warning:** Model binding resolves by ID **without authorization checks**. Add checks in your scope if needed. Because
+a missing ID and an existing one may produce different results, binding also tells a client which IDs exist.
+
+### Cursor Pagination
+
+A cursor encodes the values of the columns the query is ordered by, including columns hidden by a sparse fieldset.
+Clients can decode it, so don't sort by columns whose values they must not see.
 
 ## Configuration
 
@@ -591,29 +667,55 @@ When `fields.use_allowed_as_default` is enabled and `?fields` is absent, default
 
 `getPassthroughFilters()` uses the same filter validation, defaults, `prepareValueWith()`, `when()`, and `max_filters_count` enforcement as normal query execution. Unknown filters still honor `disable_invalid_filter_query_exception`; malformed built-in filter payloads do not.
 
+Configuration values are validated when they are read: an invalid limit, separator (a non-empty string of at most 10
+characters), parameter name (a non-empty string, or `null` to turn the parameter off), `request_data_source` or
+`relation_select_mode` throws `InvalidArgumentException` naming the key. A key missing from the published file takes the
+package default. Each build reads the configuration once, so a `config()->set()` at runtime applies from the next build.
+
+With `convert_parameters_to_snake_case` enabled, only the names of filters, sorts, includes, fields and appends are
+converted. Keys inside a filter value (a range's `minKey()`, a structured callback payload) are passed as sent, and when
+two filter keys convert to the same name (`createdAt` and `created_at`), the one already in snake_case wins.
+
+With `request_data_source` set to `body`, a JSON request body must be a JSON object; malformed or non-object JSON
+throws `InvalidRequestBody` (400). A body is read as JSON only when the request has a JSON content type.
+
 ## Error Handling
 
-All exceptions extend `InvalidQuery` (extends Symfony's `HttpException`):
+All exceptions extend `InvalidQuery` (extends Symfony's `HttpException`, status 400). Each carries a stable
+`errorCode` and the request `parameter` it refers to (as configured under `parameters`, e.g. `filter`), or `null`:
 
-| Exception | Description |
-|-----------|-------------|
-| `InvalidFilterQuery` | Unknown filter |
-| `InvalidSortQuery` | Unknown sort |
-| `InvalidIncludeQuery` | Unknown include |
-| `InvalidFieldQuery` | Unknown field |
-| `InvalidAppendQuery` | Unknown append |
-| `MaxFiltersCountExceeded` | Too many filters |
-| `MaxIncludeDepthExceeded` | Include nesting too deep |
-| ... | (similar for other limits) |
+| Exception | `errorCode` | When |
+|-----------|-------------|------|
+| `InvalidFilterQuery` | `filter_not_allowed` | Unknown filter |
+| `InvalidFilterQuery` | `invalid_filter_format` | Malformed `filter` payload |
+| `InvalidFilterValue` | `invalid_filter_value` | A value the filter cannot read (see `$reason`, `$filterName`, `$filterValue`) |
+| `InvalidSortQuery` | `sort_not_allowed` | Unknown sort |
+| `InvalidSortQuery` | `invalid_sort_format` | Empty or malformed `sort` |
+| `InvalidIncludeQuery` | `include_not_allowed` | Unknown or disallowed include |
+| `InvalidFieldQuery` | `field_not_allowed` | Unknown or disallowed field |
+| `InvalidFieldQuery` | `invalid_field_format` | Nested lists, a dotted name inside a fieldset, or a name that is not a valid column identifier |
+| `InvalidAppendQuery` | `append_not_allowed` | Unknown or disallowed append |
+| `InvalidAppendQuery` | `invalid_append_format` | Nested lists in `append` |
+| `InvalidRequestBody` | `invalid_request_body` | Malformed or non-object JSON body in `body` mode |
+| `MaxFiltersCountExceeded` | `max_filters_count_exceeded` | Too many filters |
+| `MaxSortsCountExceeded` | `max_sorts_count_exceeded` | Too many sorts |
+| `MaxIncludesCountExceeded` | `max_includes_count_exceeded` | Too many includes |
+| `MaxIncludeDepthExceeded` | `max_include_depth_exceeded` | Include nesting too deep |
+| `MaxAppendsCountExceeded` | `max_appends_count_exceeded` | Too many appends |
+| `MaxAppendDepthExceeded` | `max_append_depth_exceeded` | Append nesting too deep |
 
-### Global Handler (Laravel 11+)
+Configuration mistakes (invalid config values, developer defaults over a limit, a nested relation in a count sort or
+count/exists include) throw `InvalidArgumentException` instead, since they are not the client's fault.
+
+### Global Handler
 
 ```php
 // bootstrap/app.php
 ->withExceptions(function (Exceptions $exceptions) {
     $exceptions->render(function (InvalidQuery $e) {
         return response()->json([
-            'error' => class_basename($e),
+            'error' => $e->errorCode,
+            'parameter' => $e->parameter,
             'message' => $e->getMessage(),
         ], $e->getStatusCode());
     });
@@ -630,17 +732,50 @@ All execution methods apply post-processing (field masking, appends) automatical
 $wizard->get();
 $wizard->paginate(15);
 $wizard->chunk(100, fn($users) => ...);
+$wizard->chunkById(100, fn($users) => ...);   // also lazyById(), lazyByIdDesc(), chunkByIdDesc(), eachById()
+$wizard->each(fn($user) => ...);
+$wizard->chunkMap(fn($user) => ...);
 $wizard->lazy()->each(fn($user) => ...);
+$wizard->cursor()->each(fn($user) => ...);
 ```
+
+The `*ById` methods and `cursorPaginate()` select the key or order columns they need even when a sparse fieldset left
+them out, and hide them again in the results. `cursor()` loads includes (and any other eager loads) for each batch of
+1000 models, so up to 1000 models and their relations are in memory at once; without eager loads it streams one model at
+a time as before.
+
+Finder methods called on the wizard (`find()`, `findMany()`, `findOrFail()`, `findOr()`, `findSole()`, `sole()`,
+`firstWhere()`, `firstOr()`) build the query and post-process the models they return. Like on an Eloquent builder, they
+narrow the wizard's query (for example `find()` adds a key condition). Methods that create or return raw values
+(`firstOrNew()`, `firstOrCreate()`, `updateOrCreate()`, `value()`, `pluck()`, ...) are not post-processed.
 
 ### Manual Post-Processing
 
-For methods not wrapped by wizard (`find()`, `findMany()`):
+For queries you run on the builder yourself:
 
 ```php
 $user = $wizard->toQuery()->find($id);
 $wizard->applyPostProcessingTo($user);
 ```
+
+### Extending
+
+Custom filters, sorts and includes extend `AbstractFilter`, `AbstractSort` or `AbstractInclude`. These hooks are part of
+the supported API:
+
+| Hook | Purpose |
+|------|---------|
+| `Support\FilterValueParser` | Read request values the way built-in filters do: `isBlank()`, `boolean()`, `number()`, `isoDate()`, `lenientDate()`, `unixTimestamp()`, `trashedMode()`, `dynamic()`; unreadable values throw `InvalidFilterValue` |
+| `Support\ParsedDate` | Result of the date readers: `value` (`DateTimeImmutable`) and `dateOnly` |
+| `AbstractFilter::supportsBooleanLists()` | Return `false` when `asBoolean()` must reject lists |
+| `hasEffectiveConstraint(mixed $value): bool` | For filters using `HandlesRelationFiltering`: return `false` when the value adds no condition, so no `whereHas` is added |
+| `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |
+| `rollbackFailedBuild(): void` | Wizard subclasses reset their own state after a build throws (call the parent) |
+| `applyIncludeKeepingEagerLoads()` | Apply an include while keeping existing eager-load constraints |
+| `resolveAppendAccessorModel(string $relationPath): ?Model` | The model whose accessors a wildcard append must name (`null` = no check) |
+| `QueryWizardConfig::snapshot()` | Configuration fixed at the time of the call |
+
+Classes marked `@internal` may change in any release.
 
 ### Laravel Octane
 
@@ -676,8 +811,8 @@ See [docs/api-reference.md](docs/api-reference.md) for complete method reference
 
 ## Requirements
 
-- PHP 8.1+
-- Laravel 10, 11, or 12
+- PHP 8.2+ (tested on 8.2–8.5)
+- Laravel 12.61.1+ or 13.12.0+
 
 ## Testing
 
@@ -687,7 +822,7 @@ composer test
 
 ## Upgrading
 
-See [UPGRADE.md](UPGRADE.md) for migration guides between versions.
+See [UPGRADE.md](UPGRADE.md) for migration guides between versions and [CHANGELOG.md](CHANGELOG.md) for the list of changes.
 
 ## License
 

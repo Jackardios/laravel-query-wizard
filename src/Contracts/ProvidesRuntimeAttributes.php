@@ -10,6 +10,8 @@ namespace Jackardios\QueryWizard\Contracts;
  *
  * The attributes belong to the level that owns the include's relation: the
  * root models for `prices`, the `sides` models for `sides.prices`.
+ *
+ * @api
  */
 interface ProvidesRuntimeAttributes
 {

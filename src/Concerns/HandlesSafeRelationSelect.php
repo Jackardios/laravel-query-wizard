@@ -127,6 +127,8 @@ trait HandlesSafeRelationSelect
      *
      * @param  array<string>  $relationNames  Top-level relation names
      * @return array<string>|null
+     *
+     * @api
      */
     protected function resolveParentColumnsForEagerLoads(Model $parent, array $relationNames): ?array
     {
@@ -157,6 +159,8 @@ trait HandlesSafeRelationSelect
      * definition or in a developer constraint) is left as it is.
      *
      * @param  array<string>  $columns
+     *
+     * @api
      */
     protected function applySafeRelationSelectToQuery(mixed $query, array $columns): void
     {
@@ -190,6 +194,8 @@ trait HandlesSafeRelationSelect
     /**
      * @param  array<string, mixed>  $eagerLoads
      * @return array<string>
+     *
+     * @api
      */
     protected function topLevelEagerLoadNames(array $eagerLoads): array
     {

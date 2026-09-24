@@ -41,6 +41,8 @@ trait ParsesRangeValues
      * Subclasses can override to add type-specific validation.
      *
      * @param  string|null  $key  The request key of the bound, for error messages
+     *
+     * @api
      */
     protected function normalizeRangeValue(mixed $value, ?string $key = null): mixed
     {
