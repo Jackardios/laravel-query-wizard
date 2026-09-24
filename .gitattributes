@@ -4,7 +4,6 @@
 /.gitattributes export-ignore
 /.github export-ignore
 /.gitignore export-ignore
-/.php_cs.dist.php export-ignore
 /CLAUDE.md export-ignore
 /Makefile export-ignore
 /docker export-ignore

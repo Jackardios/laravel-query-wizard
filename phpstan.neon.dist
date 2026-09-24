@@ -5,29 +5,11 @@ parameters:
     paths:
         - src
     level: 7
+    reportUnmatchedIgnoredErrors: true
     ignoreErrors:
-        # Template type resolution in collect() calls - known Larastan limitation
-        -
-            message: '#Unable to resolve the template type .* in call to function collect#'
-            reportUnmatched: false
-        # Pagination generic types differ between Laravel versions (1 param in L10-11, 2 params in L12)
-        -
-            message: '#return type with generic (class|interface) Illuminate\\(Contracts\\)?Pagination\\(LengthAware)?Paginator does not specify its types#'
-            reportUnmatched: false
-        -
-            message: '#return type with generic interface Illuminate\\Contracts\\Pagination\\CursorPaginator does not specify its types#'
-            reportUnmatched: false
-        # WeakMap covariance issues with Model - PHPStan version differences
-        -
-            message: '#WeakMap#'
-            reportUnmatched: false
-        # PHPDoc type checks that differ between PHPStan versions
+        # Values come from user configuration and request data, so string-typed PHPDoc is not a runtime guarantee
         -
             message: '#Call to function is_string\(\) with string will always evaluate to true#'
-            reportUnmatched: false
-        -
-            message: '#Instanceof between .* and .* will always evaluate to true#'
-            reportUnmatched: false
         # Laravel 13 types whereRaw()/orWhereRaw() SQL as literal-string; PartialFilter builds it from a grammar-wrapped column
         -
             identifier: argument.type
