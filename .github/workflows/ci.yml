@@ -39,10 +39,12 @@ jobs:
             laravel: '12'
             testbench: '10'
             dependencies: 'lowest'
+            framework-floor: '12.61.1'
           - php: '8.3'
             laravel: '13'
             testbench: '11'
             dependencies: 'lowest'
+            framework-floor: '13.12.0'
         exclude:
           # Laravel 13 requires PHP 8.3+
           - php: '8.2'
@@ -71,6 +73,12 @@ jobs:
           key: ${{ runner.os }}-php-${{ matrix.php }}-laravel-${{ matrix.laravel }}-${{ matrix.dependencies }}-composer-${{ hashFiles('**/composer.json') }}
           restore-keys: ${{ runner.os }}-php-${{ matrix.php }}-laravel-${{ matrix.laravel }}-${{ matrix.dependencies }}-composer-
 
+      # PHPUnit 12 legs also run the suite in parallel; paratest ^7.17 is the
+      # first line that supports PHPUnit 12.5.8, and 7.21+ requires PHPUnit 13.
+      - name: Add paratest
+        if: matrix.laravel == '13' && matrix.dependencies == 'highest'
+        run: composer require --dev "brianium/paratest:^7.17" --no-update --no-interaction
+
       - name: Install dependencies
         run: |
           composer update \
@@ -79,13 +87,26 @@ jobs:
             ${{ matrix.dependencies == 'lowest' && '--prefer-lowest --prefer-stable' || '' }} \
             --prefer-dist --no-interaction --no-progress
 
+      # A lowest leg that silently resolves above the declared floor stops
+      # testing the floor at all.
+      - name: Confirm the declared framework floor was installed
+        if: matrix.dependencies == 'lowest'
+        run: |
+          installed=$(composer show laravel/framework --format=json | php -r 'echo json_decode(stream_get_contents(STDIN), true)["versions"][0];')
+          echo "laravel/framework ${installed}"
+          test "${installed}" = "v${{ matrix.framework-floor }}"
+
       - name: Run tests
         run: vendor/bin/phpunit --colors=always
+
+      - name: Run tests in parallel
+        if: matrix.laravel == '13' && matrix.dependencies == 'highest'
+        run: vendor/bin/paratest --processes=4 --colors
 
   tests-pgsql:
     # SQLite never rewrites `?` placeholders, so SQL that only breaks PDO drivers
     # which do (pdo_pgsql) passes the main matrix unnoticed.
-    name: Filters on PostgreSQL
+    name: PostgreSQL
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -119,7 +140,7 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-dist --no-interaction --no-progress
 
-      - name: Run filter tests
+      - name: Run tests
         env:
           DB_CONNECTION: pgsql
           DB_HOST: 127.0.0.1
@@ -127,8 +148,8 @@ jobs:
           DB_DATABASE: query_wizard
           DB_USERNAME: query_wizard
           DB_PASSWORD: query_wizard
-        # Other filter tests still assume SQLite (SQL strings, loose type comparisons); widen as they become driver-neutral.
-        run: vendor/bin/phpunit --group partial-filter --colors=always
+        # pgsql-known-failure: package bugs that only PostgreSQL rejects, each removed with its fix.
+        run: vendor/bin/phpunit --exclude-group pgsql-known-failure --colors=always
 
   static-analysis:
     name: Static Analysis (PHPStan, PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }})
@@ -269,6 +290,9 @@ jobs:
           key: ${{ runner.os }}-audit-composer-${{ hashFiles('**/composer.json') }}
           restore-keys: ${{ runner.os }}-audit-composer-
 
+      - name: Validate composer.json
+        run: composer validate --strict
+
       - name: Install dependencies
         run: composer install --no-interaction --no-progress
 
@@ -303,3 +327,113 @@ jobs:
 
       - name: Check code style
         run: vendor/bin/pint --test
+
+  coverage:
+    name: Coverage and mutation testing (PHP 8.4 / Laravel 13)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip
+          coverage: pcov
+          tools: composer:v2, infection:0.35
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-coverage-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: ${{ runner.os }}-coverage-composer-
+
+      - name: Install dependencies
+        run: composer update --with="laravel/framework:^13.0" --prefer-dist --no-interaction --no-progress
+
+      - name: Run tests with coverage
+        run: vendor/bin/phpunit --coverage-text --coverage-clover=build/coverage/clover.xml --only-summary-for-coverage-text
+
+      # Report-only until the surviving mutants are triaged; minMsi in infection.json5 then becomes the floor.
+      # A full run takes too long for every push, so pushes and pull requests mutate only changed lines.
+      - name: Run mutation testing on changed lines
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: |
+          base="origin/${{ github.base_ref || github.event.repository.default_branch }}"
+          infection --threads=max --no-progress --git-diff-lines --git-diff-base="${base}" --ignore-msi-with-no-mutations
+
+      - name: Run mutation testing
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: infection --threads=max --no-progress
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-and-mutation
+          path: build/
+          if-no-files-found: ignore
+
+  experimental:
+    name: Experimental (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    continue-on-error: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows, PHP 8.4 / Laravel 13
+            os: windows-latest
+            php: '8.4'
+            extensions: dom, curl, libxml, mbstring, zip, fileinfo, pdo_sqlite, sqlite3
+            install: composer update --with="laravel/framework:^13.0" --prefer-dist --no-interaction --no-progress
+          - name: PHP 8.6 / Laravel 13
+            os: ubuntu-latest
+            php: '8.6'
+            extensions: dom, curl, libxml, mbstring, zip
+            install: composer update --with="laravel/framework:^13.0" --ignore-platform-req=php+ --prefer-dist --no-interaction --no-progress
+          - name: PHP 8.4 / Laravel next
+            os: ubuntu-latest
+            php: '8.4'
+            extensions: dom, curl, libxml, mbstring, zip
+            # dev-master still carries a stale 13.0.x-dev branch alias, so it is aliased explicitly.
+            # testbench has no next line; testbench-core 12.x-dev does, and Faker/Mockery were only
+            # pulled in through testbench.
+            install: >-
+              composer config minimum-stability dev &&
+              composer remove --dev orchestra/testbench --no-update &&
+              composer require --dev "orchestra/testbench-core:12.x-dev" "mockery/mockery:^1.6" --no-update &&
+              composer require "laravel/framework:dev-master as 14.0.0" --no-update &&
+              composer update --prefer-dist --no-interaction --no-progress
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ${{ matrix.extensions }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        shell: bash
+        run: ${{ matrix.install }}
+
+      - name: Show resolved versions
+        shell: bash
+        run: composer show laravel/framework phpunit/phpunit
+
+      - name: Run tests
+        shell: bash
+        run: vendor/bin/phpunit --colors=always --display-deprecations
