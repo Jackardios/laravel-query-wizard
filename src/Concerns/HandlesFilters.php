@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
-use Illuminate\Support\Arr;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 
@@ -177,7 +176,7 @@ trait HandlesFilters
         ?string $owner = null,
     ): void {
         foreach ($filters as $key => $value) {
-            $fullKey = $prefix === '' ? (string) $key : $prefix.'.'.$key;
+            $fullKey = $prefix === '' ? (string) $key : $prefix.'.'.$this->normalizePublicPath((string) $key);
             $isRecursable = is_array($value) && ! empty($value) && $this->isAssociativeArray($value);
             $keyOwner = $owner;
 
@@ -229,10 +228,32 @@ trait HandlesFilters
         }
 
         foreach ($nestedNames as $nestedName) {
-            Arr::forget($value, $nestedName);
+            $value = $this->withoutFilterPath($value, $nestedName);
         }
 
         return [$value !== [], $value];
+    }
+
+    /**
+     * Remove the keys at a filter name path, matching each key as its
+     * normalized public name.
+     *
+     * @param  array<array-key, mixed>  $value
+     * @return array<array-key, mixed>
+     */
+    private function withoutFilterPath(array $value, string $path): array
+    {
+        foreach ($value as $key => $item) {
+            $name = $this->normalizePublicPath((string) $key);
+
+            if ($name === $path) {
+                unset($value[$key]);
+            } elseif (is_array($item) && str_starts_with($path, $name.'.')) {
+                $value[$key] = $this->withoutFilterPath($item, substr($path, strlen($name) + 1));
+            }
+        }
+
+        return $value;
     }
 
     protected function validateFiltersLimit(int $count): void

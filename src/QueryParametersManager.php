@@ -175,7 +175,11 @@ class QueryParametersManager
     }
 
     /**
-     * Convert a filters collection keys to snake_case (recursively for nested).
+     * Convert top-level filter keys to snake_case.
+     *
+     * Values are left as sent: keys inside them are converted one level at a
+     * time while a filter name is looked up (see getNestedFilterValue()), so
+     * a filter's own payload keys, such as a range's `minPrice`, stay as sent.
      *
      * @param  Collection<string, mixed>  $collection
      * @return Collection<string, mixed>
@@ -186,34 +190,31 @@ class QueryParametersManager
             return $collection;
         }
 
-        return $collection->mapWithKeys(function (mixed $value, string $key) {
-            $convertedKey = $this->convertPath($key);
-
-            if (is_array($value)) {
-                $value = $this->convertFiltersArray($value);
-            }
-
-            return [$convertedKey => $value];
-        });
+        /** @var Collection<string, mixed> */
+        return new Collection($this->convertFilterKeys($collection->all()));
     }
 
     /**
-     * Convert filter array keys recursively to snake_case.
+     * Convert one level of filter keys to snake_case. When two keys convert to
+     * the same name, the key that is already snake_case wins.
      *
-     * @param  array<string|int, mixed>  $array
+     * @param  array<string|int, mixed>  $filters
      * @return array<string|int, mixed>
      */
-    protected function convertFiltersArray(array $array): array
+    protected function convertFilterKeys(array $filters): array
     {
+        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+            return $filters;
+        }
+
         $result = [];
-        foreach ($array as $key => $value) {
+
+        foreach ($filters as $key => $value) {
             $convertedKey = is_string($key) ? $this->convertPath($key) : $key;
 
-            if (is_array($value)) {
-                $value = $this->convertFiltersArray($value);
+            if (! array_key_exists($convertedKey, $result) || $convertedKey === $key) {
+                $result[$convertedKey] = $value;
             }
-
-            $result[$convertedKey] = $value;
         }
 
         return $result;
@@ -259,6 +260,9 @@ class QueryParametersManager
     }
 
     /**
+     * Filter values keyed by name. With snake_case conversion on, only the
+     * top-level keys are converted; keys inside values are kept as sent.
+     *
      * @return Collection<string, mixed>
      */
     public function getFilters(): Collection
@@ -421,6 +425,8 @@ class QueryParametersManager
      * to distinguish "not found" from "found with null value".
      *
      * Uses progressive key building (O(n)) instead of repeated implode/array_slice (O(n²)).
+     * Keys of each nested level are converted to snake_case before they are
+     * matched, when that option is on; `$data` itself is matched as given.
      *
      * @param  array<string, mixed>  $data
      */
@@ -446,8 +452,9 @@ class QueryParametersManager
 
                 if (is_array($value)) {
                     $remainder = implode('.', array_slice($parts, $i + 1));
-                    /** @var array<string, mixed> $value */
-                    $nested = $this->getNestedFilterValue($value, $remainder);
+                    /** @var array<string, mixed> $nestedData */
+                    $nestedData = $this->convertFilterKeys($value);
+                    $nested = $this->getNestedFilterValue($nestedData, $remainder);
                     if ($nested !== self::missing()) {
                         return $nested;
                     }

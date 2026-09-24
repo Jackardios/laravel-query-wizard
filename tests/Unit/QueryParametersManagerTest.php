@@ -1058,7 +1058,7 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
-    public function it_converts_nested_filter_keys_to_snake_case(): void
+    public function it_matches_nested_filter_keys_as_snake_case_and_keeps_them_as_sent(): void
     {
         config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
 
@@ -1067,9 +1067,24 @@ class QueryParametersManagerTest extends TestCase
         ]]);
         $manager = new QueryParametersManager($request);
 
-        $filters = $manager->getFilters();
+        $this->assertEquals(['fullName' => 'John Doe'], $manager->getFilters()->get('author_profile'));
+        $this->assertSame('John Doe', $manager->getFilterValue('author_profile.full_name'));
+        $this->assertTrue($manager->hasFilter('author_profile.full_name'));
+        $this->assertFalse($manager->hasFilter('author_profile.fullName'));
+    }
 
-        $this->assertEquals(['full_name' => 'John Doe'], $filters->get('author_profile'));
+    #[Test]
+    public function the_snake_case_filter_key_wins_over_one_that_converts_to_it(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $before = new QueryParametersManager(new Request(['filter' => ['created_at' => 'a', 'createdAt' => 'b']]));
+        $after = new QueryParametersManager(new Request(['filter' => ['createdAt' => 'b', 'created_at' => 'a']]));
+        $nested = new QueryParametersManager(new Request(['filter' => ['post' => ['createdAt' => 'b', 'created_at' => 'a']]]));
+
+        $this->assertSame('a', $before->getFilterValue('created_at'));
+        $this->assertSame('a', $after->getFilterValue('created_at'));
+        $this->assertSame('a', $nested->getFilterValue('post.created_at'));
     }
 
     #[Test]
