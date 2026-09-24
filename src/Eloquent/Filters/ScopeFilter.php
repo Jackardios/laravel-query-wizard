@@ -6,14 +6,15 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
-use ReflectionClass;
-use ReflectionException;
+use Jackardios\QueryWizard\Support\EloquentSubject;
+use Jackardios\QueryWizard\Support\RelationResolver;
+use ReflectionMethod;
 use ReflectionNamedType;
-use ReflectionParameter;
 
 /**
  * Filter by model scope.
@@ -43,6 +44,9 @@ use ReflectionParameter;
 final class ScopeFilter extends AbstractFilter
 {
     protected bool $resolveModelBindings = false;
+
+    /** @var array<string, array{parameters: list<array{name: string, type: ?string, nullable: bool, model: ?class-string<Model>}>, required: int, max: ?int}|null> */
+    private static array $scopeSignatures = [];
 
     /**
      * Create a new scope filter.
@@ -93,26 +97,31 @@ final class ScopeFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<Model>  $subject
-     * @return Builder<Model>
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
+     * @return Builder<Model>|Relation<Model, Model, mixed>
      *
      * @throws InvalidFilterValue
-     * @throws ReflectionException
      */
     public function apply(mixed $subject, mixed $value): mixed
     {
-        $propertyParts = collect(explode('.', $this->property));
-
-        $scope = Str::camel((string) $propertyParts->pop());
+        $segments = explode('.', $this->property);
+        $scope = Str::camel(array_pop($segments));
+        $relation = implode('.', $segments);
         $values = array_values(Arr::wrap($value));
 
-        if ($this->resolveModelBindings) {
-            $values = $this->resolveParameters($subject, $values, $scope);
+        $query = $relation === ''
+            ? $subject
+            : (new RelationResolver($subject->getModel()))->resolve($relation)?->getRelated()->newQuery();
+
+        if ($query !== null && ! $this->isShadowedByBuilder($query, $scope)) {
+            $signature = self::scopeSignature(EloquentSubject::builder($query)->getModel(), $scope);
+
+            if ($signature !== null) {
+                $values = $this->resolveArguments($values, $value, $signature);
+            }
         }
 
-        $relation = $propertyParts->implode('.');
-
-        if ($relation) {
+        if ($relation !== '') {
             $subject->whereHas($relation, function (Builder $query) use ($scope, $values): void {
                 $query->$scope(...$values);
             });
@@ -126,88 +135,175 @@ final class ScopeFilter extends AbstractFilter
     }
 
     /**
-     * @param  Builder<Model>  $queryBuilder
+     * A builder method or macro of that name is called instead of the scope.
+     *
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $query
+     */
+    private function isShadowedByBuilder(Builder|Relation $query, string $scope): bool
+    {
+        if ($query instanceof Relation && (method_exists($query, $scope) || $query::hasMacro($scope))) {
+            return true;
+        }
+
+        $builder = EloquentSubject::builder($query);
+
+        return method_exists($builder, $scope) || $builder->hasMacro($scope) || Builder::hasGlobalMacro($scope);
+    }
+
+    /**
+     * Check the values against the scope's parameters and resolve model bindings.
+     *
+     * A scope without parameters takes any value. Otherwise the number of
+     * values must fit the parameters, and a value for an int or float
+     * parameter must be a number.
+     *
      * @param  array<int, mixed>  $values
+     * @param  array{parameters: list<array{name: string, type: ?string, nullable: bool, model: ?class-string<Model>}>, required: int, max: ?int}  $signature
      * @return array<int, mixed>
      *
-     * @throws ReflectionException
      * @throws InvalidFilterValue
      */
-    protected function resolveParameters(Builder $queryBuilder, array $values, string $scope): array
+    private function resolveArguments(array $values, mixed $value, array $signature): array
     {
-        $parameters = $this->getScopeParameters($queryBuilder, $scope);
-
-        if ($parameters === null) {
+        if ($signature['max'] === 0) {
             return $values;
         }
 
-        foreach ($parameters as $parameter) {
-            $class = $this->getClass($parameter);
-            if ($class === null || ! $class->isSubclassOf(Model::class)) {
-                continue;
-            }
+        $count = count($values);
 
-            $index = $parameter->getPosition() - 1;
-            $value = $values[$index] ?? null;
+        if ($count < $signature['required'] || ($signature['max'] !== null && $count > $signature['max'])) {
+            throw InvalidFilterValue::make($value, $this, self::expectedCount($signature['required'], $signature['max']));
+        }
 
-            if ($value === null) {
-                continue;
-            }
+        $lastParameter = $signature['parameters'][count($signature['parameters']) - 1];
 
-            $result = $class->newInstance()->resolveRouteBinding($value);
-
-            if ($result === null) {
-                throw InvalidFilterValue::make($value, $this, "Expected the key of an existing {$class->getShortName()}.");
-            }
-
-            $values[$index] = $result;
+        foreach ($values as $index => $argument) {
+            $values[$index] = $this->resolveArgument($argument, $signature['parameters'][$index] ?? $lastParameter);
         }
 
         return $values;
     }
 
     /**
-     * @param  Builder<Model>  $queryBuilder
-     * @return array<ReflectionParameter>|null
+     * @param  array{name: string, type: ?string, nullable: bool, model: ?class-string<Model>}  $parameter
+     *
+     * @throws InvalidFilterValue
      */
-    protected function getScopeParameters(Builder $queryBuilder, string $scope): ?array
+    private function resolveArgument(mixed $argument, array $parameter): mixed
     {
-        $className = get_class($queryBuilder->getModel());
-        $scopeKey = 'scope'.ucfirst($scope);
+        if ($argument === null) {
+            if (! $parameter['nullable']) {
+                throw InvalidFilterValue::make($argument, $this, "Expected a value for `{$parameter['name']}`.");
+            }
 
-        try {
-            return (new ReflectionClass($className))
-                ->getMethod($scopeKey)
-                ->getParameters();
-        } catch (ReflectionException) {
             return null;
         }
+
+        if ($parameter['model'] !== null && $this->resolveModelBindings) {
+            $model = new $parameter['model'];
+            $resolved = $model->resolveRouteBinding($argument);
+
+            if ($resolved === null) {
+                $shortName = class_basename($model);
+
+                throw InvalidFilterValue::make($argument, $this, "Expected the key of an existing {$shortName}.");
+            }
+
+            return $resolved;
+        }
+
+        $expected = match ($parameter['type']) {
+            'int' => self::isInteger($argument) ? null : 'an integer',
+            'float' => self::isNumber($argument) ? null : 'a number',
+            default => null,
+        };
+
+        if ($expected !== null) {
+            throw InvalidFilterValue::make($argument, $this, "Expected {$expected} for `{$parameter['name']}`.");
+        }
+
+        return $argument;
+    }
+
+    private static function isInteger(mixed $value): bool
+    {
+        return match (true) {
+            is_int($value), is_bool($value) => true,
+            is_float($value) => is_finite($value) && floor($value) === $value,
+            is_string($value) => filter_var(trim($value), FILTER_VALIDATE_INT) !== false,
+            default => false,
+        };
+    }
+
+    private static function isNumber(mixed $value): bool
+    {
+        return is_int($value) || is_float($value) || is_bool($value) || (is_string($value) && is_numeric($value));
+    }
+
+    private static function expectedCount(int $required, ?int $max): string
+    {
+        $noun = static fn (int $count): string => $count === 1 ? 'value' : 'values';
+
+        return match (true) {
+            $max === null => "Expected at least {$required} {$noun($required)}.",
+            $required === $max => "Expected {$max} {$noun($max)}.",
+            default => "Expected {$required} to {$max} values.",
+        };
     }
 
     /**
-     * @return ReflectionClass<object>|null
+     * The parameters of a local scope after the query, or null when the model
+     * has no such scope.
      *
-     * @throws ReflectionException
+     * @return array{parameters: list<array{name: string, type: ?string, nullable: bool, model: ?class-string<Model>}>, required: int, max: ?int}|null
      */
-    protected function getClass(ReflectionParameter $parameter): ?ReflectionClass
+    private static function scopeSignature(Model $model, string $scope): ?array
     {
-        $type = $parameter->getType();
+        $key = $model::class.'::'.$scope;
 
-        if (! $type instanceof ReflectionNamedType) {
-            return null;
+        if (array_key_exists($key, self::$scopeSignatures)) {
+            return self::$scopeSignatures[$key];
         }
 
-        if ($type->isBuiltin()) {
-            return null;
+        if (! $model->hasNamedScope($scope)) {
+            return self::$scopeSignatures[$key] = null;
         }
 
-        if ($type->getName() === 'self') {
-            return $parameter->getDeclaringClass();
+        $method = method_exists($model, 'scope'.ucfirst($scope)) ? 'scope'.ucfirst($scope) : $scope;
+        $reflectionParameters = array_slice((new ReflectionMethod($model, $method))->getParameters(), 1);
+
+        $parameters = [];
+        $required = 0;
+        $variadic = false;
+
+        foreach ($reflectionParameters as $parameter) {
+            $type = $parameter->getType();
+            $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
+            $modelClass = null;
+
+            if ($typeName !== null && ! $type->isBuiltin()) {
+                $class = in_array($typeName, ['self', 'static'], true)
+                    ? $parameter->getDeclaringClass()?->getName()
+                    : $typeName;
+                $modelClass = $class !== null && is_subclass_of($class, Model::class) ? $class : null;
+                $typeName = null;
+            }
+
+            $parameters[] = [
+                'name' => $parameter->getName(),
+                'type' => $typeName,
+                'nullable' => $type === null || $type->allowsNull(),
+                'model' => $modelClass,
+            ];
+
+            $required += $parameter->isOptional() ? 0 : 1;
+            $variadic = $variadic || $parameter->isVariadic();
         }
 
-        /** @var class-string $className */
-        $className = $type->getName();
-
-        return new ReflectionClass($className);
+        return self::$scopeSignatures[$key] = [
+            'parameters' => $parameters,
+            'required' => $required,
+            'max' => $variadic ? null : count($parameters),
+        ];
     }
 }

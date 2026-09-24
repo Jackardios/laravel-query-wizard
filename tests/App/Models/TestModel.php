@@ -2,6 +2,7 @@
 
 namespace Jackardios\QueryWizard\Tests\App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -74,6 +75,32 @@ class TestModel extends Model
         return $query
             ->where('id', $user->id)
             ->where('name', $name);
+    }
+
+    public function scopeIdAbove(Builder $query, int $id): Builder
+    {
+        return $query->where('id', '>', $id);
+    }
+
+    public function scopeIdAtLeast(Builder $query, float $id): Builder
+    {
+        return $query->where('id', '>=', $id);
+    }
+
+    public function scopeIdIn(Builder $query, int ...$ids): Builder
+    {
+        return $query->whereIn('id', $ids);
+    }
+
+    public function scopeVisible(Builder $query): Builder
+    {
+        return $query->where('is_visible', true);
+    }
+
+    #[Scope]
+    protected function ownedBy(Builder $query, self $user): void
+    {
+        $query->where('id', $user->id);
     }
 
     public function scopeCreatedBetween(Builder $query, $from, $to): Builder

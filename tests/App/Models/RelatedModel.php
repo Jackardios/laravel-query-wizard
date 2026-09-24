@@ -52,4 +52,9 @@ class RelatedModel extends Model
     {
         return $query->where('name', $name);
     }
+
+    public function scopeWithNested(Builder $query, NestedRelatedModel $nested): Builder
+    {
+        return $query->whereKey($nested->related_model_id);
+    }
 }
