@@ -17,7 +17,6 @@ use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
-use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
 /**
@@ -515,31 +514,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     protected function resolveRequestedIncludeNames(array $effectiveIncludes): array
     {
-        $requested = $this->getMergedRequestedIncludes();
-        if (empty($requested)) {
-            return [];
-        }
-
-        $allowedIndex = $this->buildIncludesIndex($effectiveIncludes);
-        $allowedIncludeNames = array_keys($allowedIndex);
-        $usingDefaults = $this->isIncludesRequestEmpty();
-        $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
-        $defaultsIndex = array_flip($defaults);
-
-        $invalidIncludes = array_filter(
-            array_diff($requested, $allowedIncludeNames),
-            fn ($name) => ! isset($defaultsIndex[$name])
-        );
-
-        if (! empty($invalidIncludes) && ! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
-            throw InvalidIncludeQuery::includesNotAllowed(
-                collect($invalidIncludes),
-                collect($allowedIncludeNames)
-            );
-        }
-
-        /** @var array<string> */
-        return array_values(array_intersect($requested, $allowedIncludeNames));
+        return $this->resolveIncludesToApply()[0] ?? [];
     }
 
     /**

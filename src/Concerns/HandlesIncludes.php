@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Concerns;
 
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
+use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 
@@ -134,6 +135,73 @@ trait HandlesIncludes
         }
 
         return $index;
+    }
+
+    /**
+     * Validate the requested (or default) includes against the allowed ones.
+     *
+     * @return array{array<int, string>, array<string, IncludeInterface>}|null Null when there is nothing to apply
+     */
+    private function resolveIncludesToApply(): ?array
+    {
+        $includes = $this->getEffectiveIncludes();
+        $requestedIncludes = $this->getMergedRequestedIncludes();
+        $usingDefaults = $this->isIncludesRequestEmpty();
+
+        $this->validateIncludesLimit(count($requestedIncludes));
+
+        if (empty($includes) && ! empty($requestedIncludes)) {
+            $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
+            $defaultsIndex = array_flip($defaults);
+            $userOnlyIncludes = array_filter(
+                $requestedIncludes,
+                fn ($name) => ! isset($defaultsIndex[$name])
+            );
+
+            if (! empty($userOnlyIncludes) && ! $this->getConfig()->isInvalidIncludeQueryExceptionDisabled()) {
+                throw InvalidIncludeQuery::includesNotAllowed(
+                    collect($userOnlyIncludes),
+                    collect([])
+                );
+            }
+
+            return null;
+        }
+
+        if (empty($includes)) {
+            return null;
+        }
+
+        $includesIndex = $this->buildIncludesIndex($includes);
+
+        $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
+        $defaultsIndex = array_flip($defaults);
+
+        $allowedIncludeNames = array_keys($includesIndex);
+        $validRequestedIncludes = [];
+        foreach ($requestedIncludes as $includeName) {
+            if (! isset($includesIndex[$includeName])) {
+                if (isset($defaultsIndex[$includeName])) {
+                    continue;
+                }
+
+                if (! $this->getConfig()->isInvalidIncludeQueryExceptionDisabled()) {
+                    throw InvalidIncludeQuery::includesNotAllowed(
+                        collect([$includeName]),
+                        collect($allowedIncludeNames)
+                    );
+                }
+
+                continue;
+            }
+
+            $include = $includesIndex[$includeName];
+
+            $this->validateIncludeDepth($include);
+            $validRequestedIncludes[] = $includeName;
+        }
+
+        return [$validRequestedIncludes, $includesIndex];
     }
 
     protected function validateIncludesLimit(int $count): void

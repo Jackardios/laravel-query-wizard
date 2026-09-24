@@ -778,6 +778,24 @@ class ModelQueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function include_limits_are_checked_before_loaded_relations_are_cleaned(): void
+    {
+        config()->set('query-wizard.limits.max_includes_count', 1);
+        $this->model->load('morphModels');
+
+        try {
+            $this
+                ->createModelWizardWithIncludes('relatedModels,otherRelatedModels', $this->model)
+                ->allowedIncludes('relatedModels', 'otherRelatedModels')
+                ->process();
+            $this->fail('Expected MaxIncludesCountExceeded');
+        } catch (MaxIncludesCountExceeded) {
+        }
+
+        $this->assertTrue($this->model->relationLoaded('morphModels'));
+    }
+
+    #[Test]
     public function explicit_allowed_includes_override_schema(): void
     {
         $schema = new class extends ResourceSchema

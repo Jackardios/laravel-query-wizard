@@ -19,7 +19,6 @@ use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
-use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
@@ -761,73 +760,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         if ($includes !== null) {
             $this->applyValidatedIncludes(...$includes);
         }
-    }
-
-    /**
-     * Validate the requested (or default) includes against the allowed ones.
-     *
-     * @return array{array<int, string>, array<string, IncludeInterface>}|null Null when there is nothing to apply
-     */
-    private function resolveIncludesToApply(): ?array
-    {
-        $includes = $this->getEffectiveIncludes();
-        $requestedIncludes = $this->getMergedRequestedIncludes();
-        $usingDefaults = $this->isIncludesRequestEmpty();
-
-        $this->validateIncludesLimit(count($requestedIncludes));
-
-        if (empty($includes) && ! empty($requestedIncludes)) {
-            $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
-            $defaultsIndex = array_flip($defaults);
-            $userOnlyIncludes = array_filter(
-                $requestedIncludes,
-                fn ($name) => ! isset($defaultsIndex[$name])
-            );
-
-            if (! empty($userOnlyIncludes) && ! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
-                throw InvalidIncludeQuery::includesNotAllowed(
-                    collect($userOnlyIncludes),
-                    collect([])
-                );
-            }
-
-            return null;
-        }
-
-        if (empty($includes)) {
-            return null;
-        }
-
-        $includesIndex = $this->buildIncludesIndex($includes);
-
-        $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
-        $defaultsIndex = array_flip($defaults);
-
-        $allowedIncludeNames = array_keys($includesIndex);
-        $validRequestedIncludes = [];
-        foreach ($requestedIncludes as $includeName) {
-            if (! isset($includesIndex[$includeName])) {
-                if (isset($defaultsIndex[$includeName])) {
-                    continue;
-                }
-
-                if (! $this->config->isInvalidIncludeQueryExceptionDisabled()) {
-                    throw InvalidIncludeQuery::includesNotAllowed(
-                        collect([$includeName]),
-                        collect($allowedIncludeNames)
-                    );
-                }
-
-                continue;
-            }
-
-            $include = $includesIndex[$includeName];
-
-            $this->validateIncludeDepth($include);
-            $validRequestedIncludes[] = $includeName;
-        }
-
-        return [$validRequestedIncludes, $includesIndex];
     }
 
     /**
