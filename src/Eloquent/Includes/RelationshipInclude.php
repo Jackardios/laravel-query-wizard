@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Includes;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Includes\AbstractInclude;
+use Jackardios\QueryWizard\Support\EagerLoads;
 
 /**
  * Include for eager loading relationships via with().
@@ -56,11 +56,16 @@ final class RelationshipInclude extends AbstractInclude
     }
 
     /**
-     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
-     * @return Builder<Model>|Relation<Model, Model, mixed>
+     * Builders and relations keep the constraints already registered for the path.
      */
     public function apply(mixed $subject): mixed
     {
-        return $subject->with($this->relation);
+        if (! $subject instanceof Builder && ! $subject instanceof Relation) {
+            return $subject->with($this->relation);
+        }
+
+        EagerLoads::merge($subject, $this->relation);
+
+        return $subject;
     }
 }

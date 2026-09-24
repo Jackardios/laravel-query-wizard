@@ -29,6 +29,7 @@ use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
+use Jackardios\QueryWizard\Support\EagerLoads;
 use Jackardios\QueryWizard\Support\EloquentSubject;
 
 /**
@@ -435,11 +436,9 @@ class EloquentQueryWizard extends BaseQueryWizard
                 continue;
             }
 
-            $this->subject = $this->subject->with([
-                $relationPath => static function ($query) use ($columns): void {
-                    $query->select($columns);
-                },
-            ]);
+            EagerLoads::merge($this->subject, $relationPath, static function ($query) use ($columns): void {
+                $query->select($columns);
+            });
         }
     }
 
