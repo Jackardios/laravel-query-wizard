@@ -9,16 +9,23 @@
     executionOrder="random"
     failOnWarning="true"
     failOnRisky="true"
+    failOnDeprecation="true"
+    failOnPhpunitDeprecation="true"
     failOnEmptyTestSuite="true"
     beStrictAboutOutputDuringTests="true"
     displayDetailsOnTestsThatTriggerWarnings="true"
+    displayDetailsOnTestsThatTriggerDeprecations="true"
+    displayDetailsOnPhpunitDeprecations="true"
 >
     <testsuites>
-        <testsuite name="Tests">
-            <directory suffix="Test.php">tests</directory>
+        <testsuite name="Unit">
+            <directory suffix="Test.php">tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory suffix="Test.php">tests/Feature</directory>
         </testsuite>
     </testsuites>
-    <source>
+    <source ignoreIndirectDeprecations="true">
         <include>
             <directory suffix=".php">./src</directory>
         </include>
@@ -27,6 +34,5 @@
         <env name="APP_ENV" value="testing"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
-        <env name="SCOUT_DRIVER" value="collection"/>
     </php>
 </phpunit>

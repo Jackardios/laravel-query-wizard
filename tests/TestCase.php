@@ -9,6 +9,7 @@ use Jackardios\QueryWizard\QueryWizardServiceProvider;
 use Jackardios\QueryWizard\Tests\Concerns\AssertsQueryLog;
 use Jackardios\QueryWizard\Tests\Concerns\QueryWizardTestingHelpers;
 use Orchestra\Testbench\TestCase as Orchestra;
+use PHPUnit\Runner\ErrorHandler;
 
 abstract class TestCase extends Orchestra
 {
@@ -36,5 +37,27 @@ abstract class TestCase extends Orchestra
         parent::setUp();
 
         $this->app->make(Generator::class)->seed(20260924);
+        $this->forwardDeprecationsToPhpunit();
+    }
+
+    /**
+     * Laravel's exception bootstrapper swallows deprecations (it only logs them),
+     * so PHPUnit never sees deprecations triggered by the package. Forward them
+     * to PHPUnit's handler, which applies the <source> filter from phpunit.xml.dist.
+     */
+    private function forwardDeprecationsToPhpunit(): void
+    {
+        $previous = null;
+        $handler = static function (int $level, string $message, string $file = '', int $line = 0) use (&$previous): bool {
+            if ($level === E_DEPRECATED || $level === E_USER_DEPRECATED) {
+                ErrorHandler::instance()($level, $message, $file, $line);
+
+                return true;
+            }
+
+            return $previous !== null && $previous($level, $message, $file, $line) !== false;
+        };
+
+        $previous = set_error_handler(\Closure::bind($handler, null, ErrorHandler::class));
     }
 }
