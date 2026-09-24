@@ -11,9 +11,33 @@ use Illuminate\Support\Str;
  */
 final class NameConverter
 {
+    private const CACHE_LIMIT = 256;
+
+    /** @var array<string, string> */
+    private static array $snakeCache = [];
+
+    /**
+     * Same result as Str::snake(), without growing its unbounded cache with
+     * names taken from the request.
+     */
     public static function toSnakeCase(string $value): string
     {
-        return Str::snake($value);
+        if (isset(self::$snakeCache[$value])) {
+            return self::$snakeCache[$value];
+        }
+
+        $converted = $value;
+
+        if (! ctype_lower($value)) {
+            $converted = (string) preg_replace('/\s+/u', '', ucwords($value));
+            $converted = Str::lower((string) preg_replace('/(.)(?=[A-Z])/u', '$1_', $converted));
+        }
+
+        if (count(self::$snakeCache) >= self::CACHE_LIMIT) {
+            unset(self::$snakeCache[array_key_first(self::$snakeCache)]);
+        }
+
+        return self::$snakeCache[$value] = $converted;
     }
 
     /**

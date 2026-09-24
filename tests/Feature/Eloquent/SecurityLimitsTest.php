@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
@@ -12,11 +13,14 @@ use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
+use Jackardios\QueryWizard\QueryParametersManager;
+use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionProperty;
 
 #[Group('eloquent')]
 #[Group('security')]
@@ -182,6 +186,41 @@ class SecurityLimitsTest extends TestCase
             ->get();
 
         $this->assertIsIterable($models);
+    }
+
+    #[Test]
+    public function too_many_filters_are_rejected_before_names_are_converted(): void
+    {
+        Config::set('query-wizard.limits.max_filters_count', 2);
+        Config::set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $manager = new QueryParametersManager(new Request(['filter' => ['earlyLimitA' => 1, 'earlyLimitB' => 2, 'earlyLimitC' => 3]]));
+
+        try {
+            $manager->getFilters();
+            $this->fail('Expected MaxFiltersCountExceeded');
+        } catch (MaxFiltersCountExceeded $exception) {
+            $this->assertSame('The number of requested filters (3) exceeds the maximum allowed (2).', $exception->getMessage());
+        }
+
+        $this->assertArrayNotHasKey('earlyLimitA', (new ReflectionProperty(NameConverter::class, 'snakeCache'))->getValue());
+    }
+
+    #[Test]
+    public function nested_filters_are_still_counted_by_name(): void
+    {
+        Config::set('query-wizard.limits.max_filters_count', 2);
+
+        $this->expectException(MaxFiltersCountExceeded::class);
+        $this->expectExceptionMessage('The number of requested filters (3) exceeds the maximum allowed (2)');
+
+        $this
+            ->createEloquentWizardWithFilters([
+                'relatedModels' => ['name' => 'a', 'id' => 1],
+                'name' => 'test',
+            ])
+            ->allowedFilters('name', 'relatedModels.name', 'relatedModels.id')
+            ->get();
     }
 
     #[Test]

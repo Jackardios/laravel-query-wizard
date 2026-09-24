@@ -11,6 +11,7 @@ use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
+use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Support\FilterValueTransformer;
 use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Support\ParameterParser;
@@ -285,6 +286,11 @@ class QueryParametersManager
 
         $filtersParameterName = $this->config->getFiltersParameterName();
         $rawValue = $filtersParameterName ? $this->getRequestData($filtersParameterName) : null;
+
+        $limit = $this->config->getMaxFiltersCount();
+        if ($limit !== null && is_array($rawValue) && count($rawValue) > $limit) {
+            throw MaxFiltersCountExceeded::create(count($rawValue), $limit);
+        }
 
         try {
             $this->filters = $this->parseFiltersParameter($rawValue);
