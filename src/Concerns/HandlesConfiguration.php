@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Support\NameConverter;
+use Jackardios\QueryWizard\Support\NamePolicy;
 
 /**
  * Shared configuration handling methods for query wizards.
@@ -153,9 +154,12 @@ trait HandlesConfiguration
             return $items;
         }
 
-        return array_values(array_filter($items, function (string $item) use ($disallowed) {
-            return ! $this->isNameDisallowed($item, $disallowed);
-        }));
+        $policy = NamePolicy::denying($this->normalizePublicPaths($disallowed));
+
+        return array_values(array_filter(
+            $items,
+            fn (string $item): bool => ! $policy->denies($this->normalizePublicPath($item))
+        ));
     }
 
     /**
@@ -170,34 +174,8 @@ trait HandlesConfiguration
      */
     protected function isNameDisallowed(string $name, array $disallowed): bool
     {
-        $name = $this->normalizePublicPath($name);
-        $disallowed = $this->normalizePublicPaths($disallowed);
-
-        if (in_array('*', $disallowed, true)) {
-            return true;
-        }
-
-        foreach ($disallowed as $d) {
-            if ($name === $d) {
-                return true;
-            }
-
-            if (str_starts_with($name, $d.'.')) {
-                return true;
-            }
-
-            if (str_ends_with($d, '.*')) {
-                $prefix = substr($d, 0, -2);
-                if (str_starts_with($name, $prefix.'.')) {
-                    $suffix = substr($name, strlen($prefix) + 1);
-                    if (! str_contains($suffix, '.')) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+        return NamePolicy::denying($this->normalizePublicPaths($disallowed))
+            ->denies($this->normalizePublicPath($name));
     }
 
     /**

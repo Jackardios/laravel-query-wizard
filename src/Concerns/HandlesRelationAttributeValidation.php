@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Concerns;
 
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
+use Jackardios\QueryWizard\Support\NamePolicy;
 
 /**
  * Shared validation logic for relation attributes (appends, fields).
@@ -63,15 +64,7 @@ trait HandlesRelationAttributeValidation
      */
     protected function isAttributeAllowed(string $path, string $attribute, array $allowed): bool
     {
-        $fullPath = $path !== '' ? "{$path}.{$attribute}" : $attribute;
-        if (in_array($fullPath, $allowed, true)) {
-            return true;
-        }
-
-        // Check wildcard for this level ONLY (non-recursive)
-        $wildcardPattern = $path !== '' ? "{$path}.*" : '*';
-
-        return in_array($wildcardPattern, $allowed, true);
+        return NamePolicy::allowing($allowed)->allowsAttribute($path, $attribute);
     }
 
     /**

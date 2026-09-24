@@ -9,6 +9,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
+use Jackardios\QueryWizard\Support\NamePolicy;
 
 /**
  * Shared append handling logic for query wizards.
@@ -171,11 +172,12 @@ trait HandlesAppends
         bool $canThrow,
         bool $exceptionsDisabled
     ): array {
+        $policy = NamePolicy::allowing($allowed);
         $valid = [];
         $invalid = [];
 
         foreach ($attributes as $attr) {
-            if ($this->isAttributeAllowed($path, $attr, $allowed)) {
+            if ($policy->allowsAttribute($path, $attr)) {
                 $valid[] = $attr;
             } elseif ($canThrow) {
                 $invalid[] = $path !== '' ? "{$path}.{$attr}" : $attr;

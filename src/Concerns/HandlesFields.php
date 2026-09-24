@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
+use Jackardios\QueryWizard\Support\NamePolicy;
 
 /**
  * Shared field handling logic for query wizards.
@@ -152,6 +153,7 @@ trait HandlesFields
         $allowedRelationFieldList = $allFieldsAllowed
             ? []
             : $this->extractRelationFields($allowedFields);
+        $policy = NamePolicy::allowing($allowedFields);
         $relationFieldMap = [];
 
         foreach ($requestedRelationFields as $requestedKey => $requestedFields) {
@@ -174,7 +176,7 @@ trait HandlesFields
                 $invalidFields = [];
 
                 foreach ($normalizedRequestedFields as $field) {
-                    if ($this->isAttributeAllowed($requestedKey, $field, $allowedFields)) {
+                    if ($policy->allowsAttribute($requestedKey, $field)) {
                         $validFields[] = $field;
                     } else {
                         $invalidFields[] = $field;
@@ -374,11 +376,12 @@ trait HandlesFields
             return $requestAbsent ? null : [];
         }
 
+        $policy = NamePolicy::allowing($allowedFields);
         $validFields = [];
         $invalidFields = [];
 
         foreach ($fields as $field) {
-            if ($this->isAttributeAllowed('', $field, $allowedFields)) {
+            if ($policy->allowsAttribute('', $field)) {
                 $validFields[] = $field;
             } elseif (! $requestAbsent) {
                 $invalidFields[] = $field;
