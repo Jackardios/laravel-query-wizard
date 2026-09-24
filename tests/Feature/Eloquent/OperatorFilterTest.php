@@ -123,6 +123,43 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
     // ========== Dynamic Operator Tests ==========
     #[Test]
+    public function dynamic_operator_compares_non_string_scalars_for_equality(): void
+    {
+        $model = $this->models->first();
+
+        $byId = $this
+            ->createEloquentWizardWithFilters(['id' => $model->id])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->toQuery();
+        $byFlag = $this
+            ->createEloquentWizardWithFilters(['is_visible' => true])
+            ->allowedFilters(EloquentFilter::operator('is_visible', FilterOperator::DYNAMIC))
+            ->toQuery();
+
+        $this->assertSame('select * from "test_models" where "test_models"."id" = ?', $byId->toSql());
+        $this->assertSame([$model->id], $byId->getBindings());
+        $this->assertSame('select * from "test_models" where "test_models"."is_visible" = ?', $byFlag->toSql());
+        $this->assertSame([true], $byFlag->getBindings());
+        $this->assertSame([$model->id], $byId->pluck('id')->all());
+    }
+
+    #[Test]
+    public function dynamic_operator_compares_prepared_dates_for_equality(): void
+    {
+        $model = $this->models->first();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => 'ignored'])
+            ->allowedFilters(
+                EloquentFilter::operator('created_at', FilterOperator::DYNAMIC)
+                    ->prepareValueWith(fn () => $model->created_at->toDateTimeImmutable())
+            )
+            ->get();
+
+        $this->assertTrue($models->contains('id', $model->id));
+    }
+
+    #[Test]
     public function it_can_parse_dynamic_greater_than_operator(): void
     {
         $model = TestModel::factory()->create(['name' => 'test', 'id' => 2000]);

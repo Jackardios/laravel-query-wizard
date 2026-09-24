@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -49,6 +50,10 @@ class OperatorFilter extends AbstractFilter
 
     public function validateValueShape(mixed $value): ?string
     {
+        if ($value instanceof DateTimeInterface) {
+            return null;
+        }
+
         return $this->validateScalarOrFlatListValueShape($value);
     }
 
@@ -100,13 +105,14 @@ class OperatorFilter extends AbstractFilter
     /**
      * Parse dynamic operator from value string.
      *
-     * Supports: >=, <=, !=, <>, >, <
+     * Supports: >=, <=, !=, <>, >, <. Lists, numbers, booleans and dates
+     * are compared for equality.
      *
      * @return array{0: FilterOperator|null, 1: mixed}
      */
     protected function parseDynamicOperator(mixed $value): array
     {
-        if (is_array($value)) {
+        if (is_array($value) || is_int($value) || is_float($value) || is_bool($value) || $value instanceof DateTimeInterface) {
             return [FilterOperator::EQUAL, $value];
         }
 
