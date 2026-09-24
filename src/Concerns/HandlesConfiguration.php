@@ -130,7 +130,7 @@ trait HandlesConfiguration
 
     /**
      * @param  array<string>  $paths
-     * @return array<string>
+     * @return list<string>
      */
     protected function normalizePublicPaths(array $paths): array
     {

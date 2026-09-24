@@ -72,7 +72,7 @@ trait HandlesSorts
     /**
      * Get effective default sorts.
      *
-     * @return array<string>
+     * @return list<string>
      */
     protected function getEffectiveDefaultSorts(): array
     {
