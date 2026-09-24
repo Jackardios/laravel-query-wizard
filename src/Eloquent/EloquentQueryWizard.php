@@ -48,6 +48,8 @@ class EloquentQueryWizard extends BaseQueryWizard
     use HandlesRelationPostProcessing;
     use HandlesSafeRelationSelect;
 
+    private const CURSOR_EAGER_LOAD_CHUNK_SIZE = 1000;
+
     /** @var Builder<Model>|Relation<Model, Model, mixed> */
     protected mixed $subject;
 
@@ -228,13 +230,26 @@ class EloquentQueryWizard extends BaseQueryWizard
     /**
      * Build and execute query with cursor (memory-efficient) with automatic post-processing.
      *
+     * Laravel's cursor() skips eager loading, so included relationships are
+     * loaded for every CURSOR_EAGER_LOAD_CHUNK_SIZE models, which are kept in
+     * memory until then.
+     *
      * @return LazyCollection<int, Model>
      */
     public function cursor(): LazyCollection
     {
         $this->build();
 
-        return $this->subject->cursor()->map(function (Model $model) {
+        $builder = EloquentSubject::builder($this->subject);
+        $models = $this->subject->cursor();
+
+        if ($builder->getEagerLoads() !== []) {
+            $models = $models
+                ->chunk(self::CURSOR_EAGER_LOAD_CHUNK_SIZE)
+                ->flatMap(fn (LazyCollection $chunk): array => $builder->eagerLoadRelations($chunk->values()->all()));
+        }
+
+        return $models->map(function (Model $model) {
             $this->applyPostProcessingToResults($model);
 
             return $model;

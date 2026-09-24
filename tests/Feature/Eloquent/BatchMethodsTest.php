@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
+use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
+use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -154,6 +157,57 @@ class BatchMethodsTest extends TestCase
             ->cursor();
 
         $this->assertInstanceOf(LazyCollection::class, $result);
+    }
+
+    #[Test]
+    public function cursor_eager_loads_relationship_includes_per_chunk(): void
+    {
+        TestModel::factory()->count(3)->create()->each(
+            fn (TestModel $model) => RelatedModel::factory()->count(2)->create(['test_model_id' => $model->id])
+        );
+        DB::enableQueryLog();
+
+        $models = $this
+            ->createEloquentWizardFromQuery(['include' => 'relatedModels', 'fields' => ['relatedModels' => 'name']], TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('relatedModels.name')
+            ->cursor()
+            ->collect();
+
+        $this->assertCount(3, $models);
+        $this->assertTrue($models->every(fn (TestModel $model) => $model->relationLoaded('relatedModels')));
+        $this->assertSame([2, 2, 2], $models->map(fn (TestModel $model) => $model->relatedModels->count())->all());
+        $this->assertSame(['name'], array_keys($models->first()->relatedModels->first()->toArray()));
+        $this->assertCount(2, DB::getQueryLog());
+    }
+
+    #[Test]
+    public function cursor_eager_loads_each_chunk_separately(): void
+    {
+        TestModel::query()->insert(array_map(fn (int $i) => ['name' => "model {$i}"], range(1, 1001)));
+        DB::enableQueryLog();
+
+        $count = $this
+            ->createEloquentWizardWithIncludes('relatedModels', TestModel::class)
+            ->allowedIncludes('relatedModels')
+            ->cursor()
+            ->filter(fn (TestModel $model) => $model->relationLoaded('relatedModels'))
+            ->count();
+
+        $this->assertSame(1001, $count);
+        $this->assertCount(3, DB::getQueryLog());
+    }
+
+    #[Test]
+    public function cursor_without_eager_loads_streams_models_one_by_one(): void
+    {
+        TestModel::factory()->count(2)->create();
+        DB::enableQueryLog();
+
+        $this->createEloquentWizardFromQuery([], TestModel::class)->cursor()->first();
+
+        $this->assertStringNotContainsString('limit', DB::getQueryLog()[0]['query']);
+        $this->assertCount(1, DB::getQueryLog());
     }
 
     // ========== ChunkById Tests ==========
