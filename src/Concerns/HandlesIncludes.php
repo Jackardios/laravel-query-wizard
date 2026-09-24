@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
+use Jackardios\QueryWizard\Support\EagerLoads;
 
 /**
  * Shared include handling logic for query wizards.
@@ -226,6 +229,23 @@ trait HandlesIncludes
         if ($limit !== null && $depth > $limit) {
             throw MaxIncludeDepthExceeded::create($include->getName(), $depth, $limit);
         }
+    }
+
+    /**
+     * Apply an include without letting it discard eager-load constraints by accident.
+     *
+     * When the include makes Laravel replace the constraint of a relation that is
+     * already eager loaded (`with('posts.comments')`, `with('posts')`,
+     * `with('posts:id')`), the previous constraint keeps running before the new
+     * one. A constraint closure the include passes itself still replaces it.
+     */
+    protected function applyIncludeKeepingEagerLoads(IncludeInterface $include, mixed $subject): mixed
+    {
+        if (! $subject instanceof Builder && ! $subject instanceof Relation) {
+            return $include->apply($subject);
+        }
+
+        return EagerLoads::preserving($subject, static fn ($subject): mixed => $include->apply($subject));
     }
 
     protected function invalidateIncludeCache(): void

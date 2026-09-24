@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Jackardios\QueryWizard\Support\EagerLoads;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
@@ -98,5 +99,79 @@ class EagerLoadsTest extends TestCase
 
         $this->assertInstanceOf(Builder::class, $relation->getQuery());
         $this->assertSame(['nestedRelatedModels'], array_keys($relation->getQuery()->getEagerLoads()));
+    }
+
+    #[Test]
+    public function closures_generated_by_with_are_recognized_as_framework_generated(): void
+    {
+        $eagerLoads = TestModel::query()->with('relatedModels.nestedRelatedModels', 'otherRelatedModels:id')->getEagerLoads();
+
+        foreach ($eagerLoads as $name => $closure) {
+            $this->assertTrue(EagerLoads::isFrameworkGenerated($closure), $name);
+        }
+    }
+
+    #[Test]
+    public function closures_carrying_developer_code_are_not_framework_generated(): void
+    {
+        $invokable = new class
+        {
+            public function __invoke(): void {}
+        };
+        $subclassClosure = (new class(TestModel::query()->getQuery()) extends Builder
+        {
+            public function constraint(): Closure
+            {
+                return static function (): void {};
+            }
+        })->constraint();
+
+        $this->assertFalse(EagerLoads::isFrameworkGenerated(static function (): void {}));
+        $this->assertFalse(EagerLoads::isFrameworkGenerated($subclassClosure));
+        $this->assertFalse(EagerLoads::isFrameworkGenerated(
+            TestModel::query()->with(['relatedModels' => static function (): void {}])->getEagerLoads()['relatedModels']
+        ));
+        $this->assertFalse(EagerLoads::isFrameworkGenerated(
+            TestModel::query()->with(['relatedModels' => $invokable])->getEagerLoads()['relatedModels']
+        ));
+    }
+
+    #[Test]
+    public function preserving_keeps_a_constraint_replaced_by_a_nested_with(): void
+    {
+        $builder = TestModel::query()->with(['relatedModels' => fn ($query) => $query->where('name', 'x')]);
+
+        EagerLoads::preserving($builder, fn ($subject) => $subject->with('relatedModels.nestedRelatedModels:id'));
+
+        $query = RelatedModel::query();
+        $builder->getEagerLoads()['relatedModels']($query);
+
+        $this->assertCount(1, $query->getQuery()->wheres);
+        $this->assertSame(['relatedModels', 'relatedModels.nestedRelatedModels'], array_keys($builder->getEagerLoads()));
+    }
+
+    #[Test]
+    public function preserving_lets_a_developer_constraint_replace_the_existing_one(): void
+    {
+        $builder = TestModel::query()->with(['relatedModels' => fn ($query) => $query->where('name', 'x')]);
+
+        EagerLoads::preserving($builder, fn ($subject) => $subject->with(['relatedModels' => fn ($query) => $query->where('id', 1)]));
+
+        $query = RelatedModel::query();
+        $builder->getEagerLoads()['relatedModels']($query);
+
+        $this->assertSame(['id'], array_column($query->getQuery()->wheres, 'column'));
+    }
+
+    #[Test]
+    public function preserving_keeps_removed_relations_removed_and_passes_other_results_through(): void
+    {
+        $builder = TestModel::query()->with('relatedModels');
+
+        EagerLoads::preserving($builder, fn ($subject) => $subject->without('relatedModels'));
+        $result = EagerLoads::preserving($builder, fn () => 'not a builder');
+
+        $this->assertSame([], $builder->getEagerLoads());
+        $this->assertSame('not a builder', $result);
     }
 }

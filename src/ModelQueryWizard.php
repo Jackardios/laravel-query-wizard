@@ -476,14 +476,14 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
             };
         }
 
+        foreach ($callbackIncludes as $include) {
+            $include->apply($this->model);
+        }
         if (! empty($relationsToLoad)) {
             $this->model->loadMissing($relationsToLoad);
         }
         if (! empty($countsToLoad)) {
             $this->model->loadCount($countsToLoad);
-        }
-        foreach ($callbackIncludes as $include) {
-            $include->apply($this->model);
         }
     }
 

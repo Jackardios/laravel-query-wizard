@@ -421,24 +421,24 @@ class EloquentQueryWizard extends BaseQueryWizard
 
             $this->registerRuntimeVisibleInclude($includeName, $include);
 
-            if ($include->getType() !== 'relationship') {
-                $this->subject = $include->apply($this->subject);
-
-                continue;
-            }
-
-            $relationPath = $include->getRelation();
-            $columns = $this->getSafeRelationSelectColumns($relationPath);
-
-            if ($columns === null) {
-                $this->subject = $include->apply($this->subject);
-
-                continue;
-            }
-
-            EagerLoads::merge($this->subject, $relationPath, static function ($query) use ($columns): void {
+            $columns = $include->getType() === 'relationship'
+                ? $this->getSafeRelationSelectColumns($include->getRelation())
+                : null;
+            $select = $columns === null ? null : static function ($query) use ($columns): void {
                 $query->select($columns);
-            });
+            };
+
+            if ($include instanceof RelationshipInclude) {
+                EagerLoads::merge($this->subject, $include->getRelation(), $select);
+
+                continue;
+            }
+
+            $this->subject = $this->applyIncludeKeepingEagerLoads($include, $this->subject);
+
+            if ($select !== null) {
+                EagerLoads::merge($this->subject, $include->getRelation(), $select);
+            }
         }
     }
 

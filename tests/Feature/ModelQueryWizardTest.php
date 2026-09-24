@@ -796,6 +796,27 @@ class ModelQueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function relationship_includes_load_on_top_of_relations_loaded_by_callback_includes(): void
+    {
+        $kept = $this->model->relatedModels()->firstOrFail();
+        NestedRelatedModel::factory()->create(['related_model_id' => $kept->id]);
+
+        $model = $this
+            ->createModelWizardWithIncludes('onlyKept,relatedModels.nestedRelatedModels', $this->model)
+            ->allowedIncludes(
+                EloquentInclude::callback('onlyKept', fn ($model) => $model->load([
+                    'relatedModels' => fn ($query) => $query->whereKey($kept->id),
+                ])),
+                'relatedModels.nestedRelatedModels'
+            )
+            ->process();
+
+        $this->assertSame([$kept->id], $model->relatedModels->modelKeys());
+        $this->assertTrue($model->relatedModels->first()->relationLoaded('nestedRelatedModels'));
+        $this->assertCount(1, $model->relatedModels->first()->nestedRelatedModels);
+    }
+
+    #[Test]
     public function explicit_allowed_includes_override_schema(): void
     {
         $schema = new class extends ResourceSchema

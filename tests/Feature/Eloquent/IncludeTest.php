@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
+use Jackardios\QueryWizard\Includes\AbstractInclude;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -849,5 +850,76 @@ class IncludeTest extends TestCase
 
         $this->assertInstanceOf(Builder::class, $fromModel);
         $this->assertSame(['relatedModels'], array_keys($fromModel->getEagerLoads()));
+    }
+
+    #[Test]
+    public function callback_include_loading_a_nested_path_keeps_the_developer_constraint(): void
+    {
+        $kept = RelatedModel::query()->where('test_model_id', $this->models->first()->id)->firstOrFail();
+
+        $models = $this
+            ->createEloquentWizardWithIncludes(
+                'deep',
+                TestModel::query()->with(['relatedModels' => fn ($query) => $query->whereKey($kept->id)])
+            )
+            ->allowedIncludes(EloquentInclude::callback('deep', fn ($query) => $query->with('relatedModels.nestedRelatedModels')))
+            ->get();
+
+        $this->assertSame([[$kept->id], [], []], $models->map(fn ($model) => $model->relatedModels->modelKeys())->all());
+        $this->assertTrue($models->first()->relatedModels->first()->relationLoaded('nestedRelatedModels'));
+    }
+
+    #[Test]
+    public function callback_include_passing_its_own_constraint_replaces_the_developer_constraint(): void
+    {
+        $kept = RelatedModel::query()->where('test_model_id', $this->models->first()->id)->firstOrFail();
+
+        $models = $this
+            ->createEloquentWizardWithIncludes(
+                'all',
+                TestModel::query()->with(['relatedModels' => fn ($query) => $query->whereKey($kept->id)])
+            )
+            ->allowedIncludes(EloquentInclude::callback('all', fn ($query) => $query->with([
+                'relatedModels' => fn ($related) => $related->orderBy('id'),
+            ])))
+            ->get();
+
+        $this->assertSame([2, 2, 2], $models->map(fn ($model) => $model->relatedModels->count())->all());
+    }
+
+    #[Test]
+    public function custom_relationship_include_keeps_its_constraint_under_sparse_fields(): void
+    {
+        $kept = RelatedModel::query()->where('test_model_id', $this->models->first()->id)->firstOrFail();
+        $include = new class('relatedModels', null, $kept->id) extends AbstractInclude
+        {
+            public function __construct(string $relation, ?string $alias, private readonly int $keptId)
+            {
+                parent::__construct($relation, $alias);
+            }
+
+            public function getType(): string
+            {
+                return 'relationship';
+            }
+
+            public function apply(mixed $subject): mixed
+            {
+                return $subject->with([$this->relation => fn ($query) => $query->whereKey($this->keptId)]);
+            }
+        };
+
+        DB::flushQueryLog();
+
+        $models = $this
+            ->createEloquentWizardFromQuery(['include' => 'relatedModels', 'fields' => ['relatedModels' => 'name']])
+            ->allowedIncludes($include)
+            ->allowedFields('relatedModels.name')
+            ->get();
+
+        $relatedQuery = collect(DB::getQueryLog())->pluck('query')->first(fn (string $sql) => str_contains($sql, 'from "related_models"'));
+
+        $this->assertSame([1, 0, 0], $models->map(fn ($model) => $model->relatedModels->count())->all());
+        $this->assertStringNotContainsString('select *', $relatedQuery);
     }
 }
