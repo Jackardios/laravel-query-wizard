@@ -50,6 +50,20 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     private const CURSOR_EAGER_LOAD_CHUNK_SIZE = 1000;
 
+    /**
+     * Builder methods that return models of the query, post-processed when called through the wizard.
+     */
+    private const POST_PROCESSED_PROXY_METHODS = [
+        'find' => true,
+        'findmany' => true,
+        'findorfail' => true,
+        'findor' => true,
+        'findsole' => true,
+        'sole' => true,
+        'firstwhere' => true,
+        'firstor' => true,
+    ];
+
     /** @var Builder<Model>|Relation<Model, Model, mixed> */
     protected mixed $subject;
 
@@ -272,6 +286,110 @@ class EloquentQueryWizard extends BaseQueryWizard
 
             return $callback($models);
         }, $column, $alias);
+    }
+
+    /**
+     * Build and execute query in descending chunks by ID with automatic post-processing.
+     *
+     * @param  positive-int  $count
+     * @param  callable(Collection<int, Model>): mixed  $callback
+     */
+    public function chunkByIdDesc(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
+    {
+        $this->build();
+        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+
+        return $this->subject->chunkByIdDesc($count, function (Collection $models) use ($callback) {
+            $this->applyPostProcessingToResults($models);
+
+            return $callback($models);
+        }, $column, $alias);
+    }
+
+    /**
+     * Build and execute query model by model, in chunks by ID, with automatic post-processing.
+     *
+     * @param  callable(Model, int): mixed  $callback
+     */
+    public function eachById(callable $callback, int $count = 1000, ?string $column = null, ?string $alias = null): bool
+    {
+        $this->build();
+        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+
+        return $this->subject->eachById(function (Model $model, int $key) use ($callback) {
+            $this->applyPostProcessingToResults($model);
+
+            return $callback($model, $key);
+        }, $count, $column, $alias);
+    }
+
+    /**
+     * Build and execute query model by model, in chunks, with automatic post-processing.
+     *
+     * @param  callable(Model, int): mixed  $callback
+     */
+    public function each(callable $callback, int $count = 1000): bool
+    {
+        $this->build();
+
+        return $this->subject->each(function (Model $model, int $key) use ($callback) {
+            $this->applyPostProcessingToResults($model);
+
+            return $callback($model, $key);
+        }, $count);
+    }
+
+    /**
+     * Build and execute query in chunks, mapping every post-processed model.
+     *
+     * @template TReturn
+     *
+     * @param  callable(Model): TReturn  $callback
+     * @return Collection<int, TReturn>
+     */
+    public function chunkMap(callable $callback, int $count = 1000): Collection
+    {
+        $this->build();
+
+        return $this->subject->chunkMap(function (Model $model) use ($callback) {
+            $this->applyPostProcessingToResults($model);
+
+            return $callback($model);
+        }, $count);
+    }
+
+    /**
+     * Build and execute query lazily in chunks by ID with automatic post-processing.
+     *
+     * @return LazyCollection<int, Model>
+     */
+    public function lazyById(int $chunkSize = 1000, ?string $column = null, ?string $alias = null): LazyCollection
+    {
+        $this->build();
+        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+
+        return $this->subject->lazyById($chunkSize, $column, $alias)->map(function (Model $model) {
+            $this->applyPostProcessingToResults($model);
+
+            return $model;
+        });
+    }
+
+    /**
+     * Build and execute query lazily in descending chunks by ID with automatic post-processing.
+     *
+     * @return LazyCollection<int, Model>
+     */
+    public function lazyByIdDesc(int $chunkSize = 1000, ?string $column = null, ?string $alias = null): LazyCollection
+    {
+        $this->build();
+        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+
+        return $this->subject->lazyByIdDesc($chunkSize, $column, $alias)->map(function (Model $model) {
+            $this->applyPostProcessingToResults($model);
+
+            return $model;
+        });
     }
 
     /**
@@ -964,7 +1082,9 @@ class EloquentQueryWizard extends BaseQueryWizard
      * Proxy method calls to the underlying query builder.
      *
      * A call that returns the subject itself returns the wizard; anything else,
-     * including a different builder or relation, is returned as it is.
+     * including a different builder or relation, is returned as it is. Finders
+     * (find(), sole(), firstWhere(), ...) return post-processed models, except
+     * for the result of a findOr()/firstOr() fallback callback.
      *
      * @param  array<int, mixed>  $arguments
      */
@@ -972,12 +1092,31 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         $this->build();
 
+        $postProcess = isset(self::POST_PROCESSED_PROXY_METHODS[strtolower($name)]);
+        $usedFallback = false;
+
+        if ($postProcess) {
+            foreach ($arguments as $index => $argument) {
+                if ($argument instanceof \Closure) {
+                    $arguments[$index] = static function (mixed ...$args) use ($argument, &$usedFallback): mixed {
+                        $usedFallback = true;
+
+                        return $argument(...$args);
+                    };
+                }
+            }
+        }
+
         $result = $this->subject->$name(...$arguments);
 
         if ($result === $this->subject) {
             $this->proxyModified = true;
 
             return $this;
+        }
+
+        if ($postProcess && ! $usedFallback && ($result instanceof Model || $result instanceof Collection)) {
+            $this->applyPostProcessingToResults($result);
         }
 
         return $result;
