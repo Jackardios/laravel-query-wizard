@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Jackardios\QueryWizard\Support\LikeClause;
 
 /**
  * Filter by partial match (LIKE %value%).
@@ -21,8 +22,6 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class PartialFilter extends ExactFilter
 {
-    private const LIKE_ESCAPE_CHARACTER = '!';
-
     protected bool $splitValues = false;
 
     /**
@@ -61,15 +60,7 @@ final class PartialFilter extends ExactFilter
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {
-        $wrappedColumn = $builder
-            ->getQuery()
-            ->getGrammar()
-            ->wrap($builder->qualifyColumn($column));
-
-        // A backslash escape character breaks drivers that rewrite `?` placeholders
-        // themselves (pdo_pgsql reads `'\'` as an unterminated literal and hides
-        // every later placeholder), so escape with a character no parser treats specially.
-        $sql = "LOWER({$wrappedColumn}) LIKE ? ESCAPE '".self::LIKE_ESCAPE_CHARACTER."'";
+        $sql = LikeClause::for($builder, $column, lowercase: true);
 
         if (is_array($value)) {
             $filteredValues = $this->searchableValues($value);
@@ -79,31 +70,15 @@ final class PartialFilter extends ExactFilter
 
             $builder->where(function (Builder $query) use ($filteredValues, $sql): void {
                 foreach ($filteredValues as $partialValue) {
-                    $partialValue = mb_strtolower((string) $partialValue, 'UTF8');
-                    $query->orWhereRaw($sql, ['%'.$this->escapeLikeValue($partialValue).'%']);
+                    $query->whereRaw($sql, [LikeClause::containing((string) $partialValue, lowercase: true)], 'or');
                 }
             });
 
             return $builder;
         }
 
-        $value = mb_strtolower((string) $value, 'UTF8');
-        $builder->whereRaw($sql, ['%'.$this->escapeLikeValue($value).'%']);
+        $builder->whereRaw($sql, [LikeClause::containing((string) $value, lowercase: true)]);
 
         return $builder;
-    }
-
-    /**
-     * Escape LIKE metacharacters so they are treated as literals.
-     */
-    private function escapeLikeValue(string $value): string
-    {
-        $escape = self::LIKE_ESCAPE_CHARACTER;
-
-        return strtr($value, [
-            $escape => $escape.$escape,
-            '%' => $escape.'%',
-            '_' => $escape.'_',
-        ]);
     }
 }

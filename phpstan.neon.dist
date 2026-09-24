@@ -10,8 +10,3 @@ parameters:
         # Values come from user configuration and request data, so string-typed PHPDoc is not a runtime guarantee
         -
             message: '#Call to function is_string\(\) with string will always evaluate to true#'
-        # Laravel 13 types whereRaw()/orWhereRaw() SQL as literal-string; PartialFilter builds it from a grammar-wrapped column
-        -
-            identifier: argument.type
-            path: src/Eloquent/Filters/PartialFilter.php
-            reportUnmatched: false

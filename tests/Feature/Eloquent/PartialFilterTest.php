@@ -223,4 +223,19 @@ class PartialFilterTest extends EloquentFilterTestCase
         $this->assertStringNotContainsString('\\', $sql);
         $this->assertSame(count($query->getBindings()), substr_count($sql, '?'));
     }
+
+    #[Test]
+    public function partial_filter_matches_non_text_columns(): void
+    {
+        $expected = $this->models->modelKeys();
+        $expected = array_values(array_filter($expected, fn (int $id) => str_contains((string) $id, '1')));
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['id' => '1'])
+            ->allowedFilters(EloquentFilter::partial('id'))
+            ->get();
+
+        $this->assertNotEmpty($expected);
+        $this->assertEqualsCanonicalizing($expected, $models->modelKeys());
+    }
 }
