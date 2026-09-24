@@ -24,6 +24,7 @@ use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Values\Sort;
+use Throwable;
 
 /**
  * Abstract base class for query wizards.
@@ -390,32 +391,57 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             $this->invalidateBuild();
         }
 
-        $this->forgetConfigurationMemo();
-        $this->applyTapCallbacks();
-        $this->prepareBuild();
-
         try {
-            $this->validatedParameters = [
-                'filters' => $this->resolvePreparedFilters(),
-                'sorts' => $this->resolveSortsToApply(),
-                'includes' => $this->resolveIncludesToApply(),
-                'fields' => $this->resolveValidatedRootFields(),
-            ];
+            $this->forgetConfigurationMemo();
+            $this->applyTapCallbacks();
+            $this->prepareBuild();
 
-            $this->applyFiltersToSubject();
-            $this->applySortsToSubject();
-            $this->applyIncludesToSubject();
-            $this->applyFieldsToSubject();
-        } finally {
-            $this->validatedParameters = null;
+            try {
+                $this->validatedParameters = [
+                    'filters' => $this->resolvePreparedFilters(),
+                    'sorts' => $this->resolveSortsToApply(),
+                    'includes' => $this->resolveIncludesToApply(),
+                    'fields' => $this->resolveValidatedRootFields(),
+                ];
+
+                $this->applyFiltersToSubject();
+                $this->applySortsToSubject();
+                $this->applyIncludesToSubject();
+                $this->applyFieldsToSubject();
+            } finally {
+                $this->validatedParameters = null;
+            }
+
+            $this->finalizeBuild();
+        } catch (Throwable $e) {
+            $this->rollbackFailedBuild();
+
+            throw $e;
         }
-
-        $this->finalizeBuild();
 
         $this->built = true;
         $this->builtScopeSignature = $currentScopeSignature;
 
         return $this->subject;
+    }
+
+    /**
+     * Undo a build that threw, so the next build starts from the original subject.
+     *
+     * Called with the exception still pending, before it is rethrown. Subclasses
+     * that keep state derived from the build reset it here and call the parent.
+     */
+    protected function rollbackFailedBuild(): void
+    {
+        if (isset($this->originalSubject)) {
+            $this->subject = is_object($this->originalSubject)
+                ? clone $this->originalSubject
+                : $this->originalSubject;
+        }
+
+        $this->built = false;
+        $this->builtScopeSignature = null;
+        $this->forgetConfigurationMemo();
     }
 
     /**

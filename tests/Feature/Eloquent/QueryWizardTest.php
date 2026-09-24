@@ -860,6 +860,105 @@ class QueryWizardTest extends TestCase
         $this->assertEquals(3, $models->first()->id); // Sorted desc
     }
 
+    #[Test]
+    public function a_failed_build_leaves_no_partial_constraints_for_the_retry(): void
+    {
+        $sortCalls = 0;
+        $taps = 0;
+
+        $wizard = $this
+            ->createEloquentWizardFromQuery(['filter' => ['name' => 'a'], 'sort' => 'name,flaky'])
+            ->allowedFilters('name')
+            ->allowedSorts('name', EloquentSort::callback('flaky', function ($query) use (&$sortCalls): void {
+                if ($sortCalls++ === 0) {
+                    throw new \RuntimeException('flaky');
+                }
+            }))
+            ->tap(function ($query) use (&$taps): void {
+                $taps++;
+                $query->where('id', '>', 0);
+            });
+
+        try {
+            $wizard->get();
+            $this->fail('Expected the first build to fail');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('flaky', $e->getMessage());
+        }
+
+        $sql = $wizard->toQuery()->toSql();
+
+        $this->assertSame(1, substr_count($sql, '"id" > ?'));
+        $this->assertSame(1, substr_count($sql, '"name" = ?'));
+        $this->assertSame(1, substr_count($sql, '"name" asc'));
+        $this->assertSame(2, $taps);
+    }
+
+    #[Test]
+    public function a_wizard_reconfigured_after_a_failed_build_builds_from_the_original_subject(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardFromQuery(['filter' => ['name' => 'a'], 'sort' => 'name', 'include' => 'relatedModels'])
+            ->allowedFilters('name')
+            ->allowedSorts('name')
+            ->allowedIncludes(EloquentInclude::callback('relatedModels', function (): void {
+                throw new \RuntimeException('include failed');
+            }));
+
+        try {
+            $wizard->get();
+            $this->fail('Expected the first build to fail');
+        } catch (\RuntimeException) {
+        }
+
+        $sql = $wizard->allowedIncludes('relatedModels')->toQuery()->toSql();
+
+        $this->assertSame('select * from "test_models" where "test_models"."name" = ? order by "test_models"."name" asc', $sql);
+    }
+
+    #[Test]
+    public function a_failed_build_keeps_a_subject_already_handed_out(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithSorts('boom')
+            ->allowedSorts(EloquentSort::callback('boom', function (): void {
+                throw new \RuntimeException('boom');
+            }));
+        $subject = $wizard->getSubject();
+
+        try {
+            $wizard->get();
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertSame($subject, $wizard->getSubject());
+    }
+
+    #[Test]
+    public function rollback_failed_build_is_an_extension_point(): void
+    {
+        $wizard = new class(TestModel::query(), new QueryParametersManager(new Request(['sort' => 'boom']))) extends EloquentQueryWizard
+        {
+            public int $rollbacks = 0;
+
+            protected function rollbackFailedBuild(): void
+            {
+                $this->rollbacks++;
+                parent::rollbackFailedBuild();
+            }
+        };
+        $wizard->allowedSorts(EloquentSort::callback('boom', function (): void {
+            throw new \RuntimeException('boom');
+        }));
+
+        try {
+            $wizard->get();
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertSame(1, $wizard->rollbacks);
+    }
+
     // ========== Build State Invalidation Tests ==========
 
     #[Test]

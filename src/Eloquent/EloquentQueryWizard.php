@@ -352,6 +352,23 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
+     * A subject already handed out by toQuery() or getSubject() is kept: the
+     * caller holds that instance, so swapping it would detach them from it.
+     */
+    protected function rollbackFailedBuild(): void
+    {
+        $subject = $this->subject;
+
+        $this->resetSafeRelationSelectState();
+        $this->state = new EloquentBuildState;
+        parent::rollbackFailedBuild();
+
+        if ($this->subjectEscaped) {
+            $this->subject = $subject;
+        }
+    }
+
+    /**
      * Only the taint flags are reset: a fresh clone has not been handed out or
      * modified through the proxy yet.
      *
