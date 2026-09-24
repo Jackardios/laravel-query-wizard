@@ -68,6 +68,14 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     protected ?string $builtScopeSignature = null;
 
     /**
+     * Parameters validated at the start of the running build, consumed by the
+     * apply*ToSubject() steps. Null outside build().
+     *
+     * @var array{filters: array<string, array{filter: FilterInterface, value: mixed}>, sorts: list<array{SortInterface, 'asc'|'desc'}>, includes: array{array<int, string>, array<string, IncludeInterface>}|null, fields: array<string>|null}|null
+     */
+    private ?array $validatedParameters = null;
+
+    /**
      * Invalidate the build state when configuration changes.
      *
      * This ensures that calling build() after configuration changes
@@ -386,10 +394,23 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         $this->forgetConfigurationMemo();
         $this->applyTapCallbacks();
         $this->prepareBuild();
-        $this->applyFiltersToSubject();
-        $this->applySortsToSubject();
-        $this->applyIncludesToSubject();
-        $this->applyFieldsToSubject();
+
+        try {
+            $this->validatedParameters = [
+                'filters' => $this->resolvePreparedFilters(),
+                'sorts' => $this->resolveSortsToApply(),
+                'includes' => $this->resolveIncludesToApply(),
+                'fields' => $this->resolveValidatedRootFields(),
+            ];
+
+            $this->applyFiltersToSubject();
+            $this->applySortsToSubject();
+            $this->applyIncludesToSubject();
+            $this->applyFieldsToSubject();
+        } finally {
+            $this->validatedParameters = null;
+        }
+
         $this->finalizeBuild();
 
         $this->built = true;
@@ -446,7 +467,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     protected function applyFiltersToSubject(): void
     {
-        foreach ($this->resolvePreparedFilters() as $resolvedFilter) {
+        foreach ($this->validatedParameters['filters'] ?? $this->resolvePreparedFilters() as $resolvedFilter) {
             $filter = $resolvedFilter['filter'];
 
             if ($filter->getType() === 'passthrough') {
@@ -627,6 +648,25 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     protected function applySortsToSubject(): void
     {
+        $sorts = $this->validatedParameters !== null
+            ? $this->validatedParameters['sorts']
+            : $this->resolveSortsToApply();
+
+        foreach ($sorts as [$sort, $direction]) {
+            $this->subject = $sort->apply($this->subject, $direction);
+        }
+    }
+
+    /**
+     * Validate the requested (or default) sorts and resolve them to definitions.
+     *
+     * @return list<array{SortInterface, 'asc'|'desc'}>
+     *
+     * @throws InvalidSortQuery When requested sort is not allowed
+     * @throws MaxSortsCountExceeded When sort count exceeds configured limit
+     */
+    private function resolveSortsToApply(): array
+    {
         $sorts = $this->getEffectiveSorts();
         $parameters = $this->getParametersManager();
         $requestedSorts = $parameters->getSorts();
@@ -647,15 +687,15 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         if (empty($sorts) && $effectiveSorts->isNotEmpty()) {
             if ($usingDefaults) {
                 if (! $this->canApplyDefaultSortsWithoutAllowlist($sorts)) {
-                    return;
+                    return [];
                 }
 
+                $resolved = [];
                 foreach ($effectiveSorts as $sortValue) {
-                    $sort = $this->normalizeStringToSort($sortValue->getField());
-                    $this->subject = $sort->apply($this->subject, $sortValue->getDirection());
+                    $resolved[] = [$this->normalizeStringToSort($sortValue->getField()), $sortValue->getDirection()];
                 }
 
-                return;
+                return $resolved;
             }
 
             if (! $this->config->isInvalidSortQueryExceptionDisabled()) {
@@ -665,11 +705,11 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
                 );
             }
 
-            return;
+            return [];
         }
 
         if (empty($sorts)) {
-            return;
+            return [];
         }
 
         $this->validateSortsLimit($effectiveSorts->count());
@@ -683,6 +723,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $allowedSortNames = array_keys($sortsIndex);
         $appliedSorts = [];
+        $resolved = [];
 
         foreach ($effectiveSorts as $sortValue) {
             /** @var Sort $sortValue */
@@ -705,12 +746,29 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             }
             $appliedSorts[$field] = true;
 
-            $sort = $sortsIndex[$field];
-            $this->subject = $sort->apply($this->subject, $sortValue->getDirection());
+            $resolved[] = [$sortsIndex[$field], $sortValue->getDirection()];
         }
+
+        return $resolved;
     }
 
     protected function applyIncludesToSubject(): void
+    {
+        $includes = $this->validatedParameters !== null
+            ? $this->validatedParameters['includes']
+            : $this->resolveIncludesToApply();
+
+        if ($includes !== null) {
+            $this->applyValidatedIncludes(...$includes);
+        }
+    }
+
+    /**
+     * Validate the requested (or default) includes against the allowed ones.
+     *
+     * @return array{array<int, string>, array<string, IncludeInterface>}|null Null when there is nothing to apply
+     */
+    private function resolveIncludesToApply(): ?array
     {
         $includes = $this->getEffectiveIncludes();
         $requestedIncludes = $this->getMergedRequestedIncludes();
@@ -733,11 +791,11 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
                 );
             }
 
-            return;
+            return null;
         }
 
         if (empty($includes)) {
-            return;
+            return null;
         }
 
         $includesIndex = $this->buildIncludesIndex($includes);
@@ -769,7 +827,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             $validRequestedIncludes[] = $includeName;
         }
 
-        $this->applyValidatedIncludes($validRequestedIncludes, $includesIndex);
+        return [$validRequestedIncludes, $includesIndex];
     }
 
     /**
@@ -790,7 +848,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     protected function applyFieldsToSubject(): void
     {
-        $validFields = $this->resolveValidatedRootFields();
+        $validFields = $this->validatedParameters !== null
+            ? $this->validatedParameters['fields']
+            : $this->resolveValidatedRootFields();
 
         if ($validFields !== null) {
             $this->applyFields($validFields);

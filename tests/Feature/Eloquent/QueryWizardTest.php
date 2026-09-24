@@ -1122,6 +1122,29 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function every_parameter_is_validated_before_any_filter_is_applied(): void
+    {
+        $applied = 0;
+        $params = new QueryParametersManager(new Request([
+            'filter' => ['counted' => '1'],
+            'sort' => 'unknown',
+        ]));
+
+        try {
+            (new EloquentQueryWizard(TestModel::query(), $params))
+                ->allowedFilters(EloquentFilter::callback('counted', function () use (&$applied): void {
+                    $applied++;
+                }))
+                ->allowedSorts('name')
+                ->get();
+            $this->fail('Expected InvalidSortQuery');
+        } catch (InvalidSortQuery) {
+        }
+
+        $this->assertSame(0, $applied);
+    }
+
+    #[Test]
     public function disallowed_sorts_are_rejected(): void
     {
         $params = new QueryParametersManager(new Request(['sort' => 'name']));
