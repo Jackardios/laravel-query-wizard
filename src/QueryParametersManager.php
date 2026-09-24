@@ -50,6 +50,8 @@ class QueryParametersManager
 
     protected int $stateVersion = 0;
 
+    private static int $lastStateVersion = 0;
+
     protected QueryWizardConfig $config;
 
     /** @var array<string, ParameterParser> */
@@ -65,6 +67,7 @@ class QueryParametersManager
         ?QueryWizardConfig $config = null
     ) {
         $this->config = $config ?? new QueryWizardConfig;
+        $this->bumpStateVersion();
     }
 
     protected function getParser(string $type): ParameterParser
@@ -229,7 +232,8 @@ class QueryParametersManager
     /**
      * Monotonic revision of the manager state.
      *
-     * Increments when request-bound or manually injected parameters change.
+     * Increases when request-bound or manually injected parameters change, and
+     * is unique across managers, so no two states share a version.
      */
     public function getStateVersion(): int
     {
@@ -642,6 +646,6 @@ class QueryParametersManager
 
     protected function bumpStateVersion(): void
     {
-        $this->stateVersion++;
+        $this->stateVersion = ++self::$lastStateVersion;
     }
 }

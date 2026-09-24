@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard;
 
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -33,6 +34,11 @@ class QueryWizardServiceProvider extends ServiceProvider implements DeferrablePr
                 $app->make(Request::class),
                 $app->make(QueryWizardConfig::class)
             );
+        });
+
+        // Feature tests and sub-requests rebind the request without a scope reset
+        $this->app->rebinding('request', static function (Container $app): void {
+            $app->forgetInstance(QueryParametersManager::class);
         });
     }
 
