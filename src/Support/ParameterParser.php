@@ -80,7 +80,7 @@ final class ParameterParser
                 continue;
             }
 
-            if ($field === '') {
+            if (ltrim($field, '-') === '') {
                 continue;
             }
 

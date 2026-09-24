@@ -11,6 +11,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -493,15 +494,45 @@ class SortTest extends TestCase
 
     // ========== Edge Cases ==========
     #[Test]
-    public function it_handles_empty_sort_string(): void
+    #[DataProvider('emptySortValues')]
+    public function it_rejects_an_empty_sort(string|array $sort): void
     {
         $this->expectException(InvalidSortQuery::class);
         $this->expectExceptionMessage('The `sort` parameter must contain at least one sort field when present.');
 
         $this
-            ->createEloquentWizardWithSorts('')
+            ->createEloquentWizardWithSorts($sort)
             ->allowedSorts('name')
             ->get();
+    }
+
+    #[Test]
+    #[DataProvider('emptySortValues')]
+    public function an_empty_sort_falls_back_to_default_sorts_when_exception_disabled(string|array $sort): void
+    {
+        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+
+        $sql = $this
+            ->createEloquentWizardWithSorts($sort)
+            ->allowedSorts('name')
+            ->defaultSorts('-name')
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models" order by "test_models"."name" desc', $sql);
+    }
+
+    /**
+     * @return array<string, array{string|array<int, string>}>
+     */
+    public static function emptySortValues(): array
+    {
+        return [
+            'empty string' => [''],
+            'bare minus' => ['-'],
+            'separators and minuses' => [' , -,--'],
+            'list of blanks' => [['', '-']],
+        ];
     }
 
     #[Test]
