@@ -14,7 +14,7 @@ class NestedRelatedModelFactory extends Factory
     {
         return [
             'related_model_id' => RelatedModel::factory(),
-            'name' => $this->faker->name,
+            'name' => $this->faker->name(),
         ];
     }
 }

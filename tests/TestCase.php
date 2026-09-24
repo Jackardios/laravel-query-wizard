@@ -2,6 +2,7 @@
 
 namespace Jackardios\QueryWizard\Tests;
 
+use Faker\Generator;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Jackardios\QueryWizard\QueryWizardServiceProvider;
@@ -33,5 +34,7 @@ abstract class TestCase extends Orchestra
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->app->make(Generator::class)->seed(20260924);
     }
 }

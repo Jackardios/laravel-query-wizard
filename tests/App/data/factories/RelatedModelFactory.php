@@ -14,7 +14,7 @@ class RelatedModelFactory extends Factory
     {
         return [
             'test_model_id' => TestModel::factory(),
-            'name' => $this->faker->name,
+            'name' => $this->faker->name(),
         ];
     }
 }

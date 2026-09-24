@@ -180,7 +180,7 @@ class RangeFilterTest extends EloquentFilterTestCase
         $models = $this
             ->createEloquentWizardWithFilters(['created_at' => [
                 'from' => '2020-01-01',
-                'to' => '2030-12-31 23:59:59',
+                'to' => now()->addYear()->format('Y-m-d H:i:s'),
             ]])
             ->allowedFilters(EloquentFilter::dateRange('created_at'))
             ->get();

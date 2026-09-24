@@ -991,7 +991,6 @@ class QueryWizardTest extends TestCase
         // Access protected property via reflection to verify built state
         $reflection = new \ReflectionClass($wizard);
         $builtProperty = $reflection->getProperty('built');
-        $builtProperty->setAccessible(true);
 
         $this->assertTrue($builtProperty->getValue($wizard), 'Should be built after get()');
 
@@ -1096,7 +1095,6 @@ class QueryWizardTest extends TestCase
 
         $reflection = new \ReflectionClass($wizard);
         $builtProperty = $reflection->getProperty('built');
-        $builtProperty->setAccessible(true);
 
         $this->assertTrue($builtProperty->getValue($wizard));
 

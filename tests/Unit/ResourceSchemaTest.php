@@ -18,11 +18,11 @@ use PHPUnit\Framework\TestCase;
 class ResourceSchemaTest extends TestCase
 {
     /**
-     * Create a mock wizard for testing.
+     * Create a stub wizard for testing.
      */
     protected function mockWizard(): QueryWizardInterface
     {
-        return $this->createMock(QueryWizardInterface::class);
+        return $this->createStub(QueryWizardInterface::class);
     }
 
     // ========== Abstract Method Tests ==========
