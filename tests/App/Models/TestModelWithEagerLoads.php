@@ -24,4 +24,16 @@ class TestModelWithEagerLoads extends TestModel
     {
         return $this->hasMany(RelatedModelWithEagerLoads::class, 'test_model_id');
     }
+
+    public function countedRelatedModels(): HasMany
+    {
+        return $this->hasMany(RelatedModelWithCount::class, 'test_model_id');
+    }
+
+    public function markedRelatedModels(): HasMany
+    {
+        return $this->hasMany(RelatedModel::class, 'test_model_id')
+            ->select('related_models.*')
+            ->selectRaw("'marked' as marker");
+    }
 }

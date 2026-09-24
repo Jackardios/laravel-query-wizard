@@ -183,6 +183,52 @@ class EagerLoadKeysTest extends TestCase
         $this->assertStringContainsString('select *', $this->rootQuery());
     }
 
+    #[Test]
+    public function relation_fieldset_keeps_the_related_model_default_counts(): void
+    {
+        $models = $this->wizard(TestModelWithEagerLoads::query()->without('relatedModels'), [
+            'include' => 'countedRelatedModels',
+            'fields' => ['countedRelatedModels' => 'name,nested_related_models_count'],
+        ])
+            ->allowedIncludes('countedRelatedModels')
+            ->allowedFields('countedRelatedModels.name', 'countedRelatedModels.nested_related_models_count')
+            ->get();
+
+        $this->assertSame(
+            ['name', 'nested_related_models_count'],
+            array_keys($models->first()->countedRelatedModels->first()->toArray())
+        );
+        $this->assertSame(1, (int) $models->first()->countedRelatedModels->first()->nested_related_models_count);
+    }
+
+    #[Test]
+    public function relation_fieldset_keeps_the_select_of_the_relation_definition(): void
+    {
+        $models = $this->wizard(TestModelWithEagerLoads::query()->without('relatedModels'), [
+            'include' => 'markedRelatedModels',
+            'fields' => ['markedRelatedModels' => 'name,marker'],
+        ])
+            ->allowedIncludes('markedRelatedModels')
+            ->allowedFields('markedRelatedModels.name', 'markedRelatedModels.marker')
+            ->get();
+
+        $this->assertSame(['name' => $models->first()->markedRelatedModels->first()->name, 'marker' => 'marked'], $models->first()->markedRelatedModels->first()->toArray());
+    }
+
+    #[Test]
+    public function relation_fieldset_keeps_a_developer_select_on_the_relation(): void
+    {
+        $models = $this->wizard(
+            TestModel::query()->with(['relatedModels' => fn ($query) => $query->select('id', 'test_model_id', 'name')->selectRaw("'dev' as marker")]),
+            ['include' => 'relatedModels', 'fields' => ['relatedModels' => 'marker']]
+        )
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('relatedModels.marker')
+            ->get();
+
+        $this->assertSame(['marker' => 'dev'], $models->first()->relatedModels->first()->toArray());
+    }
+
     /**
      * @param  Builder<Model>  $subject
      * @param  array<string, mixed>  $query

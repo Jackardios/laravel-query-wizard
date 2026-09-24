@@ -150,7 +150,9 @@ trait HandlesSafeRelationSelect
      *
      * Runs as an eager-load constraint, when the relation query already knows
      * its own eager loads (the related model's `$with` and nested includes),
-     * so the columns those need are selected too.
+     * so the columns those need are selected too. A query that already selects
+     * columns (the related model's `$withCount`, a select in the relation
+     * definition or in a developer constraint) is left as it is.
      *
      * @param  array<string>  $columns
      */
@@ -159,6 +161,10 @@ trait HandlesSafeRelationSelect
         if (! $query instanceof Relation) {
             $query->select($columns);
 
+            return;
+        }
+
+        if ($query->getQuery()->getQuery()->columns !== null) {
             return;
         }
 
