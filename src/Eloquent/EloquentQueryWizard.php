@@ -216,7 +216,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function chunk(int $count, callable $callback): bool
     {
-        $this->build();
+        $this->buildSubject();
 
         return $this->subject->chunk($count, function (Collection $models) use ($callback) {
             $this->applyPostProcessingToResults($models);
@@ -232,7 +232,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function lazy(int $chunkSize = 1000): LazyCollection
     {
-        $this->build();
+        $this->buildSubject();
 
         return $this->subject->lazy($chunkSize)->map(function (Model $model) {
             $this->applyPostProcessingToResults($model);
@@ -252,7 +252,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function cursor(): LazyCollection
     {
-        $this->build();
+        $this->buildSubject();
 
         $builder = EloquentSubject::builder($this->subject);
         $models = $this->subject->cursor();
@@ -278,7 +278,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function chunkById(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
     {
-        $this->build();
+        $this->buildSubject();
         $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
 
         return $this->subject->chunkById($count, function (Collection $models) use ($callback) {
@@ -296,7 +296,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function chunkByIdDesc(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
     {
-        $this->build();
+        $this->buildSubject();
         $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
 
         return $this->subject->chunkByIdDesc($count, function (Collection $models) use ($callback) {
@@ -313,7 +313,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function eachById(callable $callback, int $count = 1000, ?string $column = null, ?string $alias = null): bool
     {
-        $this->build();
+        $this->buildSubject();
         $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
 
         return $this->subject->eachById(function (Model $model, int $key) use ($callback) {
@@ -330,7 +330,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function each(callable $callback, int $count = 1000): bool
     {
-        $this->build();
+        $this->buildSubject();
 
         return $this->subject->each(function (Model $model, int $key) use ($callback) {
             $this->applyPostProcessingToResults($model);
@@ -349,7 +349,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function chunkMap(callable $callback, int $count = 1000): Collection
     {
-        $this->build();
+        $this->buildSubject();
 
         return $this->subject->chunkMap(function (Model $model) use ($callback) {
             $this->applyPostProcessingToResults($model);
@@ -365,7 +365,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function lazyById(int $chunkSize = 1000, ?string $column = null, ?string $alias = null): LazyCollection
     {
-        $this->build();
+        $this->buildSubject();
         $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
 
         return $this->subject->lazyById($chunkSize, $column, $alias)->map(function (Model $model) {
@@ -382,7 +382,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function lazyByIdDesc(int $chunkSize = 1000, ?string $column = null, ?string $alias = null): LazyCollection
     {
-        $this->build();
+        $this->buildSubject();
         $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
 
         return $this->subject->lazyByIdDesc($chunkSize, $column, $alias)->map(function (Model $model) {
@@ -406,7 +406,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function applyPostProcessingTo(mixed $results): mixed
     {
-        $this->build();
+        $this->buildSubject();
         $this->applyPostProcessingToResults($results);
 
         return $results;
@@ -426,16 +426,39 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
+     * Build and return the live query builder, like toQuery().
+     *
+     * The caller holds the builder afterwards, so the wizard can't be
+     * reconfigured any more.
+     *
+     * @return Builder<Model>|Relation<Model, Model, mixed>
+     */
+    public function build(): Builder|Relation
+    {
+        return $this->toQuery();
+    }
+
+    /**
      * Build and return the query builder (without executing).
      *
      * @return Builder<Model>|Relation<Model, Model, mixed>
      */
     public function toQuery(): Builder|Relation
     {
-        $this->build();
+        $this->buildSubject();
         $this->subjectEscaped = true;
 
         return $this->subject;
+    }
+
+    /**
+     * Build for the wizard's own use, without handing the builder out.
+     *
+     * @return Builder<Model>|Relation<Model, Model, mixed>
+     */
+    private function buildSubject(): Builder|Relation
+    {
+        return parent::build();
     }
 
     /**
@@ -461,7 +484,7 @@ class EloquentQueryWizard extends BaseQueryWizard
 
         if ($this->subjectEscaped) {
             throw new \LogicException(
-                'Cannot modify query wizard configuration after retrieving the underlying builder via toQuery() or getSubject(). '
+                'Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject(). '
                 .'Those methods expose the live builder, so call all configuration methods before builder access.'
             );
         }
@@ -1024,7 +1047,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function executeCollectionQuery(callable $executor): Collection
     {
-        $this->build();
+        $this->buildSubject();
         $results = $executor();
         $this->applyPostProcessingToResults($results);
 
@@ -1036,7 +1059,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function executeNullableModelQuery(callable $executor): ?Model
     {
-        $this->build();
+        $this->buildSubject();
         $result = $executor();
         if ($result !== null) {
             $this->applyPostProcessingToResults($result);
@@ -1050,7 +1073,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function executeModelQuery(callable $executor): Model
     {
-        $this->build();
+        $this->buildSubject();
         $result = $executor();
         $this->applyPostProcessingToResults($result);
 
@@ -1065,7 +1088,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function executePaginatorQuery(callable $executor): LengthAwarePaginator|Paginator|CursorPaginator
     {
-        $this->build();
+        $this->buildSubject();
         $paginator = $executor();
         $this->applyPostProcessingToResults($paginator->items());
 
@@ -1084,7 +1107,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function __call(string $name, array $arguments): mixed
     {
-        $this->build();
+        $this->buildSubject();
 
         $postProcess = isset(self::POST_PROCESSED_PROXY_METHODS[strtolower($name)]);
         $usedFallback = false;

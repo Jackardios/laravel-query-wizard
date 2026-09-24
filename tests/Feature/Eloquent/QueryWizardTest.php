@@ -15,6 +15,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
+use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\QueryParametersManager;
@@ -659,7 +660,7 @@ class QueryWizardTest extends TestCase
         $wizard->toQuery();
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via toQuery() or getSubject()');
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject()');
 
         $wizard->allowedSorts('id');
     }
@@ -673,9 +674,48 @@ class QueryWizardTest extends TestCase
         $wizard->getSubject();
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via toQuery() or getSubject()');
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject()');
 
         $wizard->allowedSorts('id');
+    }
+
+    #[Test]
+    public function config_after_build_throws_logic_exception(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name');
+
+        $builder = $wizard->build();
+
+        $this->assertSame($wizard->getSubject(), $builder);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject()');
+
+        $wizard->allowedSorts('id');
+    }
+
+    #[Test]
+    public function config_after_executing_methods_is_still_allowed(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name');
+
+        $wizard->get();
+        $wizard->count();
+        $wizard->allowedSorts('id');
+
+        $this->assertCount(TestModel::query()->count(), $wizard->get());
+    }
+
+    #[Test]
+    public function build_validates_appends(): void
+    {
+        $wizard = new EloquentQueryWizard(TestModel::query(), new QueryParametersManager(new Request(['append' => 'unknown'])));
+
+        $this->expectException(InvalidAppendQuery::class);
+
+        $wizard->allowedAppends('fullname')->build();
     }
 
     // ========== Idempotency Tests ==========
