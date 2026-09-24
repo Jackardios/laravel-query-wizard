@@ -614,7 +614,7 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
-    public function clone_clears_tainted_flag(): void
+    public function a_clone_of_a_proxy_modified_wizard_refuses_reconfiguration(): void
     {
         $wizard = EloquentQueryWizard::for(TestModel::class)
             ->allowedFilters('name')
@@ -622,10 +622,36 @@ class QueryWizardTest extends TestCase
 
         $clone = clone $wizard;
 
-        // Clone should not be tainted
-        $clone->allowedSorts('name');
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('after calling query builder methods');
 
-        $this->assertInstanceOf(EloquentQueryWizard::class, $clone);
+        $clone->allowedSorts('name');
+    }
+
+    #[Test]
+    public function a_clone_of_an_escaped_wizard_refuses_reconfiguration(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)->allowedFilters('name');
+        $wizard->toQuery();
+
+        $clone = clone $wizard;
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('after retrieving the underlying builder');
+
+        $clone->allowedSorts('name');
+    }
+
+    #[Test]
+    public function a_clone_of_a_proxy_modified_wizard_keeps_its_constraints(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters('name')
+            ->where('id', '<', 3);
+
+        $clone = clone $wizard;
+
+        $this->assertSame([1, 2], $clone->get()->modelKeys());
     }
 
     #[Test]

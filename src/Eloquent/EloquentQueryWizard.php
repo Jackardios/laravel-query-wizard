@@ -512,8 +512,9 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Only the taint flags are reset: a fresh clone has not been handed out or
-     * modified through the proxy yet.
+     * The clone keeps the taint flags, so it refuses reconfiguration like its
+     * source: reconfiguring rebuilds from the original subject and would drop
+     * the constraints added through the proxy.
      *
      * The derived post-processing state (append tree, relation field tree, root
      * field masks, runtime attribute maps) is copied, not cleared. It describes
@@ -526,8 +527,6 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         parent::__clone();
         $this->state = clone $this->state;
-        $this->proxyModified = false;
-        $this->subjectEscaped = false;
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
