@@ -722,6 +722,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
                     $resolved[] = [$this->normalizeStringToSort($sortValue->getField()), $sortValue->getDirection()];
                 }
 
+                $this->assertDefaultSortsWithinLimit(count($resolved));
+
                 return $resolved;
             }
 
@@ -739,7 +741,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             return [];
         }
 
-        $this->validateSortsLimit($effectiveSorts->count());
+        if (! $usingDefaults) {
+            $this->validateSortsLimit($effectiveSorts->count());
+        }
 
         $sortsIndex = [];
         foreach ($sorts as $sort) {
@@ -776,7 +780,16 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             $resolved[] = [$sortsIndex[$field], $sortValue->getDirection()];
         }
 
+        if ($usingDefaults) {
+            $this->assertDefaultSortsWithinLimit(count($resolved));
+        }
+
         return $resolved;
+    }
+
+    private function assertDefaultSortsWithinLimit(int $count): void
+    {
+        $this->assertDefaultWithinLimit('The number of default sorts', $count, $this->config->getMaxSortsCount(), 'max_sorts_count');
     }
 
     protected function applyIncludesToSubject(): void

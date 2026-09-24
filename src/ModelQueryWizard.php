@@ -455,8 +455,6 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         $requested = $requestedIncludeNames;
         $loaded = array_keys($this->model->getRelations());
 
-        $this->validateIncludesLimit(count($requested));
-
         $allowedIndex = $this->buildIncludesIndex($effectiveIncludes);
         $this->runtimeAttributesByOwner = $this->resolveRuntimeAttributesByOwner($requested, $allowedIndex);
 
@@ -475,8 +473,6 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
             if ($include === null) {
                 continue;
             }
-
-            $this->validateIncludeDepth($include);
 
             if ($include->getType() === 'count') {
                 $countsToLoad[] = $include->getRelation();

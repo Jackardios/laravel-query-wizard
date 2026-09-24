@@ -133,7 +133,14 @@ trait HandlesAppends
 
             // Validate depth (based on relation path, not alias)
             $depth = substr_count($relationPath, '.') + 2;
-            if ($maxDepth !== null && $depth > $maxDepth) {
+            if ($useDefaults) {
+                $this->assertDefaultWithinLimit(
+                    "The depth of default append `{$relationPath}.{$attributes[0]}`",
+                    $depth,
+                    $maxDepth,
+                    'max_append_depth'
+                );
+            } elseif ($maxDepth !== null && $depth > $maxDepth) {
                 throw MaxAppendDepthExceeded::create("{$relationPath}.{$attributes[0]}", $depth, $maxDepth);
             }
 
@@ -151,7 +158,17 @@ trait HandlesAppends
             }
         }
 
-        $this->validateAppendsLimit(array_sum(array_map('count', $validGrouped)));
+        $appendsCount = array_sum(array_map('count', $validGrouped));
+        if ($useDefaults) {
+            $this->assertDefaultWithinLimit(
+                'The number of default appends',
+                $appendsCount,
+                $this->getConfig()->getMaxAppendsCount(),
+                'max_appends_count'
+            );
+        } else {
+            $this->validateAppendsLimit($appendsCount);
+        }
 
         return $this->buildAppendTree($validGrouped);
     }

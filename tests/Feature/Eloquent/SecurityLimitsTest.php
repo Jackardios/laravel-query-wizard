@@ -13,6 +13,7 @@ use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
+use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Tests\App\Models\AppendModel;
@@ -493,11 +494,12 @@ class SecurityLimitsTest extends TestCase
     }
 
     #[Test]
-    public function it_throws_when_default_appends_exceed_depth(): void
+    public function default_appends_deeper_than_the_limit_are_a_configuration_error(): void
     {
         Config::set('query-wizard.limits.max_append_depth', 1);
 
-        $this->expectException(MaxAppendDepthExceeded::class);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The depth of default append `relatedModels.formattedName` (2) exceeds the `limits.max_append_depth` limit (1) for client input.');
 
         // Relation must be included for its appends to be validated
         // Defaults only apply when request has no append param
@@ -512,19 +514,116 @@ class SecurityLimitsTest extends TestCase
     }
 
     #[Test]
-    public function it_validates_total_appends_count_when_using_defaults(): void
+    public function more_default_appends_than_the_limit_are_a_configuration_error(): void
     {
-        // New behavior: defaults only apply when request is empty
-        // So this test validates count when defaults ARE applied (no append param in request)
         Config::set('query-wizard.limits.max_appends_count', 1);
 
-        $this->expectException(MaxAppendsCountExceeded::class);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The number of default appends (2) exceeds the `limits.max_appends_count` limit (1) for client input.');
 
         $this
             ->createEloquentWizardFromQuery([], AppendModel::class) // No append param
             ->allowedAppends('fullname', 'reversename')
             ->defaultAppends('fullname', 'reversename') // 2 appends, exceeds limit of 1
             ->get();
+    }
+
+    #[Test]
+    public function more_default_sorts_than_the_limit_are_a_configuration_error(): void
+    {
+        Config::set('query-wizard.limits.max_sorts_count', 1);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The number of default sorts (2) exceeds the `limits.max_sorts_count` limit (1) for client input.');
+
+        $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedSorts('name', 'id')
+            ->defaultSorts('name', '-id')
+            ->get();
+    }
+
+    #[Test]
+    public function default_sorts_without_an_allow_list_are_checked_against_the_limit(): void
+    {
+        Config::set('query-wizard.limits.max_sorts_count', 1);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->defaultSorts('name', '-id')
+            ->get();
+    }
+
+    #[Test]
+    public function skipped_default_sorts_do_not_count_toward_the_limit(): void
+    {
+        Config::set('query-wizard.limits.max_sorts_count', 1);
+
+        $sql = $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedSorts('name')
+            ->defaultSorts('name', 'unknown')
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringEndsWith('order by "test_models"."name" asc', $sql);
+    }
+
+    #[Test]
+    public function more_default_includes_than_the_limit_are_a_configuration_error(): void
+    {
+        Config::set('query-wizard.limits.max_includes_count', 1);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The number of default includes (2) exceeds the `limits.max_includes_count` limit (1) for client input.');
+
+        $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->defaultIncludes('relatedModels', 'otherRelatedModels')
+            ->get();
+    }
+
+    #[Test]
+    public function default_includes_deeper_than_the_limit_are_a_configuration_error(): void
+    {
+        Config::set('query-wizard.limits.max_include_depth', 1);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The depth of default include `relatedModels.nestedRelatedModels` (2) exceeds the `limits.max_include_depth` limit (1) for client input.');
+
+        $this
+            ->createEloquentWizardFromQuery([], TestModel::class)
+            ->allowedIncludes('relatedModels.nestedRelatedModels')
+            ->defaultIncludes('relatedModels.nestedRelatedModels')
+            ->get();
+    }
+
+    #[Test]
+    public function model_wizard_default_includes_over_the_limit_are_a_configuration_error(): void
+    {
+        Config::set('query-wizard.limits.max_includes_count', 1);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new ModelQueryWizard(TestModel::query()->firstOrFail(), new QueryParametersManager(new Request([]))))
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->defaultIncludes('relatedModels', 'otherRelatedModels')
+            ->process();
+    }
+
+    #[Test]
+    public function client_input_over_a_limit_is_still_a_client_error(): void
+    {
+        Config::set('query-wizard.limits.max_includes_count', 1);
+
+        $this->expectException(MaxIncludesCountExceeded::class);
+
+        (new ModelQueryWizard(TestModel::query()->firstOrFail(), new QueryParametersManager(new Request(['include' => 'relatedModels,otherRelatedModels']))))
+            ->allowedIncludes('relatedModels', 'otherRelatedModels')
+            ->process();
     }
 
     // ========== Default Includes Validation Tests ==========

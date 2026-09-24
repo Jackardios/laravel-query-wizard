@@ -228,6 +228,19 @@ trait HandlesConfiguration
     }
 
     /**
+     * Limits guard client input; a developer default over one is a configuration error.
+     */
+    private function assertDefaultWithinLimit(string $subject, int $value, ?int $limit, string $limitKey): void
+    {
+        if ($limit !== null && $value > $limit) {
+            throw new \InvalidArgumentException(
+                "{$subject} ({$value}) exceeds the `limits.{$limitKey}` limit ({$limit}) for client input. "
+                .'Raise the limit or reduce the defaults.'
+            );
+        }
+    }
+
+    /**
      * Check if array is associative.
      *
      * @param  array<mixed>  $array

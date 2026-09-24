@@ -171,7 +171,9 @@ trait HandlesIncludes
         $requestedIncludes = $this->getMergedRequestedIncludes();
         $usingDefaults = $this->isIncludesRequestEmpty();
 
-        $this->validateIncludesLimit(count($requestedIncludes));
+        if (! $usingDefaults) {
+            $this->validateIncludesLimit(count($requestedIncludes));
+        }
 
         if (empty($includes) && ! empty($requestedIncludes)) {
             $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
@@ -220,8 +222,27 @@ trait HandlesIncludes
 
             $include = $includesIndex[$includeName];
 
-            $this->validateIncludeDepth($include);
+            if ($usingDefaults) {
+                $this->assertDefaultWithinLimit(
+                    "The depth of default include `{$includeName}`",
+                    substr_count($include->getRelation(), '.') + 1,
+                    $this->getConfig()->getMaxIncludeDepth(),
+                    'max_include_depth'
+                );
+            } else {
+                $this->validateIncludeDepth($include);
+            }
+
             $validRequestedIncludes[] = $includeName;
+        }
+
+        if ($usingDefaults) {
+            $this->assertDefaultWithinLimit(
+                'The number of default includes',
+                count($validRequestedIncludes),
+                $this->getConfig()->getMaxIncludesCount(),
+                'max_includes_count'
+            );
         }
 
         return [$validRequestedIncludes, $includesIndex];
