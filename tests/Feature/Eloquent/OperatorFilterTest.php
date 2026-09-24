@@ -561,6 +561,19 @@ class OperatorFilterTest extends EloquentFilterTestCase
         $this->assertSame([$bound], $query->getBindings());
     }
 
+    #[Test]
+    public function dynamic_operator_compares_the_last_four_digit_day(): void
+    {
+        $last = TestModel::factory()->create(['created_at' => '9999-12-31 10:00:00']);
+        $wizard = fn (string $value) => $this
+            ->createEloquentWizardWithFilters(['created_at' => $value])
+            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::DYNAMIC));
+
+        $this->assertSame(TestModel::count(), $wizard('<=9999-12-31')->get()->count());
+        $this->assertSame([], $wizard('>9999-12-31')->get()->modelKeys());
+        $this->assertSame([$last->id], $wizard('>9999-12-30')->get()->modelKeys());
+    }
+
     /**
      * @return array<string, array{string, string, string}>
      */

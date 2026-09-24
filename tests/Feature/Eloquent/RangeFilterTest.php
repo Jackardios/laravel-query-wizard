@@ -307,6 +307,19 @@ class RangeFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function date_range_filter_upper_date_includes_the_last_four_digit_day(): void
+    {
+        $this->models->first()->forceFill(['created_at' => '9999-12-31 10:00:00'])->save();
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['created_at' => ['to' => '9999-12-31']])
+            ->allowedFilters(EloquentFilter::dateRange('created_at'))
+            ->get();
+
+        $this->assertCount($this->models->count(), $models);
+    }
+
+    #[Test]
     public function date_range_filter_upper_date_time_is_inclusive(): void
     {
         $query = $this

@@ -205,9 +205,19 @@ class OperatorFilter extends AbstractFilter
             return [$operator, $date->value];
         }
 
+        $nextDay = $date->value->modify('+1 day');
+
+        // 10000-01-01 sorts before every four-digit date as text, so the last day compares by its last second.
+        if ((int) $nextDay->format('Y') > 9999) {
+            return match ($operator) {
+                FilterOperator::GREATER_THAN, FilterOperator::LESS_THAN_OR_EQUAL => [$operator, $date->value->setTime(23, 59, 59)],
+                default => [$operator, $date->value->format('Y-m-d')],
+            };
+        }
+
         return match ($operator) {
-            FilterOperator::GREATER_THAN => [FilterOperator::GREATER_THAN_OR_EQUAL, $date->value->modify('+1 day')->format('Y-m-d')],
-            FilterOperator::LESS_THAN_OR_EQUAL => [FilterOperator::LESS_THAN, $date->value->modify('+1 day')->format('Y-m-d')],
+            FilterOperator::GREATER_THAN => [FilterOperator::GREATER_THAN_OR_EQUAL, $nextDay->format('Y-m-d')],
+            FilterOperator::LESS_THAN_OR_EQUAL => [FilterOperator::LESS_THAN, $nextDay->format('Y-m-d')],
             default => [$operator, $date->value->format('Y-m-d')],
         };
     }

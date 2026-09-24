@@ -186,7 +186,14 @@ final class DateRangeFilter extends AbstractRangeFilter
         }
 
         if ($date->dateOnly && $upper) {
-            return ['<', $this->formatBound($date->value->modify('+1 day'), true)];
+            $nextDay = $date->value->modify('+1 day');
+
+            // 10000-01-01 sorts before every four-digit date as text, so the last day ends at its last second.
+            if ((int) $nextDay->format('Y') > 9999 && $this->dateFormat !== self::UNIX_TIMESTAMP_FORMAT) {
+                return ['<=', $this->formatBound($date->value->setTime(23, 59, 59), false)];
+            }
+
+            return ['<', $this->formatBound($nextDay, true)];
         }
 
         return [$upper ? '<=' : '>=', $this->formatBound($date->value, $date->dateOnly)];
