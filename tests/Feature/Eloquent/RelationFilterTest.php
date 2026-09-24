@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Enums\FilterOperator;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
+use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionProperty;
 
 #[Group('eloquent')]
 #[Group('filter')]
@@ -35,6 +38,28 @@ class RelationFilterTest extends EloquentFilterTestCase
 
         $this->assertCount(1, $models);
         $this->assertEquals($testModel->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function it_can_filter_by_a_dynamic_relation_property(): void
+    {
+        $resolvers = new ReflectionProperty(Model::class, 'relationResolvers');
+        $previous = $resolvers->getValue();
+        TestModel::resolveRelationUsing('dynamicRelated', fn (TestModel $model) => $model->hasMany(RelatedModel::class, 'test_model_id'));
+
+        try {
+            $testModel = $this->models->first();
+            RelatedModel::factory()->create(['test_model_id' => $testModel->id, 'name' => 'dynamic_name']);
+
+            $models = $this
+                ->createEloquentWizardWithFilters(['dynamicRelated.name' => 'dynamic_name'])
+                ->allowedFilters(EloquentFilter::exact('dynamicRelated.name'))
+                ->get();
+
+            $this->assertSame([$testModel->id], $models->modelKeys());
+        } finally {
+            $resolvers->setValue(null, $previous);
+        }
     }
 
     #[Test]

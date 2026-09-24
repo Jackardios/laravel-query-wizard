@@ -99,7 +99,7 @@ trait HandlesRelationFiltering
         }
 
         $firstRelation = explode('.', $property)[0];
-        if (! method_exists($builder->getModel(), $firstRelation)) {
+        if (! $builder->getModel()->isRelation($firstRelation)) {
             return false;
         }
 
