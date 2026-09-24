@@ -55,6 +55,13 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     /** @var array<string, array<string, string>> */
     private array $runtimeAttributesByOwner = [];
 
+    /**
+     * The request validated before the model is touched.
+     *
+     * @var array{rootFields: array<string>|null, relationFieldMap: array<string, array<string>>, appendTree: array{appends: array<string>, relations: array<string, mixed>}}|null
+     */
+    private ?array $validatedRequest = null;
+
     public function __construct(
         Model $model,
         ?QueryParametersManager $parameters = null,
@@ -248,8 +255,10 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         }
 
         $this->forgetConfigurationMemo();
+        $this->validatedRequest = null;
         $effectiveIncludes = $this->getEffectiveIncludes();
         $requestedIncludeNames = $this->resolveRequestedIncludeNames($effectiveIncludes);
+        $this->validatedRequest();
         $this->cleanUnwantedRelations($effectiveIncludes, $requestedIncludeNames);
         $this->loadMissingIncludes($effectiveIncludes, $requestedIncludeNames);
         $this->hideDisallowedFields();
@@ -259,6 +268,21 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         $this->processedScopeSignature = $currentScopeSignature;
 
         return $this->model;
+    }
+
+    /**
+     * Validate every part of the request, so an invalid one fails before
+     * relations are removed or loaded.
+     *
+     * @return array{rootFields: array<string>|null, relationFieldMap: array<string, array<string>>, appendTree: array{appends: array<string>, relations: array<string, mixed>}}
+     */
+    private function validatedRequest(): array
+    {
+        return $this->validatedRequest ??= [
+            'rootFields' => $this->resolveValidatedRootFields(),
+            'relationFieldMap' => $this->buildValidatedRelationFieldMap(),
+            'appendTree' => $this->getValidRequestedAppendsTree(),
+        ];
     }
 
     /**
@@ -499,7 +523,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 
     protected function hideDisallowedFields(): void
     {
-        $validFields = $this->resolveValidatedRootFields();
+        $validFields = $this->validatedRequest()['rootFields'];
 
         if ($validFields === null) {
             return;
@@ -520,12 +544,13 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
      */
     protected function applyRelationPostProcessing(): void
     {
+        $validatedRequest = $this->validatedRequest();
         $relationFieldTree = $this->withRuntimeAttributesInFieldTree(
-            $this->buildRelationFieldTree($this->buildValidatedRelationFieldMap()),
+            $this->buildRelationFieldTree($validatedRequest['relationFieldMap']),
             $this->runtimeAttributesByOwner
         );
 
-        $appendTree = $this->getValidRequestedAppendsTree();
+        $appendTree = $validatedRequest['appendTree'];
 
         $this->applyRelationPostProcessingToResults($this->model, $appendTree, $relationFieldTree);
     }
@@ -577,6 +602,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 
         $this->resetSafeRelationSelectState();
         $this->forgetConfigurationMemo();
+        $this->validatedRequest = null;
         $this->processed = false;
         $this->processedScopeSignature = null;
     }

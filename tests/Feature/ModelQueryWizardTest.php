@@ -22,6 +22,7 @@ use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -1110,5 +1111,42 @@ class ModelQueryWizardTest extends TestCase
         $this->assertNotSame('Formatted: ', $relatedArray['formattedName']);
 
         $this->assertQueryLogContains('select * from "related_models"');
+    }
+
+    /**
+     * @return array<string, array{array<string, mixed>, class-string<\Throwable>}>
+     */
+    public static function invalidRequestsAfterIncludes(): array
+    {
+        return [
+            'root field' => [['include' => 'relatedModels', 'fields' => ['testModel' => 'unknown']], InvalidFieldQuery::class],
+            'relation field' => [['include' => 'relatedModels', 'fields' => ['relatedModels' => 'unknown']], InvalidFieldQuery::class],
+            'append' => [['include' => 'relatedModels', 'append' => 'unknown'], InvalidAppendQuery::class],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $query
+     * @param  class-string<\Throwable>  $exception
+     */
+    #[Test]
+    #[DataProvider('invalidRequestsAfterIncludes')]
+    public function an_invalid_request_leaves_the_model_untouched(array $query, string $exception): void
+    {
+        $model = TestModel::with('otherRelatedModels')->findOrFail($this->model->id);
+
+        try {
+            $this->createModelWizardFromQuery($query, $model)
+                ->allowedIncludes('relatedModels')
+                ->allowedFields('name', 'relatedModels.name')
+                ->allowedAppends('fullname')
+                ->process();
+            $this->fail("Expected {$exception}");
+        } catch (\Throwable $thrown) {
+            $this->assertInstanceOf($exception, $thrown);
+        }
+
+        $this->assertSame(['otherRelatedModels'], array_keys($model->getRelations()));
+        $this->assertSame([], $model->getHidden());
     }
 }
