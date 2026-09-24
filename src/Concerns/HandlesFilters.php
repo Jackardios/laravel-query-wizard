@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Illuminate\Support\Arr;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 
@@ -24,6 +25,9 @@ trait HandlesFilters
 
     /** @var array<string, FilterInterface>|null */
     protected ?array $cachedEffectiveFilters = null;
+
+    /** @var array<string, list<string>>|null */
+    private ?array $cachedNestedFilterNames = null;
 
     abstract protected function normalizeStringToFilter(string $name): FilterInterface;
 
@@ -97,8 +101,40 @@ trait HandlesFilters
     }
 
     /**
+     * Allowed filter names nested under another allowed name, relative to it
+     * and keyed by it: `name` => ['first'] for `name` and `name.first`.
+     *
+     * @return array<string, list<string>>
+     */
+    private function getNestedFilterNames(): array
+    {
+        if ($this->cachedNestedFilterNames !== null) {
+            return $this->cachedNestedFilterNames;
+        }
+
+        $names = $this->resolveAllowedFilterNames($this->getEffectiveFilters());
+        $namesIndex = array_flip($names);
+        $nested = [];
+
+        foreach ($names as $name) {
+            $prefix = $name;
+
+            while (($dot = strrpos($prefix, '.')) !== false) {
+                $prefix = substr($prefix, 0, $dot);
+
+                if (isset($namesIndex[$prefix])) {
+                    $nested[$prefix][] = substr($name, $dot + 1);
+                }
+            }
+        }
+
+        return $this->cachedNestedFilterNames = $nested;
+    }
+
+    /**
      * Extract all requested filter names from request.
      *
+     * Each request key belongs to the deepest allowed filter name it falls under.
      * Uses set-based counting to prevent duplicate filter names from being counted multiple times.
      *
      * @return array<string>
@@ -115,6 +151,7 @@ trait HandlesFilters
             $requestedFilterNamesSet,
             '',
             $allowedFilterNamesIndex,
+            $this->getNestedFilterNames(),
         );
 
         return array_keys($requestedFilterNamesSet);
@@ -128,23 +165,31 @@ trait HandlesFilters
      * @param  array<string, mixed>  $filters
      * @param  array<string, true>  $namesSet
      * @param  array<string, int>  $allowedFilterNamesIndex
+     * @param  array<string, list<string>>  $nestedFilterNames  See getNestedFilterNames()
+     * @param  string|null  $owner  The allowed filter name the keys fall under
      */
     protected function extractAllRequestedFilterNamesUnique(
         array $filters,
         array &$namesSet,
         string $prefix,
         array $allowedFilterNamesIndex,
+        array $nestedFilterNames = [],
+        ?string $owner = null,
     ): void {
         foreach ($filters as $key => $value) {
             $fullKey = $prefix === '' ? (string) $key : $prefix.'.'.$key;
+            $isRecursable = is_array($value) && ! empty($value) && $this->isAssociativeArray($value);
+            $keyOwner = $owner;
 
             if (isset($allowedFilterNamesIndex[$fullKey])) {
-                $namesSet[$fullKey] = true;
+                if (! $isRecursable || ! isset($nestedFilterNames[$fullKey])) {
+                    $namesSet[$fullKey] = true;
 
-                continue;
+                    continue;
+                }
+
+                $keyOwner = $fullKey;
             }
-
-            $isRecursable = is_array($value) && ! empty($value) && $this->isAssociativeArray($value);
 
             if ($isRecursable) {
                 /** @var array<string, mixed> $value */
@@ -153,13 +198,41 @@ trait HandlesFilters
                     $namesSet,
                     $fullKey,
                     $allowedFilterNamesIndex,
+                    $nestedFilterNames,
+                    $keyOwner,
                 );
 
                 continue;
             }
 
-            $namesSet[$fullKey] = true;
+            $namesSet[$keyOwner ?? $fullKey] = true;
         }
+    }
+
+    /**
+     * The request value of a filter, without the keys that belong to filters
+     * nested under its name.
+     *
+     * @return array{bool, mixed} Whether the filter is in the request, and its value
+     */
+    protected function getOwnFilterValueFromRequest(string $name, bool $splitValues): array
+    {
+        if (! $this->getParametersManager()->hasFilter($name)) {
+            return [false, null];
+        }
+
+        $value = $this->getFilterValueFromRequest($name, $splitValues);
+        $nestedNames = $this->getNestedFilterNames()[$name] ?? [];
+
+        if ($nestedNames === [] || ! is_array($value) || $value === []) {
+            return [true, $value];
+        }
+
+        foreach ($nestedNames as $nestedName) {
+            Arr::forget($value, $nestedName);
+        }
+
+        return [$value !== [], $value];
     }
 
     protected function validateFiltersLimit(int $count): void
@@ -173,6 +246,7 @@ trait HandlesFilters
     protected function invalidateFilterCache(): void
     {
         $this->cachedEffectiveFilters = null;
+        $this->cachedNestedFilterNames = null;
     }
 
     /**

@@ -594,11 +594,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     protected function resolveFilterValue(FilterInterface $filter): mixed
     {
         $name = $this->normalizePublicPath($filter->getName());
+        $splitValues = ! $filter instanceof AbstractFilter || $filter->shouldSplitValues();
+        [$inRequest, $value] = $this->getOwnFilterValueFromRequest($name, $splitValues);
 
-        if ($this->getParametersManager()->hasFilter($name)) {
-            $splitValues = ! $filter instanceof AbstractFilter || $filter->shouldSplitValues();
-            $value = $this->getFilterValueFromRequest($name, $splitValues);
-
+        if ($inRequest) {
             if (! FilterValueParser::isBlank($value)) {
                 return $value;
             }
