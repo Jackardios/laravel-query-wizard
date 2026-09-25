@@ -27,6 +27,18 @@ class FilterEdgeCasesTest extends TestCase
     }
 
     #[Test]
+    public function a_blank_filter_parameter_applies_the_defaults(): void
+    {
+        $sql = $this
+            ->createEloquentWizardFromQuery(['filter' => ''])
+            ->allowedFilters(EloquentFilter::exact('name')->default('x'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringEndsWith('where "test_models"."name" = ?', $sql);
+    }
+
+    #[Test]
     public function empty_string_filter_value_is_treated_as_null_and_not_applied(): void
     {
         $models = $this

@@ -671,11 +671,13 @@ class QueryParametersManager
     }
 
     /**
+     * A blank string, as in ?filter=, means no filters.
+     *
      * @return Collection<string, mixed>
      */
     protected function parseFiltersParameter(mixed $filtersParameter, bool $splitValues = true): Collection
     {
-        if (is_string($filtersParameter)) {
+        if (is_string($filtersParameter) && trim($filtersParameter) !== '') {
             throw new \InvalidArgumentException(
                 'Filters parameter must be an array or null, string given. '
                 .'Use ?filter[name]=value format in the query string.'

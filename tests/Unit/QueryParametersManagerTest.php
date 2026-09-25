@@ -139,6 +139,16 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
+    public function a_blank_filter_parameter_means_no_filters(): void
+    {
+        foreach (['', ' '] as $value) {
+            $manager = new QueryParametersManager(new Request(['filter' => $value]));
+
+            $this->assertTrue($manager->getFilters()->isEmpty());
+        }
+    }
+
+    #[Test]
     public function get_filter_value_returns_direct_match(): void
     {
         $request = new Request(['filter' => ['name' => 'John']]);
