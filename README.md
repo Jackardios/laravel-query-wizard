@@ -177,7 +177,7 @@ EloquentQueryWizard::for(User::class)
 | Range | `EloquentFilter::range('price')` | `?filter[price][min]=10&filter[price][max]=100` |
 | Date Range | `EloquentFilter::dateRange('created_at')` | `?filter[created_at][from]=2024-01-01&filter[created_at][to]=2024-12-31` (ISO 8601; `to` includes the whole day) |
 | JSON Contains | `EloquentFilter::jsonContains('tags')` | `?filter[tags]=laravel,php` |
-| Operator | `EloquentFilter::operator('age', FilterOperator::GREATER_THAN)` | `?filter[age]=18` (age > 18) |
+| Operator | `EloquentFilter::operator('age', FilterOperator::GREATER_THAN)` | `?filter[age]=18` (age > 18; number or ISO date) |
 | Operator (dynamic) | `EloquentFilter::operator('price', FilterOperator::DYNAMIC)` | `?filter[price]=>=100` (price >= 100), `?filter[created_at]=<=2024-01-31` |
 | Callback | `EloquentFilter::callback('custom', fn($q, $v, $p) => ...)` | `?filter[custom]=value` |
 | Passthrough | `EloquentFilter::passthrough('context')` | Captured but not applied |
@@ -255,11 +255,11 @@ filter has to read and cannot is rejected with `InvalidFilterValue` (400), whose
 | `trashed` | `with`, `only`, `without` (`true`/`false` for with/without) |
 | `range` | decimal numbers (`10`, `-2.5`); no exponents or hex |
 | `dateRange` | a date (`2024-01-31`) or an ISO 8601 date-time (`2024-01-31T10:00:00+03:00`, `Z`, fractions); see below |
-| `operator` with `DYNAMIC` | after `>`, `>=`, `<`, `<=`: a decimal number or an ISO 8601 date |
+| `operator` with `>`, `>=`, `<`, `<=` (static or after them with `DYNAMIC`) | a decimal number or an ISO 8601 date |
 | `partial` | text or numbers (a boolean is rejected) |
 | `scope` | as many values as the scope takes, each one its parameter's type accepts: `int`/`float` take numbers, `bool` takes the booleans above, a union takes any of its types |
 
-**Dates** (`dateRange`, and `DYNAMIC` comparisons) are read in the application timezone; a date-time with an offset is
+**Dates** (`dateRange`, and `>`, `>=`, `<`, `<=` operators) are read in the application timezone; a date-time with an offset is
 converted to it, and so is a `DateTimeInterface` default. A date names the whole day: `to=2024-01-31` and
 `<=2024-01-31` match all of January 31 (`< 2024-02-01`), and `>2024-01-31` starts on February 1. Send `+` in an offset
 as `%2B`, since an unencoded `+` in a query string is a space. `dateFormat()` formats every bound for the column;

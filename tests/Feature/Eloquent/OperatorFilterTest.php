@@ -634,6 +634,78 @@ class OperatorFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    #[DataProvider('staticComparisons')]
+    public function static_comparison_reads_its_operand_like_dynamic(FilterOperator $operator, string $value, string $sqlOperator, int|string $bound): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => $value])
+            ->allowedFilters(EloquentFilter::operator('created_at', $operator))
+            ->toQuery();
+
+        $this->assertStringEndsWith("\"created_at\" {$sqlOperator} ?", $query->toSql());
+        $this->assertSame([$bound], $query->getBindings());
+    }
+
+    /**
+     * @return array<string, array{FilterOperator, string, string, int|string}>
+     */
+    public static function staticComparisons(): array
+    {
+        return [
+            'after the day' => [FilterOperator::GREATER_THAN, '2024-01-31', '>=', '2024-02-01'],
+            'up to the end of the day' => [FilterOperator::LESS_THAN_OR_EQUAL, '2024-01-31', '<', '2024-02-01'],
+            'from the day' => [FilterOperator::GREATER_THAN_OR_EQUAL, ' 2024-01-31 ', '>=', '2024-01-31'],
+            'integer' => [FilterOperator::LESS_THAN, '007', '<', 7],
+        ];
+    }
+
+    #[Test]
+    public function static_comparison_rejects_operands_that_are_not_numbers_or_dates(): void
+    {
+        $this->expectException(InvalidFilterValue::class);
+        $this->expectExceptionMessage('Filter value `M` is invalid for filter `name`. Expected a number or an ISO 8601 date.');
+
+        $this
+            ->createEloquentWizardWithFilters(['name' => 'M'])
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::GREATER_THAN))
+            ->toQuery();
+    }
+
+    #[Test]
+    public function static_comparison_compares_fractions_with_an_integer_column(): void
+    {
+        $ids = $this
+            ->createEloquentWizardWithFilters(['id' => '2.5'])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GREATER_THAN))
+            ->get()
+            ->modelKeys();
+
+        $this->assertEqualsCanonicalizing([3, 4, 5], $ids);
+        $this->assertStringEndsWith(
+            'where "test_models"."id" > CAST(? AS numeric)',
+            $this->createEloquentWizardFromQuery(['filter' => ['id' => '2.5']], $this->postgresQuery())
+                ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GREATER_THAN))
+                ->toQuery()
+                ->toSql()
+        );
+    }
+
+    #[Test]
+    public function static_comparison_keeps_a_prepared_date(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithFilters(['created_at' => 'ignored'])
+            ->allowedFilters(
+                EloquentFilter::operator('created_at', FilterOperator::LESS_THAN)
+                    ->prepareValueWith(fn () => new \DateTimeImmutable('2024-01-31 10:00:00'))
+            )
+            ->toQuery();
+
+        $this->assertStringEndsWith('"created_at" < ?', $query->toSql());
+        $this->assertSame(['2024-01-31 10:00:00'], $query->getConnection()->prepareBindings($query->getBindings()));
+    }
+
+    #[Test]
     public function dynamic_operator_reads_date_times_in_the_app_timezone(): void
     {
         $query = $this

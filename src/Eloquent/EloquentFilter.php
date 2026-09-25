@@ -138,7 +138,8 @@ final class EloquentFilter
     /**
      * Create an operator filter with configurable comparison operator.
      *
-     * Supports =, !=, >, >=, <, <=, LIKE, NOT LIKE operators.
+     * Supports =, !=, >, >=, <, <=, LIKE, NOT LIKE operators; the operand of
+     * >, >=, < and <= must be a decimal number or an ISO 8601 date.
      * Use FilterOperator::DYNAMIC to parse operator from filter value.
      *
      * Examples:

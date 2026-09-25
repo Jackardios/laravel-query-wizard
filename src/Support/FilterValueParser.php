@@ -243,6 +243,30 @@ final class FilterValueParser
     }
 
     /**
+     * The operand of a >, >=, < or <= comparison: a number (see number()) or
+     * an ISO date (see isoDate(), returned as a ParsedDate).
+     *
+     * @internal
+     */
+    public static function comparable(
+        mixed $value,
+        string|FilterInterface $filter,
+        DateTimeZone $timezone,
+        ?string $key = null
+    ): int|float|string|ParsedDate|null {
+        if (self::isBlank($value)) {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return self::number($value, $filter, $key);
+        }
+
+        return (is_string($value) ? self::readComparable(trim($value), $filter, $timezone, $key) : null)
+            ?? throw self::invalid($value, $filter, $key, 'a number or an ISO 8601 date');
+    }
+
+    /**
      * A value that may start with a comparison operator: >=, <=, >, <, != or <>.
      *
      * The operand of >, >=, < and <= is read as a number (see number()) or an
@@ -296,19 +320,21 @@ final class FilterValueParser
             return [$operator, $operand];
         }
 
-        $operand = trim($operand);
+        $operand = self::readComparable(trim($operand), $filter, $timezone, $key)
+            ?? throw self::invalid($value, $filter, $key, "a number or an ISO 8601 date after `{$matches[1]}`");
 
-        if (preg_match(self::NUMBER_PATTERN, $operand) === 1) {
-            return [$operator, self::number($operand, $filter, $key)];
-        }
+        return [$operator, $operand];
+    }
 
-        $date = self::readIsoDate($operand, $timezone);
-
-        if ($date === null) {
-            throw self::invalid($value, $filter, $key, "a number or an ISO 8601 date after `{$matches[1]}`");
-        }
-
-        return [$operator, $date];
+    private static function readComparable(
+        string $operand,
+        string|FilterInterface $filter,
+        DateTimeZone $timezone,
+        ?string $key
+    ): int|float|string|ParsedDate|null {
+        return preg_match(self::NUMBER_PATTERN, $operand) === 1
+            ? self::number($operand, $filter, $key)
+            : self::readIsoDate($operand, $timezone);
     }
 
     private static function readIsoDate(string $value, DateTimeZone $timezone): ?ParsedDate

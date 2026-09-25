@@ -25,10 +25,10 @@ use Stringable;
  * Supports static operators (=, !=, >, >=, <, <=, LIKE, NOT LIKE) or dynamic
  * operator parsing from the filter value itself.
  *
- * With DYNAMIC, the operand of >, >=, < and <= must be a decimal number or an
- * ISO 8601 date, read in the application timezone; anything else is rejected
- * with a 400. A date names the whole day, so `<=2024-01-31` matches all of
- * January 31. An operator without an operand is absent.
+ * The operand of >, >=, < and <=, static or DYNAMIC, must be a decimal number
+ * or an ISO 8601 date, read in the application timezone; anything else is
+ * rejected with a 400. A date names the whole day, so `<=2024-01-31` matches
+ * all of January 31. A DYNAMIC operator without an operand is absent.
  *
  * @phpstan-consistent-constructor
  */
@@ -97,6 +97,14 @@ class OperatorFilter extends AbstractFilter
             if ($operator === null) {
                 return null;
             }
+        } elseif (self::isComparison($operator) && ! is_array($value) && ! $value instanceof DateTimeInterface) {
+            $operand = FilterValueParser::comparable($value, $this, new DateTimeZone(date_default_timezone_get()));
+
+            if ($operand === null) {
+                return null;
+            }
+
+            [$operator, $value] = self::comparison($operator, $operand);
         }
 
         if (self::isLike($operator)) {
@@ -132,7 +140,7 @@ class OperatorFilter extends AbstractFilter
             default => null,
         };
 
-        if ($comparison !== null && $this->operator === FilterOperator::DYNAMIC && (is_float($actualValue) || (is_string($actualValue) && is_numeric($actualValue)))) {
+        if ($comparison !== null && (is_float($actualValue) || (is_string($actualValue) && is_numeric($actualValue)))) {
             return NumericComparison::where($builder, $qualifiedColumn, $comparison, $actualValue);
         }
 
@@ -144,6 +152,15 @@ class OperatorFilter extends AbstractFilter
     private static function isLike(FilterOperator $operator): bool
     {
         return $operator === FilterOperator::LIKE || $operator === FilterOperator::NOT_LIKE;
+    }
+
+    private static function isComparison(FilterOperator $operator): bool
+    {
+        return match ($operator) {
+            FilterOperator::GREATER_THAN, FilterOperator::GREATER_THAN_OR_EQUAL,
+            FilterOperator::LESS_THAN, FilterOperator::LESS_THAN_OR_EQUAL => true,
+            default => false,
+        };
     }
 
     /**
@@ -203,8 +220,14 @@ class OperatorFilter extends AbstractFilter
             return [null, null];
         }
 
-        [$operator, $operand] = $parsed;
+        return self::comparison(...$parsed);
+    }
 
+    /**
+     * @return array{0: FilterOperator, 1: mixed}
+     */
+    private static function comparison(FilterOperator $operator, mixed $operand): array
+    {
         return $operand instanceof ParsedDate ? self::dateComparison($operator, $operand) : [$operator, $operand];
     }
 

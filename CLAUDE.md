@@ -86,7 +86,7 @@ $wizard->getSubject();                  // Get underlying builder without buildi
 | JsonContains | `EloquentFilter::jsonContains('col')` | `?filter[col]=a,b` |
 | Callback | `EloquentFilter::callback('n', fn($q, $v, $p) => ...)` | `?filter[n]=val` |
 | Passthrough | `EloquentFilter::passthrough('n')` | Captured but not applied |
-| Operator | `EloquentFilter::operator('col', FilterOperator::GREATER_THAN)` | `?filter[col]=100` |
+| Operator | `EloquentFilter::operator('col', FilterOperator::GREATER_THAN)` | `?filter[col]=100` (number or ISO date for `>`/`>=`/`<`/`<=`) |
 | Operator (dynamic) | `EloquentFilter::operator('col', FilterOperator::DYNAMIC)` | `?filter[col]=>=100` (number or ISO date after `>`/`>=`/`<`/`<=`) |
 
 **FilterOperator enum:** `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`, `LIKE`, `NOT_LIKE`, `DYNAMIC`
@@ -188,9 +188,9 @@ Config values are validated when read (`InvalidArgumentException` naming the key
 ## Common Gotchas
 
 ### 0. Unreadable filter values are 400s, blank values are absent
-`asBoolean()`, null, trashed, range, dateRange, DYNAMIC and partial filters throw `InvalidFilterValue` for values they
-cannot read; `disable_invalid_filter_query_exception` only covers unknown filter names. Whitespace, `,` and lists of
-blanks apply no condition.
+`asBoolean()`, null, trashed, range, dateRange, comparison operator and partial filters throw `InvalidFilterValue` for
+values they cannot read; `disable_invalid_filter_query_exception` only covers unknown filter names. Whitespace, `,` and
+lists of blanks apply no condition.
 
 ### 1. `allowedFilters([])` vs no call
 ```php
