@@ -621,8 +621,6 @@ class EloquentQueryWizard extends BaseQueryWizard
         $preservedSelectExpressions = $this->collectPreservedSelectExpressions();
         $preservedSelectAliases = $this->collectPreservedSelectAliases($preservedSelectExpressions);
 
-        $fields = $this->applySafeRootFieldRequirements($fields);
-
         if (! in_array('*', $fields, true)) {
             $this->appendColumns($fields, $eagerLoadColumns);
         }
@@ -658,17 +656,17 @@ class EloquentQueryWizard extends BaseQueryWizard
             }
         }
 
-        $this->prepareSafeRelationSelectPlan($this->subject->getModel(), $relationshipPaths);
+        $safeFields = $this->safeRelationFieldsByPath($relationshipPaths);
         $this->registerRuntimeAttributes($validRequestedIncludes, $includesIndex);
 
         foreach ($validRequestedIncludes as $includeName) {
             $include = $includesIndex[$includeName];
 
-            $columns = $include->getType() === 'relationship'
-                ? $this->getSafeRelationSelectColumns($include->getRelation())
+            $fields = $include->getType() === 'relationship'
+                ? ($safeFields[$include->getRelation()] ?? null)
                 : null;
-            $select = $columns === null ? null : function ($query) use ($columns): void {
-                $this->applySafeRelationSelectToQuery($query, $columns);
+            $select = $fields === null ? null : function ($query) use ($fields): void {
+                $this->applyLazySafeRelationSelect($query, $fields);
             };
 
             if ($include instanceof RelationshipInclude) {

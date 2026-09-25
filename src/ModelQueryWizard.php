@@ -346,21 +346,20 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
             }
         }
 
-        $relationshipPaths = array_values(array_unique($relationshipRequests));
-        $this->prepareSafeRelationSelectPlan($this->model, $relationshipPaths);
+        $safeFields = $this->safeRelationFieldsByPath(array_values(array_unique($relationshipRequests)));
 
         $relationsToLoad = [];
         foreach ($relationshipRequests as $relationPath) {
-            $columns = $this->getSafeRelationSelectColumns($relationPath);
+            $fields = $safeFields[$relationPath] ?? null;
 
-            if ($columns === null) {
+            if ($fields === null) {
                 $relationsToLoad[] = $relationPath;
 
                 continue;
             }
 
-            $relationsToLoad[$relationPath] = function ($query) use ($columns): void {
-                $this->applySafeRelationSelectToQuery($query, $columns);
+            $relationsToLoad[$relationPath] = function ($query) use ($fields): void {
+                $this->applyLazySafeRelationSelect($query, $fields);
             };
         }
 

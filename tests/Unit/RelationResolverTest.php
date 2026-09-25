@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Jackardios\QueryWizard\Support\RelationResolver;
@@ -12,9 +13,27 @@ use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use ReflectionProperty;
 
 class RelationResolverTest extends TestCase
 {
+    /** @var array<string, array<string, mixed>> */
+    private array $relationResolvers;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->relationResolvers = (new ReflectionProperty(Model::class, 'relationResolvers'))->getValue();
+    }
+
+    protected function tearDown(): void
+    {
+        (new ReflectionProperty(Model::class, 'relationResolvers'))->setValue(null, $this->relationResolvers);
+
+        parent::tearDown();
+    }
+
     #[Test]
     public function nested_paths_reuse_the_resolved_parent_relation(): void
     {

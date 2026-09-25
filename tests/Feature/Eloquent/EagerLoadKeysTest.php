@@ -139,6 +139,43 @@ class EagerLoadKeysTest extends TestCase
     }
 
     #[Test]
+    public function relation_fieldsets_build_each_included_relation_only_for_the_eager_load(): void
+    {
+        $calls = [];
+        TestModel::resolveRelationUsing('countedRelated', function (TestModel $model) use (&$calls) {
+            $calls[] = 'countedRelated';
+
+            return $model->hasMany(RelatedModel::class, 'test_model_id');
+        });
+        RelatedModel::resolveRelationUsing('countedNested', function (RelatedModel $model) use (&$calls) {
+            $calls[] = 'countedNested';
+
+            return $model->hasMany(NestedRelatedModel::class, 'related_model_id');
+        });
+        $query = [
+            'include' => 'countedRelated,countedRelated.countedNested',
+            'fields' => ['testModel' => 'name', 'countedRelated' => 'name', 'countedRelated.countedNested' => 'name'],
+        ];
+
+        $models = $this->wizard(TestModel::query(), $query)
+            ->allowedIncludes('countedRelated', 'countedRelated.countedNested')
+            ->allowedFields('name', 'countedRelated.name', 'countedRelated.countedNested.name')
+            ->get();
+
+        $this->assertSame(['name'], array_keys($models->first()->countedRelated->first()->countedNested->first()->toArray()));
+        $this->assertSame('select "name", "test_model_id", "id" from "related_models" where "related_models"."test_model_id" in (1, 2)', $this->queryFrom('related_models'));
+        $this->assertSame(['countedRelated' => 2, 'countedNested' => 2], array_count_values($calls));
+
+        $calls = [];
+        (new ModelQueryWizard(TestModel::query()->firstOrFail(), new QueryParametersManager(new Request($query))))
+            ->allowedIncludes('countedRelated', 'countedRelated.countedNested')
+            ->allowedFields('name', 'countedRelated.name', 'countedRelated.countedNested.name')
+            ->process();
+
+        $this->assertSame(['countedRelated' => 1, 'countedNested' => 1], array_count_values($calls));
+    }
+
+    #[Test]
     public function eager_load_of_an_unknown_relation_type_keeps_the_full_root_select(): void
     {
         TestModel::resolveRelationUsing('customRelated', fn (TestModel $model) => new class(RelatedModel::query(), $model) extends Relation

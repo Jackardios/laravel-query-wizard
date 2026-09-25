@@ -17,11 +17,12 @@ use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Support\RelationResolver;
 
 /**
- * Builds a reusable "safe relation select" plan.
+ * Narrows eager-load queries to the relation sparse fields.
  *
- * The plan constrains eager-load queries for relation sparse fields while
- * auto-injecting technical keys required by Eloquent relation matching.
- * Only relation types with predictable key requirements are optimized.
+ * The technical keys Eloquent needs to match the relations are added to the
+ * selected columns. Only relation types with predictable key requirements are
+ * narrowed. Wizards that eager load through constraints resolve the keys
+ * lazily per relation query; others prepare the whole plan up front.
  */
 trait HandlesSafeRelationSelect
 {
@@ -102,7 +103,7 @@ trait HandlesSafeRelationSelect
     }
 
     /**
-     * Prepare safe relation-select plan from validated relationship includes.
+     * Prepare the whole safe relation-select plan from validated relationship includes.
      *
      * @param  array<string>  $requestedRelationshipPaths
      */
@@ -125,6 +126,56 @@ trait HandlesSafeRelationSelect
 
         $this->computeRootRequiredFields($paths, $resolver);
         $this->computeRelationSelectColumns($paths, $pathIndex, $appendPathIndex, $resolver);
+    }
+
+    /**
+     * Validated fieldsets of the requested relation paths that may be narrowed.
+     *
+     * @param  array<string>  $paths
+     * @return array<string, array<string>>
+     */
+    protected function safeRelationFieldsByPath(array $paths): array
+    {
+        if (! $this->getConfig()->isSafeRelationSelectEnabled() || $paths === []) {
+            return [];
+        }
+
+        $fieldMap = $this->validatedRelationFieldMap();
+        if ($fieldMap === []) {
+            return [];
+        }
+
+        $pathIndex = array_fill_keys($paths, true);
+        $appendPathIndex = array_fill_keys($this->resolveRequestedAppendRelationPaths(), true);
+        $result = [];
+
+        foreach ($fieldMap as $path => $fields) {
+            if ($this->shouldComputeSelectForPath($path, $fields, $pathIndex, $appendPathIndex)) {
+                $result[$path] = $fields;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Narrow an eager-load relation query to the fieldset and the keys it needs.
+     *
+     * Runs as the eager-load constraint on the relation Eloquent already built, so the wizard does not build it again.
+     *
+     * @param  array<string>  $fields
+     */
+    protected function applyLazySafeRelationSelect(mixed $query, array $fields): void
+    {
+        if (! $query instanceof Relation || ! $this->isSafeRelationSelectable($query) || $this->relationHasModelAppends($query)) {
+            return;
+        }
+
+        $columns = [];
+        $this->appendColumns($columns, $fields);
+        $this->appendColumns($columns, $this->resolveRelatedRequiredColumns($query), true);
+
+        $this->applySafeRelationSelectToQuery($query, $this->qualifySafeRelationColumns($query, $columns));
     }
 
     /**
