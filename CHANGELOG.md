@@ -68,7 +68,7 @@ Removed:
 - Post-processed wrappers `lazyById()`, `lazyByIdDesc()`, `chunkByIdDesc()`, `eachById()`, `each()`, `chunkMap()`;
   finders called through the wizard (`find()`, `sole()`, `firstWhere()`, ...) post-process their results.
 - Extension points marked `@api`, including `rollbackFailedBuild()`, `hasEffectiveConstraint()`,
-  `applyIncludeKeepingEagerLoads()`, `resolveAppendAccessorModel()` and `QueryWizardConfig::snapshot()`.
+  `resolveAppendAccessorModel()` and `QueryWizardConfig::snapshot()`.
 
 ### Changed
 

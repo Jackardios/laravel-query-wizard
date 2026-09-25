@@ -196,7 +196,7 @@ a later TypeError).
 
 - `AbstractFilter::$prepareValueCallback` is now `$valuePreparers` (a list).
 - Removed without replacement: `NullFilter::strict()`, `DateRangeFilter::strict()`,
-  `OperatorFilter::requiresNumericValue()`, `QueryParametersManager::convertFiltersArray()` (see `convertFilterKeys()`).
+  `OperatorFilter::requiresNumericValue()`, `QueryParametersManager::convertFiltersArray()`.
 - `ParsesRangeValues::normalizeRangeValue()` takes the bound's key as a second argument.
 - New extension points are listed under [Extending](README.md#extending) in the README; they and the classes marked
   `@api` are the supported surface. Classes marked `@internal` may change in any release, among them

@@ -157,8 +157,6 @@ class OperatorFilter extends AbstractFilter
      * @param  Builder<Model>  $builder
      * @param  array<mixed>  $values
      * @return Builder<Model>
-     *
-     * @api
      */
     protected function applyLike(Builder $builder, string $column, bool $not, array $values): Builder
     {
@@ -206,8 +204,6 @@ class OperatorFilter extends AbstractFilter
      * are compared for equality. See FilterValueParser::dynamic().
      *
      * @return array{0: FilterOperator|null, 1: mixed}
-     *
-     * @api
      */
     protected function parseDynamicOperator(mixed $value): array
     {

@@ -94,6 +94,8 @@ final class FilterValueParser
      * with, only or without; true and false stand for with and without.
      *
      * @return 'with'|'only'|'without'|null
+     *
+     * @internal
      */
     public static function trashedMode(mixed $value, string|FilterInterface $filter, ?string $key = null): ?string
     {
@@ -187,6 +189,8 @@ final class FilterValueParser
     /**
      * An ISO date as isoDate() reads it, or any other date PHP can read, such
      * as "yesterday" or "next monday", except a single letter.
+     *
+     * @internal
      */
     public static function lenientDate(
         mixed $value,
@@ -214,6 +218,8 @@ final class FilterValueParser
 
     /**
      * Whole seconds since the Unix epoch.
+     *
+     * @internal
      */
     public static function unixTimestamp(mixed $value, string|FilterInterface $filter, ?string $key = null): ?int
     {
@@ -245,6 +251,8 @@ final class FilterValueParser
      * a blank operand is absent, and a list may not hold operators.
      *
      * @return array{0: FilterOperator, 1: mixed}|null
+     *
+     * @internal
      */
     public static function dynamic(
         mixed $value,

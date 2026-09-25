@@ -216,8 +216,6 @@ class QueryParametersManager
      *
      * @param  array<string|int, mixed>  $filters
      * @return array<string|int, mixed>
-     *
-     * @api
      */
     protected function convertFilterKeys(array $filters): array
     {
@@ -592,8 +590,6 @@ class QueryParametersManager
      * A JSON body that is not blank must be a JSON object.
      *
      * @throws InvalidRequestBody
-     *
-     * @api
      */
     protected function assertJsonObjectBody(string $content): void
     {

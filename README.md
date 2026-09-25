@@ -761,13 +761,12 @@ the supported API:
 
 | Hook | Purpose |
 |------|---------|
-| `Support\FilterValueParser` | Read request values the way built-in filters do: `isBlank()`, `boolean()`, `number()`, `isoDate()`, `lenientDate()`, `unixTimestamp()`, `trashedMode()`, `dynamic()`; unreadable values throw `InvalidFilterValue` |
+| `Support\FilterValueParser` | Read request values the way built-in filters do: `isBlank()`, `boolean()`, `number()`, `isoDate()`; unreadable values throw `InvalidFilterValue` |
 | `Support\ParsedDate` | Result of the date readers: `value` (`DateTimeImmutable`) and `dateOnly` |
 | `AbstractFilter::supportsBooleanLists()` | Return `false` when `asBoolean()` must reject lists |
 | `hasEffectiveConstraint(mixed $value): bool` | For filters using `HandlesRelationFiltering`: return `false` when the value adds no condition, so no `whereHas` is added |
 | `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |
 | `rollbackFailedBuild(): void` | Wizard subclasses reset their own state after a build throws (call the parent) |
-| `applyIncludeKeepingEagerLoads()` | Apply an include while keeping existing eager-load constraints |
 | `resolveAppendAccessorModel(string $relationPath): ?Model` | The model whose accessors a wildcard append must name (`null` = no check) |
 | `QueryWizardConfig::snapshot()` | Configuration fixed at the time of the call |
 

@@ -227,8 +227,6 @@ trait HandlesFilters
      * nested under its name.
      *
      * @return array{bool, mixed} Whether the filter is in the request, and its value
-     *
-     * @api
      */
     protected function getOwnFilterValueFromRequest(string $name, bool $splitValues): array
     {
