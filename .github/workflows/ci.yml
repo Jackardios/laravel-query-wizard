@@ -362,10 +362,16 @@ jobs:
 
       # Report-only until the surviving mutants are triaged; minMsi in infection.json5 then becomes the floor.
       # A full run takes too long for every push, so pushes and pull requests mutate only changed lines.
+      # A push compares with the commit it replaced; a new or rewritten branch falls back to the default branch.
       - name: Run mutation testing on changed lines
         if: github.event_name == 'push' || github.event_name == 'pull_request'
+        env:
+          BEFORE: ${{ github.event.before }}
         run: |
           base="origin/${{ github.base_ref || github.event.repository.default_branch }}"
+          if [ "${{ github.event_name }}" = push ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            base="${BEFORE}"
+          fi
           infection --threads=max --no-progress --git-diff-lines --git-diff-base="${base}" --ignore-msi-with-no-mutations
 
       - name: Run mutation testing
