@@ -85,12 +85,18 @@ class OperatorFilter extends AbstractFilter
 
     protected function hasEffectiveConstraint(mixed $value): bool
     {
-        if ($this->operator === FilterOperator::DYNAMIC) {
+        $operator = $this->operator;
+
+        if ($operator === FilterOperator::DYNAMIC) {
             [$operator, $value] = $this->parseDynamicOperator($value);
 
             if ($operator === null) {
                 return false;
             }
+        }
+
+        if (self::isLike($operator)) {
+            return self::searchableValues((array) $value) !== [];
         }
 
         return $value !== [];
@@ -156,7 +162,7 @@ class OperatorFilter extends AbstractFilter
      */
     protected function applyLike(Builder $builder, string $column, bool $not, array $values): Builder
     {
-        $values = array_values(array_filter($values, static fn (mixed $value): bool => ! FilterValueParser::isBlank($value)));
+        $values = self::searchableValues($values);
 
         if ($values === []) {
             return $builder;
@@ -173,6 +179,15 @@ class OperatorFilter extends AbstractFilter
                 $query->whereRaw($sql, [LikeClause::containing($this->likeText($value))], $not ? 'and' : 'or');
             }
         });
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return list<mixed>
+     */
+    private static function searchableValues(array $values): array
+    {
+        return array_values(array_filter($values, static fn (mixed $value): bool => ! FilterValueParser::isBlank($value)));
     }
 
     private function likeText(mixed $value): string

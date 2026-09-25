@@ -334,6 +334,18 @@ class OperatorFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function a_relation_like_filter_of_blank_values_adds_no_condition(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithFilters(['relatedModels.name' => 'x'])
+            ->allowedFilters(EloquentFilter::operator('relatedModels.name', FilterOperator::LIKE)->prepareValueWith(fn () => ' '))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringNotContainsString('exists', $sql);
+    }
+
+    #[Test]
     public function a_like_list_ignores_whitespace_items(): void
     {
         TestModel::factory()->create(['name' => 'with space']);
