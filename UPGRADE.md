@@ -32,6 +32,7 @@ requests (see [Includes](#includes)), so flush response caches after deploying.
 | `range` | bounds bound as strings; non-numeric bound dropped | decimal numbers (no exponents or hex), bound as int/float, else 400 |
 | `dateRange` | any `strtotime()` string bound raw; unparseable bound dropped | a date or an ISO 8601 date-time, else 400; see below |
 | `operator` `DYNAMIC` | non-numeric operand → filter skipped (`>=2024-01-31` never applied) | decimal number or ISO 8601 date after `>`, `>=`, `<`, `<=`, else 400 |
+| `operator` `>`, `>=`, `<`, `<=` | value bound as sent (`name > 'M'`, dates compared as text) | decimal number or ISO 8601 date, else 400; a date names the whole day |
 | `partial` | `true` → `%1%`, `false` → `%%` (matches all) | booleans and objects → 400 (numbers are still searched as text) |
 
 To keep the old skip-on-garbage behavior of a boolean filter:
@@ -179,7 +180,10 @@ a later TypeError).
   top-level names with nested keys as sent.
 - With `request_data_source` = `body`, a JSON request whose body is malformed or not a JSON object → 400
   `InvalidRequestBody` (before: treated as no parameters, returning unfiltered rows).
-- Each build reads the configuration once; a `config()->set()` at runtime applies from the next build.
+- Each build reads the configuration once; a `config()->set()` at runtime applies from the next build. The parameters
+  manager reads parameter names and separators once per request (until `reset()` or `setRequest()`).
+- `optimizations.relation_select_mode` is removed: sparse fieldsets always keep the key columns eager loading needs
+  (`'off'` left relations unmatched). A published key is ignored.
 - The scoped `QueryParametersManager` follows a rebound request, so feature tests with several requests per test no
   longer need `forgetScopedInstances()`.
 
@@ -199,6 +203,14 @@ a later TypeError).
 - Removed without replacement: `NullFilter::strict()`, `DateRangeFilter::strict()`,
   `OperatorFilter::requiresNumericValue()`, `QueryParametersManager::convertFiltersArray()`.
 - `ParsesRangeValues::normalizeRangeValue()` takes the bound's key as a second argument.
+- Filters using `HandlesRelationFiltering` override `resolveConstraint()` instead of `hasEffectiveConstraint()`;
+  `applyOnQuery()` receives what it returns. `ExactFilter` returns the value unchanged.
+- Filters override `validateValueShape()` only: `validateIncomingValueShape()`, `validatePreparedValueShape()` and
+  `disallowStructuredInput()` are removed.
+- Also removed: `Contracts\WizardContextInterface`, `create()` on the `Max*Exceeded` exceptions (use `new`),
+  `AbstractRangeFilter::applyOnQuery()` and `formatValue()`,
+  `BaseQueryWizard::apply{Filters,Sorts,Includes,Fields}ToSubject()`, `QueryWizardConfig::getRelationSelectMode()` and
+  `isSafeRelationSelectEnabled()`.
 - New extension points are listed under [Extending](README.md#extending) in the README; they and the classes marked
   `@api` are the supported surface. Classes marked `@internal` may change in any release, among them
   `Support\ParameterParser`, `FilterValueTransformer`, `NameConverter`, `RelationResolver` and `DotNotationTreeBuilder`.

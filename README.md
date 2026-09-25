@@ -666,7 +666,8 @@ Configuration values are validated when they are read: an invalid limit, separat
 characters), parameter name (a non-empty string, or `null` to turn the parameter off), `request_data_source`
 or boolean option (`true`/`false`, or a string such as `'false'` or `'off'`) throws
 `InvalidArgumentException` naming the key. A key missing from the published file takes the
-package default. Each build reads the configuration once, so a `config()->set()` at runtime applies from the next build.
+package default. Each build reads the configuration once, so a `config()->set()` at runtime applies from the next build;
+parameter names and separators apply from the next request.
 
 With `convert_parameters_to_snake_case` enabled, only the names of filters, sorts, includes, fields and appends are
 converted. Keys inside a filter value (a range's `minKey()`, a structured callback payload) are passed as sent, and when
