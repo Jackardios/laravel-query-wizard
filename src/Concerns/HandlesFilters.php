@@ -29,6 +29,13 @@ trait HandlesFilters
     private ?array $cachedNestedFilterNames = null;
 
     /**
+     * Schema default filters, read once while the filters are resolved.
+     *
+     * @var array<string, mixed>|null
+     */
+    private ?array $schemaDefaultFilters = null;
+
+    /**
      * @api
      */
     abstract protected function normalizeStringToFilter(string $name): FilterInterface;
@@ -286,6 +293,6 @@ trait HandlesFilters
      */
     protected function getSchemaDefaultFilters(): array
     {
-        return $this->getSchema()?->defaultFilters($this) ?? [];
+        return $this->schemaDefaultFilters ??= $this->getSchema()?->defaultFilters($this) ?? [];
     }
 }

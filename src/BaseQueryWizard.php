@@ -64,6 +64,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     private bool $building = false;
 
+    /** @var array<string, mixed> */
+    private array $builtPassthroughFilters = [];
+
     /**
      * Build-scope signature (parameters manager + request identity) used to
      * detect stale build cache when a wizard instance crosses request boundary.
@@ -93,6 +96,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $this->built = false;
         $this->builtScopeSignature = null;
+        $this->builtPassthroughFilters = [];
         $this->forgetConfigurationMemo();
         $this->invalidateFilterCache();
         $this->invalidateSortCache();
@@ -270,8 +274,12 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             $includes = $this->resolveIncludesToApply();
             $fields = $this->resolveValidatedRootFields();
 
-            foreach ($filters as ['filter' => $filter, 'value' => $value]) {
-                if ($filter->getType() !== 'passthrough') {
+            $passthroughFilters = [];
+
+            foreach ($filters as $name => ['filter' => $filter, 'value' => $value]) {
+                if ($filter->getType() === 'passthrough') {
+                    $passthroughFilters[$name] = $value;
+                } else {
                     $this->applyFilter($filter, $value);
                 }
             }
@@ -299,6 +307,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $this->built = true;
         $this->builtScopeSignature = $currentScopeSignature;
+        $this->builtPassthroughFilters = $passthroughFilters;
 
         return $this->subject;
     }
@@ -344,10 +353,16 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     /**
      * Get passthrough filter values from request.
      *
+     * Reuses the values of a current build, so the filters are not prepared again.
+     *
      * @return Collection<string, mixed>
      */
     public function getPassthroughFilters(): Collection
     {
+        if ($this->built && $this->builtScopeSignature === $this->resolveBuildScopeSignature()) {
+            return collect($this->builtPassthroughFilters);
+        }
+
         $result = collect();
 
         foreach ($this->resolvePreparedFilters() as $name => $resolvedFilter) {
@@ -381,22 +396,27 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $shadowedFilterNames = $this->resolveShadowedFilterNames($filters);
         $resolvedFilters = [];
+        $this->schemaDefaultFilters = null;
 
-        foreach ($filters as $name => $filter) {
-            if (isset($shadowedFilterNames[$name])) {
-                continue;
+        try {
+            foreach ($filters as $name => $filter) {
+                if (isset($shadowedFilterNames[$name])) {
+                    continue;
+                }
+
+                $preparedValue = $this->resolvePreparedFilterValue($filter);
+
+                if ($preparedValue === null) {
+                    continue;
+                }
+
+                $resolvedFilters[$name] = [
+                    'filter' => $filter,
+                    'value' => $preparedValue,
+                ];
             }
-
-            $preparedValue = $this->resolvePreparedFilterValue($filter);
-
-            if ($preparedValue === null) {
-                continue;
-            }
-
-            $resolvedFilters[$name] = [
-                'filter' => $filter,
-                'value' => $preparedValue,
-            ];
+        } finally {
+            $this->schemaDefaultFilters = null;
         }
 
         return $resolvedFilters;

@@ -342,4 +342,37 @@ class SchemaDefaultsTest extends TestCase
         $this->assertArrayNotHasKey('fullname', $model->toArray());
         $this->assertArrayHasKey('name', $model->toArray());
     }
+
+    #[Test]
+    public function schema_default_filters_are_read_once_per_build(): void
+    {
+        $schema = new class extends ResourceSchema
+        {
+            public int $defaultFiltersCalls = 0;
+
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function filters(QueryWizardInterface $wizard): array
+            {
+                return ['id', 'name', EloquentFilter::partial('title'), EloquentFilter::passthrough('custom')];
+            }
+
+            public function defaultFilters(QueryWizardInterface $wizard): array
+            {
+                $this->defaultFiltersCalls++;
+
+                return ['custom' => 'default'];
+            }
+        };
+        $wizard = $this->createEloquentWizardFromQuery([])->schema($schema);
+
+        $wizard->get();
+
+        $this->assertSame(1, $schema->defaultFiltersCalls);
+        $this->assertSame(['custom' => 'default'], $wizard->getPassthroughFilters()->all());
+        $this->assertSame(1, $schema->defaultFiltersCalls);
+    }
 }

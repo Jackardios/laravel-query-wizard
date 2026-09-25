@@ -193,4 +193,33 @@ class PassthroughFilterTest extends EloquentFilterTestCase
         // Passthrough captured
         $this->assertEquals(['custom' => 'passthrough_value'], $wizard->getPassthroughFilters()->all());
     }
+
+    #[Test]
+    public function passthrough_values_come_from_the_build_without_preparing_the_filters_again(): void
+    {
+        $prepared = [];
+        $wizard = $this
+            ->createEloquentWizardWithFilters(['name' => 'a', 'custom' => 'foo'])
+            ->allowedFilters(
+                EloquentFilter::exact('name')->prepareValueWith(function (mixed $value) use (&$prepared): mixed {
+                    $prepared[] = 'name';
+
+                    return $value;
+                }),
+                EloquentFilter::passthrough('custom')->prepareValueWith(function (string $value) use (&$prepared): string {
+                    $prepared[] = 'custom';
+
+                    return strtoupper($value);
+                }),
+            );
+
+        $wizard->get();
+
+        $this->assertSame(['custom' => 'FOO'], $wizard->getPassthroughFilters()->all());
+        $this->assertSame(['name', 'custom'], $prepared);
+
+        $wizard->allowedFilters('name', EloquentFilter::passthrough('custom'));
+
+        $this->assertSame(['custom' => 'foo'], $wizard->getPassthroughFilters()->all());
+    }
 }

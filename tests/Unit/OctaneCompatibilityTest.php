@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\QueryParametersManager;
@@ -204,6 +205,23 @@ class OctaneCompatibilityTest extends TestCase
 
         $result2 = $wizard->get();
         $this->assertCount(5, $result2);
+    }
+
+    #[Test]
+    public function built_wizard_reads_passthrough_filters_of_the_current_request(): void
+    {
+        $this->app->instance('request', new Request(['filter' => ['custom' => 'first']]));
+
+        $wizard = EloquentQueryWizard::for(TestModel::class)
+            ->allowedFilters(EloquentFilter::passthrough('custom'));
+        $wizard->get();
+
+        $this->assertSame(['custom' => 'first'], $wizard->getPassthroughFilters()->all());
+
+        $this->app->forgetScopedInstances();
+        $this->app->instance('request', new Request(['filter' => ['custom' => 'second']]));
+
+        $this->assertSame(['custom' => 'second'], $wizard->getPassthroughFilters()->all());
     }
 
     #[Test]
