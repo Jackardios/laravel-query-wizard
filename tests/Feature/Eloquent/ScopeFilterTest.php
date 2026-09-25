@@ -11,6 +11,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\NestedRelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
+use Jackardios\QueryWizard\Tests\App\Models\TypedScopeModel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -31,6 +32,53 @@ class ScopeFilterTest extends EloquentFilterTestCase
             ->get();
 
         $this->assertCount(1, $models);
+    }
+
+    #[Test]
+    public function bool_scope_parameters_read_the_value_as_a_boolean(): void
+    {
+        $bindings = fn (string $scope, string $value): array => $this
+            ->createEloquentWizardFromQuery(['filter' => [$scope => $value]], TypedScopeModel::class)
+            ->allowedFilters(EloquentFilter::scope($scope))
+            ->toQuery()
+            ->getBindings();
+
+        $this->assertSame(['no'], $bindings('flagged', 'false'));
+        $this->assertSame(['yes'], $bindings('flagged', 'on'));
+        $this->assertSame(['false'], $bindings('flaggedOrNamed', 'false'));
+        $this->assertSame([5], $bindings('countOrFlag', '5'));
+        $this->assertSame([0], $bindings('countOrFlag', 'no'));
+    }
+
+    /**
+     * @return array<string, array{string, string, string}>
+     */
+    public static function argumentsOfTheWrongType(): array
+    {
+        return [
+            'bool' => ['flagged', 'maybe', 'Expected a boolean for `flag`.'],
+            'union' => ['countOrFlag', 'maybe', 'Expected an integer or a boolean for `value`.'],
+            'model without binding' => ['user', '1', 'Expected a TestModel for `user`.'],
+            'array' => ['namesIn', 'a', 'Expected a list for `names`.'],
+            'interface' => ['createdBefore', '2024-01-01', 'Expected a DateTimeInterface for `date`.'],
+            'intersection' => ['labelled', 'x', 'Expected a Stringable&DateTimeInterface for `label`.'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('argumentsOfTheWrongType')]
+    public function arguments_that_do_not_fit_the_parameter_type_are_rejected(string $scope, string $value, string $reason): void
+    {
+        try {
+            $this
+                ->createEloquentWizardFromQuery(['filter' => [$scope => $value]], TypedScopeModel::class)
+                ->allowedFilters(EloquentFilter::scope($scope))
+                ->toQuery();
+
+            $this->fail('Expected InvalidFilterValue');
+        } catch (InvalidFilterValue $exception) {
+            $this->assertSame($reason, $exception->reason);
+        }
     }
 
     #[Test]
