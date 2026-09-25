@@ -106,7 +106,7 @@ trait HandlesSorts
     {
         $limit = $this->getConfig()->getMaxSortsCount();
         if ($limit !== null && $count > $limit) {
-            throw MaxSortsCountExceeded::create($count, $limit);
+            throw new MaxSortsCountExceeded($count, $limit);
         }
     }
 

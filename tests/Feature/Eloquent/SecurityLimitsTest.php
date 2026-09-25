@@ -290,7 +290,7 @@ class SecurityLimitsTest extends TestCase
     #[Test]
     public function max_include_depth_exceeded_exception_has_correct_properties(): void
     {
-        $exception = MaxIncludeDepthExceeded::create('a.b.c.d', 4, 3);
+        $exception = new MaxIncludeDepthExceeded('a.b.c.d', 4, 3);
 
         $this->assertEquals('a.b.c.d', $exception->include);
         $this->assertEquals(4, $exception->depth);
@@ -300,7 +300,7 @@ class SecurityLimitsTest extends TestCase
     #[Test]
     public function max_includes_count_exceeded_exception_has_correct_properties(): void
     {
-        $exception = MaxIncludesCountExceeded::create(15, 10);
+        $exception = new MaxIncludesCountExceeded(15, 10);
 
         $this->assertEquals(15, $exception->count);
         $this->assertEquals(10, $exception->maxCount);
@@ -309,7 +309,7 @@ class SecurityLimitsTest extends TestCase
     #[Test]
     public function max_filters_count_exceeded_exception_has_correct_properties(): void
     {
-        $exception = MaxFiltersCountExceeded::create(20, 15);
+        $exception = new MaxFiltersCountExceeded(20, 15);
 
         $this->assertEquals(20, $exception->count);
         $this->assertEquals(15, $exception->maxCount);
@@ -318,7 +318,7 @@ class SecurityLimitsTest extends TestCase
     #[Test]
     public function max_sorts_count_exceeded_exception_has_correct_properties(): void
     {
-        $exception = MaxSortsCountExceeded::create(10, 5);
+        $exception = new MaxSortsCountExceeded(10, 5);
 
         $this->assertEquals(10, $exception->count);
         $this->assertEquals(5, $exception->maxCount);
@@ -421,7 +421,7 @@ class SecurityLimitsTest extends TestCase
     #[Test]
     public function max_append_depth_exceeded_exception_has_correct_properties(): void
     {
-        $exception = MaxAppendDepthExceeded::create('posts.comments.body', 3, 2);
+        $exception = new MaxAppendDepthExceeded('posts.comments.body', 3, 2);
 
         $this->assertEquals('posts.comments.body', $exception->append);
         $this->assertEquals(3, $exception->depth);
@@ -433,7 +433,7 @@ class SecurityLimitsTest extends TestCase
     #[Test]
     public function max_appends_count_exceeded_exception_has_correct_properties(): void
     {
-        $exception = MaxAppendsCountExceeded::create(12, 10);
+        $exception = new MaxAppendsCountExceeded(12, 10);
 
         $this->assertEquals(12, $exception->count);
         $this->assertEquals(10, $exception->maxCount);

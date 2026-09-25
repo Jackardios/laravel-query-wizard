@@ -175,7 +175,7 @@ trait HandlesAppends
                     'max_append_depth'
                 );
             } elseif ($maxDepth !== null && $depth > $maxDepth) {
-                throw MaxAppendDepthExceeded::create(($relationPath ?? $key).".{$attributes[0]}", $depth, $maxDepth);
+                throw new MaxAppendDepthExceeded(($relationPath ?? $key).".{$attributes[0]}", $depth, $maxDepth);
             }
 
             // Validate using the request key (include name/alias), not the relation path
@@ -318,7 +318,7 @@ trait HandlesAppends
     {
         $limit = $this->getConfig()->getMaxAppendsCount();
         if ($limit !== null && $count > $limit) {
-            throw MaxAppendsCountExceeded::create($count, $limit);
+            throw new MaxAppendsCountExceeded($count, $limit);
         }
     }
 

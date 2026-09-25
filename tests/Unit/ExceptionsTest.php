@@ -41,12 +41,12 @@ class ExceptionsTest extends TestCase
             'append not allowed' => [InvalidAppendQuery::appendsNotAllowed(collect(['a']), collect()), 'append_not_allowed', 'append'],
             'field format' => [InvalidFieldQuery::invalidFormat(), 'invalid_field_format', 'fields'],
             'append format' => [InvalidAppendQuery::invalidFormat('x'), 'invalid_append_format', 'append'],
-            'filters count' => [MaxFiltersCountExceeded::create(2, 1), 'max_filters_count_exceeded', 'filter'],
-            'sorts count' => [MaxSortsCountExceeded::create(2, 1), 'max_sorts_count_exceeded', 'sort'],
-            'includes count' => [MaxIncludesCountExceeded::create(2, 1), 'max_includes_count_exceeded', 'include'],
-            'include depth' => [MaxIncludeDepthExceeded::create('a.b', 2, 1), 'max_include_depth_exceeded', 'include'],
-            'appends count' => [MaxAppendsCountExceeded::create(2, 1), 'max_appends_count_exceeded', 'append'],
-            'append depth' => [MaxAppendDepthExceeded::create('a.b', 2, 1), 'max_append_depth_exceeded', 'append'],
+            'filters count' => [new MaxFiltersCountExceeded(2, 1), 'max_filters_count_exceeded', 'filter'],
+            'sorts count' => [new MaxSortsCountExceeded(2, 1), 'max_sorts_count_exceeded', 'sort'],
+            'includes count' => [new MaxIncludesCountExceeded(2, 1), 'max_includes_count_exceeded', 'include'],
+            'include depth' => [new MaxIncludeDepthExceeded('a.b', 2, 1), 'max_include_depth_exceeded', 'include'],
+            'appends count' => [new MaxAppendsCountExceeded(2, 1), 'max_appends_count_exceeded', 'append'],
+            'append depth' => [new MaxAppendDepthExceeded('a.b', 2, 1), 'max_append_depth_exceeded', 'append'],
         ];
     }
 
@@ -326,7 +326,7 @@ class ExceptionsTest extends TestCase
     #[Test]
     public function max_filters_count_exceeded_has_readonly_properties(): void
     {
-        $exception = MaxFiltersCountExceeded::create(10, 5);
+        $exception = new MaxFiltersCountExceeded(10, 5);
 
         $this->assertEquals(10, $exception->count);
         $this->assertEquals(5, $exception->maxCount);
@@ -338,7 +338,7 @@ class ExceptionsTest extends TestCase
     #[Test]
     public function max_sorts_count_exceeded_has_readonly_properties(): void
     {
-        $exception = MaxSortsCountExceeded::create(10, 5);
+        $exception = new MaxSortsCountExceeded(10, 5);
 
         $reflection = new \ReflectionProperty($exception, 'count');
         $this->assertTrue($reflection->isReadOnly());
@@ -347,7 +347,7 @@ class ExceptionsTest extends TestCase
     #[Test]
     public function max_includes_count_exceeded_has_readonly_properties(): void
     {
-        $exception = MaxIncludesCountExceeded::create(10, 5);
+        $exception = new MaxIncludesCountExceeded(10, 5);
 
         $reflection = new \ReflectionProperty($exception, 'count');
         $this->assertTrue($reflection->isReadOnly());
@@ -356,7 +356,7 @@ class ExceptionsTest extends TestCase
     #[Test]
     public function max_appends_count_exceeded_has_readonly_properties(): void
     {
-        $exception = MaxAppendsCountExceeded::create(10, 5);
+        $exception = new MaxAppendsCountExceeded(10, 5);
 
         $reflection = new \ReflectionProperty($exception, 'count');
         $this->assertTrue($reflection->isReadOnly());
@@ -365,7 +365,7 @@ class ExceptionsTest extends TestCase
     #[Test]
     public function max_include_depth_exceeded_has_readonly_properties(): void
     {
-        $exception = MaxIncludeDepthExceeded::create('a.b.c', 3, 2);
+        $exception = new MaxIncludeDepthExceeded('a.b.c', 3, 2);
 
         $this->assertEquals('a.b.c', $exception->include);
         $this->assertEquals(3, $exception->depth);

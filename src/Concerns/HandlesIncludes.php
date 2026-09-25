@@ -280,7 +280,7 @@ trait HandlesIncludes
     {
         $limit = $this->getConfig()->getMaxIncludesCount();
         if ($limit !== null && $count > $limit) {
-            throw MaxIncludesCountExceeded::create($count, $limit);
+            throw new MaxIncludesCountExceeded($count, $limit);
         }
     }
 
@@ -296,7 +296,7 @@ trait HandlesIncludes
         $depth = substr_count($relation, '.') + 1;
         $limit = $this->getConfig()->getMaxIncludeDepth();
         if ($limit !== null && $depth > $limit) {
-            throw MaxIncludeDepthExceeded::create($include->getName(), $depth, $limit);
+            throw new MaxIncludeDepthExceeded($include->getName(), $depth, $limit);
         }
     }
 

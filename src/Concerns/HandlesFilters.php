@@ -276,7 +276,7 @@ trait HandlesFilters
     {
         $limit = $this->getConfig()->getMaxFiltersCount();
         if ($limit !== null && $count > $limit) {
-            throw MaxFiltersCountExceeded::create($count, $limit);
+            throw new MaxFiltersCountExceeded($count, $limit);
         }
     }
 

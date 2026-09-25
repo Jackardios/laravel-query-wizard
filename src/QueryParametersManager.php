@@ -315,7 +315,7 @@ class QueryParametersManager
 
         $limit = $this->settings()->getMaxFiltersCount();
         if ($limit !== null && is_array($rawValue) && count($rawValue) > $limit) {
-            throw MaxFiltersCountExceeded::create(count($rawValue), $limit);
+            throw new MaxFiltersCountExceeded(count($rawValue), $limit);
         }
 
         try {
