@@ -41,11 +41,9 @@ trait HandlesSafeRelationSelect
     abstract protected function buildValidatedRelationFieldMap(): array;
 
     /**
-     * Get effective default appends.
-     *
-     * @return array<string>
+     * @return array<string, array<string>>
      */
-    abstract protected function getEffectiveDefaultAppends(): array;
+    abstract protected function parseDefaultAppendsToGrouped(): array;
 
     /**
      * @return array<IncludeInterface>
@@ -376,28 +374,9 @@ trait HandlesSafeRelationSelect
     {
         $paths = [];
         $parameters = $this->getParametersManager();
-        $requestedAppends = $parameters->getAppends();
-        $useDefaults = ! $parameters->hasSimpleParameter('appends');
-
-        $grouped = [];
-        if ($useDefaults) {
-            foreach ($this->getEffectiveDefaultAppends() as $appendPath) {
-                if (! is_string($appendPath)) {
-                    continue;
-                }
-
-                $relationKey = Str::contains($appendPath, '.')
-                    ? Str::beforeLast($appendPath, '.')
-                    : '';
-                $appendName = Str::contains($appendPath, '.')
-                    ? Str::afterLast($appendPath, '.')
-                    : $appendPath;
-
-                $grouped[$relationKey][] = $appendName;
-            }
-        } else {
-            $grouped = $requestedAppends->all();
-        }
+        $grouped = $parameters->hasSimpleParameter('appends')
+            ? $parameters->getAppends()->all()
+            : $this->parseDefaultAppendsToGrouped();
 
         if (empty($grouped)) {
             return [];
