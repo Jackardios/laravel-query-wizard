@@ -144,7 +144,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function get(array|string $columns = ['*']): Collection
     {
-        return $this->executeCollectionQuery(fn () => $this->subject->get($columns));
+        return $this->execute(fn () => $this->subject->get($columns));
     }
 
     /**
@@ -154,7 +154,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function first(array|string $columns = ['*']): ?Model
     {
-        return $this->executeNullableModelQuery(fn () => $this->subject->first($columns));
+        return $this->execute(fn () => $this->subject->first($columns));
     }
 
     /**
@@ -166,7 +166,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function firstOrFail(array|string $columns = ['*']): Model
     {
-        return $this->executeModelQuery(fn () => $this->subject->firstOrFail($columns));
+        return $this->execute(fn () => $this->subject->firstOrFail($columns));
     }
 
     /**
@@ -182,7 +182,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         ?int $page = null,
         \Closure|int|null $total = null
     ): LengthAwarePaginator {
-        return $this->executePaginatorQuery(fn () => $this->subject->paginate($perPage, $columns, $pageName, $page, $total));
+        return $this->execute(fn () => $this->subject->paginate($perPage, $columns, $pageName, $page, $total));
     }
 
     /**
@@ -197,7 +197,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         string $pageName = 'page',
         ?int $page = null
     ): Paginator {
-        return $this->executePaginatorQuery(fn () => $this->subject->simplePaginate($perPage, $columns, $pageName, $page));
+        return $this->execute(fn () => $this->subject->simplePaginate($perPage, $columns, $pageName, $page));
     }
 
     /**
@@ -212,7 +212,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         string $cursorName = 'cursor',
         Cursor|string|null $cursor = null
     ): CursorPaginator {
-        return $this->executePaginatorQuery(function () use ($perPage, $columns, $cursorName, $cursor) {
+        return $this->execute(function () use ($perPage, $columns, $cursorName, $cursor) {
             $this->ensureCursorOrderColumnsSelected();
 
             return $this->subject->cursorPaginate($perPage, $columns, $cursorName, $cursor);
@@ -241,11 +241,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         $this->buildSubject();
 
-        return $this->subject->lazy($chunkSize)->map(function (Model $model) {
-            $this->applyPostProcessingToResults($model);
-
-            return $model;
-        });
+        return $this->postProcessingLazily($this->subject->lazy($chunkSize));
     }
 
     /**
@@ -270,11 +266,7 @@ class EloquentQueryWizard extends BaseQueryWizard
                 ->flatMap(fn (LazyCollection $chunk): array => $builder->eagerLoadRelations($chunk->values()->all()));
         }
 
-        return $models->map(function (Model $model) {
-            $this->applyPostProcessingToResults($model);
-
-            return $model;
-        });
+        return $this->postProcessingLazily($models);
     }
 
     /**
@@ -285,8 +277,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function chunkById(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
     {
-        $this->buildSubject();
-        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+        $this->buildSubjectSelecting($column, $alias);
 
         return $this->subject->chunkById($count, $this->postProcessingChunks($callback), $column, $alias);
     }
@@ -299,8 +290,7 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function chunkByIdDesc(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
     {
-        $this->buildSubject();
-        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+        $this->buildSubjectSelecting($column, $alias);
 
         return $this->subject->chunkByIdDesc($count, $this->postProcessingChunks($callback), $column, $alias);
     }
@@ -312,14 +302,9 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function eachById(callable $callback, int $count = 1000, ?string $column = null, ?string $alias = null): bool
     {
-        $this->buildSubject();
-        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+        $this->buildSubjectSelecting($column, $alias);
 
-        return $this->subject->eachById(function (Model $model, int $key) use ($callback) {
-            $this->applyPostProcessingToResults($model);
-
-            return $callback($model, $key);
-        }, $count, $column, $alias);
+        return $this->subject->eachById($this->postProcessingEach($callback), $count, $column, $alias);
     }
 
     /**
@@ -331,11 +316,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         $this->buildSubject();
 
-        return $this->subject->each(function (Model $model, int $key) use ($callback) {
-            $this->applyPostProcessingToResults($model);
-
-            return $callback($model, $key);
-        }, $count);
+        return $this->subject->each($this->postProcessingEach($callback), $count);
     }
 
     /**
@@ -364,14 +345,9 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function lazyById(int $chunkSize = 1000, ?string $column = null, ?string $alias = null): LazyCollection
     {
-        $this->buildSubject();
-        $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+        $this->buildSubjectSelecting($column, $alias);
 
-        return $this->subject->lazyById($chunkSize, $column, $alias)->map(function (Model $model) {
-            $this->applyPostProcessingToResults($model);
-
-            return $model;
-        });
+        return $this->postProcessingLazily($this->subject->lazyById($chunkSize, $column, $alias));
     }
 
     /**
@@ -381,14 +357,40 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     public function lazyByIdDesc(int $chunkSize = 1000, ?string $column = null, ?string $alias = null): LazyCollection
     {
+        $this->buildSubjectSelecting($column, $alias);
+
+        return $this->postProcessingLazily($this->subject->lazyByIdDesc($chunkSize, $column, $alias));
+    }
+
+    /**
+     * Build the subject and select the column that chunks by ID are keyed on.
+     */
+    private function buildSubjectSelecting(?string $column, ?string $alias): void
+    {
         $this->buildSubject();
         $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
+    }
 
-        return $this->subject->lazyByIdDesc($chunkSize, $column, $alias)->map(function (Model $model) {
+    /**
+     * @param  LazyCollection<int, Model>  $models
+     * @return LazyCollection<int, Model>
+     */
+    private function postProcessingLazily(LazyCollection $models): LazyCollection
+    {
+        return $models->tapEach(fn (Model $model) => $this->applyPostProcessingToResults($model));
+    }
+
+    /**
+     * @param  callable(Model, int): mixed  $callback
+     * @return \Closure(Model, int): mixed
+     */
+    private function postProcessingEach(callable $callback): \Closure
+    {
+        return function (Model $model, int $key) use ($callback): mixed {
             $this->applyPostProcessingToResults($model);
 
-            return $model;
-        });
+            return $callback($model, $key);
+        };
     }
 
     /**
@@ -1102,57 +1104,25 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * @param  callable(): Collection<int, Model>  $executor
-     * @return Collection<int, Model>
+     * Build, run the executor and post-process what it returns.
+     *
+     * @template TResult of Collection<int, Model>|Model|Paginator<int, Model>|CursorPaginator<int, Model>|null
+     *
+     * @param  callable(): TResult  $executor
+     * @return TResult
      */
-    private function executeCollectionQuery(callable $executor): Collection
-    {
-        $this->buildSubject();
-        $results = $executor();
-        $this->applyPostProcessingToResults($results);
-
-        return $results;
-    }
-
-    /**
-     * @param  callable(): ?Model  $executor
-     */
-    private function executeNullableModelQuery(callable $executor): ?Model
+    private function execute(callable $executor): mixed
     {
         $this->buildSubject();
         $result = $executor();
+
         if ($result !== null) {
-            $this->applyPostProcessingToResults($result);
+            $this->applyPostProcessingToResults(
+                $result instanceof Paginator || $result instanceof CursorPaginator ? $result->items() : $result
+            );
         }
 
         return $result;
-    }
-
-    /**
-     * @param  callable(): Model  $executor
-     */
-    private function executeModelQuery(callable $executor): Model
-    {
-        $this->buildSubject();
-        $result = $executor();
-        $this->applyPostProcessingToResults($result);
-
-        return $result;
-    }
-
-    /**
-     * @template TPaginator of LengthAwarePaginator|Paginator|CursorPaginator
-     *
-     * @param  callable(): TPaginator  $executor
-     * @return TPaginator
-     */
-    private function executePaginatorQuery(callable $executor): LengthAwarePaginator|Paginator|CursorPaginator
-    {
-        $this->buildSubject();
-        $paginator = $executor();
-        $this->applyPostProcessingToResults($paginator->items());
-
-        return $paginator;
     }
 
     /**
