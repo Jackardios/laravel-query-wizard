@@ -1111,6 +1111,11 @@ class QueryWizardTest extends TestCase
         }
 
         $this->assertSame($subject, $wizard->getSubject());
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('A build failed after the underlying builder was handed out');
+
+        $wizard->get();
     }
 
     #[Test]

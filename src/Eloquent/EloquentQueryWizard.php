@@ -80,6 +80,8 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     private bool $subjectEscaped = false;
 
+    private bool $failedWithEscapedSubject = false;
+
     private EloquentBuildState $state;
 
     /**
@@ -470,6 +472,13 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function buildSubject(): Builder|Relation
     {
+        if ($this->failedWithEscapedSubject) {
+            throw new \LogicException(
+                'A build failed after the underlying builder was handed out, so that builder holds part of the failed build. '
+                .'Create a new wizard instead of building this one again.'
+            );
+        }
+
         return parent::build();
     }
 
@@ -509,6 +518,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     /**
      * A subject already handed out by toQuery() or getSubject() is kept: the
      * caller holds that instance, so swapping it would detach them from it.
+     * It holds part of the failed build, so the wizard refuses to build again.
      */
     protected function rollbackFailedBuild(): void
     {
@@ -520,6 +530,7 @@ class EloquentQueryWizard extends BaseQueryWizard
 
         if ($this->subjectEscaped) {
             $this->subject = $subject;
+            $this->failedWithEscapedSubject = true;
         }
     }
 
