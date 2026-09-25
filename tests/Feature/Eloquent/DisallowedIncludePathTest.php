@@ -7,7 +7,6 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
-use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\QueryParametersManager;
@@ -62,7 +61,7 @@ class DisallowedIncludePathTest extends TestCase
     public function aliases_do_not_bypass_disallowed_relations(IncludeInterface $include, string $disallowed): void
     {
         try {
-            $this->wizard(['include' => $include->getName()])
+            $this->createEloquentWizardFromQuery(['include' => $include->getName()])
                 ->allowedIncludes($include)
                 ->disallowedIncludes($disallowed)
                 ->get();
@@ -75,7 +74,7 @@ class DisallowedIncludePathTest extends TestCase
     #[Test]
     public function aliased_default_includes_of_disallowed_relations_are_not_loaded(): void
     {
-        $model = $this->wizard([])
+        $model = $this->createEloquentWizardFromQuery([])
             ->allowedIncludes(EloquentInclude::relationship('relatedModels.nestedRelatedModels')->alias('nested'))
             ->disallowedIncludes('relatedModels')
             ->defaultIncludes('nested')
@@ -88,7 +87,7 @@ class DisallowedIncludePathTest extends TestCase
     #[Test]
     public function count_and_exists_includes_are_not_blocked_by_the_relation(): void
     {
-        $model = $this->wizard(['include' => 'relatedModelsCount,relatedModelsExists'])
+        $model = $this->createEloquentWizardFromQuery(['include' => 'relatedModelsCount,relatedModelsExists'])
             ->allowedIncludes(EloquentInclude::count('relatedModels'), EloquentInclude::exists('relatedModels'))
             ->disallowedIncludes('relatedModels')
             ->get()
@@ -101,7 +100,7 @@ class DisallowedIncludePathTest extends TestCase
     #[Test]
     public function sibling_relations_stay_allowed(): void
     {
-        $model = $this->wizard(['include' => 'other'])
+        $model = $this->createEloquentWizardFromQuery(['include' => 'other'])
             ->allowedIncludes(EloquentInclude::relationship('otherRelatedModels')->alias('other'))
             ->disallowedIncludes('relatedModels')
             ->get()
@@ -119,13 +118,5 @@ class DisallowedIncludePathTest extends TestCase
             ->allowedIncludes(EloquentInclude::relationship('relatedModels.nestedRelatedModels')->alias('nested'))
             ->disallowedIncludes('relatedModels')
             ->process();
-    }
-
-    /**
-     * @param  array<string, mixed>  $query
-     */
-    private function wizard(array $query): EloquentQueryWizard
-    {
-        return new EloquentQueryWizard(TestModel::query(), new QueryParametersManager(new Request($query)));
     }
 }

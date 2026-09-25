@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\ModelQueryWizard;
@@ -86,7 +84,7 @@ class DisallowedUnderWildcardTest extends TestCase
     public function disallowed_fields_are_rejected_under_wildcards(array $query, array $allowed, array $disallowed, string $field): void
     {
         try {
-            $this->wizard($query)
+            $this->createEloquentWizardFromQuery($query)
                 ->allowedIncludes('relatedModels')
                 ->allowedFields(...$allowed)
                 ->disallowedFields(...$disallowed)
@@ -104,7 +102,7 @@ class DisallowedUnderWildcardTest extends TestCase
     {
         config()->set('query-wizard.disable_invalid_field_query_exception', true);
 
-        $sql = $this->wizard(['fields' => ['testModel' => 'id,name']])
+        $sql = $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'id,name']])
             ->allowedFields('*')
             ->disallowedFields('name')
             ->toQuery()
@@ -117,7 +115,7 @@ class DisallowedUnderWildcardTest extends TestCase
     public function explicitly_allowed_names_that_are_disallowed_keep_the_listing_message(): void
     {
         try {
-            $this->wizard(['fields' => ['testModel' => 'name,unknown']])
+            $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name,unknown']])
                 ->allowedFields('id', 'name')
                 ->disallowedFields('name')
                 ->get();
@@ -131,7 +129,7 @@ class DisallowedUnderWildcardTest extends TestCase
     #[Test]
     public function requested_wildcard_still_selects_all_columns(): void
     {
-        $sql = $this->wizard(['fields' => ['testModel' => '*']])
+        $sql = $this->createEloquentWizardFromQuery(['fields' => ['testModel' => '*']])
             ->allowedFields('*')
             ->disallowedFields('name')
             ->toQuery()
@@ -143,7 +141,7 @@ class DisallowedUnderWildcardTest extends TestCase
     #[Test]
     public function disallowed_default_fields_under_a_wildcard_are_dropped_silently(): void
     {
-        $sql = $this->wizard([])
+        $sql = $this->createEloquentWizardFromQuery([])
             ->allowedFields('*')
             ->disallowedFields('name')
             ->defaultFields('id', 'name')
@@ -157,7 +155,7 @@ class DisallowedUnderWildcardTest extends TestCase
     public function hidden_attributes_named_in_another_letter_case_are_rejected_under_wildcards(): void
     {
         try {
-            $this->wizard(['fields' => 'id,NAME'], TestModelWithHiddenName::query())
+            $this->createEloquentWizardFromQuery(['fields' => 'id,NAME'], TestModelWithHiddenName::query())
                 ->allowedFields('*')
                 ->get();
             $this->fail('Expected InvalidFieldQuery');
@@ -172,7 +170,7 @@ class DisallowedUnderWildcardTest extends TestCase
     {
         $this->expectException(InvalidFieldQuery::class);
 
-        $this->wizard(['fields' => 'id,NAME'], TestModelWithHiddenName::query())
+        $this->createEloquentWizardFromQuery(['fields' => 'id,NAME'], TestModelWithHiddenName::query())
             ->allowedFields('*')
             ->disallowedFields('is_visible')
             ->get();
@@ -181,7 +179,7 @@ class DisallowedUnderWildcardTest extends TestCase
     #[Test]
     public function hidden_attributes_named_exactly_stay_hidden_under_wildcards(): void
     {
-        $model = $this->wizard(['fields' => 'id,name'], TestModelWithHiddenName::query())
+        $model = $this->createEloquentWizardFromQuery(['fields' => 'id,name'], TestModelWithHiddenName::query())
             ->allowedFields('*')
             ->get()
             ->first();
@@ -192,7 +190,7 @@ class DisallowedUnderWildcardTest extends TestCase
     #[Test]
     public function other_fields_in_another_letter_case_pass_under_wildcards(): void
     {
-        $sql = $this->wizard(['fields' => 'ID'], TestModelWithHiddenName::query())
+        $sql = $this->createEloquentWizardFromQuery(['fields' => 'ID'], TestModelWithHiddenName::query())
             ->allowedFields('*')
             ->disallowedFields('name')
             ->toQuery()
@@ -208,7 +206,7 @@ class DisallowedUnderWildcardTest extends TestCase
 
         $this->expectException(InvalidFieldQuery::class);
 
-        $this->wizard(['fields' => ['testModel' => 'isVisible']])
+        $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'isVisible']])
             ->allowedFields('*')
             ->disallowedFields('isVisible')
             ->get();
@@ -240,7 +238,7 @@ class DisallowedUnderWildcardTest extends TestCase
     public function disallowed_appends_are_rejected_under_wildcards(array $query, array $allowed, array $disallowed, string $append): void
     {
         try {
-            $this->wizard($query)
+            $this->createEloquentWizardFromQuery($query)
                 ->allowedIncludes('relatedModels')
                 ->allowedAppends(...$allowed)
                 ->disallowedAppends(...$disallowed)
@@ -258,7 +256,7 @@ class DisallowedUnderWildcardTest extends TestCase
     {
         config()->set('query-wizard.disable_invalid_append_query_exception', true);
 
-        $model = $this->wizard(['append' => 'fullname'])
+        $model = $this->createEloquentWizardFromQuery(['append' => 'fullname'])
             ->allowedAppends('*')
             ->disallowedAppends('fullname')
             ->get()
@@ -270,7 +268,7 @@ class DisallowedUnderWildcardTest extends TestCase
     #[Test]
     public function disallowed_default_appends_under_a_wildcard_are_dropped_silently(): void
     {
-        $model = $this->wizard([])
+        $model = $this->createEloquentWizardFromQuery([])
             ->allowedAppends('*')
             ->disallowedAppends('fullname')
             ->defaultAppends('fullname')
@@ -300,14 +298,5 @@ class DisallowedUnderWildcardTest extends TestCase
         $this->expectException(InvalidAppendQuery::class);
 
         $wizard(['append' => 'fullname'])->process();
-    }
-
-    /**
-     * @param  array<string, mixed>  $query
-     * @param  Builder<TestModel>|null  $subject
-     */
-    private function wizard(array $query, ?Builder $subject = null): EloquentQueryWizard
-    {
-        return new EloquentQueryWizard($subject ?? TestModel::query(), new QueryParametersManager(new Request($query)));
     }
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Http\Request;
-use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\ModelQueryWizard;
@@ -50,7 +49,7 @@ class MalformedFieldsTest extends TestCase
     public function malformed_fields_are_rejected(array $query): void
     {
         try {
-            $this->wizard($query)->allowedFields('id', 'name')->get();
+            $this->createEloquentWizardFromQuery($query)->allowedFields('id', 'name')->get();
             $this->fail('Expected InvalidFieldQuery');
         } catch (InvalidFieldQuery $exception) {
             $this->assertSame(400, $exception->getStatusCode());
@@ -79,7 +78,7 @@ class MalformedFieldsTest extends TestCase
     public function malformed_appends_are_rejected(array $query): void
     {
         try {
-            $this->wizard($query)->allowedAppends('fullname')->get();
+            $this->createEloquentWizardFromQuery($query)->allowedAppends('fullname')->get();
             $this->fail('Expected InvalidAppendQuery');
         } catch (InvalidAppendQuery $exception) {
             $this->assertSame(400, $exception->getStatusCode());
@@ -114,7 +113,7 @@ class MalformedFieldsTest extends TestCase
         config()->set('query-wizard.naming.convert_parameters_to_snake_case', $snakeCase);
 
         try {
-            $this->wizard(['fields' => ['testModel' => 'id', 5 => 'name']])->allowedFields('id', 'name')->get();
+            $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'id', 5 => 'name']])->allowedFields('id', 'name')->get();
             $this->fail('Expected InvalidFieldQuery');
         } catch (InvalidFieldQuery $exception) {
             $this->assertSame('field_not_allowed', $exception->errorCode);
@@ -125,7 +124,7 @@ class MalformedFieldsTest extends TestCase
     #[Test]
     public function well_formed_lists_are_still_accepted(): void
     {
-        $model = $this->wizard(['fields' => ['testModel' => ['id', 'name']], 'append' => ['fullname']])
+        $model = $this->createEloquentWizardFromQuery(['fields' => ['testModel' => ['id', 'name']], 'append' => ['fullname']])
             ->allowedFields('id', 'name')
             ->allowedAppends('fullname')
             ->get()
@@ -176,7 +175,7 @@ class MalformedFieldsTest extends TestCase
     public function tokens_that_are_not_field_names_are_rejected(array $query, array $allowedFields, string $token): void
     {
         try {
-            $this->wizard($query)
+            $this->createEloquentWizardFromQuery($query)
                 ->allowedIncludes('relatedModels', 'relatedModels.nestedRelatedModels')
                 ->allowedFields(...$allowedFields)
                 ->get();
@@ -190,7 +189,7 @@ class MalformedFieldsTest extends TestCase
     #[Test]
     public function identifier_tokens_are_accepted_under_wildcards(): void
     {
-        $sql = $this->wizard(['fields' => ['testModel' => 'name,is_visible']])
+        $sql = $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name,is_visible']])
             ->allowedFields('*')
             ->toQuery()
             ->toSql();
@@ -202,7 +201,7 @@ class MalformedFieldsTest extends TestCase
     public function tokens_no_rule_allows_are_reported_as_not_allowed(): void
     {
         try {
-            $this->wizard(['fields' => ['testModel' => 'name as id']])->allowedFields('name')->get();
+            $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name as id']])->allowedFields('name')->get();
             $this->fail('Expected InvalidFieldQuery');
         } catch (InvalidFieldQuery $exception) {
             $this->assertSame('field_not_allowed', $exception->errorCode);
@@ -213,7 +212,7 @@ class MalformedFieldsTest extends TestCase
     #[Test]
     public function explicitly_allowed_names_are_not_checked_for_their_shape(): void
     {
-        $sql = $this->wizard(['fields' => ['testModel' => 'name,legacy-code']])
+        $sql = $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name,legacy-code']])
             ->allowedFields('name', 'legacy-code')
             ->toQuery()
             ->toSql();
@@ -226,19 +225,11 @@ class MalformedFieldsTest extends TestCase
     {
         config()->set('query-wizard.disable_invalid_field_query_exception', true);
 
-        $sql = $this->wizard(['fields' => ['testModel' => 'name,name as id,relatedModels.name']])
+        $sql = $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name,name as id,relatedModels.name']])
             ->allowedFields('*')
             ->toQuery()
             ->toSql();
 
         $this->assertSame('select "test_models"."name" from "test_models"', $sql);
-    }
-
-    /**
-     * @param  array<string, mixed>  $query
-     */
-    private function wizard(array $query): EloquentQueryWizard
-    {
-        return new EloquentQueryWizard(TestModel::query(), new QueryParametersManager(new Request($query)));
     }
 }
