@@ -150,8 +150,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function schema(string|ResourceSchemaInterface $schema): static
     {
-        $this->schema = is_string($schema) ? app($schema) : $schema;
+        $schema = is_string($schema) ? app($schema) : $schema;
         $this->invalidateBuild();
+        $this->schema = $schema;
 
         return $this;
     }
@@ -166,9 +167,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function allowedFilters(FilterInterface|string|array ...$filters): static
     {
+        $this->invalidateBuild();
         $this->allowedFilters = $this->flattenDefinitions($filters);
         $this->allowedFiltersExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -180,8 +181,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function disallowedFilters(string|array ...$names): static
     {
-        $this->disallowedFilters = $this->flattenStringArray($names);
         $this->invalidateBuild();
+        $this->disallowedFilters = $this->flattenStringArray($names);
 
         return $this;
     }
@@ -193,9 +194,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function allowedSorts(SortInterface|string|array ...$sorts): static
     {
+        $this->invalidateBuild();
         $this->allowedSorts = $this->flattenDefinitions($sorts);
         $this->allowedSortsExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -207,8 +208,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function disallowedSorts(string|array ...$names): static
     {
-        $this->disallowedSorts = $this->flattenStringArray($names);
         $this->invalidateBuild();
+        $this->disallowedSorts = $this->flattenStringArray($names);
 
         return $this;
     }
@@ -222,6 +223,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function defaultSorts(string|Sort|array ...$sorts): static
     {
+        $this->invalidateBuild();
         $flatSorts = [];
         foreach ($sorts as $sort) {
             if (is_array($sort)) {
@@ -234,7 +236,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         }
         $this->defaultSorts = $flatSorts;
         $this->defaultSortsExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -246,9 +247,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function allowedIncludes(IncludeInterface|string|array ...$includes): static
     {
+        $this->invalidateBuild();
         $this->allowedIncludes = $this->flattenDefinitions($includes);
         $this->allowedIncludesExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -260,8 +261,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function disallowedIncludes(string|array ...$names): static
     {
-        $this->disallowedIncludes = $this->flattenStringArray($names);
         $this->invalidateBuild();
+        $this->disallowedIncludes = $this->flattenStringArray($names);
 
         return $this;
     }
@@ -275,9 +276,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function defaultIncludes(string|array ...$names): static
     {
+        $this->invalidateBuild();
         $this->defaultIncludes = $this->flattenStringArray($names);
         $this->defaultIncludesExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -293,9 +294,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function allowedFields(string|array ...$fields): static
     {
+        $this->invalidateBuild();
         $this->allowedFields = $this->flattenStringArray($fields);
         $this->allowedFieldsExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -307,8 +308,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function disallowedFields(string|array ...$names): static
     {
-        $this->disallowedFields = $this->flattenStringArray($names);
         $this->invalidateBuild();
+        $this->disallowedFields = $this->flattenStringArray($names);
 
         return $this;
     }
@@ -325,9 +326,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function defaultFields(string|array ...$fields): static
     {
+        $this->invalidateBuild();
         $this->defaultFields = $this->flattenStringArray($fields);
         $this->defaultFieldsExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -339,9 +340,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function allowedAppends(string|array ...$appends): static
     {
+        $this->invalidateBuild();
         $this->allowedAppends = $this->flattenStringArray($appends);
         $this->allowedAppendsExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -353,8 +354,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function disallowedAppends(string|array ...$names): static
     {
-        $this->disallowedAppends = $this->flattenStringArray($names);
         $this->invalidateBuild();
+        $this->disallowedAppends = $this->flattenStringArray($names);
 
         return $this;
     }
@@ -368,9 +369,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function defaultAppends(string|array ...$appends): static
     {
+        $this->invalidateBuild();
         $this->defaultAppends = $this->flattenStringArray($appends);
         $this->defaultAppendsExplicitlySet = true;
-        $this->invalidateBuild();
 
         return $this;
     }
@@ -384,8 +385,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function tap(callable $callback): static
     {
-        $this->tapCallbacks[] = $callback;
         $this->invalidateBuild();
+        $this->tapCallbacks[] = $callback;
 
         return $this;
     }

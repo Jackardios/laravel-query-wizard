@@ -25,6 +25,7 @@ use Jackardios\QueryWizard\Tests\App\Models\AppendModelWithBuiltInAppends;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -719,6 +720,73 @@ class QueryWizardTest extends TestCase
         $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject()');
 
         $wizard->allowedSorts('id');
+    }
+
+    /**
+     * @return array<string, array{string, array<int, mixed>, string}>
+     */
+    public static function configurationMethods(): array
+    {
+        return [
+            'allowedFilters' => ['allowedFilters', ['id'], 'allowedFilters'],
+            'disallowedFilters' => ['disallowedFilters', ['id'], 'disallowedFilters'],
+            'allowedSorts' => ['allowedSorts', ['id'], 'allowedSorts'],
+            'disallowedSorts' => ['disallowedSorts', ['id'], 'disallowedSorts'],
+            'defaultSorts' => ['defaultSorts', ['id'], 'defaultSorts'],
+            'allowedIncludes' => ['allowedIncludes', ['relatedModels'], 'allowedIncludes'],
+            'disallowedIncludes' => ['disallowedIncludes', ['relatedModels'], 'disallowedIncludes'],
+            'defaultIncludes' => ['defaultIncludes', ['relatedModels'], 'defaultIncludes'],
+            'allowedFields' => ['allowedFields', ['id'], 'allowedFields'],
+            'disallowedFields' => ['disallowedFields', ['id'], 'disallowedFields'],
+            'defaultFields' => ['defaultFields', ['id'], 'defaultFields'],
+            'allowedAppends' => ['allowedAppends', ['fullname'], 'allowedAppends'],
+            'disallowedAppends' => ['disallowedAppends', ['fullname'], 'disallowedAppends'],
+            'defaultAppends' => ['defaultAppends', ['fullname'], 'defaultAppends'],
+            'tap' => ['tap', [static fn () => null], 'tapCallbacks'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('configurationMethods')]
+    public function refused_configuration_leaves_the_wizard_unchanged(string $method, array $arguments, string $property): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class)->allowedFilters('name');
+        $wizard->toQuery();
+        $before = (new \ReflectionProperty($wizard, $property))->getValue($wizard);
+
+        try {
+            $wizard->{$method}(...$arguments);
+            $this->fail('Expected LogicException');
+        } catch (\LogicException) {
+        }
+
+        $this->assertSame($before, (new \ReflectionProperty($wizard, $property))->getValue($wizard));
+    }
+
+    #[Test]
+    public function refused_schema_leaves_the_resource_key_unchanged(): void
+    {
+        $wizard = EloquentQueryWizard::for(TestModel::class);
+        $wizard->toQuery();
+
+        try {
+            $wizard->schema(new class extends ResourceSchema
+            {
+                public function model(): string
+                {
+                    return TestModel::class;
+                }
+
+                public function type(): string
+                {
+                    return 'renamed';
+                }
+            });
+            $this->fail('Expected LogicException');
+        } catch (\LogicException) {
+        }
+
+        $this->assertSame('testModel', $wizard->getResourceKey());
     }
 
     #[Test]
