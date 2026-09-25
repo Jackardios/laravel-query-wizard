@@ -24,6 +24,9 @@ final class EloquentBuildState
 
     public bool $relationFieldTreePrepared = false;
 
+    /** @var array<string, array<string>>|null */
+    public ?array $relationFieldMap = null;
+
     /** @var array{appends: array<string>, relations: array<string, mixed>} */
     public array $appendTree = [
         'appends' => [],

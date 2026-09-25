@@ -56,6 +56,16 @@ trait HandlesSafeRelationSelect
      */
     abstract protected function buildIncludeNameToPathMap(array $effectiveIncludes): array;
 
+    /**
+     * The validated relation fieldsets of the current build.
+     *
+     * @return array<string, array<string>>
+     */
+    protected function validatedRelationFieldMap(): array
+    {
+        return $this->buildValidatedRelationFieldMap();
+    }
+
     protected function resetSafeRelationSelectState(): void
     {
         $this->safeRelationSelectColumnsByPath = [];
@@ -263,7 +273,7 @@ trait HandlesSafeRelationSelect
         array $appendPathIndex,
         RelationResolver $resolver
     ): void {
-        foreach ($this->buildValidatedRelationFieldMap() as $relationPath => $fields) {
+        foreach ($this->validatedRelationFieldMap() as $relationPath => $fields) {
             if (! $this->shouldComputeSelectForPath($relationPath, $fields, $pathIndex, $appendPathIndex)) {
                 continue;
             }

@@ -721,6 +721,14 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
+     * @return array<string, array<string>>
+     */
+    protected function validatedRelationFieldMap(): array
+    {
+        return $this->state->relationFieldMap ??= $this->buildValidatedRelationFieldMap();
+    }
+
+    /**
      * Build relation sparse-fields map/tree once per built wizard.
      */
     private function prepareRelationFieldData(): void
@@ -729,9 +737,8 @@ class EloquentQueryWizard extends BaseQueryWizard
             return;
         }
 
-        $relationFieldMap = $this->buildValidatedRelationFieldMap();
         $this->state->relationFieldTree = $this->withRuntimeAttributesInFieldTree(
-            $this->buildRelationFieldTree($relationFieldMap),
+            $this->buildRelationFieldTree($this->validatedRelationFieldMap()),
             $this->state->runtimeRelationAttributes
         );
         $this->state->relationFieldTreePrepared = true;

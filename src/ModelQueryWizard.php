@@ -139,6 +139,14 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     }
 
     /**
+     * @return array<string, array<string>>
+     */
+    protected function validatedRelationFieldMap(): array
+    {
+        return $this->validatedRequest()['relationFieldMap'];
+    }
+
+    /**
      * Get the model instance.
      */
     public function getModel(): Model
@@ -178,7 +186,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     protected function buildRequestedIncludeTree(array $includes, array $requestedIncludeNames): array
     {
         $requestedRelationPaths = $this->resolveRequestedRelationPaths($includes, $requestedIncludeNames);
-        foreach (array_keys($this->buildValidatedRelationFieldMap()) as $relationPath) {
+        foreach (array_keys($this->validatedRelationFieldMap()) as $relationPath) {
             $requestedRelationPaths[$relationPath] = true;
         }
 
