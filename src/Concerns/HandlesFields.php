@@ -43,9 +43,6 @@ trait HandlesFields
 
     abstract protected function resolveAppendAccessorModel(string $relationPath): ?Model;
 
-    /** @var array{array<string>, bool, array<string, array<string, true>>}|null */
-    private ?array $lowercaseDisallowedFieldsMemo = null;
-
     /**
      * Get effective fields (what client CAN request via ?fields).
      *
@@ -397,21 +394,6 @@ trait HandlesFields
             );
         }
 
-        if (empty($allowedFields)) {
-            if (
-                ! $requestAbsent
-                && $fields !== []
-                && ! $exceptionsDisabled
-            ) {
-                throw InvalidFieldQuery::fieldsNotAllowed(
-                    collect($fields),
-                    collect([])
-                );
-            }
-
-            return $requestAbsent ? null : [];
-        }
-
         $validFields = [];
         $invalidFields = [];
         $disallowedFound = false;
@@ -480,11 +462,11 @@ trait HandlesFields
     private function isCaseVariantOfProtectedField(
         string $group,
         string $field,
-        ?string $relationPath,
+        string $relationPath,
         NamePolicy $policy,
         array &$caseProtectedNames
     ): bool {
-        if ($field === '*' || $relationPath === null || $policy->allowsAttributeByName($group, $field)) {
+        if ($field === '*' || $policy->allowsAttributeByName($group, $field)) {
             return false;
         }
 
@@ -519,16 +501,6 @@ trait HandlesFields
      */
     private function lowercaseDisallowedFieldNamesByGroup(): array
     {
-        $normalize = $this->shouldNormalizePublicInput();
-
-        if (
-            $this->lowercaseDisallowedFieldsMemo !== null
-            && $this->lowercaseDisallowedFieldsMemo[0] === $this->disallowedFields
-            && $this->lowercaseDisallowedFieldsMemo[1] === $normalize
-        ) {
-            return $this->lowercaseDisallowedFieldsMemo[2];
-        }
-
         $byGroup = [];
 
         foreach ($this->normalizePublicPaths($this->disallowedFields) as $disallowed) {
@@ -536,8 +508,6 @@ trait HandlesFields
             $group = $dot === false ? '' : substr($disallowed, 0, $dot);
             $byGroup[$group][self::lowercase($dot === false ? $disallowed : substr($disallowed, $dot + 1))] = true;
         }
-
-        $this->lowercaseDisallowedFieldsMemo = [$this->disallowedFields, $normalize, $byGroup];
 
         return $byGroup;
     }
