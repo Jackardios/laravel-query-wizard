@@ -17,7 +17,6 @@ use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
-use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
@@ -35,7 +34,7 @@ use Throwable;
  *
  * @template TSubject
  */
-abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInterface
+abstract class BaseQueryWizard implements QueryWizardInterface
 {
     use HandlesAppends;
     use HandlesConfiguration;

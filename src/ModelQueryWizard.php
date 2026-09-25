@@ -15,7 +15,6 @@ use Jackardios\QueryWizard\Concerns\HandlesSafeRelationSelect;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
-use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\RelationResolver;
@@ -28,7 +27,7 @@ use Jackardios\QueryWizard\Support\RelationResolver;
  *
  * @phpstan-consistent-constructor
  */
-class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
+class ModelQueryWizard implements QueryWizardInterface
 {
     use HandlesAppends;
     use HandlesConfiguration;

@@ -6,7 +6,6 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 
 use Jackardios\QueryWizard\Concerns\HandlesConfiguration;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
-use Jackardios\QueryWizard\Contracts\WizardContextInterface;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use PHPUnit\Framework\Attributes\Test;
@@ -40,22 +39,6 @@ class HandlesConfigurationTest extends TestCase
             }
 
             protected function invalidateBuild(): void {}
-
-            public function getContext(): WizardContextInterface
-            {
-                return new class implements WizardContextInterface
-                {
-                    public function getResourceKey(): string
-                    {
-                        return 'test';
-                    }
-
-                    public function getIncludeAliasToRelationMap(): array
-                    {
-                        return [];
-                    }
-                };
-            }
 
             public function checkIsNameDisallowed(string $name, array $disallowed): bool
             {
