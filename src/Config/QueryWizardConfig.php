@@ -165,7 +165,7 @@ final class QueryWizardConfig
 
     public function shouldConvertParametersToSnakeCase(): bool
     {
-        return (bool) $this->get('naming.convert_parameters_to_snake_case');
+        return $this->flag('naming.convert_parameters_to_snake_case');
     }
 
     /**
@@ -221,32 +221,32 @@ final class QueryWizardConfig
 
     public function shouldApplyFilterDefaultOnNull(): bool
     {
-        return (bool) $this->get('apply_filter_default_on_null');
+        return $this->flag('apply_filter_default_on_null');
     }
 
     public function isInvalidFilterQueryExceptionDisabled(): bool
     {
-        return (bool) $this->get('disable_invalid_filter_query_exception');
+        return $this->flag('disable_invalid_filter_query_exception');
     }
 
     public function isInvalidSortQueryExceptionDisabled(): bool
     {
-        return (bool) $this->get('disable_invalid_sort_query_exception');
+        return $this->flag('disable_invalid_sort_query_exception');
     }
 
     public function isInvalidIncludeQueryExceptionDisabled(): bool
     {
-        return (bool) $this->get('disable_invalid_include_query_exception');
+        return $this->flag('disable_invalid_include_query_exception');
     }
 
     public function isInvalidFieldQueryExceptionDisabled(): bool
     {
-        return (bool) $this->get('disable_invalid_field_query_exception');
+        return $this->flag('disable_invalid_field_query_exception');
     }
 
     public function isInvalidAppendQueryExceptionDisabled(): bool
     {
-        return (bool) $this->get('disable_invalid_append_query_exception');
+        return $this->flag('disable_invalid_append_query_exception');
     }
 
     public function getMaxIncludeDepth(): ?int
@@ -281,7 +281,7 @@ final class QueryWizardConfig
 
     public function shouldUseAllowedFieldsAsDefault(): bool
     {
-        return (bool) $this->get('fields.use_allowed_as_default');
+        return $this->flag('fields.use_allowed_as_default');
     }
 
     /**
@@ -339,6 +339,21 @@ final class QueryWizardConfig
         }
 
         return $value;
+    }
+
+    /**
+     * A boolean, or a string or int PHP reads as one ('true', 'off', '1', ...).
+     */
+    private function flag(string $key): bool
+    {
+        $value = $this->get($key);
+        $flag = is_array($value) || is_object($value) ? null : filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+
+        if ($flag !== null) {
+            return $flag;
+        }
+
+        throw self::invalid($key, 'must be a boolean');
     }
 
     private function limit(string $name): ?int

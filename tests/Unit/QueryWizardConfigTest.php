@@ -439,6 +439,43 @@ class QueryWizardConfigTest extends TestCase
     }
 
     // ========== Validation Tests ==========
+    /**
+     * @return array<string, array{mixed, bool}>
+     */
+    public static function booleanValues(): array
+    {
+        return [
+            'true' => [true, true],
+            'false' => [false, false],
+            'string false' => ['false', false],
+            'string off' => ['off', false],
+            'string 1' => ['1', true],
+            'int 0' => [0, false],
+            'null' => [null, false],
+            'empty string' => ['', false],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('booleanValues')]
+    public function it_reads_booleans_written_as_strings_and_ints(mixed $value, bool $expected): void
+    {
+        Config::set('query-wizard.disable_invalid_filter_query_exception', $value);
+
+        $this->assertSame($expected, $this->config->isInvalidFilterQueryExceptionDisabled());
+    }
+
+    #[Test]
+    public function it_rejects_values_that_are_not_booleans(): void
+    {
+        Config::set('query-wizard.naming.convert_parameters_to_snake_case', 'sometimes');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Config `query-wizard.naming.convert_parameters_to_snake_case` must be a boolean.');
+
+        $this->config->shouldConvertParametersToSnakeCase();
+    }
+
     #[Test]
     #[DataProvider('invalidLimits')]
     public function it_rejects_limits_that_are_not_positive_integers(mixed $value): void
