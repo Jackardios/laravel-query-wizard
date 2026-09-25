@@ -465,7 +465,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
                 return $value;
             }
 
-            if (! $this->config->shouldApplyFilterDefaultOnNull()) {
+            if (! $this->getConfig()->shouldApplyFilterDefaultOnNull()) {
                 return null;
             }
         }
@@ -511,7 +511,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         $allowedFilterNamesIndex = array_flip($allowedFilterNames);
 
         foreach ($requestedFilterNames as $filterName) {
-            if (! isset($allowedFilterNamesIndex[$filterName]) && ! $this->config->isInvalidFilterQueryExceptionDisabled()) {
+            if (! isset($allowedFilterNamesIndex[$filterName]) && ! $this->getConfig()->isInvalidFilterQueryExceptionDisabled()) {
                 throw InvalidFilterQuery::filtersNotAllowed(
                     collect([$filterName]),
                     collect($allowedFilterNames)
@@ -583,8 +583,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $sortRequested = $parameters->hasSimpleParameter('sorts');
         if ($sortRequested && $requestedSorts->isEmpty()) {
-            if (! $this->config->isInvalidSortQueryExceptionDisabled()) {
-                $parameter = $this->config->getSortsParameterName() ?: 'sort';
+            if (! $this->getConfig()->isInvalidSortQueryExceptionDisabled()) {
+                $parameter = $this->getConfig()->getSortsParameterName() ?: 'sort';
 
                 throw InvalidSortQuery::invalidFormat(
                     "The `{$parameter}` parameter must contain at least one sort field when present."
@@ -615,7 +615,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
                 return $resolved;
             }
 
-            if (! $this->config->isInvalidSortQueryExceptionDisabled()) {
+            if (! $this->getConfig()->isInvalidSortQueryExceptionDisabled()) {
                 throw InvalidSortQuery::sortsNotAllowed(
                     $effectiveSorts->map(fn (Sort $s) => $s->getField()),
                     collect([])
@@ -653,7 +653,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
                     continue;
                 }
 
-                if (! $this->config->isInvalidSortQueryExceptionDisabled()) {
+                if (! $this->getConfig()->isInvalidSortQueryExceptionDisabled()) {
                     throw InvalidSortQuery::sortsNotAllowed(collect([$field]), collect($allowedSortNames));
                 }
 
@@ -677,7 +677,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     private function assertDefaultSortsWithinLimit(int $count): void
     {
-        $this->assertDefaultWithinLimit('The number of default sorts', $count, $this->config->getMaxSortsCount(), 'max_sorts_count');
+        $this->assertDefaultWithinLimit('The number of default sorts', $count, $this->getConfig()->getMaxSortsCount(), 'max_sorts_count');
     }
 
     protected function applyIncludesToSubject(): void
