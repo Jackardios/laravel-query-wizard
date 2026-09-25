@@ -34,13 +34,6 @@ final class DateRangeFilter extends AbstractRangeFilter
     protected bool $lenient = false;
 
     /**
-     * Bounds resolved by hasEffectiveConstraint(), handed to applyOnQuery().
-     *
-     * @var array{0: mixed, 1: list<array{0: string, 1: mixed}>}|null
-     */
-    private ?array $resolvedBounds = null;
-
-    /**
      * Create a new date range filter.
      *
      * @param  string  $property  The column name to filter on
@@ -121,10 +114,7 @@ final class DateRangeFilter extends AbstractRangeFilter
 
     protected function hasEffectiveConstraint(mixed $value): bool
     {
-        $bounds = $this->resolveBounds($value);
-        $this->resolvedBounds = $bounds === [] ? null : [$value, $bounds];
-
-        return $bounds !== [];
+        return $this->resolveBounds($value) !== [];
     }
 
     /**
@@ -135,12 +125,8 @@ final class DateRangeFilter extends AbstractRangeFilter
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {
         $qualifiedColumn = $builder->qualifyColumn($column);
-        $bounds = $this->resolvedBounds !== null && $this->resolvedBounds[0] === $value
-            ? $this->resolvedBounds[1]
-            : $this->resolveBounds($value);
-        $this->resolvedBounds = null;
 
-        foreach ($bounds as [$operator, $bound]) {
+        foreach ($this->resolveBounds($value) as [$operator, $bound]) {
             $builder->where($qualifiedColumn, $operator, $bound);
         }
 
