@@ -431,7 +431,9 @@ class EloquentQueryWizard extends BaseQueryWizard
      *
      * Kept inside build() rather than deferred to post-processing so that an
      * invalid ?fields or ?append request fails before the query is executed,
-     * also for toQuery() and builder calls that skip post-processing.
+     * also for toQuery() and builder calls that skip post-processing. An
+     * override should call parent::finalizeBuild(); without it the trees are
+     * prepared when results are post-processed, after the query ran.
      */
     protected function finalizeBuild(): void
     {
@@ -754,6 +756,7 @@ class EloquentQueryWizard extends BaseQueryWizard
             $this->applySafeRootFieldMaskToResults($results);
         }
 
+        $this->prepareRelationFieldData();
         $this->prepareAppendTree();
 
         if ($processable) {

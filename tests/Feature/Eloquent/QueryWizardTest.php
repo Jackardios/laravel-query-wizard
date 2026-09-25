@@ -1139,6 +1139,21 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function relation_fieldsets_apply_when_an_override_skips_the_parent_finalize_build(): void
+    {
+        RelatedModel::factory()->create(['test_model_id' => TestModel::factory()->create()->id]);
+
+        $wizard = new class(TestModel::query(), new QueryParametersManager(new Request(['include' => 'relatedModels', 'fields' => ['relatedModels' => 'name']]))) extends EloquentQueryWizard
+        {
+            protected function finalizeBuild(): void {}
+        };
+
+        $related = $wizard->allowedIncludes('relatedModels')->allowedFields('relatedModels.name')->get()->first()->relatedModels->first();
+
+        $this->assertSame(['name'], array_keys($related->toArray()));
+    }
+
+    #[Test]
     public function rollback_failed_build_is_an_extension_point(): void
     {
         $wizard = new class(TestModel::query(), new QueryParametersManager(new Request(['sort' => 'boom']))) extends EloquentQueryWizard
