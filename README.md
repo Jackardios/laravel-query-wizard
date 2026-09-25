@@ -140,7 +140,7 @@ EloquentQueryWizard::for(User::where('active', true))
     ->get();
 ```
 
-`toQuery()`, `getSubject()` and `build()` expose the live underlying builder, as do `getQuery()` and `toBase()` called through the wizard when they return the live query. Treat them as the point where wizard configuration is finalized: calling `allowed*()`, `default*()`, or `schema()` afterwards throws `LogicException`. So does reconfiguring a clone of such a wizard, or of one that received builder calls; create a new wizard instead.
+`toQuery()`, `getSubject()` and `build()` expose the live underlying builder, as do `getQuery()` and `toBase()` called through the wizard when they return the live query. Treat them as the point where wizard configuration is finalized: calling `allowed*()`, `default*()`, or `schema()` afterwards throws `LogicException`. So does reconfiguring a clone of such a wizard, or of one that received builder calls; create a new wizard instead. Such a wizard also throws `LogicException` when its request parameters change, and after a build that failed, since the handed-out builder holds part of the failed build.
 
 Builder methods called on the wizard (`where()`, `orderBy()`, ...) run after the request's filters and sorts are applied, so an `orderBy()` through the wizard sorts after the requested sorts. Executing methods change the wizard's builder the way they change an Eloquent builder: `first()` adds `limit 1`, `find()` adds a key condition, `cursorPaginate()` adds its order columns.
 
@@ -235,15 +235,17 @@ Built-in filters validate the shape of their input before `prepareValueWith()` a
 
 - `exact`, `partial`, `operator`: scalar or flat list of scalars
 - `scope`: single value or flat list without nested arrays
+- `jsonContains`: scalar or flat list of scalars
 - `null`, `trashed`: scalar only
-- `range`, `dateRange`: array with boundary keys (`min`/`max`, `from`/`to`) or a flat list of exactly two values
+- `range`, `dateRange`: array with only the boundary keys (`min`/`max`, `from`/`to`) or a flat list of exactly two
+  values; another key (a typo such as `form`) is rejected
 
 Malformed payloads such as `?filter[name][foo][bar]=Alpha` raise `InvalidFilterQuery::invalidFormat(...)` instead of reaching SQL generation or PHP warnings.
 
 If you intentionally accept structured raw payloads and normalize them in `prepareValueWith()`, opt in with `allowStructuredInput()`. The built-in filter still validates the prepared value shape before applying it to the query.
 
-A blank value is absent: `?filter[name]=`, a value of spaces, `?filter[name]=,` and a list of empty items apply no
-condition (with `apply_filter_default_on_null` enabled, the filter's `default()` applies instead). A value that a
+A blank value is absent: `?filter=` applies no filters, and `?filter[name]=`, a value of spaces, `?filter[name]=,` and a
+list of empty items apply no condition (with `apply_filter_default_on_null` enabled, the filter's `default()` applies instead). A value that a
 filter has to read and cannot is rejected with `InvalidFilterValue` (400), whose message says what was expected:
 
 | Filter | Accepts |
@@ -255,7 +257,7 @@ filter has to read and cannot is rejected with `InvalidFilterValue` (400), whose
 | `dateRange` | a date (`2024-01-31`) or an ISO 8601 date-time (`2024-01-31T10:00:00+03:00`, `Z`, fractions); see below |
 | `operator` with `DYNAMIC` | after `>`, `>=`, `<`, `<=`: a decimal number or an ISO 8601 date |
 | `partial` | text or numbers (a boolean is rejected) |
-| `scope` | as many values as the scope takes; `int`/`float` parameters need numbers |
+| `scope` | as many values as the scope takes, each one its parameter's type accepts: `int`/`float` take numbers, `bool` takes the booleans above, a union takes any of its types |
 
 **Dates** (`dateRange`, and `DYNAMIC` comparisons) are read in the application timezone; a date-time with an offset is
 converted to it, and so is a `DateTimeInterface` default. A date names the whole day: `to=2024-01-31` and

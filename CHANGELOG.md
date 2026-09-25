@@ -7,7 +7,50 @@ All notable changes to this project are documented in this file. The format foll
 
 Version 3 is a rewrite: fluent `allowed*()` configuration, `EloquentFilter`/`EloquentSort`/`EloquentInclude` factories,
 resource schemas, `ModelQueryWizard::process()`, request limits. See [UPGRADE.md](UPGRADE.md) for migrating from v2.x
-and from `dev-master` snapshots. The entries below cover the changes made before the release.
+and from `dev-master` snapshots. The entries below cover the changes made before the release; pre-release v3.0.0-rc.1
+was tagged on 2026-09-25, and the changes since then are listed first.
+
+### Since v3.0.0-rc.1
+
+Changed:
+
+- `?filter=` with a blank value applies no filters (it was a 400).
+- Range and date range filters reject keys other than their boundary keys with a 400 (a typo such as `form` was ignored).
+- JSON contains filters reject keyed or nested values with a 400 and drop blank items.
+- Scope filters check every value against its parameter's type, including unions, `bool`, `array` and class types, and
+  read `bool` parameters as booleans (a cast made `false` true). A value no type accepts is a 400, not a `TypeError`.
+- Boolean configuration options are validated: `'false'` and `'0'` are false, a value that is not a boolean throws
+  `InvalidArgumentException`.
+- `getQuery()` and `toBase()` called through the wizard finalize the configuration like `toQuery()`.
+- After a build fails with its builder handed out, building the wizard again throws `LogicException`; so does a request
+  change after the builder was handed out or changed through the wizard.
+- Marked `@internal`: `Support\ParameterParser`, `FilterValueTransformer`, `NameConverter`, `RelationResolver` and
+  `DotNotationTreeBuilder`.
+- Traits used outside the wizards: `RequiresWizardContext` requires `invalidateBuild()`, and `HandlesSafeRelationSelect`
+  requires `parseDefaultAppendsToGrouped()` instead of `getEffectiveDefaultAppends()`.
+
+Fixed:
+
+- `chunk()`, `chunkById()` and `chunkByIdDesc()` pass the page number to the callback.
+- Range and DYNAMIC comparisons with fractions or integers beyond 64 bits work on PostgreSQL integer columns (they were
+  500s).
+- Two fieldsets for one relation, such as a relation and its alias, merge regardless of their order.
+- A configuration call the wizard refuses leaves it unchanged.
+- With snake-case conversion, sorts, includes and fieldsets that differ only in naming count once.
+- Relation sorts accept a table-qualified column.
+- A relation `LIKE` filter whose values are all blank adds no `whereHas`.
+- Dotted parameter names (`'filters' => 'page.filter'`) read nested query-string values.
+- A retry after a failed build reads the current configuration for filter, sort and include definitions.
+- Relation fieldsets apply when a subclass overrides `finalizeBuild()` without calling the parent.
+- Relation fieldsets are validated once per build instead of two or three times.
+
+Removed:
+
+- Unused protected methods: `HandlesFields::isFieldsRequestEmpty()`, `HandlesAppends::extractRelationAttributes()` and
+  `prefixGroupAttributes()`, `HandlesRelationAttributeValidation::isAttributeAllowed()`,
+  `HandlesConfiguration::normalizePublicNames()`, `BaseQueryWizard::canApplyDefaultSortsWithoutAllowlist()`,
+  `RelationResolver::clearCache()`. `ModelQueryWizard::invalidateProcessedState()`, `ensureMutableBeforeProcessing()`
+  and `resolveRequestedIncludeNames()` are gone; `ModelQueryWizard` implements `invalidateBuild()` instead.
 
 ### Requirements
 
@@ -38,8 +81,8 @@ and from `dev-master` snapshots. The entries below cover the changes made before
 - DYNAMIC operators compare ISO dates and decimal numbers; operators inside lists are rejected.
 - `LIKE`/`NOT_LIKE` operators match literally, accept lists and do not split values by default.
 - `prepareValueWith()` calls chain instead of replacing each other.
-- Scope filters check the number of values, and values for `int`/`float` parameters, against the scope's signature.
-- Range filter lists must hold exactly two values.
+- Scope filters check the number of values, and each value's type, against the scope's signature.
+- Range filter lists must hold exactly two values, and range arrays only their boundary keys.
 - A request filter key belongs to the deepest allowed filter name.
 - Callback filters, sorts and includes replace the subject only with an instance of its class.
 - Empty sort variants honor `disable_invalid_sort_query_exception` and fall back to default sorts.
@@ -63,8 +106,8 @@ and from `dev-master` snapshots. The entries below cover the changes made before
 - Count/exists includes no longer duplicate a count already selected by a sort or the developer.
 - `cursorPaginate()` and `chunkById()` work when the fieldset leaves out their order columns.
 - `cursor()` loads includes.
-- A failed build is rolled back instead of applying taps and filters twice on retry (unless the builder was already
-  handed out with `toQuery()`, `getSubject()` or `build()`).
+- A failed build is rolled back instead of applying taps and filters twice on retry. If the builder was already handed
+  out with `toQuery()`, `getSubject()` or `build()`, building again throws `LogicException`.
 - `ModelQueryWizard` loads `exists` includes and validates the request before touching the model.
 - `disallowedIncludes()` also matches an aliased include's relation path.
 - Relation subjects (`for($user->posts())`) work with filters and sparse fieldsets.

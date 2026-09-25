@@ -91,10 +91,12 @@ EloquentFilter::exact('name')
 
 **Scope filters check arguments** against the scope's signature: too many or too few values → 400 (before: extra values
 dropped, so `Moscow, Russia` reached a one-parameter scope as `Moscow`; use `->withoutValueSplitting()` for free text);
-`int`/`float` parameters need numbers; `null` for a non-nullable parameter → 400. Scopes marked `#[Scope]` get model
+every value must fit its parameter's type (`int`/`float` take numbers, `bool` reads `false`/`0`/`no`/`off` as false, a
+union takes any of its types); `null` for a non-nullable parameter → 400. Scopes marked `#[Scope]` get model
 binding, and `rel.scope` filters bind against the related model.
 
 **Range lists hold exactly two values**: `?filter[id]=1,2,3` on a range filter → 400 (before: the rest was ignored).
+Range and date range arrays take only their boundary keys: `?filter[date][form]=2024-01-01` → 400 (before: ignored).
 
 **Nested filter names.** With `name` and `name.first` allowed, `filter[name][first]=x` goes to `name.first` only (before:
 both). Keys no nested filter takes stay with `name`.
@@ -152,7 +154,8 @@ a later TypeError).
 - Cloning a wizard that received builder calls or exposed its builder keeps that state: reconfiguring the clone throws
   `LogicException`. Create a new wizard instead.
 - A build that throws is rolled back, so a retry does not apply taps, filters or sorts twice. A builder already handed
-  out with `toQuery()`, `getSubject()` or `build()` is kept as it is.
+  out with `toQuery()`, `getSubject()` or `build()` is kept as it is, and building that wizard again throws
+  `LogicException`.
 - `find()`, `findMany()`, `findOrFail()`, `findOr()`, `findSole()`, `sole()`, `firstWhere()` and `firstOr()` through the
   wizard post-process their results. New wrappers: `lazyById()`, `lazyByIdDesc()`, `chunkByIdDesc()`, `eachById()`,
   `each()`, `chunkMap()`. The `*ById` methods and `cursorPaginate()` work with sparse fieldsets that leave out their
@@ -197,7 +200,8 @@ a later TypeError).
   `OperatorFilter::requiresNumericValue()`, `QueryParametersManager::convertFiltersArray()` (see `convertFilterKeys()`).
 - `ParsesRangeValues::normalizeRangeValue()` takes the bound's key as a second argument.
 - New extension points are listed under [Extending](README.md#extending) in the README; they and the classes marked
-  `@api` are the supported surface. Classes marked `@internal` may change in any release.
+  `@api` are the supported surface. Classes marked `@internal` may change in any release, among them
+  `Support\ParameterParser`, `FilterValueTransformer`, `NameConverter`, `RelationResolver` and `DotNotationTreeBuilder`.
 
 ### Checklist
 
@@ -888,7 +892,7 @@ Protection against resource exhaustion attacks:
     'max_includes_count' => 10,    // Max includes per request
     'max_include_depth' => 3,      // Max nesting (posts.comments.author)
     'max_filters_count' => 20,     // Max filters per request
-    'max_appends_count' => 10,     // Max appends per request
+    'max_appends_count' => 20,     // Max appends per request
     'max_append_depth' => 3,       // Max append nesting
     'max_sorts_count' => 5,        // Max sorts per request
 ],
@@ -900,7 +904,7 @@ Override schema configuration with wildcard support:
 
 ```php
 EloquentQueryWizard::forSchema(UserSchema::class)
-    ->disallowedFilters('status', 'secret_*')    // Wildcard matching
+    ->disallowedFilters('status', 'author.*')    // Block filters directly under author
     ->disallowedIncludes('auditLogs')
     ->disallowedFields('*')                      // Block all fields
     ->disallowedFields('posts.*')                // Block direct children only

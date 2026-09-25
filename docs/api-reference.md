@@ -137,8 +137,9 @@ All configuration methods must be called before `process()`. After processing, c
 
 - `exact`, `partial`, `operator`: scalar or flat list of scalars
 - `scope`: single value or flat list without nested arrays
+- `jsonContains`: scalar or flat list of scalars
 - `null`, `trashed`: scalar only
-- `range`, `dateRange`: array with boundary keys or a flat list of exactly two values
+- `range`, `dateRange`: array with only the boundary keys or a flat list of exactly two values
 
 Malformed built-in filter payloads raise `InvalidFilterQuery::invalidFormat(...)`. Values a filter cannot read (a
 non-boolean for `asBoolean()`/`null`, a non-number for `range`, a non-ISO date for `dateRange`, ...) raise
