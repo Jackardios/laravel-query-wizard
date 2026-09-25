@@ -250,32 +250,6 @@ trait HandlesAppends
     }
 
     /**
-     * Extract relation-level attributes from allowed list (for error messages).
-     *
-     * @param  array<string>  $allowed
-     * @return array<string>
-     */
-    protected function extractRelationAttributes(array $allowed): array
-    {
-        return array_values(array_filter(
-            $allowed,
-            static fn (string $value): bool => str_contains($value, '.')
-        ));
-    }
-
-    /**
-     * @param  array<string>  $attributes
-     * @return array<string>
-     */
-    protected function prefixGroupAttributes(string $group, array $attributes): array
-    {
-        return array_map(
-            static fn (string $attribute): string => $group.'.'.$attribute,
-            $attributes
-        );
-    }
-
-    /**
      * Parse default appends (dot notation) to grouped format.
      *
      * @return array<string, array<string>>

@@ -118,15 +118,7 @@ trait HandlesConfiguration
 
     protected function shouldNormalizePublicInput(): bool
     {
-        if ($this->normalizePublicInputMemo !== null) {
-            return $this->normalizePublicInputMemo;
-        }
-
-        try {
-            return $this->normalizePublicInputMemo = $this->getConfig()->shouldConvertParametersToSnakeCase();
-        } catch (\Throwable) {
-            return false;
-        }
+        return $this->normalizePublicInputMemo ??= $this->getConfig()->shouldConvertParametersToSnakeCase();
     }
 
     /**
@@ -178,18 +170,6 @@ trait HandlesConfiguration
         $this->denyPolicyMemo[] = [$disallowed, $normalize, $policy];
 
         return $policy;
-    }
-
-    /**
-     * @param  array<string>  $names
-     * @return array<string>
-     */
-    protected function normalizePublicNames(array $names): array
-    {
-        return array_values(array_map(
-            fn (string $name): string => $this->normalizePublicName($name),
-            $names
-        ));
     }
 
     /**

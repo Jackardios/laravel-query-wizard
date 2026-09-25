@@ -268,7 +268,7 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         $this->forgetConfigurationMemo();
         $this->validatedRequest = null;
         $effectiveIncludes = $this->getEffectiveIncludes();
-        $requestedIncludeNames = $this->resolveRequestedIncludeNames($effectiveIncludes);
+        $requestedIncludeNames = $this->resolveIncludesToApply()[0] ?? [];
         $this->validatedRequest();
         $this->cleanUnwantedRelations($effectiveIncludes, $requestedIncludeNames);
         $this->loadMissingIncludes($effectiveIncludes, $requestedIncludeNames);
@@ -563,15 +563,6 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     }
 
     /**
-     * @param  array<IncludeInterface>  $effectiveIncludes
-     * @return array<string>
-     */
-    protected function resolveRequestedIncludeNames(array $effectiveIncludes): array
-    {
-        return $this->resolveIncludesToApply()[0] ?? [];
-    }
-
-    /**
      * Get the configuration, as of the current build.
      */
     public function getConfig(): QueryWizardConfig
@@ -596,13 +587,6 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
 
     protected function invalidateProcessedState(bool $invalidateIncludeCache = false): void
     {
-        if ($this->processed) {
-            throw new \LogicException(
-                'ModelQueryWizard cannot be reconfigured after process() has been called. '
-                .'Create a new wizard instance for a different configuration.'
-            );
-        }
-
         if ($invalidateIncludeCache) {
             $this->invalidateIncludeCache();
         }
@@ -610,8 +594,6 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         $this->resetSafeRelationSelectState();
         $this->forgetConfigurationMemo();
         $this->validatedRequest = null;
-        $this->processed = false;
-        $this->processedScopeSignature = null;
     }
 
     protected function ensureMutableBeforeProcessing(): void

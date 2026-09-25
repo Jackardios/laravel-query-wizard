@@ -155,14 +155,6 @@ trait HandlesFields
     }
 
     /**
-     * Check if fields request parameter is completely absent (for defaults logic).
-     */
-    protected function isFieldsRequestEmpty(): bool
-    {
-        return ! $this->getParametersManager()->hasSimpleParameter('fields');
-    }
-
-    /**
      * Build validated relation field map from request.
      *
      * @return array<string, array<string>>

@@ -56,16 +56,8 @@ final class RelationResolver
         return $this->cache[$path] = $relation;
     }
 
-    /**
-     * Clear the cache.
-     */
     public function getRootModel(): Model
     {
         return $this->rootModel;
-    }
-
-    public function clearCache(): void
-    {
-        $this->cache = [];
     }
 }
