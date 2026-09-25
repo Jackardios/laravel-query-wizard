@@ -71,14 +71,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     protected ?string $builtScopeSignature = null;
 
     /**
-     * Parameters validated at the start of the running build, consumed by the
-     * apply*ToSubject() steps. Null outside build().
-     *
-     * @var array{filters: array<string, array{filter: FilterInterface, value: mixed}>, sorts: list<array{SortInterface, 'asc'|'desc'}>, includes: array{array<int, string>, array<string, IncludeInterface>}|null, fields: array<string>|null}|null
-     */
-    private ?array $validatedParameters = null;
-
-    /**
      * Invalidate the build state when configuration changes.
      *
      * This ensures that calling build() after configuration changes
@@ -88,7 +80,12 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     protected function invalidateBuild(): void
     {
-        if ($this->built && isset($this->originalSubject)) {
+        $this->resetBuild($this->built);
+    }
+
+    private function resetBuild(bool $restoreSubject): void
+    {
+        if ($restoreSubject && isset($this->originalSubject)) {
             $this->subject = is_object($this->originalSubject)
                 ? clone $this->originalSubject
                 : $this->originalSubject;
@@ -268,20 +265,27 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             $this->applyTapCallbacks();
             $this->prepareBuild();
 
-            try {
-                $this->validatedParameters = [
-                    'filters' => $this->resolvePreparedFilters(),
-                    'sorts' => $this->resolveSortsToApply(),
-                    'includes' => $this->resolveIncludesToApply(),
-                    'fields' => $this->resolveValidatedRootFields(),
-                ];
+            $filters = $this->resolvePreparedFilters();
+            $sorts = $this->resolveSortsToApply();
+            $includes = $this->resolveIncludesToApply();
+            $fields = $this->resolveValidatedRootFields();
 
-                $this->applyFiltersToSubject();
-                $this->applySortsToSubject();
-                $this->applyIncludesToSubject();
-                $this->applyFieldsToSubject();
-            } finally {
-                $this->validatedParameters = null;
+            foreach ($filters as ['filter' => $filter, 'value' => $value]) {
+                if ($filter->getType() !== 'passthrough') {
+                    $this->applyFilter($filter, $value);
+                }
+            }
+
+            foreach ($sorts as [$sort, $direction]) {
+                $this->subject = $sort->apply($this->subject, $direction);
+            }
+
+            if ($includes !== null) {
+                $this->applyValidatedIncludes(...$includes);
+            }
+
+            if ($fields !== null) {
+                $this->applyFields($fields);
             }
 
             $this->finalizeBuild();
@@ -309,18 +313,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     protected function rollbackFailedBuild(): void
     {
-        if (isset($this->originalSubject)) {
-            $this->subject = is_object($this->originalSubject)
-                ? clone $this->originalSubject
-                : $this->originalSubject;
-        }
-
-        $this->built = false;
-        $this->builtScopeSignature = null;
-        $this->forgetConfigurationMemo();
-        $this->invalidateFilterCache();
-        $this->invalidateSortCache();
-        $this->invalidateIncludeCache();
+        $this->resetBuild(true);
     }
 
     /**
@@ -370,19 +363,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     {
         foreach ($this->tapCallbacks as $callback) {
             $callback($this->subject);
-        }
-    }
-
-    protected function applyFiltersToSubject(): void
-    {
-        foreach ($this->validatedParameters['filters'] ?? $this->resolvePreparedFilters() as $resolvedFilter) {
-            $filter = $resolvedFilter['filter'];
-
-            if ($filter->getType() === 'passthrough') {
-                continue;
-            }
-
-            $this->applyFilter($filter, $resolvedFilter['value']);
         }
     }
 
@@ -555,26 +535,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     }
 
     /**
-     * Apply sorts to the query subject.
-     *
-     * Validates requested sorts against allowed sorts, applies default sorts
-     * if none requested, and enforces sort count limits.
-     *
-     * @throws InvalidSortQuery When requested sort is not allowed
-     * @throws MaxSortsCountExceeded When sort count exceeds configured limit
-     */
-    protected function applySortsToSubject(): void
-    {
-        $sorts = $this->validatedParameters !== null
-            ? $this->validatedParameters['sorts']
-            : $this->resolveSortsToApply();
-
-        foreach ($sorts as [$sort, $direction]) {
-            $this->subject = $sort->apply($this->subject, $direction);
-        }
-    }
-
-    /**
      * Validate the requested (or default) sorts and resolve them to definitions.
      *
      * @return list<array{SortInterface, 'asc'|'desc'}>
@@ -688,17 +648,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         $this->assertDefaultWithinLimit('The number of default sorts', $count, $this->getConfig()->getMaxSortsCount(), 'max_sorts_count');
     }
 
-    protected function applyIncludesToSubject(): void
-    {
-        $includes = $this->validatedParameters !== null
-            ? $this->validatedParameters['includes']
-            : $this->resolveIncludesToApply();
-
-        if ($includes !== null) {
-            $this->applyValidatedIncludes(...$includes);
-        }
-    }
-
     /**
      * Apply validated includes to the subject.
      *
@@ -714,17 +663,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         foreach ($validRequestedIncludes as $includeName) {
             $include = $includesIndex[$includeName];
             $this->subject = $include->apply($this->subject);
-        }
-    }
-
-    protected function applyFieldsToSubject(): void
-    {
-        $validFields = $this->validatedParameters !== null
-            ? $this->validatedParameters['fields']
-            : $this->resolveValidatedRootFields();
-
-        if ($validFields !== null) {
-            $this->applyFields($validFields);
         }
     }
 
