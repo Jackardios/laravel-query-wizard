@@ -53,7 +53,7 @@
         "test": "phpunit",
         "test:unit": "phpunit --testsuite=Unit",
         "test:feature": "phpunit --testsuite=Feature",
-        "analyse": "phpstan analyse --memory-limit=512M",
+        "analyse": "phpstan analyse --memory-limit=1G",
         "format-check": "pint --test",
         "format": "pint"
     },
