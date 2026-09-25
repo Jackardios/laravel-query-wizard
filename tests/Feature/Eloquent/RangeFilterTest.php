@@ -91,16 +91,32 @@ class RangeFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function range_filter_handles_float_values(): void
+    public function range_filter_compares_fractions_and_large_integers_with_an_integer_column(): void
     {
-        $sql = $this
-            ->createEloquentWizardWithFilters(['id' => ['min' => 1.5, 'max' => 3.5]])
+        $ids = fn (array $bounds): array => $this
+            ->createEloquentWizardWithFilters(['id' => $bounds])
             ->allowedFilters(EloquentFilter::range('id'))
-            ->toQuery()
-            ->toSql();
+            ->get()
+            ->modelKeys();
 
-        $this->assertStringContainsString('>=', $sql);
-        $this->assertStringContainsString('<=', $sql);
+        $this->assertEqualsCanonicalizing([2, 3], $ids(['min' => '1.5', 'max' => '3.5']));
+        $this->assertSame([], $ids(['min' => '99999999999999999999']));
+        $this->assertEqualsCanonicalizing([1, 2, 3, 4, 5], $ids(['max' => '99999999999999999999']));
+    }
+
+    #[Test]
+    public function range_filter_casts_fractions_to_numeric_on_postgres(): void
+    {
+        $query = fn (array $bounds) => $this
+            ->createEloquentWizardFromQuery(['filter' => ['id' => $bounds]], $this->postgresQuery())
+            ->allowedFilters(EloquentFilter::range('id'))
+            ->toQuery();
+
+        $fraction = $query(['min' => '1.5', 'max' => '99999999999999999999']);
+        $this->assertStringEndsWith('where "test_models"."id" >= CAST(? AS numeric) and "test_models"."id" <= CAST(? AS numeric)', $fraction->toSql());
+        $this->assertSame([1.5, '99999999999999999999'], $fraction->getBindings());
+
+        $this->assertStringEndsWith('where "test_models"."id" >= ?', $query(['min' => '2'])->toSql());
     }
 
     #[Test]

@@ -562,6 +562,35 @@ class OperatorFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function dynamic_operator_compares_fractions_and_large_integers_with_an_integer_column(): void
+    {
+        $ids = fn (string $value): array => $this
+            ->createEloquentWizardWithFilters(['id' => $value])
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->get()
+            ->modelKeys();
+
+        $this->assertEqualsCanonicalizing([3, 4, 5], $ids('>2.5'));
+        $this->assertEqualsCanonicalizing([1, 2, 3, 4, 5], $ids('<99999999999999999999'));
+        $this->assertSame([], $ids('>=99999999999999999999'));
+    }
+
+    #[Test]
+    public function dynamic_operator_casts_fractions_to_numeric_on_postgres(): void
+    {
+        $sql = fn (string $value): string => $this
+            ->createEloquentWizardFromQuery(['filter' => ['id' => $value]], $this->postgresQuery())
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringEndsWith('where "test_models"."id" > CAST(? AS numeric)', $sql('>2.5'));
+        $this->assertStringEndsWith('where "test_models"."id" <= CAST(? AS numeric)', $sql('<=99999999999999999999'));
+        $this->assertStringEndsWith('where "test_models"."id" > ?', $sql('>2'));
+        $this->assertStringEndsWith('where "test_models"."id" = ?', $sql('1.5'));
+    }
+
+    #[Test]
     public function dynamic_operator_compares_the_last_four_digit_day(): void
     {
         $midnight = TestModel::factory()->create(['created_at' => '9999-12-31 00:00:00']);

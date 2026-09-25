@@ -15,6 +15,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Support\FilterValueParser;
 use Jackardios\QueryWizard\Support\LikeClause;
+use Jackardios\QueryWizard\Support\NumericComparison;
 use Jackardios\QueryWizard\Support\ParsedDate;
 use Stringable;
 
@@ -119,6 +120,18 @@ class OperatorFilter extends AbstractFilter
 
         if (is_array($actualValue)) {
             return $this->applyArrayValue($builder, $qualifiedColumn, $operator, $actualValue);
+        }
+
+        $comparison = match ($operator) {
+            FilterOperator::GREATER_THAN => '>',
+            FilterOperator::GREATER_THAN_OR_EQUAL => '>=',
+            FilterOperator::LESS_THAN => '<',
+            FilterOperator::LESS_THAN_OR_EQUAL => '<=',
+            default => null,
+        };
+
+        if ($comparison !== null && $this->operator === FilterOperator::DYNAMIC && (is_float($actualValue) || (is_string($actualValue) && is_numeric($actualValue)))) {
+            return NumericComparison::where($builder, $qualifiedColumn, $comparison, $actualValue);
         }
 
         $builder->where($qualifiedColumn, $operator->getSqlOperator(), $actualValue);
