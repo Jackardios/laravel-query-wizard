@@ -152,7 +152,7 @@ trait HandlesSafeRelationSelect
     protected function resolveParentColumnsForEagerLoads(Model $parent, array $relationNames): ?array
     {
         $columns = [];
-        $resolver = new RelationResolver($parent);
+        $resolver = $this->relationResolverFor($parent);
 
         foreach ($relationNames as $relationName) {
             $relation = $resolver->resolve($relationName);

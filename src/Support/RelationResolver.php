@@ -32,28 +32,27 @@ final class RelationResolver
             return $this->cache[$path];
         }
 
-        $model = $this->rootModel;
-        $relation = null;
+        $lastDot = strrpos($path, '.');
 
-        foreach (explode('.', $path) as $segment) {
-            if ($segment === '' || (! method_exists($model, $segment) && $model->relationResolver($model::class, $segment) === null)) {
-                return $this->cache[$path] = null;
-            }
-
-            try {
-                $relation = $model->{$segment}();
-            } catch (\Throwable) {
-                return $this->cache[$path] = null;
-            }
-
-            if (! $relation instanceof Relation) {
-                return $this->cache[$path] = null;
-            }
-
-            $model = $relation->getRelated();
+        if ($lastDot === false) {
+            $model = $this->rootModel;
+            $segment = $path;
+        } else {
+            $model = $this->resolve(substr($path, 0, $lastDot))?->getRelated();
+            $segment = substr($path, $lastDot + 1);
         }
 
-        return $this->cache[$path] = $relation;
+        if ($model === null || $segment === '' || (! method_exists($model, $segment) && $model->relationResolver($model::class, $segment) === null)) {
+            return $this->cache[$path] = null;
+        }
+
+        try {
+            $relation = $model->{$segment}();
+        } catch (\Throwable) {
+            return $this->cache[$path] = null;
+        }
+
+        return $this->cache[$path] = $relation instanceof Relation ? $relation : null;
     }
 
     public function getRootModel(): Model

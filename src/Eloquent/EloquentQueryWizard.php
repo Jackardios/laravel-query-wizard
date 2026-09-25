@@ -572,11 +572,15 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     protected function relationResolverFor(Model $rootModel): RelationResolver
     {
-        if ($this->state->relationResolver?->getRootModel() !== $rootModel) {
-            $this->state->relationResolver = new RelationResolver($rootModel);
+        if ($this->state->relationResolver?->getRootModel() === $rootModel) {
+            return $this->state->relationResolver;
         }
 
-        return $this->state->relationResolver;
+        if ($rootModel !== $this->subject->getModel()) {
+            return new RelationResolver($rootModel);
+        }
+
+        return $this->state->relationResolver = new RelationResolver($rootModel);
     }
 
     protected function normalizeStringToFilter(string $name): FilterInterface
