@@ -68,6 +68,28 @@ class RangeFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function range_filters_reject_unknown_keys(): void
+    {
+        $filters = [
+            'range' => [EloquentFilter::range('id'), ['min' => 1, 'mx' => 3], 'expects an array with `min`/`max` keys'],
+            'date range' => [EloquentFilter::dateRange('created_at'), ['form' => '2024-01-01', 'to' => '2024-01-31'], 'expects an array with `from`/`to` keys'],
+        ];
+
+        foreach ($filters as $label => [$filter, $value, $message]) {
+            try {
+                $this
+                    ->createEloquentWizardWithFilters([$filter->getName() => $value])
+                    ->allowedFilters($filter)
+                    ->toQuery();
+
+                $this->fail("Expected InvalidFilterQuery for the {$label}");
+            } catch (InvalidFilterQuery $exception) {
+                $this->assertStringContainsString($message, $exception->getMessage());
+            }
+        }
+    }
+
+    #[Test]
     public function a_range_list_of_more_than_two_values_is_rejected(): void
     {
         $this->expectException(InvalidFilterQuery::class);

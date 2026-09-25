@@ -84,19 +84,13 @@ abstract class AbstractRangeFilter extends AbstractFilter
             return null;
         }
 
-        $hasBoundaryKey = false;
-
         foreach ($value as $key => $boundaryValue) {
-            if ($key === $this->minKey || $key === $this->maxKey) {
-                $hasBoundaryKey = true;
-            }
-
-            if (is_array($boundaryValue)) {
+            if (($key !== $this->minKey && $key !== $this->maxKey) || is_array($boundaryValue)) {
                 return $this->invalidRangeValueShapeMessage();
             }
         }
 
-        return $hasBoundaryKey ? null : $this->invalidRangeValueShapeMessage();
+        return null;
     }
 
     protected function hasEffectiveConstraint(mixed $value): bool
