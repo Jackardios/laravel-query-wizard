@@ -479,6 +479,13 @@ class EloquentQueryWizard extends BaseQueryWizard
             );
         }
 
+        if ($this->built && ($this->proxyModified || $this->subjectEscaped) && $this->builtScopeSignature !== $this->resolveBuildScopeSignature()) {
+            throw new \LogicException(
+                'The request parameters changed after the underlying builder was handed out or changed through the wizard. '
+                .'Create a new wizard for each request.'
+            );
+        }
+
         return parent::build();
     }
 

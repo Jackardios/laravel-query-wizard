@@ -809,6 +809,26 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function a_request_change_after_handing_out_the_builder_names_the_request(): void
+    {
+        foreach (['toQuery' => fn ($wizard) => $wizard->toQuery(), 'where' => fn ($wizard) => $wizard->where('id', '>', 0)] as $label => $handOut) {
+            $parameters = new QueryParametersManager(new Request(['filter' => ['name' => 'a']]));
+            $wizard = new EloquentQueryWizard(TestModel::query(), $parameters);
+            $wizard->allowedFilters('name');
+            $handOut($wizard);
+
+            $parameters->setRequest(new Request(['filter' => ['name' => 'b']]));
+
+            try {
+                $wizard->get();
+                $this->fail("Expected LogicException after {$label}");
+            } catch (\LogicException $e) {
+                $this->assertStringStartsWith('The request parameters changed after the underlying builder', $e->getMessage());
+            }
+        }
+    }
+
+    #[Test]
     public function config_after_executing_methods_is_still_allowed(): void
     {
         $wizard = EloquentQueryWizard::for(TestModel::class)
