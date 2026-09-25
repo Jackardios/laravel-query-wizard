@@ -379,6 +379,24 @@ trait HandlesFields
     }
 
     /**
+     * Root attributes to keep visible: the requested fields, with runtime attributes under their own names.
+     *
+     * @param  array<string>  $fields
+     * @param  array<string, string>  $runtimeAttributesByField
+     * @return array<string>
+     */
+    protected function visibleRootFields(array $fields, array $runtimeAttributesByField): array
+    {
+        $visibleFields = array_values($runtimeAttributesByField);
+
+        foreach ($fields as $field) {
+            $visibleFields[] = $runtimeAttributesByField[$this->normalizePublicPath($field)] ?? $field;
+        }
+
+        return array_values(array_unique($visibleFields));
+    }
+
+    /**
      * Hide all model attributes except explicitly visible ones.
      *
      * @param  array<string>  $visibleFields

@@ -599,7 +599,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     protected function applyFields(array $fields): void
     {
         $requestedFields = $fields;
-        $this->state->rootVisibleFields = $this->resolveVisibleRootFields($requestedFields);
+        $this->state->rootVisibleFields = $this->visibleRootFields($requestedFields, $this->state->runtimeRootAttributeNamesByField);
         $this->state->safeRootHiddenFields = [];
 
         if ($this->shouldKeepFullRootSelectForAppends($requestedFields)) {
@@ -829,32 +829,6 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * @param  array<string>  $requestedFields
-     * @return array<string>
-     */
-    private function resolveVisibleRootFields(array $requestedFields): array
-    {
-        $visibleFields = [];
-
-        foreach ($requestedFields as $field) {
-            $normalizedField = $this->normalizePublicPath($field);
-
-            if (isset($this->state->runtimeRootAttributeNamesByField[$normalizedField])) {
-                $visibleFields[] = $this->state->runtimeRootAttributeNamesByField[$normalizedField];
-
-                continue;
-            }
-
-            $visibleFields[] = $field;
-        }
-
-        return array_values(array_unique(array_merge(
-            $visibleFields,
-            $this->state->alwaysVisibleRuntimeRootAttributes
-        )));
-    }
-
-    /**
      * @param  array<string>  $fields
      * @param  array<string>  $preservedSelectAliases
      * @return array<string>
@@ -981,7 +955,6 @@ class EloquentQueryWizard extends BaseQueryWizard
         $attributesByOwner = $this->resolveRuntimeAttributesByOwner($includeNames, $includesIndex);
 
         $this->state->runtimeRootAttributeNamesByField = $attributesByOwner[''] ?? [];
-        $this->state->alwaysVisibleRuntimeRootAttributes = array_values(array_unique($this->state->runtimeRootAttributeNamesByField));
 
         unset($attributesByOwner['']);
         $this->state->runtimeRelationAttributes = $attributesByOwner;

@@ -378,14 +378,10 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
             return;
         }
 
-        $runtimeAttributes = $this->runtimeAttributesByOwner[''] ?? [];
-        $visibleFields = array_values($runtimeAttributes);
-
-        foreach ($validFields as $field) {
-            $visibleFields[] = $runtimeAttributes[$this->normalizePublicPath($field)] ?? $field;
-        }
-
-        $this->hideModelAttributesExcept($this->model, array_values(array_unique($visibleFields)));
+        $this->hideModelAttributesExcept(
+            $this->model,
+            $this->visibleRootFields($validFields, $this->runtimeAttributesByOwner[''] ?? [])
+        );
     }
 
     /**
