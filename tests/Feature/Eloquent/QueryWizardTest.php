@@ -17,6 +17,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
+use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
@@ -1048,6 +1049,32 @@ class QueryWizardTest extends TestCase
         $sql = $wizard->allowedIncludes('relatedModels')->toQuery()->toSql();
 
         $this->assertSame('select * from "test_models" where "test_models"."name" = ? order by "test_models"."name" asc', $sql);
+    }
+
+    #[Test]
+    public function a_retry_after_a_failed_build_reads_the_current_configuration(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardFromQuery(['include' => 'relatedModelsTotal', 'sort' => 'boom'])
+            ->allowedIncludes(EloquentInclude::count('relatedModels'))
+            ->allowedSorts(EloquentSort::callback('boom', function (): void {
+                throw new \RuntimeException('boom');
+            }));
+
+        try {
+            $wizard->get();
+            $this->fail('Expected the first build to fail');
+        } catch (InvalidIncludeQuery|\RuntimeException) {
+        }
+
+        config()->set('query-wizard.count_suffix', 'Total');
+
+        try {
+            $wizard->get();
+            $this->fail('Expected the sort to fail again');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('boom', $e->getMessage());
+        }
     }
 
     #[Test]

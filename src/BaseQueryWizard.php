@@ -463,6 +463,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         $this->built = false;
         $this->builtScopeSignature = null;
         $this->forgetConfigurationMemo();
+        $this->invalidateFilterCache();
+        $this->invalidateSortCache();
+        $this->invalidateIncludeCache();
     }
 
     /**
