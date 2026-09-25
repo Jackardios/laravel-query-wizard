@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -38,6 +39,35 @@ class JsonContainsFilterTest extends TestCase
             str_contains($sqlLower, 'json_contains') || str_contains($sqlLower, 'json_each') || str_contains($sqlLower, '::jsonb @>'),
             "Expected JSON filtering SQL, got: {$sql}"
         );
+    }
+
+    #[Test]
+    public function keyed_and_nested_values_are_rejected(): void
+    {
+        foreach ([['a' => 'php'], [['php']]] as $value) {
+            try {
+                $this
+                    ->createEloquentWizardWithFilters(['tags' => $value])
+                    ->allowedFilters(EloquentFilter::jsonContains('tags'))
+                    ->toQuery();
+
+                $this->fail('Expected InvalidFilterQuery for '.json_encode($value));
+            } catch (InvalidFilterQuery $exception) {
+                $this->assertSame(400, $exception->getStatusCode());
+            }
+        }
+    }
+
+    #[Test]
+    public function blank_items_are_dropped(): void
+    {
+        $query = fn (array $value) => $this
+            ->createEloquentWizardWithFilters([])
+            ->allowedFilters(EloquentFilter::jsonContains('tags')->default($value))
+            ->toQuery();
+
+        $this->assertCount(1, $query(['php', null, ' '])->getBindings());
+        $this->assertStringNotContainsString('where', $query([null, ' '])->toSql());
     }
 
     #[Test]

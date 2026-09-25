@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
+use Jackardios\QueryWizard\Support\FilterValueParser;
 
 /**
  * Filter by JSON column containment.
@@ -62,6 +63,11 @@ final class JsonContainsFilter extends AbstractFilter
         return 'json_contains';
     }
 
+    public function validateValueShape(mixed $value): ?string
+    {
+        return $this->validateScalarOrFlatListValueShape($value);
+    }
+
     /**
      * @param  Builder<Model>  $subject
      * @param  array|mixed  $value
@@ -70,7 +76,11 @@ final class JsonContainsFilter extends AbstractFilter
     public function apply(mixed $subject, mixed $value): mixed
     {
         $column = $this->resolveQualifiedJsonColumn($subject, $this->property);
-        $values = is_array($value) ? $value : [$value];
+        $values = array_filter(is_array($value) ? $value : [$value], static fn (mixed $item): bool => ! FilterValueParser::isBlank($item));
+
+        if ($values === []) {
+            return $subject;
+        }
 
         if ($this->matchAll) {
             foreach ($values as $val) {
