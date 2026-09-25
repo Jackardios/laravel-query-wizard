@@ -39,6 +39,8 @@ class HandlesConfigurationTest extends TestCase
                 return new QueryParametersManager(request());
             }
 
+            protected function invalidateBuild(): void {}
+
             public function getContext(): WizardContextInterface
             {
                 return new class implements WizardContextInterface

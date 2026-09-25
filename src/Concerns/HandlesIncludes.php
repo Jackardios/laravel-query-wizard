@@ -45,6 +45,49 @@ trait HandlesIncludes
     abstract protected function normalizeStringToInclude(string $name): IncludeInterface;
 
     /**
+     * Set allowed includes.
+     *
+     * @param  IncludeInterface|string|array<IncludeInterface|string>  ...$includes
+     */
+    public function allowedIncludes(IncludeInterface|string|array ...$includes): static
+    {
+        $this->invalidateBuild();
+        $this->allowedIncludes = $this->flattenDefinitions($includes);
+        $this->allowedIncludesExplicitlySet = true;
+
+        return $this;
+    }
+
+    /**
+     * Set disallowed includes (to override schema).
+     *
+     * @param  string|array<string>  ...$names
+     */
+    public function disallowedIncludes(string|array ...$names): static
+    {
+        $this->invalidateBuild();
+        $this->disallowedIncludes = $this->flattenStringArray($names);
+
+        return $this;
+    }
+
+    /**
+     * Set default includes.
+     *
+     * Replaces the schema defaults; call it without arguments for no defaults.
+     *
+     * @param  string|array<string>  ...$names
+     */
+    public function defaultIncludes(string|array ...$names): static
+    {
+        $this->invalidateBuild();
+        $this->defaultIncludes = $this->flattenStringArray($names);
+        $this->defaultIncludesExplicitlySet = true;
+
+        return $this;
+    }
+
+    /**
      * Get effective includes.
      *
      * If allowedIncludes() was called explicitly, use those (even if empty).

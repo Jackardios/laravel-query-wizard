@@ -85,164 +85,6 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
     }
 
     /**
-     * Set the resource schema for configuration.
-     *
-     * @param  class-string<ResourceSchemaInterface>|ResourceSchemaInterface  $schema
-     */
-    public function schema(string|ResourceSchemaInterface $schema): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->schema = is_string($schema) ? app($schema) : $schema;
-        $this->invalidateProcessedState(true);
-
-        return $this;
-    }
-
-    /**
-     * Set allowed includes.
-     *
-     * @param  IncludeInterface|string|array<IncludeInterface|string>  ...$includes
-     */
-    public function allowedIncludes(IncludeInterface|string|array ...$includes): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->allowedIncludes = $this->flattenDefinitions($includes);
-        $this->allowedIncludesExplicitlySet = true;
-        $this->invalidateProcessedState(true);
-
-        return $this;
-    }
-
-    /**
-     * Set disallowed includes.
-     *
-     * @param  string|array<string>  ...$names
-     */
-    public function disallowedIncludes(string|array ...$names): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->disallowedIncludes = $this->flattenStringArray($names);
-        $this->invalidateProcessedState(true);
-
-        return $this;
-    }
-
-    /**
-     * Set default includes.
-     *
-     * Replaces the schema defaults; call it without arguments for no defaults.
-     *
-     * @param  string|array<string>  ...$names
-     */
-    public function defaultIncludes(string|array ...$names): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->defaultIncludes = $this->flattenStringArray($names);
-        $this->defaultIncludesExplicitlySet = true;
-        $this->invalidateProcessedState(true);
-
-        return $this;
-    }
-
-    /**
-     * Set allowed fields.
-     *
-     * Empty array means client cannot request specific fields.
-     * Use ['*'] to allow any fields requested by client.
-     *
-     * @param  string|array<string>  ...$fields
-     */
-    public function allowedFields(string|array ...$fields): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->allowedFields = $this->flattenStringArray($fields);
-        $this->allowedFieldsExplicitlySet = true;
-        $this->invalidateProcessedState();
-
-        return $this;
-    }
-
-    /**
-     * Set disallowed fields.
-     *
-     * @param  string|array<string>  ...$names
-     */
-    public function disallowedFields(string|array ...$names): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->disallowedFields = $this->flattenStringArray($names);
-        $this->invalidateProcessedState();
-
-        return $this;
-    }
-
-    /**
-     * Set default fields.
-     *
-     * Replaces the schema defaults and the `fields.use_allowed_as_default` fallback;
-     * call it without arguments for no defaults (all columns).
-     *
-     * Applied only when request parameter is completely absent.
-     *
-     * @param  string|array<string>  ...$fields
-     */
-    public function defaultFields(string|array ...$fields): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->defaultFields = $this->flattenStringArray($fields);
-        $this->defaultFieldsExplicitlySet = true;
-        $this->invalidateProcessedState();
-
-        return $this;
-    }
-
-    /**
-     * Set allowed appends.
-     *
-     * @param  string|array<string>  ...$appends
-     */
-    public function allowedAppends(string|array ...$appends): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->allowedAppends = $this->flattenStringArray($appends);
-        $this->allowedAppendsExplicitlySet = true;
-        $this->invalidateProcessedState();
-
-        return $this;
-    }
-
-    /**
-     * Set disallowed appends.
-     *
-     * @param  string|array<string>  ...$names
-     */
-    public function disallowedAppends(string|array ...$names): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->disallowedAppends = $this->flattenStringArray($names);
-        $this->invalidateProcessedState();
-
-        return $this;
-    }
-
-    /**
-     * Set default appends.
-     *
-     * Replaces the schema defaults; call it without arguments for no defaults.
-     *
-     * @param  string|array<string>  ...$appends
-     */
-    public function defaultAppends(string|array ...$appends): static
-    {
-        $this->ensureMutableBeforeProcessing();
-        $this->defaultAppends = $this->flattenStringArray($appends);
-        $this->defaultAppendsExplicitlySet = true;
-        $this->invalidateProcessedState();
-
-        return $this;
-    }
-
-    /**
      * Process the model (apply includes, fields, appends).
      *
      * The wizard is request-bound after processing because it mutates
@@ -585,27 +427,22 @@ class ModelQueryWizard implements QueryWizardInterface, WizardContextInterface
         return $this->resolveParametersScopeSignature($this->getParametersManager());
     }
 
-    protected function invalidateProcessedState(bool $invalidateIncludeCache = false): void
+    /**
+     * Clear what the last configuration resolved; refused once process() has run.
+     */
+    protected function invalidateBuild(): void
     {
-        if ($invalidateIncludeCache) {
-            $this->invalidateIncludeCache();
+        if ($this->processed) {
+            throw new \LogicException(
+                'ModelQueryWizard cannot be reconfigured after process() has been called. '
+                .'Create a new wizard instance for a different configuration.'
+            );
         }
 
+        $this->invalidateIncludeCache();
         $this->resetSafeRelationSelectState();
         $this->forgetConfigurationMemo();
         $this->validatedRequest = null;
-    }
-
-    protected function ensureMutableBeforeProcessing(): void
-    {
-        if (! $this->processed) {
-            return;
-        }
-
-        throw new \LogicException(
-            'ModelQueryWizard cannot be reconfigured after process() has been called. '
-            .'Create a new wizard instance for a different configuration.'
-        );
     }
 
     /**

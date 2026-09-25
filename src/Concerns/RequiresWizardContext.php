@@ -20,4 +20,9 @@ trait RequiresWizardContext
     abstract protected function getParametersManager(): QueryParametersManager;
 
     abstract protected function getSchema(): ?ResourceSchemaInterface;
+
+    /**
+     * Called before a configuration change; throws when the wizard can no longer be changed.
+     */
+    abstract protected function invalidateBuild(): void;
 }

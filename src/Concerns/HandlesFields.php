@@ -44,6 +44,56 @@ trait HandlesFields
     abstract protected function resolveAppendAccessorModel(string $relationPath): ?Model;
 
     /**
+     * Set allowed fields.
+     *
+     * Empty array means all fields are forbidden.
+     * Use ['*'] to allow any fields requested by client.
+     * Not calling this method falls back to schema fields (if any).
+     *
+     * @param  string|array<string>  ...$fields
+     */
+    public function allowedFields(string|array ...$fields): static
+    {
+        $this->invalidateBuild();
+        $this->allowedFields = $this->flattenStringArray($fields);
+        $this->allowedFieldsExplicitlySet = true;
+
+        return $this;
+    }
+
+    /**
+     * Set disallowed fields (to override schema).
+     *
+     * @param  string|array<string>  ...$names
+     */
+    public function disallowedFields(string|array ...$names): static
+    {
+        $this->invalidateBuild();
+        $this->disallowedFields = $this->flattenStringArray($names);
+
+        return $this;
+    }
+
+    /**
+     * Set default fields.
+     *
+     * Replaces the schema defaults and the `fields.use_allowed_as_default` fallback;
+     * call it without arguments for no defaults (all columns).
+     *
+     * Applied only when request parameter is completely absent.
+     *
+     * @param  string|array<string>  ...$fields
+     */
+    public function defaultFields(string|array ...$fields): static
+    {
+        $this->invalidateBuild();
+        $this->defaultFields = $this->flattenStringArray($fields);
+        $this->defaultFieldsExplicitlySet = true;
+
+        return $this;
+    }
+
+    /**
      * Get effective fields (what client CAN request via ?fields).
      *
      * If allowedFields() was called explicitly, use those (even if empty).

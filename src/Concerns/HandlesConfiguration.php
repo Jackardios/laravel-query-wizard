@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Support\NamePolicy;
 
@@ -25,6 +26,23 @@ trait HandlesConfiguration
 
     /** @var list<array{array<string>, bool, NamePolicy}> */
     private array $denyPolicyMemo = [];
+
+    /**
+     * Set the resource schema for configuration.
+     *
+     * The schema provides default filters, sorts, includes, fields, and appends.
+     * Explicit calls to allowed*() methods override schema definitions.
+     *
+     * @param  class-string<ResourceSchemaInterface>|ResourceSchemaInterface  $schema
+     */
+    public function schema(string|ResourceSchemaInterface $schema): static
+    {
+        $schema = is_string($schema) ? app($schema) : $schema;
+        $this->invalidateBuild();
+        $this->schema = $schema;
+
+        return $this;
+    }
 
     /**
      * Flatten definitions array (handle variadic with nested arrays).

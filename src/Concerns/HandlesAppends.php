@@ -46,6 +46,49 @@ trait HandlesAppends
     abstract protected function getMergedRequestedIncludes(): array;
 
     /**
+     * Set allowed appends.
+     *
+     * @param  string|array<string>  ...$appends
+     */
+    public function allowedAppends(string|array ...$appends): static
+    {
+        $this->invalidateBuild();
+        $this->allowedAppends = $this->flattenStringArray($appends);
+        $this->allowedAppendsExplicitlySet = true;
+
+        return $this;
+    }
+
+    /**
+     * Set disallowed appends (to override schema).
+     *
+     * @param  string|array<string>  ...$names
+     */
+    public function disallowedAppends(string|array ...$names): static
+    {
+        $this->invalidateBuild();
+        $this->disallowedAppends = $this->flattenStringArray($names);
+
+        return $this;
+    }
+
+    /**
+     * Set default appends.
+     *
+     * Replaces the schema defaults; call it without arguments for no defaults.
+     *
+     * @param  string|array<string>  ...$appends
+     */
+    public function defaultAppends(string|array ...$appends): static
+    {
+        $this->invalidateBuild();
+        $this->defaultAppends = $this->flattenStringArray($appends);
+        $this->defaultAppendsExplicitlySet = true;
+
+        return $this;
+    }
+
+    /**
      * Build append tree from grouped format.
      *
      * @param  array<string, array<string>>  $grouped  Grouped appends ['relation.path' => ['append1', 'append2']]
