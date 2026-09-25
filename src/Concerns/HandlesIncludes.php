@@ -179,17 +179,10 @@ trait HandlesIncludes
             $this->validateIncludesLimit(count($requestedIncludes));
         }
 
-        if (empty($includes) && ! empty($requestedIncludes)) {
-            $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
-            $defaultsIndex = array_flip($defaults);
-            $userOnlyIncludes = array_filter(
-                $requestedIncludes,
-                fn ($name) => ! isset($defaultsIndex[$name])
-            );
-
-            if (! empty($userOnlyIncludes) && ! $this->getConfig()->isInvalidIncludeQueryExceptionDisabled()) {
+        if (empty($includes)) {
+            if (! $usingDefaults && $requestedIncludes !== [] && ! $this->getConfig()->isInvalidIncludeQueryExceptionDisabled()) {
                 throw InvalidIncludeQuery::includesNotAllowed(
-                    collect($userOnlyIncludes),
+                    collect($requestedIncludes),
                     collect([])
                 );
             }
@@ -197,24 +190,12 @@ trait HandlesIncludes
             return null;
         }
 
-        if (empty($includes)) {
-            return null;
-        }
-
         $includesIndex = $this->buildIncludesIndex($includes);
-
-        $defaults = $usingDefaults ? $this->getEffectiveDefaultIncludes() : [];
-        $defaultsIndex = array_flip($defaults);
-
         $allowedIncludeNames = array_keys($includesIndex);
         $validRequestedIncludes = [];
         foreach ($requestedIncludes as $includeName) {
             if (! isset($includesIndex[$includeName])) {
-                if (isset($defaultsIndex[$includeName])) {
-                    continue;
-                }
-
-                if (! $this->getConfig()->isInvalidIncludeQueryExceptionDisabled()) {
+                if (! $usingDefaults && ! $this->getConfig()->isInvalidIncludeQueryExceptionDisabled()) {
                     throw InvalidIncludeQuery::includesNotAllowed(
                         collect([$includeName]),
                         collect($allowedIncludeNames)
