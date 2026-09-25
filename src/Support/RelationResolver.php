@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
  * Resolves Eloquent relations by dot-notation path with caching.
+ *
+ * @internal
  */
 final class RelationResolver
 {

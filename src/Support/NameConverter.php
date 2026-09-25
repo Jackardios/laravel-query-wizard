@@ -8,6 +8,8 @@ use Illuminate\Support\Str;
 
 /**
  * Converts parameter names between naming conventions.
+ *
+ * @internal
  */
 final class NameConverter
 {

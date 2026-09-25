@@ -6,6 +6,8 @@ namespace Jackardios\QueryWizard\Support;
 
 /**
  * Builds nested tree structures from grouped dot-notation data.
+ *
+ * @internal
  */
 final class DotNotationTreeBuilder
 {

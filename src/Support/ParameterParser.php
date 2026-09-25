@@ -14,6 +14,8 @@ use Jackardios\QueryWizard\Values\Sort;
  * - Comma-separated string to array conversion
  * - Fields string parsing with dot notation grouping
  * - Sort value parsing with direction detection
+ *
+ * @internal
  */
 final class ParameterParser
 {

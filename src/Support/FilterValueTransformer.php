@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
  * - Empty string to null conversion (filter not applied)
  * - Comma-separated string to array conversion (unless splitting is disabled)
  * - Recursive array transformation
+ *
+ * @internal
  */
 final class FilterValueTransformer
 {
