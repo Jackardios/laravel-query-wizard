@@ -403,18 +403,9 @@ trait HandlesFields
      */
     protected function hideModelAttributesExcept(Model $model, array $visibleFields): void
     {
-        $attributeKeys = array_keys($model->getAttributes());
-        if (empty($attributeKeys)) {
-            return;
-        }
+        $fieldsToHide = array_keys(array_diff_key($model->getAttributes(), array_flip($visibleFields)));
 
-        $visibleFieldsMap = array_flip($visibleFields);
-        $fieldsToHide = array_filter(
-            $attributeKeys,
-            static fn (string $key): bool => ! isset($visibleFieldsMap[$key])
-        );
-
-        if (! empty($fieldsToHide)) {
+        if ($fieldsToHide !== []) {
             $model->makeHidden($fieldsToHide);
         }
     }
