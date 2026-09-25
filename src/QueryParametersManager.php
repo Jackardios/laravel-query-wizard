@@ -62,6 +62,8 @@ class QueryParametersManager
 
     protected ?FilterValueTransformer $filterTransformer = null;
 
+    private ?QueryWizardConfig $settings = null;
+
     /** @var array<string, mixed>|null */
     protected ?array $strictBodyPayload = null;
 
@@ -73,14 +75,22 @@ class QueryParametersManager
         $this->bumpStateVersion();
     }
 
+    /**
+     * The configuration as of the first read since the manager was created or reset.
+     */
+    private function settings(): QueryWizardConfig
+    {
+        return $this->settings ??= $this->config->snapshot();
+    }
+
     protected function getParser(string $type): ParameterParser
     {
         return $this->parsers[$type] ??= new ParameterParser(
             match ($type) {
-                'includes' => $this->config->getIncludesSeparator(),
-                'sorts' => $this->config->getSortsSeparator(),
-                'fields' => $this->config->getFieldsSeparator(),
-                'appends' => $this->config->getAppendsSeparator(),
+                'includes' => $this->settings()->getIncludesSeparator(),
+                'sorts' => $this->settings()->getSortsSeparator(),
+                'fields' => $this->settings()->getFieldsSeparator(),
+                'appends' => $this->settings()->getAppendsSeparator(),
                 default => throw new \InvalidArgumentException("Unsupported parser type [{$type}]."),
             }
         );
@@ -88,7 +98,7 @@ class QueryParametersManager
 
     protected function getFilterTransformer(): FilterValueTransformer
     {
-        return $this->filterTransformer ??= new FilterValueTransformer($this->config->getFiltersSeparator());
+        return $this->filterTransformer ??= new FilterValueTransformer($this->settings()->getFiltersSeparator());
     }
 
     /**
@@ -96,7 +106,7 @@ class QueryParametersManager
      */
     protected function convertName(string $name): string
     {
-        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+        if (! $this->settings()->shouldConvertParametersToSnakeCase()) {
             return $name;
         }
 
@@ -108,7 +118,7 @@ class QueryParametersManager
      */
     protected function convertPath(string $path): string
     {
-        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+        if (! $this->settings()->shouldConvertParametersToSnakeCase()) {
             return $path;
         }
 
@@ -123,7 +133,7 @@ class QueryParametersManager
      */
     protected function convertListCollection(Collection $collection): Collection
     {
-        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+        if (! $this->settings()->shouldConvertParametersToSnakeCase()) {
             return $collection;
         }
 
@@ -138,7 +148,7 @@ class QueryParametersManager
      */
     protected function convertSortsCollection(Collection $collection): Collection
     {
-        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+        if (! $this->settings()->shouldConvertParametersToSnakeCase()) {
             return $collection;
         }
 
@@ -164,7 +174,7 @@ class QueryParametersManager
      */
     protected function convertFieldsCollection(Collection $collection): Collection
     {
-        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+        if (! $this->settings()->shouldConvertParametersToSnakeCase()) {
             return $collection;
         }
 
@@ -192,7 +202,7 @@ class QueryParametersManager
      */
     protected function convertFiltersCollection(Collection $collection): Collection
     {
-        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+        if (! $this->settings()->shouldConvertParametersToSnakeCase()) {
             return $collection;
         }
 
@@ -211,7 +221,7 @@ class QueryParametersManager
      */
     protected function convertFilterKeys(array $filters): array
     {
-        if (! $this->config->shouldConvertParametersToSnakeCase()) {
+        if (! $this->settings()->shouldConvertParametersToSnakeCase()) {
             return $filters;
         }
 
@@ -300,10 +310,10 @@ class QueryParametersManager
             return;
         }
 
-        $filtersParameterName = $this->config->getFiltersParameterName();
+        $filtersParameterName = $this->settings()->getFiltersParameterName();
         $rawValue = $filtersParameterName ? $this->getRequestData($filtersParameterName) : null;
 
-        $limit = $this->config->getMaxFiltersCount();
+        $limit = $this->settings()->getMaxFiltersCount();
         if ($limit !== null && is_array($rawValue) && count($rawValue) > $limit) {
             throw MaxFiltersCountExceeded::create(count($rawValue), $limit);
         }
@@ -502,6 +512,7 @@ class QueryParametersManager
         $this->parsers = [];
         $this->filterTransformer = null;
         $this->strictBodyPayload = null;
+        $this->settings = null;
         $this->bumpStateVersion();
 
         return $this;
@@ -526,7 +537,7 @@ class QueryParametersManager
             return $default;
         }
 
-        if ($this->config->shouldUseRequestBody()) {
+        if ($this->settings()->shouldUseRequestBody()) {
             return data_get($this->getStrictBodyPayload(), $key, $default);
         }
 
@@ -542,7 +553,7 @@ class QueryParametersManager
             return false;
         }
 
-        if ($this->config->shouldUseRequestBody()) {
+        if ($this->settings()->shouldUseRequestBody()) {
             return Arr::has($this->getStrictBodyPayload(), $key);
         }
 
@@ -630,11 +641,11 @@ class QueryParametersManager
     protected function getParameterName(string $type): ?string
     {
         return match ($type) {
-            'fields' => $this->config->getFieldsParameterName(),
-            'appends' => $this->config->getAppendsParameterName(),
-            'includes' => $this->config->getIncludesParameterName(),
-            'sorts' => $this->config->getSortsParameterName(),
-            'filters' => $this->config->getFiltersParameterName(),
+            'fields' => $this->settings()->getFieldsParameterName(),
+            'appends' => $this->settings()->getAppendsParameterName(),
+            'includes' => $this->settings()->getIncludesParameterName(),
+            'sorts' => $this->settings()->getSortsParameterName(),
+            'filters' => $this->settings()->getFiltersParameterName(),
             default => throw new \InvalidArgumentException("Unsupported parameter type [{$type}]."),
         };
     }

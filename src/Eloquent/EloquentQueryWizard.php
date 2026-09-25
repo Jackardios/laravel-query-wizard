@@ -593,7 +593,9 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     protected function normalizeStringToInclude(string $name): IncludeInterface
     {
-        return RelationshipInclude::fromString($name, $this->config->getCountSuffix(), $this->config->getExistsSuffix());
+        $config = $this->getConfig();
+
+        return RelationshipInclude::fromString($name, $config->getCountSuffix(), $config->getExistsSuffix());
     }
 
     protected function applyFields(array $fields): void
