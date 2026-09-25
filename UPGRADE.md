@@ -53,7 +53,8 @@ items in a partial or LIKE list are dropped (before: `['foo', ' ']` added `LIKE 
 
 **Relation filters without a condition add no `whereHas`.** A dotted filter whose value adds nothing (blank, a range
 without bounds, a DYNAMIC operator without a value) no longer adds an unconstrained `whereHas`, which dropped parents
-without related rows. Custom filters using `HandlesRelationFiltering` can override `hasEffectiveConstraint()`.
+without related rows. Custom filters using `HandlesRelationFiltering` can override `resolveConstraint()`: it reads the
+value once, returns what `applyOnQuery()` receives, or `null` for no condition.
 
 **Date ranges** (`dateRange`):
 

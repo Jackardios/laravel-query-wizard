@@ -34,6 +34,7 @@ use Stringable;
  */
 class OperatorFilter extends AbstractFilter
 {
+    /** @use HandlesRelationFiltering<array{0: FilterOperator, 1: mixed}> */
     use HandlesRelationFiltering;
 
     protected FilterOperator $operator;
@@ -83,7 +84,10 @@ class OperatorFilter extends AbstractFilter
         return $this->applyToSubject($subject, $value);
     }
 
-    protected function hasEffectiveConstraint(mixed $value): bool
+    /**
+     * @return array{0: FilterOperator, 1: mixed}|null The operator and its operand
+     */
+    protected function resolveConstraint(mixed $value): ?array
     {
         $operator = $this->operator;
 
@@ -91,34 +95,26 @@ class OperatorFilter extends AbstractFilter
             [$operator, $value] = $this->parseDynamicOperator($value);
 
             if ($operator === null) {
-                return false;
+                return null;
             }
         }
 
         if (self::isLike($operator)) {
-            return self::searchableValues((array) $value) !== [];
+            $value = self::searchableValues((array) $value);
         }
 
-        return $value !== [];
+        return $value === [] ? null : [$operator, $value];
     }
 
     /**
      * @param  Builder<Model>  $builder
+     * @param  array{0: FilterOperator, 1: mixed}  $value  The operator and its operand
      * @return Builder<Model>
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {
         $qualifiedColumn = $builder->qualifyColumn($column);
-        $operator = $this->operator;
-        $actualValue = $value;
-
-        if ($operator === FilterOperator::DYNAMIC) {
-            [$operator, $actualValue] = $this->parseDynamicOperator($value);
-
-            if ($operator === null) {
-                return $builder;
-            }
-        }
+        [$operator, $actualValue] = $value;
 
         if (self::isLike($operator)) {
             return $this->applyLike($builder, $column, $operator === FilterOperator::NOT_LIKE, (array) $actualValue);
@@ -155,21 +151,15 @@ class OperatorFilter extends AbstractFilter
      * LIKE, none of them for NOT LIKE.
      *
      * @param  Builder<Model>  $builder
-     * @param  array<mixed>  $values
+     * @param  array<mixed>  $values  Non-blank search values
      * @return Builder<Model>
      */
     protected function applyLike(Builder $builder, string $column, bool $not, array $values): Builder
     {
-        $values = self::searchableValues($values);
-
-        if ($values === []) {
-            return $builder;
-        }
-
         $sql = LikeClause::for($builder, $column, not: $not);
 
         if (count($values) === 1) {
-            return $builder->whereRaw($sql, [LikeClause::containing($this->likeText($values[0]))]);
+            return $builder->whereRaw($sql, [LikeClause::containing($this->likeText(reset($values)))]);
         }
 
         return $builder->where(function (Builder $query) use ($values, $sql, $not): void {

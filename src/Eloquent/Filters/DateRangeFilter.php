@@ -20,6 +20,8 @@ use Jackardios\QueryWizard\Support\FilterValueParser;
  * rejected with a 400 unless lenient() is used. Bounds are read in the
  * application timezone, and a date-time with an offset is converted to it.
  * A date names the whole day, so `to=2024-01-31` matches all of January 31.
+ *
+ * @extends AbstractRangeFilter<non-empty-list<array{0: string, 1: mixed}>>
  */
 final class DateRangeFilter extends AbstractRangeFilter
 {
@@ -112,21 +114,26 @@ final class DateRangeFilter extends AbstractRangeFilter
         return 'date_range';
     }
 
-    protected function hasEffectiveConstraint(mixed $value): bool
+    /**
+     * @return non-empty-list<array{0: string, 1: mixed}>|null
+     */
+    protected function resolveConstraint(mixed $value): ?array
     {
-        return $this->resolveBounds($value) !== [];
+        $bounds = $this->resolveBounds($value);
+
+        return $bounds === [] ? null : $bounds;
     }
 
     /**
      * @param  Builder<Model>  $builder
-     * @param  array<string, mixed>|mixed  $value
+     * @param  non-empty-list<array{0: string, 1: mixed}>  $value  The bound comparisons
      * @return Builder<Model>
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {
         $qualifiedColumn = $builder->qualifyColumn($column);
 
-        foreach ($this->resolveBounds($value) as [$operator, $bound]) {
+        foreach ($value as [$operator, $bound]) {
             $builder->where($qualifiedColumn, $operator, $bound);
         }
 

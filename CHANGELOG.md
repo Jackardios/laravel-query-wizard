@@ -67,7 +67,7 @@ Removed:
   stay visible under sparse fieldsets.
 - Post-processed wrappers `lazyById()`, `lazyByIdDesc()`, `chunkByIdDesc()`, `eachById()`, `each()`, `chunkMap()`;
   finders called through the wizard (`find()`, `sole()`, `firstWhere()`, ...) post-process their results.
-- Extension points marked `@api`, including `rollbackFailedBuild()`, `hasEffectiveConstraint()`,
+- Extension points marked `@api`, including `rollbackFailedBuild()`, `resolveConstraint()`,
   `resolveAppendAccessorModel()` and `QueryWizardConfig::snapshot()`.
 
 ### Changed

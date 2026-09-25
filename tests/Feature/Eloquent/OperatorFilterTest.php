@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Eloquent\Filters\OperatorFilter;
 use Jackardios\QueryWizard\Enums\FilterOperator;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -711,5 +712,25 @@ class OperatorFilterTest extends EloquentFilterTestCase
             ->get();
 
         $this->assertCount(5, $models);
+    }
+
+    #[Test]
+    public function a_dynamic_value_is_parsed_once_per_application(): void
+    {
+        $filter = new class('relatedModels.id', null, FilterOperator::DYNAMIC) extends OperatorFilter
+        {
+            public int $parses = 0;
+
+            protected function parseDynamicOperator(mixed $value): array
+            {
+                $this->parses++;
+
+                return parent::parseDynamicOperator($value);
+            }
+        };
+
+        $this->createEloquentWizardWithFilters(['relatedModels.id' => '>=1'])->allowedFilters($filter)->toQuery();
+
+        $this->assertSame(1, $filter->parses);
     }
 }

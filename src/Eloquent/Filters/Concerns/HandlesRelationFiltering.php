@@ -15,6 +15,8 @@ use Jackardios\QueryWizard\Support\EloquentSubject;
  *
  * When a filter property uses dot notation (e.g., 'posts.status'), this trait
  * automatically applies the filter within a whereHas clause for the relation.
+ *
+ * @template TConstraint The value resolveConstraint() reads and applyOnQuery() applies
  */
 trait HandlesRelationFiltering
 {
@@ -63,30 +65,35 @@ trait HandlesRelationFiltering
      */
     protected function applyToSubject(Builder|Relation $subject, mixed $value): Builder|Relation
     {
-        if (! $this->hasEffectiveConstraint($value)) {
+        $constraint = $this->resolveConstraint($value);
+
+        if ($constraint === null) {
             return $subject;
         }
 
         $builder = EloquentSubject::builder($subject);
 
         $result = $this->withRelationConstraint && $this->isRelationProperty($builder, $this->property)
-            ? $this->applyRelationFilter($builder, $this->property, $value)
-            : $this->applyOnQuery($builder, $value, $this->property);
+            ? $this->applyRelationFilter($builder, $this->property, $constraint)
+            : $this->applyOnQuery($builder, $constraint, $this->property);
 
         return $subject instanceof Relation ? $subject : $result;
     }
 
     /**
-     * Whether applyOnQuery() adds a condition for the value.
+     * Read the filter value into the constraint applyOnQuery() receives.
      *
-     * A value the filter ignores must not reach whereHas(), which on its own
-     * would drop the rows without related records.
+     * The value is read once per application. Return null when the value adds
+     * no condition: it must not reach whereHas(), which on its own would drop
+     * the rows without related records.
+     *
+     * @return TConstraint|null
      *
      * @api
      */
-    protected function hasEffectiveConstraint(mixed $value): bool
+    protected function resolveConstraint(mixed $value): mixed
     {
-        return true;
+        return $value;
     }
 
     /**
@@ -114,6 +121,7 @@ trait HandlesRelationFiltering
 
     /**
      * @param  Builder<Model>  $builder
+     * @param  TConstraint  $value
      * @return Builder<Model>
      */
     protected function applyRelationFilter(Builder $builder, string $property, mixed $value): Builder
@@ -133,7 +141,7 @@ trait HandlesRelationFiltering
      * This method is called both for direct filtering and for relation filtering (inside whereHas).
      *
      * @param  Builder<Model>  $builder  The query builder
-     * @param  mixed  $value  The filter value (can be scalar, array, or null)
+     * @param  TConstraint  $value  The constraint resolveConstraint() read from the filter value
      * @param  string  $column  The column name to filter on
      * @return Builder<Model>
      */

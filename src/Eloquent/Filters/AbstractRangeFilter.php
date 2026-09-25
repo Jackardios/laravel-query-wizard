@@ -17,10 +17,14 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
  * Supports dot notation for relation filtering (e.g., 'posts.created_at').
  *
  * Expects: ?filter[property][minKey]=X&filter[property][maxKey]=Y
+ *
+ * @template TConstraint of array<mixed>
  */
 abstract class AbstractRangeFilter extends AbstractFilter
 {
+    /** @use HandlesRelationFiltering<TConstraint> */
     use HandlesRelationFiltering;
+
     use ParsesRangeValues;
 
     protected string $minKey = 'min';
@@ -93,12 +97,10 @@ abstract class AbstractRangeFilter extends AbstractFilter
         return null;
     }
 
-    protected function hasEffectiveConstraint(mixed $value): bool
-    {
-        [$min, $max] = $this->parseRangeValue($value, $this->minKey, $this->maxKey);
-
-        return $min !== null || $max !== null;
-    }
+    /**
+     * @return TConstraint|null
+     */
+    abstract protected function resolveConstraint(mixed $value): ?array;
 
     protected function invalidRangeValueShapeMessage(): string
     {

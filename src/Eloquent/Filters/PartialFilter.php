@@ -43,15 +43,18 @@ final class PartialFilter extends ExactFilter
         return 'partial';
     }
 
-    protected function hasEffectiveConstraint(mixed $value): bool
+    /**
+     * @return non-empty-array<string|int|float>|string|int|float|null
+     */
+    protected function resolveConstraint(mixed $value): array|string|int|float|null
     {
-        if (is_array($value)) {
-            return $this->searchableValues($value) !== [];
+        if (! is_array($value)) {
+            return $this->searchableValue($value);
         }
 
-        $this->searchableValue($value);
+        $values = $this->searchableValues($value);
 
-        return true;
+        return $values === [] ? null : $values;
     }
 
     /**
@@ -82,6 +85,7 @@ final class PartialFilter extends ExactFilter
 
     /**
      * @param  Builder<Model>  $builder
+     * @param  non-empty-array<string|int|float>|string|int|float  $value  The search text or texts
      * @return Builder<Model>
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
@@ -89,13 +93,8 @@ final class PartialFilter extends ExactFilter
         $sql = LikeClause::for($builder, $column, lowercase: true);
 
         if (is_array($value)) {
-            $filteredValues = $this->searchableValues($value);
-            if (count($filteredValues) === 0) {
-                return $builder;
-            }
-
-            $builder->where(function (Builder $query) use ($filteredValues, $sql): void {
-                foreach ($filteredValues as $partialValue) {
+            $builder->where(function (Builder $query) use ($value, $sql): void {
+                foreach ($value as $partialValue) {
                     $query->whereRaw($sql, [LikeClause::containing((string) $partialValue, lowercase: true)], 'or');
                 }
             });
@@ -103,7 +102,7 @@ final class PartialFilter extends ExactFilter
             return $builder;
         }
 
-        $builder->whereRaw($sql, [LikeClause::containing((string) $this->searchableValue($value), lowercase: true)]);
+        $builder->whereRaw($sql, [LikeClause::containing((string) $value, lowercase: true)]);
 
         return $builder;
     }

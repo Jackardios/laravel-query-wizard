@@ -19,6 +19,7 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
  */
 class ExactFilter extends AbstractFilter
 {
+    /** @use HandlesRelationFiltering<mixed> */
     use HandlesRelationFiltering;
 
     /**
@@ -51,9 +52,9 @@ class ExactFilter extends AbstractFilter
         return $this->applyToSubject($subject, $value);
     }
 
-    protected function hasEffectiveConstraint(mixed $value): bool
+    protected function resolveConstraint(mixed $value): mixed
     {
-        return $value !== [];
+        return $value === [] ? null : $value;
     }
 
     /**

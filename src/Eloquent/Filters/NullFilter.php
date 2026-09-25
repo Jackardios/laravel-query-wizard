@@ -25,6 +25,7 @@ use Jackardios\QueryWizard\Support\FilterValueParser;
  */
 final class NullFilter extends AbstractFilter
 {
+    /** @use HandlesRelationFiltering<bool> */
     use HandlesRelationFiltering;
 
     protected bool $invertLogic = false;
@@ -85,26 +86,20 @@ final class NullFilter extends AbstractFilter
         return $this->applyToSubject($subject, $value);
     }
 
-    protected function hasEffectiveConstraint(mixed $value): bool
+    protected function resolveConstraint(mixed $value): ?bool
     {
-        return FilterValueParser::boolean($value, $this) !== null;
+        return FilterValueParser::boolean($value, $this);
     }
 
     /**
      * @param  Builder<Model>  $builder
+     * @param  bool  $value  Whether the filter asks for null values
      * @return Builder<Model>
      */
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {
         $qualifiedColumn = $builder->qualifyColumn($column);
-
-        $isTruthy = FilterValueParser::boolean($value, $this);
-
-        if ($isTruthy === null) {
-            return $builder;
-        }
-
-        $shouldBeNull = $this->invertLogic ? ! $isTruthy : $isTruthy;
+        $shouldBeNull = $this->invertLogic ? ! $value : $value;
 
         if ($shouldBeNull) {
             $builder->whereNull($qualifiedColumn);
