@@ -754,7 +754,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         if (empty($sorts) && $effectiveSorts->isNotEmpty()) {
             if ($usingDefaults) {
-                if (! $this->canApplyDefaultSortsWithoutAllowlist($sorts)) {
+                if ($this->allowedSortsExplicitlySet || $this->disallowedSorts !== []) {
                     return [];
                 }
 
@@ -871,24 +871,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         if ($validFields !== null) {
             $this->applyFields($validFields);
         }
-    }
-
-    /**
-     * @param  array<string, SortInterface>  $effectiveSorts
-     */
-    protected function canApplyDefaultSortsWithoutAllowlist(array $effectiveSorts): bool
-    {
-        if (! empty($effectiveSorts)) {
-            return false;
-        }
-
-        if ($this->allowedSortsExplicitlySet || ! empty($this->disallowedSorts)) {
-            return false;
-        }
-
-        $schemaSorts = $this->getSchema()?->sorts($this) ?? [];
-
-        return empty($schemaSorts);
     }
 
     /**
