@@ -248,7 +248,7 @@ trait HandlesFields
             }
 
             if (empty($normalizedRequestedFields)) {
-                $relationFieldMap[$relationPath] = [];
+                $relationFieldMap[$relationPath] ??= [];
 
                 continue;
             }

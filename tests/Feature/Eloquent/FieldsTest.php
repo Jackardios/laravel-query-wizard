@@ -194,6 +194,33 @@ class FieldsTest extends TestCase
         $this->assertNotContains('test_model_id', $relatedAttributes);
     }
 
+    /**
+     * @return array<string, array{array<string, string>, array<int, string>}>
+     */
+    public static function fieldsetsForOneRelationUnderTwoNames(): array
+    {
+        return [
+            'fields, then empty' => [['relatedModels' => 'id', 'related' => ''], ['id']],
+            'empty, then fields' => [['related' => '', 'relatedModels' => 'id'], ['id']],
+            'wildcard, then empty' => [['relatedModels' => '*', 'related' => ''], ['id', 'test_model_id', 'name']],
+            'empty, then wildcard' => [['related' => '', 'relatedModels' => '*'], ['id', 'test_model_id', 'name']],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('fieldsetsForOneRelationUnderTwoNames')]
+    public function fieldsets_for_one_relation_under_two_names_merge_in_any_order(array $fields, array $expected): void
+    {
+        $model = $this
+            ->createEloquentWizardFromQuery(['include' => 'relatedModels,related', 'fields' => $fields])
+            ->allowedIncludes('relatedModels', EloquentInclude::relationship('relatedModels')->alias('related'))
+            ->allowedFields('*')
+            ->get()
+            ->first();
+
+        $this->assertEqualsCanonicalizing($expected, array_keys($model->relatedModels->first()->toArray()));
+    }
+
     #[Test]
     public function it_can_select_fields_for_nested_included_relation(): void
     {
