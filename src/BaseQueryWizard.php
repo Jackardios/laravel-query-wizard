@@ -62,6 +62,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
     protected bool $built = false;
 
+    private bool $building = false;
+
     /**
      * Build-scope signature (parameters manager + request identity) used to
      * detect stale build cache when a wizard instance crosses request boundary.
@@ -122,7 +124,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
      */
     public function getParametersManager(): QueryParametersManager
     {
-        $this->parameters = $this->syncParametersManager($this->parameters);
+        if (! $this->building) {
+            $this->parameters = $this->syncParametersManager($this->parameters);
+        }
 
         return $this->parameters;
     }
@@ -257,6 +261,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             $this->invalidateBuild();
         }
 
+        $this->building = true;
+
         try {
             $this->forgetConfigurationMemo();
             $this->applyTapCallbacks();
@@ -283,6 +289,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             $this->rollbackFailedBuild();
 
             throw $e;
+        } finally {
+            $this->building = false;
         }
 
         $this->built = true;

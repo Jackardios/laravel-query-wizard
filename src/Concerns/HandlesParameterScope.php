@@ -24,18 +24,11 @@ trait HandlesParameterScope
             return $parameters;
         }
 
-        /** @var QueryParametersManager $scopedManager */
-        $scopedManager = app(QueryParametersManager::class);
-
-        return $parameters === $scopedManager ? $parameters : $scopedManager;
+        return app(QueryParametersManager::class);
     }
 
     protected function resolveParametersScopeSignature(QueryParametersManager $parameters): string
     {
-        $request = $parameters->getRequest();
-
-        return spl_object_id($parameters)
-            .':'.($request !== null ? spl_object_id($request) : 0)
-            .':'.$parameters->getStateVersion();
+        return (string) $parameters->getStateVersion();
     }
 }
