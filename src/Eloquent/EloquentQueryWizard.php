@@ -221,17 +221,13 @@ class EloquentQueryWizard extends BaseQueryWizard
      * Build and execute query in chunks with automatic post-processing.
      *
      * @param  positive-int  $count
-     * @param  callable(Collection<int, Model>): mixed  $callback
+     * @param  callable(Collection<int, Model>, int): mixed  $callback
      */
     public function chunk(int $count, callable $callback): bool
     {
         $this->buildSubject();
 
-        return $this->subject->chunk($count, function (Collection $models) use ($callback) {
-            $this->applyPostProcessingToResults($models);
-
-            return $callback($models);
-        });
+        return $this->subject->chunk($count, $this->postProcessingChunks($callback));
     }
 
     /**
@@ -283,36 +279,28 @@ class EloquentQueryWizard extends BaseQueryWizard
      * Build and execute query in chunks by ID with automatic post-processing.
      *
      * @param  positive-int  $count
-     * @param  callable(Collection<int, Model>): mixed  $callback
+     * @param  callable(Collection<int, Model>, int): mixed  $callback
      */
     public function chunkById(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
     {
         $this->buildSubject();
         $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
 
-        return $this->subject->chunkById($count, function (Collection $models) use ($callback) {
-            $this->applyPostProcessingToResults($models);
-
-            return $callback($models);
-        }, $column, $alias);
+        return $this->subject->chunkById($count, $this->postProcessingChunks($callback), $column, $alias);
     }
 
     /**
      * Build and execute query in descending chunks by ID with automatic post-processing.
      *
      * @param  positive-int  $count
-     * @param  callable(Collection<int, Model>): mixed  $callback
+     * @param  callable(Collection<int, Model>, int): mixed  $callback
      */
     public function chunkByIdDesc(int $count, callable $callback, ?string $column = null, ?string $alias = null): bool
     {
         $this->buildSubject();
         $this->ensureColumnSelected($column ?? $this->subject->getModel()->getKeyName(), $alias);
 
-        return $this->subject->chunkByIdDesc($count, function (Collection $models) use ($callback) {
-            $this->applyPostProcessingToResults($models);
-
-            return $callback($models);
-        }, $column, $alias);
+        return $this->subject->chunkByIdDesc($count, $this->postProcessingChunks($callback), $column, $alias);
     }
 
     /**
@@ -399,6 +387,21 @@ class EloquentQueryWizard extends BaseQueryWizard
 
             return $model;
         });
+    }
+
+    /**
+     * Post-process every chunk before the callback, passing the page number on.
+     *
+     * @param  callable(Collection<int, Model>, int): mixed  $callback
+     * @return \Closure(Collection<int, Model>, int): mixed
+     */
+    private function postProcessingChunks(callable $callback): \Closure
+    {
+        return function (Collection $models, int $page) use ($callback): mixed {
+            $this->applyPostProcessingToResults($models);
+
+            return $callback($models, $page);
+        };
     }
 
     /**

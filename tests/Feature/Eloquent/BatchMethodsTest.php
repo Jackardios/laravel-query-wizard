@@ -44,6 +44,22 @@ class BatchMethodsTest extends TestCase
     }
 
     #[Test]
+    public function chunk_callbacks_receive_the_page_number(): void
+    {
+        foreach (['chunk', 'chunkById', 'chunkByIdDesc'] as $method) {
+            $pages = [];
+
+            $this
+                ->createEloquentWizardFromQuery([], AppendModel::class)
+                ->{$method}(4, function (Collection $models, int $page) use (&$pages): void {
+                    $pages[] = $page;
+                });
+
+            $this->assertSame([1, 2, 3], $pages, $method);
+        }
+    }
+
+    #[Test]
     public function chunk_callback_can_stop_iteration(): void
     {
         $count = 0;
