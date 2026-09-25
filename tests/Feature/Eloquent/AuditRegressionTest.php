@@ -11,6 +11,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
+use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
@@ -105,6 +106,52 @@ class AuditRegressionTest extends TestCase
                     ->prepareValueWith(static fn (array $value) => ['invalid' => $value])
             )
             ->get();
+    }
+
+    #[Test]
+    public function filter_value_shape_is_validated_again_only_when_preparation_changes_the_value(): void
+    {
+        $filter = new class('name') extends AbstractFilter
+        {
+            /** @var list<mixed> */
+            public array $validated = [];
+
+            public function __construct(string $property)
+            {
+                parent::__construct($property);
+            }
+
+            public function getType(): string
+            {
+                return 'counting';
+            }
+
+            public function validateValueShape(mixed $value): ?string
+            {
+                $this->validated[] = $value;
+
+                return null;
+            }
+
+            public function apply(mixed $subject, mixed $value): mixed
+            {
+                return $subject;
+            }
+        };
+        $build = fn () => $this->createEloquentWizardWithFilters(['name' => 'Alpha'])->allowedFilters($filter)->toQuery();
+
+        $build();
+        $this->assertSame(['Alpha'], $filter->validated);
+
+        $filter->validated = [];
+        $filter->prepareValueWith(static fn (string $value) => strtolower($value));
+        $build();
+        $this->assertSame(['Alpha', 'alpha'], $filter->validated);
+
+        $filter->validated = [];
+        $filter->allowStructuredInput();
+        $build();
+        $this->assertSame(['alpha'], $filter->validated);
     }
 
     #[Test]

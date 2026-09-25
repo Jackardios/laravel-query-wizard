@@ -425,8 +425,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
     /**
      * Resolve, validate and prepare a single filter value.
      *
-     * Raw value -> incoming shape validation -> prepareValue() -> prepared shape
-     * validation. Returns null when the filter must be skipped.
+     * Raw value -> shape validation (skipped for structured input) ->
+     * prepareValue() -> shape validation of a changed prepared value.
+     * Returns null when the filter must be skipped.
      *
      * Override to support composite filters that resolve their leaves instead of
      * a single request key.
@@ -441,7 +442,11 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             return null;
         }
 
-        $this->validateIncomingFilterValueShape($filter, $value);
+        $structuredInputAllowed = $filter instanceof AbstractFilter && $filter->allowsStructuredInput();
+
+        if (! $structuredInputAllowed) {
+            $this->validateFilterValueShape($filter, $value);
+        }
 
         $preparedValue = $filter->prepareValue($value);
 
@@ -449,7 +454,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
             return null;
         }
 
-        $this->validatePreparedFilterValueShape($filter, $preparedValue);
+        if ($structuredInputAllowed || $preparedValue !== $value) {
+            $this->validateFilterValueShape($filter, $preparedValue);
+        }
 
         return $preparedValue;
     }
@@ -528,26 +535,13 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
         }
     }
 
-    protected function validateIncomingFilterValueShape(FilterInterface $filter, mixed $value): void
+    private function validateFilterValueShape(FilterInterface $filter, mixed $value): void
     {
         if (! $filter instanceof AbstractFilter) {
             return;
         }
 
-        $details = $filter->validateIncomingValueShape($value);
-
-        if ($details !== null) {
-            throw InvalidFilterQuery::invalidFormat($details);
-        }
-    }
-
-    protected function validatePreparedFilterValueShape(FilterInterface $filter, mixed $value): void
-    {
-        if (! $filter instanceof AbstractFilter) {
-            return;
-        }
-
-        $details = $filter->validatePreparedValueShape($value);
+        $details = $filter->validateValueShape($value);
 
         if ($details !== null) {
             throw InvalidFilterQuery::invalidFormat($details);

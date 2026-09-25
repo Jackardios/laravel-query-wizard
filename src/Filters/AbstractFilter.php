@@ -167,16 +167,6 @@ abstract class AbstractFilter implements FilterInterface
     }
 
     /**
-     * Restore the default behavior and validate raw input shape before preparation.
-     */
-    public function disallowStructuredInput(): static
-    {
-        $this->structuredInputAllowed = false;
-
-        return $this;
-    }
-
-    /**
      * Split string request values by the filters separator (`a,b` → ['a', 'b']).
      */
     public function withValueSplitting(): static
@@ -203,37 +193,18 @@ abstract class AbstractFilter implements FilterInterface
         return $this->splitValues;
     }
 
-    /**
-     * Validate the raw filter value shape before prepareValue().
-     *
-     * Return null when the value shape is acceptable, otherwise return a
-     * human-readable details string for InvalidFilterQuery::invalidFormat().
-     */
-    public function validateIncomingValueShape(mixed $value): ?string
+    public function allowsStructuredInput(): bool
     {
-        if ($this->structuredInputAllowed) {
-            return null;
-        }
-
-        return $this->validatePreparedValueShape($value);
+        return $this->structuredInputAllowed;
     }
 
     /**
-     * Validate the prepared filter value shape before apply().
+     * Validate the filter value shape.
      *
-     * Return null when the value shape is acceptable, otherwise return a
-     * human-readable details string for InvalidFilterQuery::invalidFormat().
-     */
-    public function validatePreparedValueShape(mixed $value): ?string
-    {
-        return $this->validateValueShape($value);
-    }
-
-    /**
-     * Backward-compatible single-stage validation hook.
-     *
-     * Override validatePreparedValueShape() for new implementations when the
-     * prepared value contract differs from the raw input contract.
+     * Runs on the raw value before prepareValue() (unless structured input is
+     * allowed) and again on the prepared value when preparation changed it.
+     * Return null when the shape is acceptable, otherwise a human-readable
+     * details string for InvalidFilterQuery::invalidFormat().
      */
     public function validateValueShape(mixed $value): ?string
     {
