@@ -94,7 +94,7 @@ final class RelationSort extends AbstractSort
      */
     public function apply(mixed $subject, string $direction): mixed
     {
-        $aggregateColumn = Str::snake($this->property).'_'.$this->aggregate.'_'.$this->column;
+        $aggregateColumn = Str::snake($this->property).'_'.$this->aggregate.'_'.preg_replace('/[^[:alnum:]_]/u', '', $this->column);
 
         $subject->withAggregate("{$this->property} as {$aggregateColumn}", $this->column, $this->aggregate);
         $subject->orderBy($aggregateColumn, $direction);

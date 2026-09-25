@@ -112,6 +112,18 @@ class SortSqlVerificationTest extends TestCase
     }
 
     #[Test]
+    public function relation_sort_accepts_a_table_qualified_column(): void
+    {
+        $query = $this
+            ->createEloquentWizardWithSorts('-latestRelated')
+            ->allowedSorts(EloquentSort::relation('relatedModels', 'related_models.id', 'max')->alias('latestRelated'))
+            ->toQuery();
+
+        $this->assertStringEndsWith('order by "related_models_max_related_modelsid" desc', $query->toSql());
+        $query->get();
+    }
+
+    #[Test]
     public function relation_sort_desc_generates_with_aggregate(): void
     {
         $sql = $this
