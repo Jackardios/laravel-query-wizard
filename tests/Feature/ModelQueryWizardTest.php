@@ -1057,9 +1057,8 @@ class ModelQueryWizardTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_constrains_model_load_missing_relation_selects_and_auto_adds_matching_keys(): void
+    public function it_constrains_model_load_missing_relation_selects_and_auto_adds_matching_keys(): void
     {
-        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
         DB::enableQueryLog();
         DB::flushQueryLog();
 
@@ -1086,9 +1085,8 @@ class ModelQueryWizardTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_skips_model_relation_select_optimization_when_relation_append_is_requested(): void
+    public function it_skips_model_relation_select_optimization_when_relation_append_is_requested(): void
     {
-        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
         DB::enableQueryLog();
         DB::flushQueryLog();
 

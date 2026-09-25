@@ -167,8 +167,7 @@ a later TypeError).
 
 - Values are validated when read. A limit must be a positive integer or `null`; `0`, `''` (an empty environment
   variable), `false` and negative numbers now throw `InvalidArgumentException` (before: they disabled the limit). Invalid
-  separators, parameter names (`''` used to disable a parameter; use `null`), `request_data_source` and
-  `relation_select_mode` throw as well.
+  separators, parameter names (`''` used to disable a parameter; use `null`) and `request_data_source` throw as well.
 - A key missing from a published config takes the package default. A published `limits` array that lists only some
   limits used to disable the rest; they now apply with their defaults (`max_appends_count` is 20).
 - Developer defaults over a limit (`defaultSorts()`, `defaultIncludes()`, `defaultAppends()`, schema defaults) throw
@@ -970,11 +969,6 @@ return [
     // Per-type separators (default: array_value_separator)
     'separators' => [
         'filters' => ';',  // Use semicolon to allow commas in filter values
-    ],
-
-    // Eager loading optimization
-    'optimizations' => [
-        'relation_select_mode' => 'safe',  // Auto-injects FK columns for eager loading
     ],
 
     // Security limits (null = disabled)

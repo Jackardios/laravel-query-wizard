@@ -163,9 +163,6 @@ abstract class ResourceSchema {
 'separators' => [
     'filters' => ';',  // Per-type separator (default: ',')
 ],
-'optimizations' => [
-    'relation_select_mode' => 'safe',  // Auto-injects FK columns for eager loading
-],
 'limits' => [                        // positive int or null; 0/''/false throw
     'max_includes_count' => 10,
     'max_include_depth' => 3,

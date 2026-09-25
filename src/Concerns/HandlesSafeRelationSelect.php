@@ -111,10 +111,6 @@ trait HandlesSafeRelationSelect
     {
         $this->resetSafeRelationSelectState();
 
-        if (! $this->getConfig()->isSafeRelationSelectEnabled()) {
-            return;
-        }
-
         $paths = $this->normalizeRelationPaths($requestedRelationshipPaths);
         if (empty($paths)) {
             return;
@@ -136,7 +132,7 @@ trait HandlesSafeRelationSelect
      */
     protected function safeRelationFieldsByPath(array $paths): array
     {
-        if (! $this->getConfig()->isSafeRelationSelectEnabled() || $paths === []) {
+        if ($paths === []) {
             return [];
         }
 

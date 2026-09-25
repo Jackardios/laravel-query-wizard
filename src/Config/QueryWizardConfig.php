@@ -20,8 +20,6 @@ final class QueryWizardConfig
 
     private const VALID_REQUEST_DATA_SOURCES = ['query_string', 'body'];
 
-    private const VALID_RELATION_SELECT_MODES = ['off', 'safe'];
-
     private const MAX_SEPARATOR_LENGTH = 10;
 
     /**
@@ -49,9 +47,6 @@ final class QueryWizardConfig
             'convert_parameters_to_snake_case' => false,
         ],
         'separators' => [],
-        'optimizations' => [
-            'relation_select_mode' => 'safe',
-        ],
         'fields' => [
             'use_allowed_as_default' => false,
         ],
@@ -166,19 +161,6 @@ final class QueryWizardConfig
     public function shouldConvertParametersToSnakeCase(): bool
     {
         return $this->flag('naming.convert_parameters_to_snake_case');
-    }
-
-    /**
-     * @return 'off'|'safe'
-     */
-    public function getRelationSelectMode(): string
-    {
-        return $this->oneOf('optimizations.relation_select_mode', self::VALID_RELATION_SELECT_MODES);
-    }
-
-    public function isSafeRelationSelectEnabled(): bool
-    {
-        return $this->getRelationSelectMode() === 'safe';
     }
 
     public function getFieldsParameterName(): ?string

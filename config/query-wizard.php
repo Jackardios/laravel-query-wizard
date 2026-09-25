@@ -114,27 +114,6 @@ return [
     ],
 
     /*
-     * Runtime optimizations for relation field handling.
-     *
-     * relation_select_mode:
-     *
-     * - 'safe' (recommended):
-     *   Automatically injects foreign key columns required for eager loading.
-     *   Protects accessors by using SELECT * + makeHidden() for relations with appends.
-     *   Works with: BelongsTo, HasOne, HasMany, MorphOne, MorphMany.
-     *
-     * - 'off':
-     *   No automatic FK injection. You must manually include all required columns.
-     *   WARNING: Eager loading may fail silently if FK columns are not selected.
-     *   Use only when you need maximum performance and know exactly which fields are needed.
-     *
-     * See "Relation Field Modes" section in README for detailed documentation.
-     */
-    'optimizations' => [
-        'relation_select_mode' => 'safe',
-    ],
-
-    /*
      * Sparse fieldsets configuration.
      */
     'fields' => [

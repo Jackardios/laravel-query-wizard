@@ -776,9 +776,8 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_constrains_relation_selects_and_auto_adds_matching_keys(): void
+    public function it_constrains_relation_selects_and_auto_adds_matching_keys(): void
     {
-        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
         DB::flushQueryLog();
 
         $models = $this
@@ -809,9 +808,8 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_skips_relation_select_optimization_when_relation_append_is_requested(): void
+    public function it_skips_relation_select_optimization_when_relation_append_is_requested(): void
     {
-        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
         DB::flushQueryLog();
 
         $models = $this
@@ -836,9 +834,8 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_skips_relation_select_optimization_when_relation_append_is_requested_via_alias(): void
+    public function it_skips_relation_select_optimization_when_relation_append_is_requested_via_alias(): void
     {
-        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
         DB::flushQueryLog();
 
         $models = $this
@@ -863,9 +860,8 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_ignores_default_relation_appends_when_append_request_is_present(): void
+    public function it_ignores_default_relation_appends_when_append_request_is_present(): void
     {
-        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
         DB::flushQueryLog();
 
         $models = $this
@@ -888,9 +884,8 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_ignores_default_relation_appends_when_append_request_is_explicitly_empty(): void
+    public function it_ignores_default_relation_appends_when_append_request_is_explicitly_empty(): void
     {
-        config()->set('query-wizard.optimizations.relation_select_mode', 'safe');
         DB::flushQueryLog();
 
         $models = $this
@@ -914,7 +909,7 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_skips_relation_select_optimization_when_relation_model_has_built_in_appends(): void
+    public function it_skips_relation_select_optimization_when_relation_model_has_built_in_appends(): void
     {
         DB::flushQueryLog();
 
@@ -945,7 +940,7 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
-    public function safe_mode_uses_sql_select_for_relations_without_model_appends(): void
+    public function it_uses_sql_select_for_relations_without_model_appends(): void
     {
         DB::flushQueryLog();
 

@@ -408,18 +408,12 @@ EloquentQueryWizard::for(Task::class)
 // ❌ ?fields[users]=id,name — won't work
 ```
 
-### Relation Field Modes
+### Relation Key Columns
 
-```php
-// config/query-wizard.php
-'optimizations' => [
-    'relation_select_mode' => 'safe',  // 'safe' (recommended) or 'off'
-],
-```
-
-**Safe mode** (default): Automatically injects foreign keys for eager loading and protects relation and root accessors/appends by falling back to a full select when needed.
-
-**Off mode**: No automatic handling — you must include all required FK columns manually.
+Sparse fieldsets keep the key columns eager loading needs: the wizard adds them to the root and relation selects, so
+`?fields[posts]=title` still matches posts to their users. BelongsTo, HasOne, HasMany, MorphOne, MorphMany and
+BelongsToThrough relations are narrowed to their fieldset; other relations, relations whose model has `$appends` and
+relations with requested appends select all columns and hide the fields outside the fieldset, so accessors keep working.
 
 ## Appending Attributes
 
@@ -649,10 +643,6 @@ return [
         'convert_parameters_to_snake_case' => false,  // ?filter[firstName] → first_name
     ],
 
-    'optimizations' => [
-        'relation_select_mode' => 'safe',  // 'safe' or 'off'
-    ],
-
     'fields' => [
         'use_allowed_as_default' => false,
     ],
@@ -673,8 +663,8 @@ When `fields.use_allowed_as_default` is enabled and `?fields` is absent, default
 `getPassthroughFilters()` uses the same filter validation, defaults, `prepareValueWith()`, `when()`, and `max_filters_count` enforcement as normal query execution. Unknown filters still honor `disable_invalid_filter_query_exception`; malformed built-in filter payloads do not.
 
 Configuration values are validated when they are read: an invalid limit, separator (a non-empty string of at most 10
-characters), parameter name (a non-empty string, or `null` to turn the parameter off), `request_data_source`,
-`relation_select_mode` or boolean option (`true`/`false`, or a string such as `'false'` or `'off'`) throws
+characters), parameter name (a non-empty string, or `null` to turn the parameter off), `request_data_source`
+or boolean option (`true`/`false`, or a string such as `'false'` or `'off'`) throws
 `InvalidArgumentException` naming the key. A key missing from the published file takes the
 package default. Each build reads the configuration once, so a `config()->set()` at runtime applies from the next build.
 

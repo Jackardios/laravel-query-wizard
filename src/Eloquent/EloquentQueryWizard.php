@@ -699,10 +699,6 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     private function resolveRootEagerLoadColumns(): ?array
     {
-        if (! $this->getConfig()->isSafeRelationSelectEnabled()) {
-            return [];
-        }
-
         $names = $this->topLevelEagerLoadNames(EloquentSubject::builder($this->subject)->getEagerLoads());
 
         return $names === [] ? [] : $this->resolveParentColumnsForEagerLoads($this->subject->getModel(), $names);

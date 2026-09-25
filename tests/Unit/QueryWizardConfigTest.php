@@ -163,23 +163,6 @@ class QueryWizardConfigTest extends TestCase
         $this->assertTrue($this->config->shouldConvertParametersToSnakeCase());
     }
 
-    // ========== Optimizations Tests ==========
-    #[Test]
-    public function it_returns_default_relation_select_mode(): void
-    {
-        $this->assertEquals('safe', $this->config->getRelationSelectMode());
-        $this->assertTrue($this->config->isSafeRelationSelectEnabled());
-    }
-
-    #[Test]
-    public function it_returns_custom_relation_select_mode(): void
-    {
-        Config::set('query-wizard.optimizations.relation_select_mode', 'off');
-
-        $this->assertEquals('off', $this->config->getRelationSelectMode());
-        $this->assertFalse($this->config->isSafeRelationSelectEnabled());
-    }
-
     // ========== Parameter Names Tests ==========
     #[Test]
     public function it_returns_default_fields_parameter_name(): void
@@ -538,7 +521,6 @@ class QueryWizardConfigTest extends TestCase
         $this->assertSame('filter', $this->config->getFiltersParameterName());
         $this->assertSame(',', $this->config->getFiltersSeparator());
         $this->assertSame('query_string', $this->config->getRequestDataSource());
-        $this->assertSame('safe', $this->config->getRelationSelectMode());
         $this->assertSame('Count', $this->config->getCountSuffix());
     }
 
@@ -607,7 +589,7 @@ class QueryWizardConfigTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage($message);
 
-        $key === 'request_data_source' ? $this->config->getRequestDataSource() : $this->config->getRelationSelectMode();
+        $this->config->getRequestDataSource();
     }
 
     /**
@@ -618,8 +600,7 @@ class QueryWizardConfigTest extends TestCase
         return [
             'unknown data source' => ['request_data_source', 'invalid_source', 'Config `query-wizard.request_data_source` must be one of: query_string, body.'],
             'data source array' => ['request_data_source', ['body'], 'Config `query-wizard.request_data_source` must be one of: query_string, body.'],
-            'unknown select mode' => ['optimizations.relation_select_mode', 'unsupported', 'Config `query-wizard.optimizations.relation_select_mode` must be one of: off, safe.'],
-            'null select mode' => ['optimizations.relation_select_mode', null, 'Config `query-wizard.optimizations.relation_select_mode` must be one of: off, safe.'],
+            'null data source' => ['request_data_source', null, 'Config `query-wizard.request_data_source` must be one of: query_string, body.'],
         ];
     }
 
