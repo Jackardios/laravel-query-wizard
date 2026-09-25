@@ -127,7 +127,7 @@ class QueryParametersManager
             return $collection;
         }
 
-        return $collection->map(fn (string $item) => $this->convertPath($item))->values();
+        return $collection->map(fn (string $item) => $this->convertPath($item))->unique()->values();
     }
 
     /**
@@ -142,16 +142,14 @@ class QueryParametersManager
             return $collection;
         }
 
-        return $collection->map(function (Sort $sort) {
-            $convertedField = $this->convertPath($sort->getField());
-            if ($convertedField === $sort->getField()) {
-                return $sort;
-            }
+        $sorts = [];
 
-            return new Sort(
-                $sort->getDirection() === 'desc' ? '-'.$convertedField : $convertedField
-            );
-        })->values();
+        foreach ($collection as $sort) {
+            $field = $this->convertPath($sort->getField());
+            $sorts[$field] ??= $field === $sort->getField() ? $sort : new Sort($field, $sort->getSortDirection());
+        }
+
+        return collect(array_values($sorts));
     }
 
     /**
@@ -159,6 +157,7 @@ class QueryParametersManager
      *
      * Keys (relation paths) are converted using pathToSnakeCase() (preserves dots).
      * Values (field names) are converted using toSnakeCase() (simple conversion).
+     * Keys and names that convert to the same snake_case name are merged.
      *
      * @param  Collection<string, array<string>>  $collection
      * @return Collection<string, array<string>>
@@ -169,12 +168,16 @@ class QueryParametersManager
             return $collection;
         }
 
-        return $collection->mapWithKeys(function (array $fields, int|string $key) {
+        /** @var array<string, array<string>> $converted */
+        $converted = [];
+
+        foreach ($collection as $key => $fields) {
             $convertedKey = $this->convertPath((string) $key);
             $convertedFields = array_map(fn (string $field) => $this->convertName($field), $fields);
+            $converted[$convertedKey] = array_values(array_unique([...$converted[$convertedKey] ?? [], ...$convertedFields]));
+        }
 
-            return [$convertedKey => $convertedFields];
-        });
+        return collect($converted);
     }
 
     /**

@@ -1088,6 +1088,25 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
+    public function names_that_convert_to_the_same_snake_case_name_count_once(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+
+        $manager = new QueryParametersManager(new Request([
+            'sort' => 'createdAt,-created_at,name',
+            'include' => 'relatedModels,related_models',
+            'fields' => ['testModel' => 'firstName', 'test_model' => 'first_name,id'],
+        ]));
+
+        $this->assertSame(
+            [['created_at', 'asc'], ['name', 'asc']],
+            $manager->getSorts()->map(fn (Sort $sort) => [$sort->getField(), $sort->getDirection()])->all()
+        );
+        $this->assertSame(['related_models'], $manager->getIncludes()->all());
+        $this->assertSame(['test_model' => ['first_name', 'id']], $manager->getFields()->all());
+    }
+
+    #[Test]
     public function it_converts_dotted_filter_keys_to_snake_case(): void
     {
         config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
