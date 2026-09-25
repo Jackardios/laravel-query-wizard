@@ -688,7 +688,7 @@ class QueryWizardTest extends TestCase
         $wizard->toQuery();
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject()');
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery(), getSubject() or getQuery()');
 
         $wizard->allowedSorts('id');
     }
@@ -702,7 +702,7 @@ class QueryWizardTest extends TestCase
         $wizard->getSubject();
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject()');
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery(), getSubject() or getQuery()');
 
         $wizard->allowedSorts('id');
     }
@@ -718,7 +718,7 @@ class QueryWizardTest extends TestCase
         $this->assertSame($wizard->getSubject(), $builder);
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject()');
+        $this->expectExceptionMessage('Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery(), getSubject() or getQuery()');
 
         $wizard->allowedSorts('id');
     }
@@ -788,6 +788,24 @@ class QueryWizardTest extends TestCase
         }
 
         $this->assertSame('testModel', $wizard->getResourceKey());
+    }
+
+    #[Test]
+    public function config_after_handing_out_the_base_query_throws_logic_exception(): void
+    {
+        foreach (['getQuery', 'toBase'] as $method) {
+            $wizard = EloquentQueryWizard::for(TestModel::class)->allowedFilters('name');
+            $wizard->{$method}()->where('id', 5);
+
+            try {
+                $wizard->allowedFilters('id');
+                $this->fail("Expected LogicException after {$method}()");
+            } catch (\LogicException $e) {
+                $this->assertStringContainsString('Cannot modify query wizard configuration after retrieving the underlying builder', $e->getMessage());
+            }
+
+            $this->assertStringContainsString('"id" = ?', $wizard->toQuery()->toSql());
+        }
     }
 
     #[Test]

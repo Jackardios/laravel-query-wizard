@@ -496,7 +496,7 @@ class EloquentQueryWizard extends BaseQueryWizard
 
         if ($this->subjectEscaped) {
             throw new \LogicException(
-                'Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery() or getSubject(). '
+                'Cannot modify query wizard configuration after retrieving the underlying builder via build(), toQuery(), getSubject() or getQuery(). '
                 .'Those methods expose the live builder, so call all configuration methods before builder access.'
             );
         }
@@ -1169,6 +1169,10 @@ class EloquentQueryWizard extends BaseQueryWizard
             $this->proxyModified = true;
 
             return $this;
+        }
+
+        if ($result === EloquentSubject::builder($this->subject) || $result === EloquentSubject::baseQuery($this->subject)) {
+            $this->subjectEscaped = true;
         }
 
         if ($postProcess && ! $usedFallback && ($result instanceof Model || $result instanceof Collection)) {

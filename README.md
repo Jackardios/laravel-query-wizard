@@ -140,7 +140,7 @@ EloquentQueryWizard::for(User::where('active', true))
     ->get();
 ```
 
-`toQuery()`, `getSubject()` and `build()` expose the live underlying builder. Treat them as the point where wizard configuration is finalized: calling `allowed*()`, `default*()`, or `schema()` afterwards throws `LogicException`. So does reconfiguring a clone of such a wizard, or of one that received builder calls; create a new wizard instead.
+`toQuery()`, `getSubject()` and `build()` expose the live underlying builder, as do `getQuery()` and `toBase()` called through the wizard when they return the live query. Treat them as the point where wizard configuration is finalized: calling `allowed*()`, `default*()`, or `schema()` afterwards throws `LogicException`. So does reconfiguring a clone of such a wizard, or of one that received builder calls; create a new wizard instead.
 
 Builder methods called on the wizard (`where()`, `orderBy()`, ...) run after the request's filters and sorts are applied, so an `orderBy()` through the wizard sorts after the requested sorts. Executing methods change the wizard's builder the way they change an Eloquent builder: `first()` adds `limit 1`, `find()` adds a key condition, `cursorPaginate()` adds its order columns.
 
