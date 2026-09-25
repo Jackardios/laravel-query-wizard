@@ -100,38 +100,6 @@ abstract class AbstractRangeFilter extends AbstractFilter
         return $min !== null || $max !== null;
     }
 
-    /**
-     * @param  Builder<Model>  $builder
-     * @param  array<string, mixed>|mixed  $value
-     * @return Builder<Model>
-     */
-    protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
-    {
-        $qualifiedColumn = $builder->qualifyColumn($column);
-
-        [$min, $max] = $this->parseRangeValue($value, $this->minKey, $this->maxKey);
-
-        if ($min !== null) {
-            $builder->where($qualifiedColumn, '>=', $this->formatValue($min));
-        }
-
-        if ($max !== null) {
-            $builder->where($qualifiedColumn, '<=', $this->formatValue($max));
-        }
-
-        return $builder;
-    }
-
-    /**
-     * Format the value before applying to query.
-     *
-     * Override this method to customize value formatting (e.g., date formatting).
-     */
-    protected function formatValue(mixed $value): mixed
-    {
-        return $value;
-    }
-
     protected function invalidRangeValueShapeMessage(): string
     {
         return "Filter `{$this->getName()}` expects an array with `{$this->minKey}`/`{$this->maxKey}` keys or a flat list of two values.";
