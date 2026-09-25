@@ -1088,6 +1088,18 @@ class QueryParametersManagerTest extends TestCase
     }
 
     #[Test]
+    public function dotted_parameter_names_read_nested_query_values(): void
+    {
+        config()->set('query-wizard.parameters.filters', 'page.filter');
+        config()->set('query-wizard.parameters.includes', 'page.include');
+
+        $manager = new QueryParametersManager(new Request(['page' => ['filter' => ['name' => 'a'], 'include' => 'posts']]));
+
+        $this->assertSame(['name' => 'a'], $manager->getFilters()->all());
+        $this->assertSame(['posts'], $manager->getIncludes()->all());
+    }
+
+    #[Test]
     public function names_that_convert_to_the_same_snake_case_name_count_once(): void
     {
         config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);

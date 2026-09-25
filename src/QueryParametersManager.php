@@ -530,7 +530,7 @@ class QueryParametersManager
             return data_get($this->getStrictBodyPayload(), $key, $default);
         }
 
-        return $this->request->query($key, $default);
+        return data_get($this->request->query(), $key, $default);
     }
 
     /**
