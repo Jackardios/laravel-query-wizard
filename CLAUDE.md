@@ -174,7 +174,8 @@ abstract class ResourceSchema {
 ```
 
 Config values are validated when read (`InvalidArgumentException` naming the key); missing keys take the defaults in
-`QueryWizardConfig::DEFAULTS`, which a test keeps equal to `config/query-wizard.php`. Wizards read one snapshot per build.
+`QueryWizardConfig::DEFAULTS`, which a test keeps equal to `config/query-wizard.php`. Wizards read one snapshot per build;
+the parameters manager reads one from its first read until `reset()` (once per request).
 
 ## Development
 
@@ -216,9 +217,9 @@ EloquentFilter::scope('byAuthor')                    // Safe: values passed as-i
 EloquentFilter::scope('byAuthor')->withModelBinding() // Loads models WITHOUT auth check
 ```
 
-### 5. Manual post-processing for unwrapped methods
+### 5. Manual post-processing for queries run on the builder
 ```php
-// find() not wrapped by wizard — use applyPostProcessingTo()
+// $wizard->find($id) is post-processed; a query run on toQuery() is not — use applyPostProcessingTo()
 $wizard = EloquentQueryWizard::for(User::class)
     ->allowedFields('id', 'name')
     ->allowedAppends('full_name');

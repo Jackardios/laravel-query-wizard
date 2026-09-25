@@ -14,6 +14,23 @@ was tagged on 2026-09-25, and the changes since then are listed first.
 
 Changed:
 
+- Static `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN` and `LESS_THAN_OR_EQUAL` operators read their value like
+  the operand of a DYNAMIC comparison: a decimal number or an ISO 8601 date, else a 400. A date names the whole day, so
+  `LESS_THAN_OR_EQUAL` with `2024-01-31` matches all of January 31. A text value (`name > 'M'`) is now a 400.
+- Sparse fieldsets always keep the key columns eager loading needs; the `optimizations.relation_select_mode` option is
+  gone (its `'off'` mode left relations unmatched when a fieldset left out their keys). A published key is ignored.
+- Filters using `HandlesRelationFiltering` override `resolveConstraint()` instead of `hasEffectiveConstraint()`: it
+  reads the value once, `applyOnQuery()` receives what it returns, and `null` adds no condition. `ExactFilter` passes
+  the value through unchanged, so its subclasses receive the request value as before.
+- A filter value is validated again after `prepareValueWith()` only when preparation changed it; with
+  `allowStructuredInput()` only the prepared value is validated. Filters override `validateValueShape()` alone.
+- After a build, `getPassthroughFilters()` returns the values the build read without preparing the filters again.
+- No longer `@api`: `getOwnFilterValueFromRequest()`, `resolveRuntimeAttributesByOwner()`,
+  `resolveRuntimeAttributeNameForInclude()`, `withRuntimeAttributesInFieldTree()`,
+  `resolveParentColumnsForEagerLoads()`, `applySafeRelationSelectToQuery()`, `topLevelEagerLoadNames()`,
+  `convertFilterKeys()`, `assertJsonObjectBody()`, `OperatorFilter::applyLike()`, `parseDynamicOperator()` and
+  `applyIncludeKeepingEagerLoads()`. Marked `@internal`: `FilterValueParser::trashedMode()`, `lenientDate()`,
+  `unixTimestamp()` and `dynamic()`.
 - `?filter=` with a blank value applies no filters (it was a 400).
 - Range and date range filters reject keys other than their boundary keys with a 400 (a typo such as `form` was ignored).
 - JSON contains filters reject keyed or nested values with a 400 and drop blank items.
@@ -44,8 +61,24 @@ Fixed:
 - Relation fieldsets apply when a subclass overrides `finalizeBuild()` without calling the parent.
 - Relation fieldsets are validated once per build instead of two or three times.
 
+Performance:
+
+- A build reads the package configuration and resolves the parameters manager at most twice each (it was dozens of
+  times).
+- Relation fieldsets narrow each eager load inside its constraint, from the relation Eloquent already built, instead of
+  building every relation for an up-front plan; nested relation paths reuse their resolved parent.
+- Schema `defaultFilters()` is called once per filter resolution instead of once per filter without a request value.
+
 Removed:
 
+- `optimizations.relation_select_mode`, `QueryWizardConfig::getRelationSelectMode()` and `isSafeRelationSelectEnabled()`.
+- `Contracts\WizardContextInterface`; the wizards keep its public methods.
+- `create()` on the limit exceptions (`MaxFiltersCountExceeded` and the others); construct them with `new`.
+- `AbstractFilter::validateIncomingValueShape()`, `validatePreparedValueShape()` and `disallowStructuredInput()`,
+  `BaseQueryWizard::validateIncomingFilterValueShape()` and `validatePreparedFilterValueShape()`.
+- `hasEffectiveConstraint()` (see `resolveConstraint()`), `AbstractRangeFilter::applyOnQuery()` and `formatValue()`.
+- `BaseQueryWizard::applyFiltersToSubject()`, `applySortsToSubject()`, `applyIncludesToSubject()` and
+  `applyFieldsToSubject()`; `build()` applies the validated steps itself.
 - Unused protected methods: `HandlesFields::isFieldsRequestEmpty()`, `HandlesAppends::extractRelationAttributes()` and
   `prefixGroupAttributes()`, `HandlesRelationAttributeValidation::isAttributeAllowed()`,
   `HandlesConfiguration::normalizePublicNames()`, `BaseQueryWizard::canApplyDefaultSortsWithoutAllowlist()`,
