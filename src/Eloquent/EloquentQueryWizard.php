@@ -4,22 +4,18 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Eloquent;
 
-use Illuminate\Contracts\Database\Query\Expression as ExpressionContract;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Database\Query\Expression;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\BaseQueryWizard;
-use Jackardios\QueryWizard\Concerns\HandlesRelationPostProcessing;
-use Jackardios\QueryWizard\Concerns\HandlesSafeRelationSelect;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
@@ -29,7 +25,7 @@ use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
-use Jackardios\QueryWizard\Support\EagerLoads;
+use Jackardios\QueryWizard\Support\EloquentShapeSteps;
 use Jackardios\QueryWizard\Support\EloquentSubject;
 use Jackardios\QueryWizard\Support\RelationResolver;
 
@@ -46,9 +42,6 @@ use Jackardios\QueryWizard\Support\RelationResolver;
  */
 class EloquentQueryWizard extends BaseQueryWizard
 {
-    use HandlesRelationPostProcessing;
-    use HandlesSafeRelationSelect;
-
     private const CURSOR_EAGER_LOAD_CHUNK_SIZE = 1000;
 
     /**
@@ -516,7 +509,6 @@ class EloquentQueryWizard extends BaseQueryWizard
             );
         }
 
-        $this->resetSafeRelationSelectState();
         $this->state = new EloquentBuildState;
         parent::invalidateBuild();
     }
@@ -530,7 +522,6 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         $subject = $this->subject;
 
-        $this->resetSafeRelationSelectState();
         $this->state = new EloquentBuildState;
         parent::rollbackFailedBuild();
 
@@ -561,13 +552,6 @@ class EloquentQueryWizard extends BaseQueryWizard
     protected function resourceModel(): Model
     {
         return EloquentSubject::builder($this->subject)->getModel();
-    }
-
-    protected function resolveAppendAccessorModel(string $relationPath): ?Model
-    {
-        $model = $this->resourceModel();
-
-        return $relationPath === '' ? $model : $this->relationResolverFor($model)->resolve($relationPath)?->getRelated();
     }
 
     protected function relationResolverFor(Model $rootModel): RelationResolver
@@ -604,40 +588,22 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     protected function applyFields(array $fields): void
     {
-        $requestedFields = $fields;
-        $this->state->rootVisibleFields = $this->visibleRootFields($requestedFields, $this->state->runtimeRootAttributeNamesByField);
+        $runtimeAttributes = $this->state->runtimeRootAttributeNamesByField;
+        $this->state->rootVisibleFields = $this->visibleRootFields($fields, $runtimeAttributes);
         $this->state->safeRootHiddenFields = [];
 
-        if ($this->shouldKeepFullRootSelectForAppends($requestedFields)) {
-            return;
-        }
+        EloquentShapeSteps::applyRootSelect(
+            $this->subject,
+            $fields,
+            $this->runtimeOnlyRootFields($fields, $runtimeAttributes),
+            [],
+            $this->relationResolverFor($this->subject->getModel()),
+            function (): bool {
+                $this->prepareAppendTree();
 
-        $eagerLoadColumns = $this->resolveRootEagerLoadColumns();
-
-        if ($eagerLoadColumns === null) {
-            return;
-        }
-
-        $preservedSelectExpressions = $this->collectPreservedSelectExpressions();
-        $preservedSelectAliases = $this->collectPreservedSelectAliases($preservedSelectExpressions);
-
-        if (! in_array('*', $fields, true)) {
-            $this->appendColumns($fields, $eagerLoadColumns);
-        }
-        $fields = $this->excludeRuntimeOnlyRootFieldsFromSelect($fields, $preservedSelectAliases);
-
-        if (! empty($fields) && $fields !== ['*']) {
-            // select() drops the select bindings too. Only preserved expressions
-            // can carry placeholders and they are re-added in their original
-            // order, so the original bindings line up with them again.
-            $selectBindings = EloquentSubject::baseQuery($this->subject)->bindings['select'];
-
-            $qualifiedFields = $this->qualifyColumns($fields);
-            $this->subject->select($qualifiedFields);
-            $this->restorePreservedSelectExpressions($preservedSelectExpressions);
-
-            EloquentSubject::baseQuery($this->subject)->setBindings($selectBindings, 'select');
-        }
+                return ! empty($this->state->appendTree['appends']);
+            }
+        );
     }
 
     /**
@@ -646,78 +612,26 @@ class EloquentQueryWizard extends BaseQueryWizard
      */
     protected function applyValidatedIncludes(array $validRequestedIncludes, array $includesIndex): void
     {
+        $includes = [];
         $relationshipPaths = [];
 
         foreach ($validRequestedIncludes as $includeName) {
-            $include = $includesIndex[$includeName];
+            $include = $includes[] = $includesIndex[$includeName];
 
             if ($include->getType() === 'relationship') {
                 $relationshipPaths[] = $include->getRelation();
             }
         }
 
-        $safeFields = $this->safeRelationFieldsByPath($relationshipPaths);
+        $relationFieldsByPath = $this->safeRelationFieldsByPath($relationshipPaths);
         $this->registerRuntimeAttributes($validRequestedIncludes, $includesIndex);
 
-        foreach ($validRequestedIncludes as $includeName) {
-            $include = $includesIndex[$includeName];
-
-            $fields = $include->getType() === 'relationship'
-                ? ($safeFields[$include->getRelation()] ?? null)
-                : null;
-            $select = $fields === null ? null : function ($query) use ($fields): void {
-                $this->applyLazySafeRelationSelect($query, $fields);
-            };
-
-            if ($include instanceof RelationshipInclude) {
-                EagerLoads::merge($this->subject, $include->getRelation(), $select);
-
-                continue;
-            }
-
-            $subject = $this->applyIncludeKeepingEagerLoads($include, $this->subject);
-
-            if ($subject instanceof Builder || $subject instanceof Relation) {
-                $this->subject = $subject;
-            }
-
-            if ($select !== null) {
-                EagerLoads::merge($this->subject, $include->getRelation(), $select);
-            }
-        }
+        $this->subject = EloquentShapeSteps::applyIncludes($this->subject, $includes, $relationFieldsByPath);
     }
 
     public function getResourceKey(): string
     {
         return $this->resolveDefaultResourceKey($this->subject->getModel());
-    }
-
-    /**
-     * Root columns the registered eager loads need, or null when the root has to keep all columns.
-     *
-     * @return array<string>|null
-     */
-    private function resolveRootEagerLoadColumns(): ?array
-    {
-        $names = $this->topLevelEagerLoadNames(EloquentSubject::builder($this->subject)->getEagerLoads());
-
-        return $names === [] ? [] : $this->resolveParentColumnsForEagerLoads($this->subject->getModel(), $names);
-    }
-
-    /**
-     * Qualify column names with table prefix.
-     *
-     * @param  array<string>  $fields
-     * @return array<string>
-     */
-    protected function qualifyColumns(array $fields): array
-    {
-        $model = $this->subject->getModel();
-
-        return array_map(
-            fn ($field) => $model->qualifyColumn($field),
-            $fields
-        );
     }
 
     /**
@@ -755,202 +669,33 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Apply appends and relation sparse fieldsets in a single traversal.
+     * Apply the root mask, relation sparse fieldsets and appends.
      */
     private function applyPostProcessingToResults(mixed $results): void
     {
-        $processable = $results instanceof Model || $results instanceof \Traversable || is_array($results);
+        $safeRootHiddenFields = $this->state->safeRootHiddenFields;
 
-        if ($processable) {
-            $this->applySafeRootFieldMaskToResults($results);
-        }
-
-        $this->prepareRelationFieldData();
-        $this->prepareAppendTree();
-
-        if ($processable) {
-            $this->applyRelationPostProcessingToResults($results, $this->state->appendTree, $this->state->relationFieldTree);
-        }
-    }
-
-    /**
-     * @param  Model|\Traversable<mixed>|array<mixed>  $results
-     */
-    private function applySafeRootFieldMaskToResults(mixed $results): void
-    {
-        $rootVisibleFields = $this->state->rootVisibleFields;
-
-        if ($rootVisibleFields !== null) {
+        if ($safeRootHiddenFields !== []) {
             if ($results instanceof Model) {
-                $this->hideModelAttributesExcept($results, $rootVisibleFields);
-            } else {
+                $results->makeHidden($safeRootHiddenFields);
+            } elseif ($results instanceof \Traversable || is_array($results)) {
                 foreach ($results as $item) {
                     if ($item instanceof Model) {
-                        $this->hideModelAttributesExcept($item, $rootVisibleFields);
+                        $item->makeHidden($safeRootHiddenFields);
                     }
                 }
             }
         }
 
-        $safeRootHiddenFields = $this->state->safeRootHiddenFields;
-
-        if (empty($safeRootHiddenFields)) {
-            return;
-        }
-
-        if ($results instanceof Model) {
-            $results->makeHidden($safeRootHiddenFields);
-
-            return;
-        }
-
-        foreach ($results as $item) {
-            if ($item instanceof Model) {
-                $item->makeHidden($safeRootHiddenFields);
-            }
-        }
-    }
-
-    /**
-     * Keep a full root select when root accessors may be serialized as appends.
-     *
-     * Root accessor dependencies are opaque, so when a root fieldset is narrowed and the
-     * response will still expose root appends, the safe option is to fetch full attributes
-     * and hide the non-requested fields during post-processing.
-     *
-     * @param  array<string>  $requestedFields
-     */
-    private function shouldKeepFullRootSelectForAppends(array $requestedFields): bool
-    {
-        if ($requestedFields === [] || $requestedFields === ['*']) {
-            return false;
-        }
-
-        if (! empty($this->subject->getModel()->getAppends())) {
-            return true;
-        }
-
+        $this->prepareRelationFieldData();
         $this->prepareAppendTree();
 
-        return ! empty($this->state->appendTree['appends']);
-    }
-
-    /**
-     * @param  array<string>  $fields
-     * @param  array<string>  $preservedSelectAliases
-     * @return array<string>
-     */
-    private function excludeRuntimeOnlyRootFieldsFromSelect(array $fields, array $preservedSelectAliases): array
-    {
-        if (in_array('*', $fields, true)) {
-            return $fields;
-        }
-
-        $preservedAliasIndex = array_fill_keys($preservedSelectAliases, true);
-        $filteredFields = [];
-
-        foreach ($fields as $field) {
-            $normalizedField = $this->normalizePublicPath($field);
-
-            if (isset($this->state->runtimeRootAttributeNamesByField[$normalizedField])) {
-                continue;
-            }
-
-            if (isset($preservedAliasIndex[$field])) {
-                continue;
-            }
-
-            $filteredFields[] = $field;
-        }
-
-        return $filteredFields;
-    }
-
-    /**
-     * @return array<int, ExpressionContract|string>
-     */
-    private function collectPreservedSelectExpressions(): array
-    {
-        $preserved = [];
-
-        foreach (EloquentSubject::baseQuery($this->subject)->columns ?? [] as $column) {
-            if (! $this->shouldPreserveSelectedColumn($column)) {
-                continue;
-            }
-
-            /** @var ExpressionContract|string $column */
-            $preserved[] = $column;
-        }
-
-        return $preserved;
-    }
-
-    /**
-     * @param  array<int, ExpressionContract|string>  $columns
-     * @return array<string>
-     */
-    private function collectPreservedSelectAliases(array $columns): array
-    {
-        $aliases = [];
-
-        foreach ($columns as $column) {
-            $alias = $this->extractSelectedColumnAlias($column);
-
-            if ($alias !== null) {
-                $aliases[] = $alias;
-            }
-        }
-
-        return array_values(array_unique($aliases));
-    }
-
-    /**
-     * @param  array<int, ExpressionContract|string>  $columns
-     */
-    private function restorePreservedSelectExpressions(array $columns): void
-    {
-        foreach ($columns as $column) {
-            $this->subject->addSelect($column);
-        }
-    }
-
-    private function shouldPreserveSelectedColumn(mixed $column): bool
-    {
-        if ($column instanceof Expression) {
-            return true;
-        }
-
-        if (! is_string($column)) {
-            return false;
-        }
-
-        return $this->extractSelectedColumnAlias($column) !== null || str_contains($column, '(');
-    }
-
-    private function extractSelectedColumnAlias(mixed $column): ?string
-    {
-        $sql = $this->stringifySelectedColumn($column);
-
-        if ($sql === null) {
-            return null;
-        }
-
-        if (preg_match('/\bas\s+[`"\\[]?([a-zA-Z0-9_]+)[`"\\]]?\s*$/i', $sql, $matches) !== 1) {
-            return null;
-        }
-
-        return $matches[1];
-    }
-
-    private function stringifySelectedColumn(mixed $column): ?string
-    {
-        if ($column instanceof Expression) {
-            $sql = $column->getValue(EloquentSubject::baseQuery($this->subject)->getGrammar());
-
-            return is_string($sql) ? $sql : null;
-        }
-
-        return is_string($column) ? $column : null;
+        EloquentShapeSteps::postProcess(
+            $results,
+            $this->state->rootVisibleFields,
+            $this->state->appendTree,
+            $this->state->relationFieldTree
+        );
     }
 
     /**

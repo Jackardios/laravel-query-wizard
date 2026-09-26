@@ -28,6 +28,20 @@ Added:
   `max_filter_values_count_exceeded`). A value kept whole by `withoutValueSplitting()` counts as one; defaults are not
   counted.
 - `dev-master` is aliased `3.x-dev`, so dependants can require `^3.0@dev` instead of `dev-master`.
+- `@api` `BaseQueryWizard::resolveEloquentShape()` and `Eloquent\EloquentShape`, for wizards that load the models with
+  an Eloquent query of their own. Called from `finalizeBuild()`, the factory validates relation fieldsets and appends and
+  returns an immutable shape: `applyTo($query)` eager loads the includes with their fieldsets merged into existing
+  constraints and narrows the root select, keeping aggregates, expressions, eager-load keys and the given required
+  columns (selected, hidden unless requested); `postProcess($results)` applies the fieldsets and appends to a model, a
+  collection, a paginator or an array. `EloquentQueryWizard` runs the same steps.
+
+Removed:
+
+- The up-front relation-select plan: `prepareSafeRelationSelectPlan()`, `getSafeRelationSelectColumns()`,
+  `applySafeRootFieldRequirements()`, `resetSafeRelationSelectState()` and their helpers, which only an external wizard
+  used; `resolveEloquentShape()` replaces them. `EloquentQueryWizard::qualifyColumns()` and
+  `applyIncludeKeepingEagerLoads()` are gone too, and the relation-key helpers of `HandlesSafeRelationSelect` moved to
+  `@internal` classes. The `HandlesSafeRelationSelect` and `HandlesRelationPostProcessing` traits are `@internal`.
 
 Documentation:
 

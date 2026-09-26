@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
+use Jackardios\QueryWizard\Support\ModelPostProcessor;
 
 /**
  * Shared recursive post-processing for relation sparse fields and appends.
+ *
+ * @internal
  */
 trait HandlesRelationPostProcessing
 {
@@ -16,10 +19,7 @@ trait HandlesRelationPostProcessing
      */
     protected function emptyAppendTree(): array
     {
-        return [
-            'appends' => [],
-            'relations' => [],
-        ];
+        return ModelPostProcessor::emptyAppendTree();
     }
 
     /**
@@ -27,10 +27,7 @@ trait HandlesRelationPostProcessing
      */
     protected function emptyRelationFieldTree(): array
     {
-        return [
-            'fields' => [],
-            'relations' => [],
-        ];
+        return ModelPostProcessor::emptyFieldTree();
     }
 
     /**
@@ -42,64 +39,7 @@ trait HandlesRelationPostProcessing
      */
     protected function withRuntimeAttributesInFieldTree(array $fieldTree, array $attributesByOwner): array
     {
-        foreach ($attributesByOwner as $relationPath => $attributes) {
-            if ($relationPath !== '') {
-                $fieldTree = $this->withFieldsInFieldTreeNode($fieldTree, explode('.', $relationPath), array_values($attributes));
-            }
-        }
-
-        return $fieldTree;
-    }
-
-    /**
-     * Add fields to the node at a relation path, unless that node is missing
-     * or already takes every field.
-     *
-     * @param  array{fields: array<string>, relations: array<string, mixed>}  $node
-     * @param  list<string>  $segments
-     * @param  list<string>  $fields
-     * @return array{fields: array<string>, relations: array<string, mixed>}
-     */
-    private function withFieldsInFieldTreeNode(array $node, array $segments, array $fields): array
-    {
-        $segment = array_shift($segments);
-
-        if ($segment === null) {
-            if (! in_array('*', $node['fields'], true)) {
-                $node['fields'] = array_values(array_unique(array_merge($node['fields'], $fields)));
-            }
-
-            return $node;
-        }
-
-        $child = $node['relations'][$segment] ?? null;
-
-        if (! self::isFieldTreeNode($child)) {
-            return $node;
-        }
-
-        $node['relations'][$segment] = $this->withFieldsInFieldTreeNode($child, $segments, $fields);
-
-        return $node;
-    }
-
-    /**
-     * @phpstan-assert-if-true array{fields: array<string>, relations: array<string, mixed>} $node
-     */
-    private static function isFieldTreeNode(mixed $node): bool
-    {
-        return is_array($node) && is_array($node['fields'] ?? null) && is_array($node['relations'] ?? null);
-    }
-
-    /**
-     * @param  array{appends: array<string>, relations: array<string, mixed>}  $appendTree
-     * @param  array{fields: array<string>, relations: array<string, mixed>}  $fieldTree
-     */
-    protected function hasRelationPostProcessingWork(array $appendTree, array $fieldTree): bool
-    {
-        return ! empty($fieldTree['relations'])
-            || ! empty($appendTree['appends'])
-            || ! empty($appendTree['relations']);
+        return ModelPostProcessor::withRuntimeAttributes($fieldTree, $attributesByOwner);
     }
 
     /**
@@ -107,105 +47,8 @@ trait HandlesRelationPostProcessing
      * @param  array{appends: array<string>, relations: array<string, mixed>}  $appendTree
      * @param  array{fields: array<string>, relations: array<string, mixed>}  $fieldTree
      */
-    protected function applyRelationPostProcessingToResults(
-        mixed $results,
-        array $appendTree,
-        array $fieldTree
-    ): void {
-        if (! $this->hasRelationPostProcessingWork($appendTree, $fieldTree)) {
-            return;
-        }
-
-        // Use global visited tracking across all items to prevent redundant processing
-        // when the same model instance appears in multiple places (e.g., shared relations).
-        $visited = [];
-
-        if ($results instanceof Model) {
-            $this->applyRelationPostProcessingRecursively($results, $appendTree, $fieldTree, $visited);
-
-            return;
-        }
-
-        foreach ($results as $item) {
-            if (! $item instanceof Model) {
-                continue;
-            }
-
-            $this->applyRelationPostProcessingRecursively($item, $appendTree, $fieldTree, $visited);
-        }
+    protected function applyRelationPostProcessingToResults(mixed $results, array $appendTree, array $fieldTree): void
+    {
+        ModelPostProcessor::applyToRelations($results, $appendTree, $fieldTree);
     }
-
-    /**
-     * @param  array{appends: array<string>, relations: array<string, mixed>}  $appendNode
-     * @param  array{fields: array<string>, relations: array<string, mixed>}  $fieldNode
-     * @param  array<int, bool>  $visited
-     */
-    protected function applyRelationPostProcessingRecursively(
-        Model $model,
-        array $appendNode,
-        array $fieldNode,
-        array &$visited
-    ): void {
-        $objectId = spl_object_id($model);
-        if (isset($visited[$objectId])) {
-            return;
-        }
-        $visited[$objectId] = true;
-
-        $currentAppends = $appendNode['appends'];
-        if (! empty($currentAppends)) {
-            $model->append($currentAppends);
-        }
-
-        $emptyAppendNode = $this->emptyAppendTree();
-        $emptyFieldNode = $this->emptyRelationFieldTree();
-
-        foreach ($model->getRelations() as $relationName => $relatedData) {
-            /** @var array{appends: array<string>, relations: array<string, mixed>}|null $childAppendNode */
-            $childAppendNode = $appendNode['relations'][$relationName] ?? null;
-            /** @var array{fields: array<string>, relations: array<string, mixed>}|null $childFieldNode */
-            $childFieldNode = $fieldNode['relations'][$relationName] ?? null;
-
-            if ($childAppendNode === null && $childFieldNode === null) {
-                continue;
-            }
-
-            $visibleFields = $childFieldNode['fields'] ?? [];
-            $shouldHideFields = $childFieldNode !== null && ! in_array('*', $visibleFields, true);
-
-            $nextAppendNode = $childAppendNode ?? $emptyAppendNode;
-            $nextFieldNode = $childFieldNode ?? $emptyFieldNode;
-
-            if ($relatedData instanceof Model) {
-                if ($shouldHideFields) {
-                    $this->hideModelAttributesExcept($relatedData, $visibleFields);
-                }
-
-                $this->applyRelationPostProcessingRecursively($relatedData, $nextAppendNode, $nextFieldNode, $visited);
-
-                continue;
-            }
-
-            if (! is_iterable($relatedData)) {
-                continue;
-            }
-
-            foreach ($relatedData as $item) {
-                if (! $item instanceof Model) {
-                    continue;
-                }
-
-                if ($shouldHideFields) {
-                    $this->hideModelAttributesExcept($item, $visibleFields);
-                }
-
-                $this->applyRelationPostProcessingRecursively($item, $nextAppendNode, $nextFieldNode, $visited);
-            }
-        }
-    }
-
-    /**
-     * @param  array<string>  $visibleFields
-     */
-    abstract protected function hideModelAttributesExcept(Model $model, array $visibleFields): void;
 }

@@ -214,6 +214,10 @@ a later TypeError).
 - `BaseQueryWizard` has a protected constructor `(mixed $subject, ?QueryParametersManager, ?QueryWizardConfig,
   ?ResourceSchemaInterface)`. Wizard subclasses call `parent::__construct()` instead of assigning `$subject`,
   `$parameters`, `$config` and `$schema` themselves, and read the build state with `isBuilt()`.
+- A wizard that loads its models with an Eloquent query of its own (as a search engine wizard does) gets the includes,
+  fieldsets and appends from `resolveEloquentShape()` instead of the relation-select plan: `prepareSafeRelationSelectPlan()`,
+  `getSafeRelationSelectColumns()`, `applySafeRootFieldRequirements()` and `resetSafeRelationSelectState()` are removed,
+  and the `HandlesSafeRelationSelect` and `HandlesRelationPostProcessing` traits are `@internal`.
 - New extension points are listed under [Extending](README.md#extending) in the README; they and the classes marked
   `@api` are the supported surface. Classes marked `@internal` may change in any release, among them
   `Support\ParameterParser`, `FilterValueTransformer`, `NameConverter`, `RelationResolver` and `DotNotationTreeBuilder`.

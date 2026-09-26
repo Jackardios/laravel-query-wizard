@@ -442,7 +442,6 @@ class ModelQueryWizard implements QueryWizardInterface
         }
 
         $this->invalidateIncludeCache();
-        $this->resetSafeRelationSelectState();
         $this->forgetConfigurationMemo();
         $this->validatedRequest = null;
     }

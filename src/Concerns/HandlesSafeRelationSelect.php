@@ -4,35 +4,19 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
-use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Support\RelationResolver;
+use Jackardios\QueryWizard\Support\SafeRelationSelect;
 
 /**
- * Narrows eager-load queries to the relation sparse fields.
+ * Picks the relation fieldsets that eager-load queries may be narrowed to.
  *
- * The technical keys Eloquent needs to match the relations are added to the
- * selected columns. Only relation types with predictable key requirements are
- * narrowed. Wizards that eager load through constraints resolve the keys
- * lazily per relation query; others prepare the whole plan up front.
+ * @internal
  */
 trait HandlesSafeRelationSelect
 {
     use RequiresWizardContext;
-
-    /** @var array<string, array<string>> */
-    protected array $safeRelationSelectColumnsByPath = [];
-
-    /** @var array<string> */
-    protected array $safeRootRequiredFields = [];
 
     /**
      * Build validated relation sparse-fields map from request.
@@ -67,76 +51,21 @@ trait HandlesSafeRelationSelect
         return $this->buildValidatedRelationFieldMap();
     }
 
-    protected function resetSafeRelationSelectState(): void
-    {
-        $this->safeRelationSelectColumnsByPath = [];
-        $this->safeRootRequiredFields = [];
-    }
-
     /**
-     * @param  array<string>  $fields
-     * @return array<string>
-     */
-    protected function applySafeRootFieldRequirements(array $fields): array
-    {
-        if (in_array('*', $fields, true) || empty($this->safeRootRequiredFields)) {
-            return $fields;
-        }
-
-        $result = $fields;
-
-        foreach ($this->safeRootRequiredFields as $requiredField) {
-            if (! in_array($requiredField, $result, true)) {
-                $result[] = $requiredField;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return array<string>|null
-     */
-    protected function getSafeRelationSelectColumns(string $relationPath): ?array
-    {
-        return $this->safeRelationSelectColumnsByPath[$relationPath] ?? null;
-    }
-
-    /**
-     * Prepare the whole safe relation-select plan from validated relationship includes.
-     *
-     * @param  array<string>  $requestedRelationshipPaths
-     */
-    protected function prepareSafeRelationSelectPlan(Model $rootModel, array $requestedRelationshipPaths): void
-    {
-        $this->resetSafeRelationSelectState();
-
-        $paths = $this->normalizeRelationPaths($requestedRelationshipPaths);
-        if (empty($paths)) {
-            return;
-        }
-
-        $resolver = $this->relationResolverFor($rootModel);
-        $pathIndex = array_fill_keys($paths, true);
-        $appendPathIndex = array_fill_keys($this->resolveRequestedAppendRelationPaths(), true);
-
-        $this->computeRootRequiredFields($paths, $resolver);
-        $this->computeRelationSelectColumns($paths, $pathIndex, $appendPathIndex, $resolver);
-    }
-
-    /**
-     * Validated fieldsets of the requested relation paths that may be narrowed.
+     * Validated fieldsets of the requested relation paths that may be narrowed:
+     * not `*`, and without appends requested on the relation.
      *
      * @param  array<string>  $paths
+     * @param  array<string, array<string>>|null  $fieldMap  The validated relation fieldsets, when already at hand
      * @return array<string, array<string>>
      */
-    protected function safeRelationFieldsByPath(array $paths): array
+    protected function safeRelationFieldsByPath(array $paths, ?array $fieldMap = null): array
     {
         if ($paths === []) {
             return [];
         }
 
-        $fieldMap = $this->validatedRelationFieldMap();
+        $fieldMap ??= $this->validatedRelationFieldMap();
         if ($fieldMap === []) {
             return [];
         }
@@ -146,7 +75,7 @@ trait HandlesSafeRelationSelect
         $result = [];
 
         foreach ($fieldMap as $path => $fields) {
-            if ($this->shouldComputeSelectForPath($path, $fields, $pathIndex, $appendPathIndex)) {
+            if (isset($pathIndex[$path]) && ! isset($appendPathIndex[$path]) && ! in_array('*', $fields, true)) {
                 $result[$path] = $fields;
             }
         }
@@ -157,21 +86,11 @@ trait HandlesSafeRelationSelect
     /**
      * Narrow an eager-load relation query to the fieldset and the keys it needs.
      *
-     * Runs as the eager-load constraint on the relation Eloquent already built, so the wizard does not build it again.
-     *
      * @param  array<string>  $fields
      */
     protected function applyLazySafeRelationSelect(mixed $query, array $fields): void
     {
-        if (! $query instanceof Relation || ! $this->isSafeRelationSelectable($query) || $this->relationHasModelAppends($query)) {
-            return;
-        }
-
-        $columns = [];
-        $this->appendColumns($columns, $fields);
-        $this->appendColumns($columns, $this->resolveRelatedRequiredColumns($query), true);
-
-        $this->applySafeRelationSelectToQuery($query, $this->qualifySafeRelationColumns($query, $columns));
+        SafeRelationSelect::apply($query, $fields);
     }
 
     /**
@@ -183,239 +102,6 @@ trait HandlesSafeRelationSelect
     protected function relationResolverFor(Model $rootModel): RelationResolver
     {
         return new RelationResolver($rootModel);
-    }
-
-    /**
-     * Parent columns the given eager loads need to match their models.
-     *
-     * Returns null when one of the relations can't be resolved or its key
-     * columns are unknown; the parent query then has to keep all its columns.
-     *
-     * @param  array<string>  $relationNames  Top-level relation names
-     * @return array<string>|null
-     */
-    protected function resolveParentColumnsForEagerLoads(Model $parent, array $relationNames): ?array
-    {
-        $columns = [];
-        $resolver = $this->relationResolverFor($parent);
-
-        foreach ($relationNames as $relationName) {
-            $relation = $resolver->resolve($relationName);
-            $required = $relation === null ? [] : $this->resolveParentRequiredColumns($relation);
-
-            if ($required === []) {
-                return null;
-            }
-
-            $this->appendColumns($columns, $required, true);
-        }
-
-        return $columns;
-    }
-
-    /**
-     * Narrow an eager-load query to the safe relation columns.
-     *
-     * Runs as an eager-load constraint, when the relation query already knows
-     * its own eager loads (the related model's `$with` and nested includes),
-     * so the columns those need are selected too. A query that already selects
-     * columns (the related model's `$withCount`, a select in the relation
-     * definition or in a developer constraint) is left as it is.
-     *
-     * @param  array<string>  $columns
-     */
-    protected function applySafeRelationSelectToQuery(mixed $query, array $columns): void
-    {
-        if (! $query instanceof Relation) {
-            if ($query instanceof Builder || $query instanceof QueryBuilder) {
-                $query->select($columns);
-            }
-
-            return;
-        }
-
-        if ($query->getQuery()->getQuery()->columns !== null) {
-            return;
-        }
-
-        $eagerLoadNames = $this->topLevelEagerLoadNames($query->getQuery()->getEagerLoads());
-
-        if ($eagerLoadNames !== []) {
-            $eagerLoadColumns = $this->resolveParentColumnsForEagerLoads($query->getRelated(), $eagerLoadNames);
-
-            if ($eagerLoadColumns === null) {
-                return;
-            }
-
-            $this->appendColumns($columns, $this->qualifySafeRelationColumns($query, $eagerLoadColumns));
-        }
-
-        $query->select($columns);
-    }
-
-    /**
-     * @param  array<string, mixed>  $eagerLoads
-     * @return array<string>
-     */
-    protected function topLevelEagerLoadNames(array $eagerLoads): array
-    {
-        return array_values(array_filter(
-            array_keys($eagerLoads),
-            static fn (string $name): bool => ! str_contains($name, '.')
-        ));
-    }
-
-    /**
-     * Normalize and deduplicate relation paths.
-     *
-     * @param  array<string>  $paths
-     * @return array<string>
-     */
-    protected function normalizeRelationPaths(array $paths): array
-    {
-        return array_values(array_unique(array_filter(
-            $paths,
-            static fn (mixed $path): bool => is_string($path) && $path !== ''
-        )));
-    }
-
-    /**
-     * Compute required FK columns for root model.
-     *
-     * @param  array<string>  $paths
-     */
-    protected function computeRootRequiredFields(array $paths, RelationResolver $resolver): void
-    {
-        $topLevelRelations = [];
-        foreach ($paths as $path) {
-            $topLevelRelations[Str::before($path, '.')] = true;
-        }
-
-        foreach (array_keys($topLevelRelations) as $topLevelPath) {
-            $relation = $resolver->resolve($topLevelPath);
-            if ($relation === null) {
-                continue;
-            }
-
-            $this->appendColumns($this->safeRootRequiredFields, $this->resolveParentRequiredColumns($relation), true);
-        }
-    }
-
-    /**
-     * Compute SELECT columns for each relation path.
-     *
-     * @param  array<string>  $paths
-     * @param  array<string, bool>  $pathIndex
-     * @param  array<string, bool>  $appendPathIndex
-     */
-    protected function computeRelationSelectColumns(
-        array $paths,
-        array $pathIndex,
-        array $appendPathIndex,
-        RelationResolver $resolver
-    ): void {
-        foreach ($this->validatedRelationFieldMap() as $relationPath => $fields) {
-            if (! $this->shouldComputeSelectForPath($relationPath, $fields, $pathIndex, $appendPathIndex)) {
-                continue;
-            }
-
-            $relation = $resolver->resolve($relationPath);
-            if ($relation === null || ! $this->isSafeRelationSelectable($relation)) {
-                continue;
-            }
-
-            if ($this->relationHasModelAppends($relation)) {
-                continue;
-            }
-
-            $columns = $this->buildRelationColumns($fields, $relationPath, $paths, $relation, $resolver);
-            if (! empty($columns)) {
-                $this->safeRelationSelectColumnsByPath[$relationPath] = $columns;
-            }
-        }
-    }
-
-    /**
-     * Check if SELECT should be computed for this path.
-     *
-     * @param  array<string>  $fields
-     * @param  array<string, bool>  $pathIndex
-     * @param  array<string, bool>  $appendPathIndex
-     */
-    protected function shouldComputeSelectForPath(
-        string $relationPath,
-        array $fields,
-        array $pathIndex,
-        array $appendPathIndex
-    ): bool {
-        if (! isset($pathIndex[$relationPath])) {
-            return false;
-        }
-
-        if (in_array('*', $fields, true)) {
-            return false;
-        }
-
-        return ! isset($appendPathIndex[$relationPath]);
-    }
-
-    /**
-     * Build columns array for a relation.
-     *
-     * @param  array<string>  $fields
-     * @param  array<string>  $allPaths
-     * @param  Relation<Model, Model, mixed>  $relation
-     * @return array<string>
-     */
-    protected function buildRelationColumns(
-        array $fields,
-        string $relationPath,
-        array $allPaths,
-        Relation $relation,
-        RelationResolver $resolver
-    ): array {
-        $columns = [];
-        $this->appendColumns($columns, $fields);
-        $this->appendColumns($columns, $this->resolveRelatedRequiredColumns($relation), true);
-
-        foreach ($this->collectDirectChildRelationPaths($relationPath, $allPaths) as $childPath) {
-            $childRelation = $resolver->resolve($childPath);
-            if ($childRelation !== null) {
-                $this->appendColumns($columns, $this->resolveParentRequiredColumns($childRelation), true);
-            }
-        }
-
-        return $this->qualifySafeRelationColumns($relation, $columns);
-    }
-
-    /**
-     * @param  array<string>  $requestedRelationshipPaths
-     * @return array<string>
-     */
-    protected function collectDirectChildRelationPaths(string $parentPath, array $requestedRelationshipPaths): array
-    {
-        $prefix = $parentPath.'.';
-        $directChildren = [];
-
-        foreach ($requestedRelationshipPaths as $path) {
-            if (! Str::startsWith($path, $prefix)) {
-                continue;
-            }
-
-            $remaining = Str::after($path, $prefix);
-            if ($remaining === '') {
-                continue;
-            }
-
-            $childSegment = Str::before($remaining, '.');
-            if ($childSegment === '') {
-                continue;
-            }
-
-            $directChildren[$parentPath.'.'.$childSegment] = true;
-        }
-
-        return array_keys($directChildren);
     }
 
     /**
@@ -448,245 +134,5 @@ trait HandlesSafeRelationSelect
         }
 
         return array_keys($paths);
-    }
-
-    /**
-     * @param  Relation<Model, Model, mixed>  $relation
-     */
-    protected function isSafeRelationSelectable(Relation $relation): bool
-    {
-        if ($relation instanceof MorphTo) {
-            return false;
-        }
-
-        return $relation instanceof BelongsTo
-            || $relation instanceof HasOneOrMany
-            || $this->isBelongsToThroughRelation($relation);
-    }
-
-    /**
-     * Check if a relation's model has built-in appends that require all attributes.
-     *
-     * When a model has $appends defined, accessors may depend on attributes
-     * that aren't in the sparse fieldset. Using SELECT * + makeHidden is safer.
-     *
-     * @param  Relation<Model, Model, mixed>  $relation
-     */
-    protected function relationHasModelAppends(Relation $relation): bool
-    {
-        return ! empty($relation->getRelated()->getAppends());
-    }
-
-    /**
-     * Columns that must exist on parent models to load this relation.
-     *
-     * @param  Relation<Model, Model, mixed>  $relation
-     * @return array<string>
-     */
-    protected function resolveParentRequiredColumns(Relation $relation): array
-    {
-        if ($relation instanceof MorphTo) {
-            return [
-                $relation->getForeignKeyName(),
-                $relation->getMorphType(),
-            ];
-        }
-
-        if ($relation instanceof BelongsTo) {
-            return [$relation->getForeignKeyName()];
-        }
-
-        if ($relation instanceof HasOneOrMany) {
-            return [$relation->getLocalKeyName()];
-        }
-
-        if ($this->isBelongsToThroughRelation($relation)) {
-            $firstForeignKeyName = $this->callRelationMethodWithoutArguments($relation, 'getFirstForeignKeyName');
-
-            return $firstForeignKeyName !== null ? [$firstForeignKeyName] : [];
-        }
-
-        $parentKeyName = $this->callRelationMethodWithoutArguments($relation, 'getParentKeyName');
-        if ($parentKeyName !== null) {
-            return [$parentKeyName];
-        }
-
-        $localKeyName = $this->callRelationMethodWithoutArguments($relation, 'getLocalKeyName');
-        if ($localKeyName !== null) {
-            return [$localKeyName];
-        }
-
-        return [];
-    }
-
-    /**
-     * Columns that must exist in relation select for eager matching.
-     *
-     * @param  Relation<Model, Model, mixed>  $relation
-     * @return array<string>
-     */
-    protected function resolveRelatedRequiredColumns(Relation $relation): array
-    {
-        if ($relation instanceof BelongsTo) {
-            return [$relation->getOwnerKeyName()];
-        }
-
-        if ($relation instanceof MorphOneOrMany) {
-            return [
-                $relation->getForeignKeyName(),
-                $relation->getMorphType(),
-            ];
-        }
-
-        if ($relation instanceof HasOneOrMany) {
-            return [$relation->getForeignKeyName()];
-        }
-
-        return [];
-    }
-
-    /**
-     * Detect BelongsToThrough-style relations without requiring the optional package.
-     *
-     * The package uses getFirstForeignKeyName() for eager matching and a
-     * model-aware getLocalKeyName(Model $model) accessor.
-     *
-     * @param  Relation<Model, Model, mixed>  $relation
-     */
-    protected function isBelongsToThroughRelation(Relation $relation): bool
-    {
-        if (is_a($relation, 'Znck\Eloquent\\Relations\\BelongsToThrough')) {
-            return true;
-        }
-
-        return method_exists($relation, 'getFirstForeignKeyName')
-            && method_exists($relation, 'getQualifiedFirstLocalKeyName')
-            && $this->relationMethodRequiresArguments($relation, 'getLocalKeyName');
-    }
-
-    /**
-     * Call a relation key accessor only when it does not require arguments.
-     *
-     * @param  Relation<Model, Model, mixed>  $relation
-     */
-    protected function callRelationMethodWithoutArguments(Relation $relation, string $method): ?string
-    {
-        if (! method_exists($relation, $method)) {
-            return null;
-        }
-
-        try {
-            $reflection = new \ReflectionMethod($relation, $method);
-        } catch (\ReflectionException) {
-            return null;
-        }
-
-        if (! $reflection->isPublic() || $reflection->getNumberOfRequiredParameters() > 0) {
-            return null;
-        }
-
-        $value = $relation->{$method}();
-
-        return is_scalar($value) ? (string) $value : null;
-    }
-
-    /**
-     * Check whether a relation method requires one or more positional arguments.
-     *
-     * @param  Relation<Model, Model, mixed>  $relation
-     */
-    protected function relationMethodRequiresArguments(Relation $relation, string $method): bool
-    {
-        if (! method_exists($relation, $method)) {
-            return false;
-        }
-
-        try {
-            $reflection = new \ReflectionMethod($relation, $method);
-        } catch (\ReflectionException) {
-            return false;
-        }
-
-        return $reflection->isPublic() && $reflection->getNumberOfRequiredParameters() > 0;
-    }
-
-    /**
-     * @param  array<string>  $target
-     * @param  array<string>  $source
-     */
-    protected function appendColumns(array &$target, array $source, bool $normalize = false): void
-    {
-        $present = array_fill_keys($target, true);
-
-        foreach ($source as $column) {
-            if (! is_string($column)) {
-                continue;
-            }
-
-            $column = trim($column);
-            if ($column === '' || $column === '*') {
-                continue;
-            }
-
-            if ($normalize) {
-                $column = $this->normalizeColumnName($column);
-            }
-
-            if ($column === '' || isset($present[$column])) {
-                continue;
-            }
-
-            $present[$column] = true;
-            $target[] = $column;
-        }
-    }
-
-    /**
-     * Qualify safe-select columns for joined relations to avoid ambiguity.
-     *
-     * @param  Relation<Model, Model, mixed>  $relation
-     * @param  array<string>  $columns
-     * @return array<string>
-     */
-    protected function qualifySafeRelationColumns(Relation $relation, array $columns): array
-    {
-        if (! $this->isBelongsToThroughRelation($relation)) {
-            return $columns;
-        }
-
-        return array_map(
-            fn (string $column): string => $this->qualifyBelongsToThroughColumn($relation, $column),
-            $columns
-        );
-    }
-
-    /**
-     * Qualify relation columns selected from the related table in BelongsToThrough joins.
-     *
-     * @param  Relation<Model, Model, mixed>  $relation
-     */
-    protected function qualifyBelongsToThroughColumn(Relation $relation, string $column): string
-    {
-        if ($column === '*' || str_contains($column, '.') || stripos($column, ' as ') !== false) {
-            return $column;
-        }
-
-        return $relation->getRelated()->qualifyColumn($column);
-    }
-
-    /**
-     * Extract column name from qualified column (e.g., "users.id" → "id").
-     *
-     * Used internally to normalize FK columns returned by Eloquent relation methods
-     * which may include table qualification. The table context is already known
-     * at the point of use (within eager load constraints).
-     */
-    protected function normalizeColumnName(string $column): string
-    {
-        if (! str_contains($column, '.')) {
-            return $column;
-        }
-
-        return Str::afterLast($column, '.');
     }
 }

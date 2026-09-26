@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
+use Jackardios\QueryWizard\Support\ModelPostProcessor;
 use Jackardios\QueryWizard\Support\NamePolicy;
 
 /**
@@ -397,17 +398,28 @@ trait HandlesFields
     }
 
     /**
+     * Requested root fields that name attributes the includes add, which the root select can't take.
+     *
+     * @param  array<string>  $fields
+     * @param  array<string, string>  $runtimeAttributesByField
+     * @return array<string>
+     */
+    protected function runtimeOnlyRootFields(array $fields, array $runtimeAttributesByField): array
+    {
+        return array_values(array_filter(
+            $fields,
+            fn (string $field): bool => isset($runtimeAttributesByField[$this->normalizePublicPath($field)])
+        ));
+    }
+
+    /**
      * Hide all model attributes except explicitly visible ones.
      *
      * @param  array<string>  $visibleFields
      */
     protected function hideModelAttributesExcept(Model $model, array $visibleFields): void
     {
-        $fieldsToHide = array_keys(array_diff_key($model->getAttributes(), array_flip($visibleFields)));
-
-        if ($fieldsToHide !== []) {
-            $model->makeHidden($fieldsToHide);
-        }
+        ModelPostProcessor::hideAttributesExcept($model, $visibleFields);
     }
 
     /**

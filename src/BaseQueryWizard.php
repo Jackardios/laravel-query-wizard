@@ -12,12 +12,17 @@ use Jackardios\QueryWizard\Concerns\HandlesFields;
 use Jackardios\QueryWizard\Concerns\HandlesFilters;
 use Jackardios\QueryWizard\Concerns\HandlesIncludes;
 use Jackardios\QueryWizard\Concerns\HandlesParameterScope;
+use Jackardios\QueryWizard\Concerns\HandlesRelationPostProcessing;
+use Jackardios\QueryWizard\Concerns\HandlesSafeRelationSelect;
 use Jackardios\QueryWizard\Concerns\HandlesSorts;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
+use Jackardios\QueryWizard\Eloquent\EloquentShape;
+use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
+use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxFilterValuesCountExceeded;
@@ -25,7 +30,6 @@ use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\FilterValueParser;
-use Jackardios\QueryWizard\Support\RelationResolver;
 use Jackardios\QueryWizard\Values\Sort;
 use Throwable;
 
@@ -45,6 +49,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     use HandlesFilters;
     use HandlesIncludes;
     use HandlesParameterScope;
+    use HandlesRelationPostProcessing;
+    use HandlesSafeRelationSelect;
     use HandlesSorts;
 
     /**
@@ -140,7 +146,54 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return $model;
         }
 
-        return (new RelationResolver($model))->resolve($relationPath)?->getRelated();
+        return $this->relationResolverFor($model)->resolve($relationPath)?->getRelated();
+    }
+
+    /**
+     * The Eloquent side of the build in progress, for a wizard that loads the
+     * resource's models through an Eloquent query of its own.
+     *
+     * Call it from finalizeBuild(): it validates the relation fieldsets and
+     * the appends, so an invalid request fails before the subject runs. Apply
+     * the result to the loading query with applyTo() and to the loaded models
+     * with postProcess().
+     *
+     * @param  array<string, IncludeInterface>  $includes  The includes applyValidatedIncludes() received, by requested name, in order
+     * @param  array<string>|null  $rootFields  The fields applyFields() received; null when it was not called
+     * @param  array<string>  $requiredRootColumns  Root columns the loader needs (e.g. the key it matches models by):
+     *                                              selected under a root fieldset, hidden unless requested
+     *
+     * @throws InvalidFieldQuery
+     * @throws InvalidAppendQuery
+     *
+     * @api
+     */
+    final protected function resolveEloquentShape(array $includes, ?array $rootFields, array $requiredRootColumns = []): EloquentShape
+    {
+        $relationshipPaths = [];
+
+        foreach ($includes as $include) {
+            if ($include->getType() === 'relationship') {
+                $relationshipPaths[] = $include->getRelation();
+            }
+        }
+
+        $relationFieldMap = $this->validatedRelationFieldMap();
+        $relationFieldsByPath = $this->safeRelationFieldsByPath(array_values(array_unique($relationshipPaths)), $relationFieldMap);
+        $runtimeAttributes = $this->resolveRuntimeAttributesByOwner(array_map('strval', array_keys($includes)), $includes);
+        $rootRuntimeAttributes = $runtimeAttributes[''] ?? [];
+        unset($runtimeAttributes['']);
+
+        return new EloquentShape(
+            includes: array_values($includes),
+            relationFieldsByPath: $relationFieldsByPath,
+            rootFields: $rootFields === null ? null : array_values($rootFields),
+            runtimeOnlyRootFields: $rootFields === null ? [] : $this->runtimeOnlyRootFields($rootFields, $rootRuntimeAttributes),
+            rootVisibleFields: $rootFields === null ? null : $this->visibleRootFields($rootFields, $rootRuntimeAttributes),
+            requiredRootColumns: array_values($requiredRootColumns),
+            appendTree: $this->getValidRequestedAppendsTree(),
+            relationFieldTree: $this->withRuntimeAttributesInFieldTree($this->buildRelationFieldTree($relationFieldMap), $runtimeAttributes),
+        );
     }
 
     /**
