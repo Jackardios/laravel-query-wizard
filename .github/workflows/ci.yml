@@ -6,11 +6,15 @@ on:
   pull_request:
     branches: [main, master, '*.x']
     types: [opened, synchronize, reopened, ready_for_review]
-  # Dependants track this package by dev-master, so a green build here can go
-  # stale without a single commit on either side. Re-run weekly.
+  # Dependants track this package by dev-master (aliased 3.x-dev), so a green
+  # build here can go stale without a single commit on either side. Re-run weekly.
   schedule:
     - cron: '0 5 * * 1'
   workflow_dispatch:
+    inputs:
+      elastic_ref:
+        description: elastic-query-wizard branch or tag the Downstream job builds
+        required: false
 
 concurrency:
   # Keyed by event too: without it a push to master shares a group with the
@@ -190,7 +194,7 @@ jobs:
         run: vendor/bin/phpstan analyse --memory-limit=1G
 
   downstream-elastic:
-    name: Downstream (elastic-query-wizard)
+    name: Downstream (elastic-query-wizard ${{ inputs.elastic_ref || vars.ELASTIC_DOWNSTREAM_REF || 'master' }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -204,7 +208,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: jackardios/elastic-query-wizard
-          ref: master
+          # A manual run can name a branch; the ELASTIC_DOWNSTREAM_REF repository
+          # variable follows the elastic branch that tracks this one between releases.
+          ref: ${{ inputs.elastic_ref || vars.ELASTIC_DOWNSTREAM_REF || 'master' }}
           path: elastic-query-wizard
 
       - name: Setup PHP
@@ -222,14 +228,17 @@ jobs:
           key: ${{ runner.os }}-downstream-composer-${{ hashFiles('elastic-query-wizard/composer.json') }}
           restore-keys: ${{ runner.os }}-downstream-composer-
 
-      # elastic-query-wizard requires jackardios/laravel-query-wizard:dev-master.
-      # Resolve that constraint against this checkout instead of Packagist, so the
-      # commit under test is the one the downstream package is compiled against.
+      # Resolve elastic-query-wizard's constraint on this package against this
+      # checkout instead of Packagist, so the commit under test is the one the
+      # downstream package is compiled against. The checkout is dev-master, which
+      # the branch alias turns into 3.x-dev: it satisfies both dev-master and a
+      # ^3.0 constraint, the latter only at minimum-stability dev.
       - name: Resolve the dependency against this checkout
         working-directory: elastic-query-wizard
         run: |
           composer config repositories.laravel-query-wizard \
             '{"type":"path","url":"../laravel-query-wizard","options":{"symlink":false,"versions":{"jackardios/laravel-query-wizard":"dev-master"}}}'
+          composer config minimum-stability dev
 
       - name: Install dependencies
         working-directory: elastic-query-wizard

@@ -27,6 +27,7 @@ Added:
   list items through nested lists, throws `MaxFilterValuesCountExceeded` (400,
   `max_filter_values_count_exceeded`). A value kept whole by `withoutValueSplitting()` counts as one; defaults are not
   counted.
+- `dev-master` is aliased `3.x-dev`, so dependants can require `^3.0@dev` instead of `dev-master`.
 
 Documentation:
 
