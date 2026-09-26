@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use DateTimeInterface;
-use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -98,7 +97,7 @@ class OperatorFilter extends AbstractFilter
                 return null;
             }
         } elseif (self::isComparison($operator) && ! is_array($value) && ! $value instanceof DateTimeInterface) {
-            $operand = FilterValueParser::comparable($value, $this, new DateTimeZone(date_default_timezone_get()));
+            $operand = FilterValueParser::comparable($value, $this, FilterValueParser::defaultTimezone());
 
             if ($operand === null) {
                 return null;
@@ -214,7 +213,7 @@ class OperatorFilter extends AbstractFilter
      */
     protected function parseDynamicOperator(mixed $value): array
     {
-        $parsed = FilterValueParser::dynamic($value, $this, new DateTimeZone(date_default_timezone_get()));
+        $parsed = FilterValueParser::dynamic($value, $this, FilterValueParser::defaultTimezone());
 
         if ($parsed === null) {
             return [null, null];
@@ -238,25 +237,13 @@ class OperatorFilter extends AbstractFilter
      */
     private static function dateComparison(FilterOperator $operator, ParsedDate $date): array
     {
-        if (! $date->dateOnly) {
-            return [$operator, $date->value];
-        }
-
-        $nextDay = $date->value->modify('+1 day');
-
-        // 10000-01-01 sorts before every four-digit date as text, so the last day compares by its last second.
-        if ((int) $nextDay->format('Y') > 9999) {
-            return match ($operator) {
-                FilterOperator::GREATER_THAN, FilterOperator::LESS_THAN_OR_EQUAL => [$operator, $date->value->setTime(23, 59, 59)],
-                default => [$operator, $date->value->format('Y-m-d')],
-            };
-        }
-
-        return match ($operator) {
-            FilterOperator::GREATER_THAN => [FilterOperator::GREATER_THAN_OR_EQUAL, $nextDay->format('Y-m-d')],
-            FilterOperator::LESS_THAN_OR_EQUAL => [FilterOperator::LESS_THAN, $nextDay->format('Y-m-d')],
-            default => [$operator, $date->value->format('Y-m-d')],
+        [$sqlOperator, $bound] = match ($operator) {
+            FilterOperator::GREATER_THAN => $date->afterBound(),
+            FilterOperator::LESS_THAN_OR_EQUAL => $date->upToBound(),
+            default => [$operator->value, $date],
         };
+
+        return [FilterOperator::from($sqlOperator), $bound->dateOnly ? $bound->value->format('Y-m-d') : $bound->value];
     }
 
     /**

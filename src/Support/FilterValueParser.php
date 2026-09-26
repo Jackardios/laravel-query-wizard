@@ -155,6 +155,14 @@ final class FilterValueParser
     }
 
     /**
+     * The timezone built-in filters read dates in: the application's (PHP's default).
+     */
+    public static function defaultTimezone(): DateTimeZone
+    {
+        return new DateTimeZone(date_default_timezone_get());
+    }
+
+    /**
      * A date (Y-m-d) or an ISO 8601 date-time, read in the given timezone.
      *
      * A date-time without an offset is taken to be in that timezone; one with an

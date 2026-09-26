@@ -151,7 +151,7 @@ final class DateRangeFilter extends AbstractRangeFilter
             return [];
         }
 
-        $timezone = new DateTimeZone(date_default_timezone_get());
+        $timezone = FilterValueParser::defaultTimezone();
 
         return array_values(array_filter([
             $this->resolveBound($from, $this->minKey, false, $timezone),
@@ -178,18 +178,9 @@ final class DateRangeFilter extends AbstractRangeFilter
             return null;
         }
 
-        if ($date->dateOnly && $upper) {
-            $nextDay = $date->value->modify('+1 day');
+        [$operator, $bound] = $upper ? $date->upToBound() : ['>=', $date];
 
-            // 10000-01-01 sorts before every four-digit date as text, so the last day ends at its last second.
-            if ((int) $nextDay->format('Y') > 9999 && $this->dateFormat !== self::UNIX_TIMESTAMP_FORMAT) {
-                return ['<=', $this->formatBound($date->value->setTime(23, 59, 59), false)];
-            }
-
-            return ['<', $this->formatBound($nextDay, true)];
-        }
-
-        return [$upper ? '<=' : '>=', $this->formatBound($date->value, $date->dateOnly)];
+        return [$operator, $this->formatBound($bound->value, $bound->dateOnly)];
     }
 
     private function formatBound(DateTimeImmutable $instant, bool $dateOnly): DateTimeInterface|int|string

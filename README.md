@@ -762,9 +762,9 @@ the supported API:
 
 | Hook | Purpose |
 |------|---------|
-| `Support\FilterValueParser` | Read request values the way built-in filters do: `isBlank()`, `boolean()`, `number()`, `isoDate()`, `trashedMode()`, `comparable()`; unreadable values throw `InvalidFilterValue` |
+| `Support\FilterValueParser` | Read request values the way built-in filters do: `isBlank()`, `boolean()`, `number()`, `isoDate()`, `trashedMode()`, `comparable()`, `defaultTimezone()`; unreadable values throw `InvalidFilterValue` |
 | `InvalidFilterValue::make($value, $filter, $reason)` | The 400 for a value a custom filter cannot read; `$reason` says what was expected. Called on a subclass, it returns that subclass |
-| `Support\ParsedDate` | Result of the date readers: `value` (`DateTimeImmutable`) and `dateOnly` |
+| `Support\ParsedDate` | Result of the date readers: `value` (`DateTimeImmutable`) and `dateOnly`; `upToBound()` and `afterBound()` give the comparison for "on or before" and "after", where a date names its whole day |
 | `AbstractFilter::supportsBooleanLists()` | Return `false` when `asBoolean()` must reject lists |
 | `resolveConstraint(mixed $value): mixed` | For filters using `HandlesRelationFiltering`: read the value once into what `applyOnQuery()` receives; `null` adds no condition, so no `whereHas` is added |
 | `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |

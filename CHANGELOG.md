@@ -20,6 +20,9 @@ Added:
   by overriding one method.
 - `@api`: `InvalidFilterValue::make()`, which now returns an instance of the class it is called on, and
   `FilterValueParser::trashedMode()` and `comparable()` (no longer `@internal`).
+- `ParsedDate::upToBound()` and `afterBound()` return the comparison for "on or before" and "after" a value, with a
+  date naming its whole day, and `FilterValueParser::defaultTimezone()` the timezone built-in filters read dates in.
+  The date range and operator filters use them.
 
 ### Since v3.0.0-rc.1
 
