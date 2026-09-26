@@ -789,6 +789,7 @@ the supported API:
 | `resolveAppendAccessorModel(string $relationPath): ?Model` | The model whose accessors a wildcard append must name (`null` = no check) |
 | `resolveEloquentShape($includes, $rootFields, $requiredRootColumns)` | For a wizard that loads the models with an Eloquent query of its own: call it from `finalizeBuild()` with what `applyValidatedIncludes()` and `applyFields()` received. It validates relation fieldsets and appends and returns an `Eloquent\EloquentShape` |
 | `EloquentShape::applyTo($query)`, `postProcess($results)` | Apply the includes, relation fieldsets and root select to the loading query (last, after its other eager loads and selects), then the fieldsets and appends to the loaded models. The shape holds no reference to the wizard and reads no configuration |
+| `normalizePublicPath()`, `resolveDefaultResourceKey($model)` | A requested name in the form the wizard compares names in (snake case when configured); the default sparse-fieldset key for a model |
 | `QueryWizardConfig::snapshot()` | Configuration fixed at the time of the call |
 
 Classes marked `@internal` may change in any release, and so may protected members without `@api`, such as the

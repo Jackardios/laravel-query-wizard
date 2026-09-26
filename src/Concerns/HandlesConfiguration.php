@@ -102,6 +102,8 @@ trait HandlesConfiguration
      * parameter naming convention.
      *
      * @param  object|class-string  $model
+     *
+     * @api
      */
     protected function resolveDefaultResourceKey(object|string $model): string
     {
@@ -119,6 +121,13 @@ trait HandlesConfiguration
         return NameConverter::toSnakeCase($name);
     }
 
+    /**
+     * A requested name or dot path in the form the wizard compares names in:
+     * snake case when `naming.convert_parameters_to_snake_case` is on, keeping
+     * a leading `-`.
+     *
+     * @api
+     */
     protected function normalizePublicPath(string $path): string
     {
         if ($path === '' || $path === '*' || ! $this->shouldNormalizePublicInput()) {

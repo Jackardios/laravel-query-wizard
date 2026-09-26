@@ -34,6 +34,7 @@ Added:
   constraints and narrows the root select, keeping aggregates, expressions, eager-load keys and the given required
   columns (selected, hidden unless requested); `postProcess($results)` applies the fieldsets and appends to a model, a
   collection, a paginator or an array. `EloquentQueryWizard` runs the same steps.
+- `@api`: `normalizePublicPath()` and `resolveDefaultResourceKey()`.
 
 Removed:
 
