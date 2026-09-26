@@ -211,6 +211,9 @@ a later TypeError).
   `AbstractRangeFilter::applyOnQuery()` and `formatValue()`,
   `BaseQueryWizard::apply{Filters,Sorts,Includes,Fields}ToSubject()`, `QueryWizardConfig::getRelationSelectMode()` and
   `isSafeRelationSelectEnabled()`.
+- `BaseQueryWizard` has a protected constructor `(mixed $subject, ?QueryParametersManager, ?QueryWizardConfig,
+  ?ResourceSchemaInterface)`. Wizard subclasses call `parent::__construct()` instead of assigning `$subject`,
+  `$parameters`, `$config` and `$schema` themselves, and read the build state with `isBuilt()`.
 - New extension points are listed under [Extending](README.md#extending) in the README; they and the classes marked
   `@api` are the supported surface. Classes marked `@internal` may change in any release, among them
   `Support\ParameterParser`, `FilterValueTransformer`, `NameConverter`, `RelationResolver` and `DotNotationTreeBuilder`.

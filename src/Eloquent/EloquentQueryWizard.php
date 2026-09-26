@@ -93,12 +93,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         ?QueryWizardConfig $config = null,
         ?ResourceSchemaInterface $schema = null
     ) {
-        $this->subject = $subject;
-        $this->originalSubject = clone $subject;
-        $this->resolveParametersFromContainer = $parameters === null;
-        $this->parameters = $parameters ?? app(QueryParametersManager::class);
-        $this->config = $config ?? app(QueryWizardConfig::class);
-        $this->schema = $schema;
+        parent::__construct($subject, $parameters, $config, $schema);
         $this->state = new EloquentBuildState;
     }
 
@@ -563,9 +558,14 @@ class EloquentQueryWizard extends BaseQueryWizard
         $this->state = clone $this->state;
     }
 
+    protected function resourceModel(): Model
+    {
+        return EloquentSubject::builder($this->subject)->getModel();
+    }
+
     protected function resolveAppendAccessorModel(string $relationPath): ?Model
     {
-        $model = EloquentSubject::builder($this->subject)->getModel();
+        $model = $this->resourceModel();
 
         return $relationPath === '' ? $model : $this->relationResolverFor($model)->resolve($relationPath)?->getRelated();
     }

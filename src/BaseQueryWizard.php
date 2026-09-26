@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Jackardios\QueryWizard\Concerns\HandlesAppends;
 use Jackardios\QueryWizard\Concerns\HandlesConfiguration;
@@ -23,6 +24,7 @@ use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\FilterValueParser;
+use Jackardios\QueryWizard\Support\RelationResolver;
 use Jackardios\QueryWizard\Values\Sort;
 use Throwable;
 
@@ -44,7 +46,14 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     use HandlesParameterScope;
     use HandlesSorts;
 
-    /** @var TSubject */
+    /**
+     * The subject the build shapes. applyFilter(), the sorts and the shaping hooks
+     * replace it when an operation returns a new instance.
+     *
+     * @var TSubject
+     *
+     * @api
+     */
     protected mixed $subject;
 
     /** @var TSubject */
@@ -71,6 +80,67 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      * detect stale build cache when a wizard instance crosses request boundary.
      */
     protected ?string $builtScopeSignature = null;
+
+    /**
+     * @param  TSubject  $subject
+     * @param  QueryParametersManager|null  $parameters  Null resolves the request-scoped manager on every read
+     * @param  QueryWizardConfig|null  $config  Null uses the container's configuration
+     *
+     * @api
+     */
+    protected function __construct(
+        mixed $subject,
+        ?QueryParametersManager $parameters = null,
+        ?QueryWizardConfig $config = null,
+        ?ResourceSchemaInterface $schema = null,
+    ) {
+        $this->subject = $subject;
+        $this->originalSubject = is_object($subject) ? clone $subject : $subject;
+        $this->resolveParametersFromContainer = $parameters === null;
+        $this->parameters = $parameters ?? app(QueryParametersManager::class);
+        $this->config = $config ?? app(QueryWizardConfig::class);
+        $this->schema = $schema;
+    }
+
+    /**
+     * Whether the subject has been built for the current configuration and request.
+     *
+     * @api
+     */
+    protected function isBuilt(): bool
+    {
+        return $this->built;
+    }
+
+    /**
+     * The resource's model, when the wizard knows it without running a query.
+     *
+     * The default resolveAppendAccessorModel() checks wildcard appends and the
+     * letter case of hidden fields against it and its relations; null skips both.
+     *
+     * @api
+     */
+    protected function resourceModel(): ?Model
+    {
+        return null;
+    }
+
+    /**
+     * The model whose accessors back appends at a relation path ('' for the root):
+     * resourceModel() or the related model it reaches.
+     *
+     * @api
+     */
+    protected function resolveAppendAccessorModel(string $relationPath): ?Model
+    {
+        $model = $this->resourceModel();
+
+        if ($model === null || $relationPath === '') {
+            return $model;
+        }
+
+        return (new RelationResolver($model))->resolve($relationPath)?->getRelated();
+    }
 
     /**
      * Invalidate the build state when configuration changes.

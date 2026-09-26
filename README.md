@@ -767,7 +767,10 @@ the supported API:
 | `AbstractFilter::supportsBooleanLists()` | Return `false` when `asBoolean()` must reject lists |
 | `resolveConstraint(mixed $value): mixed` | For filters using `HandlesRelationFiltering`: read the value once into what `applyOnQuery()` receives; `null` adds no condition, so no `whereHas` is added |
 | `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |
+| `BaseQueryWizard::__construct($subject, $parameters, $config, $schema)` | Wizard subclasses call it from their own constructor; `null` parameters and config resolve from the container |
+| `$subject`, `isBuilt(): bool` | The subject the build shapes, and whether it is built for the current configuration and request |
 | `rollbackFailedBuild(): void` | Wizard subclasses reset their own state after a build throws (call the parent) |
+| `resourceModel(): ?Model` | The resource's model; the default `resolveAppendAccessorModel()` checks it and its relations |
 | `resolveAppendAccessorModel(string $relationPath): ?Model` | The model whose accessors a wildcard append must name (`null` = no check) |
 | `QueryWizardConfig::snapshot()` | Configuration fixed at the time of the call |
 

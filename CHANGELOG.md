@@ -10,6 +10,15 @@ resource schemas, `ModelQueryWizard::process()`, request limits. See [UPGRADE.md
 and from `dev-master` snapshots. The entries below cover the changes made before the release; pre-release v3.0.0-rc.1
 was tagged on 2026-09-25, and the changes since then are listed first.
 
+### Since v3.0.0-rc.2
+
+Added:
+
+- `BaseQueryWizard` has an `@api` protected constructor that initializes the subject, parameters, configuration and
+  schema, plus `@api` `$subject`, `isBuilt()` and `resourceModel()`. The default `resolveAppendAccessorModel()` returns
+  `resourceModel()` or the related model at the path, so a wizard that knows its model gets the wildcard-append checks
+  by overriding one method.
+
 ### Since v3.0.0-rc.1
 
 Changed:
