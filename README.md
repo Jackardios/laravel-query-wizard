@@ -525,6 +525,17 @@ EloquentQueryWizard::forSchema(UserSchema::class)
     ->get();
 ```
 
+> **Warning:** `disallowedFilters()` also drops the schema's `defaultFilters()` entry for that filter. A default such as
+> `['status' => 'published']` stops restricting the results once `status` is disallowed. Put a condition that must
+> always hold on the query itself, not in a filter default:
+>
+> ```php
+> EloquentQueryWizard::forSchema(PostSchema::class)
+>     ->tap(fn ($query) => $query->where('status', 'published'))
+>     ->disallowedFilters('status')
+>     ->get();
+> ```
+
 ### Wildcard Support in disallowed*()
 
 | Pattern | Meaning |

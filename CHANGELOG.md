@@ -28,6 +28,11 @@ Added:
   `max_filter_values_count_exceeded`). A value kept whole by `withoutValueSplitting()` counts as one; defaults are not
   counted.
 
+Documentation:
+
+- README "Schema Overrides" warns that `disallowedFilters()` also drops the schema's default for that filter and shows
+  how to keep a condition that must always hold.
+
 ### Since v3.0.0-rc.1
 
 Changed:

@@ -230,6 +230,38 @@ class SchemaDefaultsTest extends TestCase
     }
 
     #[Test]
+    public function disallowing_a_filter_also_drops_its_schema_default(): void
+    {
+        $schema = $this->createTestModelSchema([
+            'defaultFilters' => ['name' => $this->models->first()->name],
+        ]);
+
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->schema($schema)
+            ->disallowedFilters('name')
+            ->get();
+
+        $this->assertCount($this->models->count(), $models);
+    }
+
+    #[Test]
+    public function a_tapped_condition_survives_disallowing_the_filter(): void
+    {
+        $target = $this->models->first();
+        $schema = $this->createTestModelSchema();
+
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->schema($schema)
+            ->tap(fn ($query) => $query->where('name', $target->name))
+            ->disallowedFilters('name')
+            ->get();
+
+        $this->assertSame([$target->id], $models->pluck('id')->all());
+    }
+
+    #[Test]
     public function schema_default_filters_ignored_when_filter_in_request(): void
     {
         $target = $this->models->first();
