@@ -15,6 +15,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxFilterValuesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
@@ -42,6 +43,7 @@ class ExceptionsTest extends TestCase
             'field format' => [InvalidFieldQuery::invalidFormat(), 'invalid_field_format', 'fields'],
             'append format' => [InvalidAppendQuery::invalidFormat('x'), 'invalid_append_format', 'append'],
             'filters count' => [new MaxFiltersCountExceeded(2, 1), 'max_filters_count_exceeded', 'filter'],
+            'filter values count' => [new MaxFilterValuesCountExceeded('id', 2, 1), 'max_filter_values_count_exceeded', 'filter'],
             'sorts count' => [new MaxSortsCountExceeded(2, 1), 'max_sorts_count_exceeded', 'sort'],
             'includes count' => [new MaxIncludesCountExceeded(2, 1), 'max_includes_count_exceeded', 'include'],
             'include depth' => [new MaxIncludeDepthExceeded('a.b', 2, 1), 'max_include_depth_exceeded', 'include'],

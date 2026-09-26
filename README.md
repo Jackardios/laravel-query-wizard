@@ -588,6 +588,7 @@ Built-in protection against resource exhaustion attacks:
 | `max_include_depth` | 3 | Max nesting (e.g., `posts.comments.author` = 3) |
 | `max_includes_count` | 10 | Max includes per request |
 | `max_filters_count` | 20 | Max filters per request |
+| `max_filter_values_count` | 1000 | Max values one filter receives (list items, counted through nested lists) |
 | `max_appends_count` | 20 | Max appends per request |
 | `max_append_depth` | 3 | Max append nesting (e.g., `posts.author.full_name` = 3) |
 | `max_sorts_count` | 5 | Max sorts per request |
@@ -651,6 +652,7 @@ return [
         'max_include_depth' => 3,
         'max_includes_count' => 10,
         'max_filters_count' => 20,
+        'max_filter_values_count' => 1000,
         'max_appends_count' => 20,
         'max_sorts_count' => 5,
         'max_append_depth' => 3,
@@ -695,6 +697,7 @@ All exceptions extend `InvalidQuery` (extends Symfony's `HttpException`, status 
 | `InvalidAppendQuery` | `invalid_append_format` | Nested lists in `append` |
 | `InvalidRequestBody` | `invalid_request_body` | Malformed or non-object JSON body in `body` mode |
 | `MaxFiltersCountExceeded` | `max_filters_count_exceeded` | Too many filters |
+| `MaxFilterValuesCountExceeded` | `max_filter_values_count_exceeded` | Too many values for one filter |
 | `MaxSortsCountExceeded` | `max_sorts_count_exceeded` | Too many sorts |
 | `MaxIncludesCountExceeded` | `max_includes_count_exceeded` | Too many includes |
 | `MaxIncludeDepthExceeded` | `max_include_depth_exceeded` | Include nesting too deep |

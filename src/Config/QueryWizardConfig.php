@@ -54,6 +54,7 @@ final class QueryWizardConfig
             'max_includes_count' => 10,
             'max_include_depth' => 3,
             'max_filters_count' => 20,
+            'max_filter_values_count' => 1000,
             'max_appends_count' => 20,
             'max_append_depth' => 3,
             'max_sorts_count' => 5,
@@ -244,6 +245,14 @@ final class QueryWizardConfig
     public function getMaxFiltersCount(): ?int
     {
         return $this->limit('max_filters_count');
+    }
+
+    /**
+     * The most values one filter may receive: list items, counted through nested lists.
+     */
+    public function getMaxFilterValuesCount(): ?int
+    {
+        return $this->limit('max_filter_values_count');
     }
 
     public function getMaxSortsCount(): ?int

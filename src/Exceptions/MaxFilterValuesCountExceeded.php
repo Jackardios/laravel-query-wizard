@@ -1,0 +1,24 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Jackardios\QueryWizard\Exceptions;
+
+class MaxFilterValuesCountExceeded extends QueryLimitExceeded
+{
+    public readonly string $filterName;
+
+    public readonly int $count;
+
+    public readonly int $maxCount;
+
+    public function __construct(string $filterName, int $count, int $maxCount)
+    {
+        $this->filterName = $filterName;
+        $this->count = $count;
+        $this->maxCount = $maxCount;
+
+        $message = "Filter `{$filterName}` has more values than the maximum allowed ({$maxCount}).";
+        parent::__construct($message, 'max_filter_values_count_exceeded', self::parameterName('filters'));
+    }
+}

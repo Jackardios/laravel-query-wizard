@@ -20,6 +20,7 @@ use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
+use Jackardios\QueryWizard\Exceptions\MaxFilterValuesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
@@ -546,6 +547,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
         if ($inRequest) {
             if (! FilterValueParser::isBlank($value)) {
+                $this->validateFilterValuesLimit($filter, $value);
+
                 return $value;
             }
 
@@ -557,6 +560,41 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $default = $this->getFilterDefault($filter);
 
         return FilterValueParser::isBlank($default) ? null : $default;
+    }
+
+    private function validateFilterValuesLimit(FilterInterface $filter, mixed $value): void
+    {
+        $limit = $this->getConfig()->getMaxFilterValuesCount();
+
+        if ($limit === null || ! is_array($value)) {
+            return;
+        }
+
+        $count = self::countLeafValues($value, $limit);
+
+        if ($count > $limit) {
+            throw new MaxFilterValuesCountExceeded($filter->getName(), $count, $limit);
+        }
+    }
+
+    /**
+     * Scalars in a nested array, counting no further than one past $stopAfter.
+     *
+     * @param  array<array-key, mixed>  $value
+     */
+    private static function countLeafValues(array $value, int $stopAfter): int
+    {
+        $count = 0;
+
+        foreach ($value as $item) {
+            $count += is_array($item) ? self::countLeafValues($item, $stopAfter - $count) : 1;
+
+            if ($count > $stopAfter) {
+                break;
+            }
+        }
+
+        return $count;
     }
 
     /**

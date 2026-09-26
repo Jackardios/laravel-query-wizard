@@ -23,6 +23,10 @@ Added:
 - `ParsedDate::upToBound()` and `afterBound()` return the comparison for "on or before" and "after" a value, with a
   date naming its whole day, and `FilterValueParser::defaultTimezone()` the timezone built-in filters read dates in.
   The date range and operator filters use them.
+- `limits.max_filter_values_count` (default 1000, `null` disables it): a filter that receives more values, counting
+  list items through nested lists, throws `MaxFilterValuesCountExceeded` (400,
+  `max_filter_values_count_exceeded`). A value kept whole by `withoutValueSplitting()` counts as one; defaults are not
+  counted.
 
 ### Since v3.0.0-rc.1
 

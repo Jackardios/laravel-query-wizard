@@ -7,10 +7,13 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
+use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxFilterValuesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
@@ -241,6 +244,89 @@ class SecurityLimitsTest extends TestCase
             ->get();
 
         $this->assertIsIterable($models);
+    }
+
+    // ========== Filter Values Count Limit Tests ==========
+
+    #[Test]
+    public function the_filter_values_limit_defaults_to_1000(): void
+    {
+        $this->assertSame(1000, (new QueryWizardConfig)->getMaxFilterValuesCount());
+    }
+
+    #[Test]
+    public function a_filter_with_more_values_than_the_limit_is_rejected(): void
+    {
+        Config::set('query-wizard.limits.max_filter_values_count', 3);
+
+        try {
+            $this->createEloquentWizardWithFilters(['id' => '1,2,3,4'])->allowedFilters('id')->get();
+            $this->fail('Expected MaxFilterValuesCountExceeded');
+        } catch (MaxFilterValuesCountExceeded $exception) {
+            $this->assertSame('Filter `id` has more values than the maximum allowed (3).', $exception->getMessage());
+            $this->assertSame('id', $exception->filterName);
+            $this->assertSame(4, $exception->count);
+            $this->assertSame(3, $exception->maxCount);
+            $this->assertSame(400, $exception->getStatusCode());
+            $this->assertSame('max_filter_values_count_exceeded', $exception->errorCode);
+        }
+    }
+
+    #[Test]
+    public function filter_values_are_counted_through_nested_lists(): void
+    {
+        Config::set('query-wizard.limits.max_filter_values_count', 3);
+
+        $this->expectException(MaxFilterValuesCountExceeded::class);
+
+        $this->createEloquentWizardWithFilters(['id' => [['1', '2'], ['3', '4']]])->allowedFilters('id')->get();
+    }
+
+    #[Test]
+    public function a_filter_within_the_values_limit_applies(): void
+    {
+        Config::set('query-wizard.limits.max_filter_values_count', 3);
+
+        $ids = TestModel::query()->limit(3)->pluck('id')->implode(',');
+        $models = $this->createEloquentWizardWithFilters(['id' => $ids])->allowedFilters('id')->get();
+
+        $this->assertCount(3, $models);
+    }
+
+    #[Test]
+    public function an_unsplit_value_counts_as_one(): void
+    {
+        Config::set('query-wizard.limits.max_filter_values_count', 1);
+
+        $models = $this->createEloquentWizardWithFilters(['name' => 'a,b,c'])
+            ->allowedFilters(EloquentFilter::partial('name'))
+            ->get();
+
+        $this->assertCount(0, $models);
+    }
+
+    #[Test]
+    public function filter_defaults_are_not_counted(): void
+    {
+        Config::set('query-wizard.limits.max_filter_values_count', 1);
+
+        $ids = TestModel::query()->limit(2)->pluck('id')->all();
+        $models = $this->createEloquentWizardWithFilters([])
+            ->allowedFilters(EloquentFilter::exact('id')->default($ids))
+            ->get();
+
+        $this->assertCount(2, $models);
+    }
+
+    #[Test]
+    public function the_filter_values_limit_can_be_disabled(): void
+    {
+        Config::set('query-wizard.limits.max_filter_values_count', null);
+
+        $ids = implode(',', range(1, 1500));
+        $models = $this->createEloquentWizardWithFilters(['id' => $ids])->allowedFilters('id')->get();
+
+        $this->assertCount(3, $models);
     }
 
     // ========== Sort Count Limit Tests ==========
