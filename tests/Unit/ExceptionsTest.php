@@ -71,6 +71,16 @@ class ExceptionsTest extends TestCase
     }
 
     #[Test]
+    public function invalid_filter_value_make_returns_the_subclass_it_is_called_on(): void
+    {
+        $exception = CustomInvalidFilterValue::make('x', 'status', 'Expected a slug.');
+
+        $this->assertInstanceOf(CustomInvalidFilterValue::class, $exception);
+        $this->assertSame('Filter value `x` is invalid for filter `status`. Expected a slug.', $exception->getMessage());
+        $this->assertSame(400, $exception->getStatusCode());
+    }
+
+    #[Test]
     public function invalid_filter_value_reason_is_optional(): void
     {
         $exception = InvalidFilterValue::make('x', 'status');
@@ -375,3 +385,5 @@ class ExceptionsTest extends TestCase
         $this->assertTrue($reflection->isReadOnly());
     }
 }
+
+final class CustomInvalidFilterValue extends InvalidFilterValue {}

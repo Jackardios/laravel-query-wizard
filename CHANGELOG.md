@@ -18,6 +18,8 @@ Added:
   schema, plus `@api` `$subject`, `isBuilt()` and `resourceModel()`. The default `resolveAppendAccessorModel()` returns
   `resourceModel()` or the related model at the path, so a wizard that knows its model gets the wildcard-append checks
   by overriding one method.
+- `@api`: `InvalidFilterValue::make()`, which now returns an instance of the class it is called on, and
+  `FilterValueParser::trashedMode()` and `comparable()` (no longer `@internal`).
 
 ### Since v3.0.0-rc.1
 

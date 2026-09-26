@@ -94,8 +94,6 @@ final class FilterValueParser
      * with, only or without; true and false stand for with and without.
      *
      * @return 'with'|'only'|'without'|null
-     *
-     * @internal
      */
     public static function trashedMode(mixed $value, string|FilterInterface $filter, ?string $key = null): ?string
     {
@@ -245,8 +243,6 @@ final class FilterValueParser
     /**
      * The operand of a >, >=, < or <= comparison: a number (see number()) or
      * an ISO date (see isoDate(), returned as a ParsedDate).
-     *
-     * @internal
      */
     public static function comparable(
         mixed $value,

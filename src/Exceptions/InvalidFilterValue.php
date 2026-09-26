@@ -7,6 +7,9 @@ namespace Jackardios\QueryWizard\Exceptions;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 class InvalidFilterValue extends InvalidQuery
 {
     public readonly string $filterName;
@@ -32,10 +35,15 @@ class InvalidFilterValue extends InvalidQuery
     }
 
     /**
+     * The 400 a filter throws for a value it cannot read. Called on a subclass,
+     * it returns an instance of that subclass.
+     *
      * @param  string|FilterInterface  $filter  The filter or its public name
      * @param  string|null  $reason  What was expected instead; appended to the message
+     *
+     * @api
      */
-    public static function make(mixed $value, string|FilterInterface $filter = '', ?string $reason = null): self
+    public static function make(mixed $value, string|FilterInterface $filter = '', ?string $reason = null): static
     {
         $filterName = $filter instanceof FilterInterface ? $filter->getName() : $filter;
         $valueString = self::formatValue($value);
@@ -48,7 +56,7 @@ class InvalidFilterValue extends InvalidQuery
             $message .= ' '.$reason;
         }
 
-        return new self(Response::HTTP_BAD_REQUEST, $message, $filterName, $value, $reason);
+        return new static(Response::HTTP_BAD_REQUEST, $message, $filterName, $value, $reason);
     }
 
     private static function formatValue(mixed $value): string
