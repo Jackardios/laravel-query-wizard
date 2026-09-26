@@ -44,6 +44,13 @@ Removed:
   `applyIncludeKeepingEagerLoads()` are gone too, and the relation-key helpers of `HandlesSafeRelationSelect` moved to
   `@internal` classes. The `HandlesSafeRelationSelect` and `HandlesRelationPostProcessing` traits are `@internal`.
 
+Fixed:
+
+- Static analysis accepts builders and relations of concrete models: `EloquentQueryWizard::for()`, its constructor and
+  `EloquentShape::applyTo()` take `Builder<covariant Model>` and `Relation<covariant Model, covariant Model, *>`, so
+  `EloquentQueryWizard::for(User::query())` and `for($user->posts())` no longer fail PHPStan/Larastan with
+  `argument.type`. PHPDoc only; `tests/Types` keeps it checked.
+
 Documentation:
 
 - README "Schema Overrides" warns that `disallowedFilters()` also drops the schema's default for that filter and shows

@@ -78,7 +78,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     private EloquentBuildState $state;
 
     /**
-     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
+     * @param  Builder<covariant Model>|Relation<covariant Model, covariant Model, *>  $subject
      */
     public function __construct(
         Builder|Relation $subject,
@@ -86,6 +86,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         ?QueryWizardConfig $config = null,
         ?ResourceSchemaInterface $schema = null
     ) {
+        /** @var Builder<Model>|Relation<Model, Model, mixed> $subject */
         parent::__construct($subject, $parameters, $config, $schema);
         $this->state = new EloquentBuildState;
     }
@@ -93,7 +94,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     /**
      * Create a wizard for a model, query builder, or relation.
      *
-     * @param  class-string<Model>|Builder<Model>|Relation<Model, Model, mixed>|Model  $subject
+     * @param  class-string<Model>|Builder<covariant Model>|Relation<covariant Model, covariant Model, *>|Model  $subject
      */
     public static function for(string|Builder|Relation|Model $subject): static
     {
@@ -105,7 +106,6 @@ class EloquentQueryWizard extends BaseQueryWizard
             $subject = $subject->newQuery();
         }
 
-        /** @var Builder<Model>|Relation<Model, Model, mixed> $subject */
         return new static($subject);
     }
 

@@ -55,14 +55,16 @@ final class EloquentShape
      * the required root columns. Call it once per query, after every other
      * eager load and select the query should keep.
      *
-     * @template TQuery of Builder<Model>|Relation<Model, Model, mixed>
+     * @template TQuery of Builder<covariant Model>|Relation<covariant Model, covariant Model, *>
      *
      * @param  TQuery  $query
      * @return TQuery|Builder<Model>|Relation<Model, Model, mixed> The query to run: a callback include may return another instance
      */
     public function applyTo(Builder|Relation $query): Builder|Relation
     {
-        $query = EloquentShapeSteps::applyIncludes($query, $this->includes, $this->relationFieldsByPath);
+        /** @var Builder<Model>|Relation<Model, Model, mixed> $subject */
+        $subject = $query;
+        $query = EloquentShapeSteps::applyIncludes($subject, $this->includes, $this->relationFieldsByPath);
 
         if ($this->rootFields !== null) {
             $rootAppendsRequested = $this->appendTree['appends'] !== [];

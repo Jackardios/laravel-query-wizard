@@ -4,6 +4,7 @@ includes:
 parameters:
     paths:
         - src
+        - tests/Types
     level: 9
     reportUnmatchedIgnoredErrors: true
     ignoreErrors:
