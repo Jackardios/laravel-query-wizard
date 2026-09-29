@@ -43,7 +43,7 @@ trait HandlesFields
     /**
      * @return array<IncludeInterface>
      */
-    abstract protected function getEffectiveIncludes(): array;
+    abstract protected function getIncludesInUse(): array;
 
     abstract protected function resolveAppendAccessorModel(string $relationPath): ?Model;
 
@@ -233,7 +233,7 @@ trait HandlesFields
 
         $allowedFields = $this->getEffectiveFields();
         $allFieldsAllowed = in_array('*', $allowedFields, true);
-        $includeNameToPathMap = $this->buildIncludeNameToPathMap($this->getEffectiveIncludes());
+        $includeNameToPathMap = $this->buildIncludeNameToPathMap($this->getIncludesInUse());
         $exceptionsDisabled = $this->getConfig()->isInvalidFieldQueryExceptionDisabled();
 
         $allowedRelationFieldList = $allFieldsAllowed
@@ -445,11 +445,13 @@ trait HandlesFields
      * Returns validated fields array or null if no field filtering should be applied.
      * Throws InvalidFieldQuery if validation fails and exceptions are enabled.
      * Without a root fieldset in the request the default fields apply, even
-     * when fieldsets of relations are requested.
+     * when fieldsets of relations are requested. Defaults come from the
+     * developer, so they apply without being allowed.
      *
      * @return array<string>|null Validated fields or null for no filtering
      *
      * @throws InvalidFieldQuery
+     * @throws \InvalidArgumentException When a default field is disallowed
      */
     protected function resolveValidatedRootFields(): ?array
     {
@@ -487,18 +489,20 @@ trait HandlesFields
         $disallowedFound = false;
 
         foreach ($fields as $field) {
-            if (! $policy->allowsAttribute('', $field)) {
-                if (! $requestAbsent) {
-                    $invalidFields[] = $field;
+            if ($requestAbsent) {
+                if ($this->isFieldTokenDisallowed($denyPolicy, '', $field)) {
+                    throw new \InvalidArgumentException("Default field `{$field}` is disallowed by disallowedFields().");
                 }
+
+                $validFields[] = $field;
+            } elseif (! $policy->allowsAttribute('', $field)) {
+                $invalidFields[] = $field;
             } elseif (
                 $this->isFieldTokenDisallowed($denyPolicy, '', $field)
-                || (! $requestAbsent && $this->isCaseVariantOfProtectedField('', $field, '', $policy, $caseProtectedNames))
+                || $this->isCaseVariantOfProtectedField('', $field, '', $policy, $caseProtectedNames)
             ) {
-                if (! $requestAbsent) {
-                    $invalidFields[] = $field;
-                    $disallowedFound = true;
-                }
+                $invalidFields[] = $field;
+                $disallowedFound = true;
             } else {
                 $validFields[] = $field;
             }

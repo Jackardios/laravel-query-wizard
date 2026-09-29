@@ -39,7 +39,7 @@ trait HandlesAppends
     /**
      * @return array<IncludeInterface>
      */
-    abstract protected function getEffectiveIncludes(): array;
+    abstract protected function getIncludesInUse(): array;
 
     /**
      * Get effective requested includes (defaults only when request absent).
@@ -139,8 +139,7 @@ trait HandlesAppends
         }
 
         $allowed = $this->getEffectiveAppends();
-        $effectiveIncludes = $this->getEffectiveIncludes();
-        $includeNameToPathMap = $this->buildIncludeNameToPathMap($effectiveIncludes);
+        $includeNameToPathMap = $this->buildIncludeNameToPathMap($this->getIncludesInUse());
         $includedRelationPaths = $this->getIncludedRelationPaths(
             $this->getMergedRequestedIncludes(),
             $includeNameToPathMap
@@ -154,14 +153,9 @@ trait HandlesAppends
             $key = (string) $key;
 
             if ($key === '') {
-                $valid = $this->filterValidAttributes(
-                    $key,
-                    $attributes,
-                    $allowed,
-                    ! $useDefaults,
-                    $exceptionsDisabled,
-                    ''
-                );
+                $valid = $useDefaults
+                    ? $this->trustedDefaultAppends($key, $attributes)
+                    : $this->filterValidAttributes($key, $attributes, $allowed, true, $exceptionsDisabled, '');
                 if (! empty($valid)) {
                     $validGrouped[''] = $valid;
                 }
@@ -197,14 +191,9 @@ trait HandlesAppends
 
             // Validate using the request key (include name/alias), not the relation path
             // This ensures allowedAppends(['related.formattedName']) works when include has alias 'related'
-            $valid = $this->filterValidAttributes(
-                $key,
-                $attributes,
-                $allowed,
-                ! $useDefaults,
-                $exceptionsDisabled,
-                $relationPath
-            );
+            $valid = $useDefaults
+                ? $this->trustedDefaultAppends($key, $attributes)
+                : $this->filterValidAttributes($key, $attributes, $allowed, true, $exceptionsDisabled, $relationPath);
 
             if ($loaded && ! empty($valid)) {
                 $validGrouped[$relationPath] = array_values(array_unique(array_merge($validGrouped[$relationPath] ?? [], $valid)));
@@ -224,6 +213,34 @@ trait HandlesAppends
         }
 
         return $this->buildAppendTree($validGrouped);
+    }
+
+    /**
+     * Default appends come from the developer, so they apply without being allowed.
+     *
+     * @param  string  $path  Include name ('' for the root)
+     * @param  array<string>  $attributes
+     * @return array<string>
+     *
+     * @throws \InvalidArgumentException When a default append is a pattern or is disallowed
+     */
+    private function trustedDefaultAppends(string $path, array $attributes): array
+    {
+        $denyPolicy = $this->disallowedAppends === [] ? null : $this->denyPolicyFor($this->disallowedAppends);
+
+        foreach ($attributes as $attr) {
+            $name = $path !== '' ? "{$path}.{$attr}" : $attr;
+
+            if (str_contains($attr, '*')) {
+                throw new \InvalidArgumentException("Default append `{$name}` must name an attribute, not a pattern.");
+            }
+
+            if ($denyPolicy !== null && $denyPolicy->denies($this->normalizePublicPath($name))) {
+                throw new \InvalidArgumentException("Default append `{$name}` is disallowed by disallowedAppends().");
+            }
+        }
+
+        return array_values($attributes);
     }
 
     /**

@@ -444,6 +444,11 @@ EloquentQueryWizard::for(User::class)
 
 Defaults are applied only when the corresponding parameter is completely absent.
 
+Defaults come from the developer, so they apply without being allowed: `defaultSorts('-created_at')` works without
+`allowedSorts()`, and a default that names an allowed definition (an alias, a count sort) uses it. The client still
+needs `allowed*()` to request the same name. A default that `disallowed*()` removes throws `InvalidArgumentException`,
+and a typo in a default fails in the database or in Eloquent instead of being skipped.
+
 - `?include=` means "include nothing"
 - `?append=` means "append nothing"
 - `?fields=` means "show no root fields", except active `count` / `exists` include attributes remain visible

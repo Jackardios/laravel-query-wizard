@@ -139,16 +139,17 @@ class DisallowedUnderWildcardTest extends TestCase
     }
 
     #[Test]
-    public function disallowed_default_fields_under_a_wildcard_are_dropped_silently(): void
+    public function disallowed_default_fields_under_a_wildcard_throw(): void
     {
-        $sql = $this->createEloquentWizardFromQuery([])
+        $wizard = $this->createEloquentWizardFromQuery([])
             ->allowedFields('*')
             ->disallowedFields('name')
-            ->defaultFields('id', 'name')
-            ->toQuery()
-            ->toSql();
+            ->defaultFields('id', 'name');
 
-        $this->assertSame('select "test_models"."id" from "test_models"', $sql);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Default field `name` is disallowed by disallowedFields().');
+
+        $wizard->toQuery();
     }
 
     #[Test]
@@ -266,16 +267,17 @@ class DisallowedUnderWildcardTest extends TestCase
     }
 
     #[Test]
-    public function disallowed_default_appends_under_a_wildcard_are_dropped_silently(): void
+    public function disallowed_default_appends_under_a_wildcard_throw(): void
     {
-        $model = $this->createEloquentWizardFromQuery([])
+        $wizard = $this->createEloquentWizardFromQuery([])
             ->allowedAppends('*')
             ->disallowedAppends('fullname')
-            ->defaultAppends('fullname')
-            ->get()
-            ->first();
+            ->defaultAppends('fullname');
 
-        $this->assertArrayNotHasKey('fullname', $model->toArray());
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Default append `fullname` is disallowed by disallowedAppends().');
+
+        $wizard->get();
     }
 
     #[Test]

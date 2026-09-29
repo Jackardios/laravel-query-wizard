@@ -33,7 +33,7 @@ trait HandlesSafeRelationSelect
     /**
      * @return array<IncludeInterface>
      */
-    abstract protected function getEffectiveIncludes(): array;
+    abstract protected function getIncludesInUse(): array;
 
     /**
      * @param  array<IncludeInterface>  $effectiveIncludes
@@ -119,7 +119,7 @@ trait HandlesSafeRelationSelect
             return [];
         }
 
-        $includeNameToPathMap = $this->buildIncludeNameToPathMap($this->getEffectiveIncludes());
+        $includeNameToPathMap = $this->buildIncludeNameToPathMap($this->getIncludesInUse());
 
         foreach ($grouped as $requestedKey => $appends) {
             $requestedKey = (string) $requestedKey;

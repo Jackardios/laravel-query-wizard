@@ -764,30 +764,19 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $sortRequested = false;
         }
 
-        $usingDefaults = ! $sortRequested;
-        $effectiveSorts = $usingDefaults
-            ? collect($defaultSorts)->map(fn ($s) => new Sort($s))
-            : $requestedSorts;
+        $sortsIndex = [];
+        foreach ($sorts as $sort) {
+            $sortsIndex[ltrim($this->normalizePublicPath($sort->getName()), '-')] = $sort;
+        }
 
-        if (empty($sorts) && $effectiveSorts->isNotEmpty()) {
-            if ($usingDefaults) {
-                if ($this->allowedSortsExplicitlySet || $this->disallowedSorts !== []) {
-                    return [];
-                }
+        if (! $sortRequested) {
+            return $this->resolveDefaultSorts($defaultSorts, $sortsIndex);
+        }
 
-                $resolved = [];
-                foreach ($effectiveSorts as $sortValue) {
-                    $resolved[] = [$this->normalizeStringToSort($sortValue->getField()), $sortValue->getDirection()];
-                }
-
-                $this->assertDefaultSortsWithinLimit(count($resolved));
-
-                return $resolved;
-            }
-
+        if ($sortsIndex === []) {
             if (! $this->getConfig()->isInvalidSortQueryExceptionDisabled()) {
                 throw InvalidSortQuery::sortsNotAllowed(
-                    $effectiveSorts->map(fn (Sort $s) => $s->getField()),
+                    $requestedSorts->map(fn (Sort $s) => $s->getField()),
                     collect([])
                 );
             }
@@ -795,34 +784,17 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return [];
         }
 
-        if (empty($sorts)) {
-            return [];
-        }
-
-        if (! $usingDefaults) {
-            $this->validateSortsLimit($effectiveSorts->count());
-        }
-
-        $sortsIndex = [];
-        foreach ($sorts as $sort) {
-            $name = $this->normalizePublicPath($sort->getName());
-            $normalizedName = ltrim($name, '-');
-            $sortsIndex[$normalizedName] = $sort;
-        }
+        $this->validateSortsLimit($requestedSorts->count());
 
         $allowedSortNames = array_keys($sortsIndex);
         $appliedSorts = [];
         $resolved = [];
 
-        foreach ($effectiveSorts as $sortValue) {
+        foreach ($requestedSorts as $sortValue) {
             /** @var Sort $sortValue */
             $field = $sortValue->getField();
 
             if (! isset($sortsIndex[$field])) {
-                if ($usingDefaults) {
-                    continue;
-                }
-
                 if (! $this->getConfig()->isInvalidSortQueryExceptionDisabled()) {
                     throw InvalidSortQuery::sortsNotAllowed(collect([$field]), collect($allowedSortNames));
                 }
@@ -838,9 +810,48 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $resolved[] = [$sortsIndex[$field], $sortValue->getDirection()];
         }
 
-        if ($usingDefaults) {
-            $this->assertDefaultSortsWithinLimit(count($resolved));
+        return $resolved;
+    }
+
+    /**
+     * Resolve the default sorts, which come from the developer and so apply
+     * without being allowed: an allowed sort of the same name is used, else
+     * the name is normalized like a string passed to allowedSorts().
+     *
+     * @param  list<string>  $defaultSorts
+     * @param  array<string, SortInterface>  $sortsIndex
+     * @return list<array{SortInterface, 'asc'|'desc'}>
+     *
+     * @throws \InvalidArgumentException When a default sort is disallowed or over the limit
+     */
+    private function resolveDefaultSorts(array $defaultSorts, array $sortsIndex): array
+    {
+        $resolved = [];
+        $seen = [];
+
+        foreach ($defaultSorts as $default) {
+            $sortValue = new Sort($default);
+            $field = $sortValue->getField();
+
+            if (isset($seen[$field])) {
+                continue;
+            }
+            $seen[$field] = true;
+
+            $sort = $sortsIndex[$field] ?? null;
+
+            if ($sort === null) {
+                if ($this->disallowedSorts !== [] && $this->isNameDisallowed($field, $this->disallowedSorts)) {
+                    throw new \InvalidArgumentException("Default sort `{$field}` is disallowed by disallowedSorts().");
+                }
+
+                $sort = $this->normalizeStringToSort($field);
+            }
+
+            $resolved[] = [$sort, $sortValue->getDirection()];
         }
+
+        $this->assertDefaultSortsWithinLimit(count($resolved));
 
         return $resolved;
     }

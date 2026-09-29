@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
+use Illuminate\Database\Eloquent\RelationNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
@@ -570,16 +571,44 @@ class SecurityLimitsTest extends TestCase
     // ========== Default Appends Validation Tests ==========
 
     #[Test]
-    public function it_silently_skips_default_appends_not_in_allowed_list(): void
+    public function default_appends_apply_without_being_allowed(): void
     {
         $result = $this
             ->createEloquentWizardFromQuery([], AppendModel::class)
-            ->allowedAppends('fullname')
-            ->defaultAppends('fullname', 'nonexistent')
+            ->allowedAppends([])
+            ->defaultAppends('fullname')
             ->get();
 
         $this->assertNotEmpty($result);
         $this->assertArrayHasKey('fullname', $result->first()->toArray());
+    }
+
+    #[Test]
+    public function a_default_append_naming_no_accessor_fails_when_serialized(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardFromQuery([], AppendModel::class)
+            ->allowedAppends('fullname')
+            ->defaultAppends('fullname', 'nonexistent');
+
+        $this->expectException(\BadMethodCallException::class);
+        $this->expectExceptionMessage('getNonexistentAttribute()');
+
+        $wizard->get()->toArray();
+    }
+
+    #[Test]
+    public function a_default_append_pattern_throws(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardFromQuery([], AppendModel::class)
+            ->allowedAppends('*')
+            ->defaultAppends('full*');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Default append `full*` must name an attribute, not a pattern.');
+
+        $wizard->get();
     }
 
     #[Test]
@@ -646,18 +675,19 @@ class SecurityLimitsTest extends TestCase
     }
 
     #[Test]
-    public function skipped_default_sorts_do_not_count_toward_the_limit(): void
+    public function default_sorts_outside_the_allowed_list_count_toward_the_limit(): void
     {
         Config::set('query-wizard.limits.max_sorts_count', 1);
 
-        $sql = $this
+        $wizard = $this
             ->createEloquentWizardFromQuery([], TestModel::class)
             ->allowedSorts('name')
-            ->defaultSorts('name', 'unknown')
-            ->toQuery()
-            ->toSql();
+            ->defaultSorts('name', 'id');
 
-        $this->assertStringEndsWith('order by "test_models"."name" asc', $sql);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The number of default sorts (2) exceeds the `limits.max_sorts_count` limit (1)');
+
+        $wizard->toQuery();
     }
 
     #[Test]
@@ -718,20 +748,20 @@ class SecurityLimitsTest extends TestCase
     // ========== Default Includes Validation Tests ==========
 
     #[Test]
-    public function it_silently_skips_default_includes_not_in_allowed_list(): void
+    public function a_default_include_naming_no_relation_fails_in_eloquent(): void
     {
-        $result = $this
+        $wizard = $this
             ->createEloquentWizardFromQuery([], TestModel::class)
             ->allowedIncludes('relatedModels')
-            ->defaultIncludes('relatedModels', 'nonExistent')
-            ->get();
+            ->defaultIncludes('relatedModels', 'nonExistent');
 
-        $this->assertNotEmpty($result);
-        $this->assertTrue($result->first()->relationLoaded('relatedModels'));
+        $this->expectException(RelationNotFoundException::class);
+
+        $wizard->get();
     }
 
     #[Test]
-    public function it_silently_skips_default_includes_with_empty_allowed_list(): void
+    public function default_includes_apply_with_an_empty_allowed_list(): void
     {
         $result = $this
             ->createEloquentWizardFromQuery([], TestModel::class)
@@ -740,7 +770,7 @@ class SecurityLimitsTest extends TestCase
             ->get();
 
         $this->assertNotEmpty($result);
-        $this->assertFalse($result->first()->relationLoaded('relatedModels'));
+        $this->assertTrue($result->first()->relationLoaded('relatedModels'));
     }
 
     // ========== ModelQueryWizard Includes Count Validation ==========

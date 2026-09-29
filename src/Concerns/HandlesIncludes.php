@@ -38,6 +38,13 @@ trait HandlesIncludes
     protected ?array $cachedEffectiveIncludes = null;
 
     /**
+     * Public names of the allowed includes that disallowedIncludes() removed.
+     *
+     * @var array<string, true>
+     */
+    private array $disallowedIncludeNames = [];
+
+    /**
      * Normalize a string include to an IncludeInterface instance.
      *
      * @api
@@ -124,6 +131,7 @@ trait HandlesIncludes
         $disallowed = $this->disallowedIncludes;
         $result = [];
         $names = [];
+        $this->disallowedIncludeNames = [];
 
         foreach ($includes as $include) {
             if (is_string($include)) {
@@ -139,6 +147,8 @@ trait HandlesIncludes
             $name = $include->getName();
 
             if (! empty($disallowed) && $this->isIncludeDisallowed($include, $name, $disallowed)) {
+                $this->disallowedIncludeNames[$this->normalizePublicPath($name)] = true;
+
                 continue;
             }
 
@@ -149,6 +159,46 @@ trait HandlesIncludes
         }
 
         return $this->cachedEffectiveIncludes = $result;
+    }
+
+    /**
+     * The effective includes plus the default includes they don't define.
+     *
+     * Defaults come from the developer, so while the request names no
+     * includes they apply without being allowed; one that disallowedIncludes()
+     * denies is a configuration error.
+     *
+     * @return array<IncludeInterface>
+     *
+     * @throws \InvalidArgumentException When a default include is disallowed
+     */
+    protected function getIncludesInUse(): array
+    {
+        $includes = $this->getEffectiveIncludes();
+
+        if (! $this->isIncludesRequestEmpty()) {
+            return $includes;
+        }
+
+        $index = $this->buildIncludesIndex($includes);
+
+        foreach ($this->getEffectiveDefaultIncludes() as $name) {
+            if (isset($index[$name])) {
+                continue;
+            }
+
+            $include = $this->normalizeStringToInclude($name);
+
+            if (isset($this->disallowedIncludeNames[$name])
+                || ($this->disallowedIncludes !== [] && $this->isIncludeDisallowed($include, $name, $this->disallowedIncludes))) {
+                throw new \InvalidArgumentException("Default include `{$name}` is disallowed by disallowedIncludes().");
+            }
+
+            $index[$name] = $include;
+            $includes[] = $include;
+        }
+
+        return $includes;
     }
 
     /**
@@ -233,7 +283,7 @@ trait HandlesIncludes
      */
     private function resolveIncludesToApply(): ?array
     {
-        $includes = $this->getEffectiveIncludes();
+        $includes = $this->getIncludesInUse();
         $requestedIncludes = $this->getMergedRequestedIncludes();
         $usingDefaults = $this->isIncludesRequestEmpty();
 

@@ -111,6 +111,11 @@ a later TypeError).
 
 - `disallowed*()` calls add up: `->disallowedFilters('a')->disallowedFilters('b')` disallows both (before: the second
   call replaced the first, re-allowing `a`). `allowed*()` still replaces the list, including the schema's.
+- Default sorts, includes, fields and appends apply without being allowed, the same way for all four (before: only
+  default sorts did, and only while no `allowedSorts()` or `disallowedSorts()` call was made; other defaults outside the
+  allow-list were dropped silently). A default naming an allowed definition uses it. A default that `disallowed*()`
+  removes throws `InvalidArgumentException`, and a misspelled default now fails (unknown column, relation or accessor)
+  instead of being skipped. To turn a schema default off, call `defaultSorts()` (etc.) without arguments.
 - Two allowed filters, sorts or includes with the same public name throw `InvalidArgumentException` when the wizard
   resolves them (before: the last one won silently). This includes a count or exists include named like a relationship
   include, through `alias()` or an empty `count_suffix`/`exists_suffix`, and `addAllowed*()` repeating a schema name.

@@ -57,6 +57,10 @@ Changed:
 - `allowed*()`, `disallowed*()` and `default*()` flatten nested arrays at any depth and skip `null` items. Any other item
   that is not a name (or, for filters, sorts and includes, a definition of that kind) throws
   `InvalidArgumentException`; a nested array used to fail with a PHP `Error`, and a non-string name was dropped.
+- Default sorts, includes, fields and appends apply without being allowed; a default naming an allowed definition
+  (an alias, a count sort) uses it, and one that `disallowed*()` removes throws `InvalidArgumentException`. Each kind
+  followed its own rule: defaults outside the allow-list were dropped silently, except sorts, whose defaults any
+  `allowedSorts()` or unrelated `disallowedSorts()` call turned off.
 - Allowed filters, sorts or includes sharing a public name throw `InvalidArgumentException`; the last one used to win
   silently (with an empty `count_suffix`, `?include=posts` loaded only the count).
 - `disallowed*()` calls add up; a second call used to replace the first and re-allow what it removed.

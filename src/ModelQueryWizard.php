@@ -108,7 +108,7 @@ class ModelQueryWizard implements QueryWizardInterface
 
         $this->forgetConfigurationMemo();
         $this->validatedRequest = null;
-        $effectiveIncludes = $this->getEffectiveIncludes();
+        $effectiveIncludes = $this->getIncludesInUse();
         $requestedIncludeNames = $this->resolveIncludesToApply()[0] ?? [];
         $this->validatedRequest();
         $this->cleanUnwantedRelations($effectiveIncludes, $requestedIncludeNames);

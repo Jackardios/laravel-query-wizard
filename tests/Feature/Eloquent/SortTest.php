@@ -355,7 +355,7 @@ class SortTest extends TestCase
     }
 
     #[Test]
-    public function explicit_sort_denial_blocks_default_sorts(): void
+    public function default_sorts_apply_with_an_empty_allowed_list(): void
     {
         $models = $this
             ->createEloquentWizardFromQuery()
@@ -363,20 +363,34 @@ class SortTest extends TestCase
             ->defaultSorts('-id')
             ->get();
 
-        $this->assertEquals(1, $models->first()->id);
+        $this->assertEquals($models->max('id'), $models->first()->id);
     }
 
     #[Test]
-    public function disallowed_wildcard_blocks_default_sorts(): void
+    public function a_default_sort_under_a_disallowed_wildcard_throws(): void
     {
-        $models = $this
+        $wizard = $this
             ->createEloquentWizardFromQuery()
             ->allowedSorts('id')
             ->disallowedSorts('*')
+            ->defaultSorts('-id');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Default sort `id` is disallowed by disallowedSorts().');
+
+        $wizard->get();
+    }
+
+    #[Test]
+    public function an_unrelated_sort_denial_keeps_default_sorts(): void
+    {
+        $models = $this
+            ->createEloquentWizardFromQuery()
+            ->disallowedSorts('name')
             ->defaultSorts('-id')
             ->get();
 
-        $this->assertEquals(1, $models->first()->id);
+        $this->assertEquals($models->max('id'), $models->first()->id);
     }
 
     // ========== Validation Tests ==========

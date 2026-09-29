@@ -72,16 +72,17 @@ class DisallowedIncludePathTest extends TestCase
     }
 
     #[Test]
-    public function aliased_default_includes_of_disallowed_relations_are_not_loaded(): void
+    public function aliased_default_includes_of_disallowed_relations_throw(): void
     {
-        $model = $this->createEloquentWizardFromQuery([])
+        $wizard = $this->createEloquentWizardFromQuery([])
             ->allowedIncludes(EloquentInclude::relationship('relatedModels.nestedRelatedModels')->alias('nested'))
             ->disallowedIncludes('relatedModels')
-            ->defaultIncludes('nested')
-            ->get()
-            ->first();
+            ->defaultIncludes('nested');
 
-        $this->assertFalse($model->relationLoaded('relatedModels'));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Default include `nested` is disallowed by disallowedIncludes().');
+
+        $wizard->get();
     }
 
     #[Test]

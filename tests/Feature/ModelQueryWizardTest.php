@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature;
 
+use Illuminate\Database\Eloquent\RelationNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -588,19 +589,32 @@ class ModelQueryWizardTest extends TestCase
     // ========== Default Includes Validation Tests ==========
 
     #[Test]
-    public function it_silently_skips_default_includes_not_in_allowed_list(): void
+    public function default_includes_apply_without_being_allowed(): void
     {
         $result = $this
             ->createModelWizardFromQuery([], $this->model)
-            ->allowedIncludes('relatedModels')
-            ->defaultIncludes('relatedModels', 'nonExistent')
+            ->allowedIncludes('otherRelatedModels')
+            ->defaultIncludes('relatedModels')
             ->process();
 
         $this->assertTrue($result->relationLoaded('relatedModels'));
     }
 
     #[Test]
-    public function it_silently_skips_default_includes_with_empty_allowed_list(): void
+    public function a_default_include_naming_no_relation_fails_in_eloquent(): void
+    {
+        $wizard = $this
+            ->createModelWizardFromQuery([], $this->model)
+            ->allowedIncludes('relatedModels')
+            ->defaultIncludes('relatedModels', 'nonExistent');
+
+        $this->expectException(RelationNotFoundException::class);
+
+        $wizard->process();
+    }
+
+    #[Test]
+    public function default_includes_apply_with_an_empty_allowed_list(): void
     {
         $result = $this
             ->createModelWizardFromQuery([], $this->model)
@@ -608,7 +622,7 @@ class ModelQueryWizardTest extends TestCase
             ->defaultIncludes('relatedModels')
             ->process();
 
-        $this->assertFalse($result->relationLoaded('relatedModels'));
+        $this->assertTrue($result->relationLoaded('relatedModels'));
     }
 
     // ========== Relation Cleanup Tests ==========

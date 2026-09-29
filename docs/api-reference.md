@@ -81,7 +81,7 @@ builder itself returns the wizard, anything else is returned as is.
 | `allowedIncludes(...$includes)` | Set allowed includes, replacing the schema's list and earlier calls |
 | `addAllowedIncludes(...$includes)` | Add to the allowed includes (to the schema's when `allowedIncludes()` was not called) |
 | `disallowedIncludes(...$names)` | Remove includes; repeated calls add up |
-| `defaultIncludes(...$names)` | Set default includes (effective only when `include` is absent and the names are also allowed by allowlist/schema) |
+| `defaultIncludes(...$names)` | Set default includes (effective only when `include` is absent; applied without being allowed) |
 | `allowedFields(...$fields)` | Set allowed fields, replacing the schema's list and earlier calls |
 | `addAllowedFields(...$fields)` | Add to the allowed fields (to the schema's when `allowedFields()` was not called) |
 | `disallowedFields(...$names)` | Remove fields; repeated calls add up |
@@ -89,7 +89,7 @@ builder itself returns the wizard, anything else is returned as is.
 | `allowedAppends(...$appends)` | Set allowed appends, replacing the schema's list and earlier calls |
 | `addAllowedAppends(...$appends)` | Add to the allowed appends (to the schema's when `allowedAppends()` was not called) |
 | `disallowedAppends(...$names)` | Remove appends; repeated calls add up |
-| `defaultAppends(...$appends)` | Set default appends (effective only when `append` is absent and the names are also allowed by allowlist/schema) |
+| `defaultAppends(...$appends)` | Set default appends (effective only when `append` is absent; applied without being allowed) |
 
 All configuration methods must be called before `process()`. After processing, create a new `ModelQueryWizard` instance for any different configuration or request parameters.
 
