@@ -582,6 +582,12 @@ class QueryParametersManager
             $this->assertJsonObjectBody($this->request->getContent());
         }
 
+        array_walk_recursive($payload, static function (mixed $value): void {
+            if (is_float($value) && ! is_finite($value)) {
+                throw InvalidRequestBody::nonFiniteNumber();
+            }
+        });
+
         /** @var array<string, mixed> $payload */
         return $this->strictBodyPayload = $payload;
     }

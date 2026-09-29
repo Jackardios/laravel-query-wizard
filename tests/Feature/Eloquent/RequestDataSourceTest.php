@@ -196,6 +196,8 @@ class RequestDataSourceTest extends TestCase
             'empty list' => ['[]', 'The request body must be a JSON object.'],
             'string' => ['"filter"', 'The request body must be a JSON object.'],
             'number' => ['5', 'The request body must be a JSON object.'],
+            'number overflowing to infinity' => ['{"filter": {"id": 1e400}}', 'The request body contains a number too large to read.'],
+            'nested number overflowing to infinity' => ['{"filter": {"id": [1, -1e400]}}', 'The request body contains a number too large to read.'],
         ];
     }
 

@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * The JSON request body the parameters are read from (request_data_source
- * `body`) is not a JSON object.
+ * `body`) is not a JSON object, or holds a number that overflows to infinity.
  */
 class InvalidRequestBody extends InvalidQuery
 {
@@ -25,5 +25,10 @@ class InvalidRequestBody extends InvalidQuery
     public static function notAnObject(): self
     {
         return new self('The request body must be a JSON object.');
+    }
+
+    public static function nonFiniteNumber(): self
+    {
+        return new self('The request body contains a number too large to read.');
     }
 }

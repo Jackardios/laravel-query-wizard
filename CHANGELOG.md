@@ -56,7 +56,7 @@ Fixed:
 - `?append=*` and append names that are not UTF-8 are rejected (400) instead of failing with a 500 when
   `allowedAppends('*')` is set.
 - A decimal that overflows to infinity (`?filter[price][min]=999…9.5`) is a 400 instead of a bound that matched no
-  rows.
+  rows, and so is a JSON body number that does (`{"filter": {"id": 1e400}}`, `InvalidRequestBody`).
 - A date bound after a day on which midnight was skipped by a daylight-saving change starts at midnight of the next
   day, not at 01:00.
 
