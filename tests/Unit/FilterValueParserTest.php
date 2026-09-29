@@ -109,7 +109,7 @@ class FilterValueParserTest extends TestCase
         $this->assertNull(FilterValueParser::trashedMode('', 'trashed'));
 
         $this->expectException(InvalidFilterValue::class);
-        $this->expectExceptionMessage('Filter value `all` is invalid for filter `trashed`. Expected one of: with, only, without.');
+        $this->expectExceptionMessage('Filter value `all` is invalid for filter `trashed`. Expected one of: with, only, without, true, false.');
 
         FilterValueParser::trashedMode('all', 'trashed');
     }

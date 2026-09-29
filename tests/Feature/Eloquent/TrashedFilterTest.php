@@ -213,7 +213,7 @@ class TrashedFilterTest extends TestCase
     public function it_rejects_values_that_are_not_a_trashed_mode(string $value): void
     {
         $this->expectException(InvalidFilterValue::class);
-        $this->expectExceptionMessage('Expected one of: with, only, without.');
+        $this->expectExceptionMessage('Expected one of: with, only, without, true, false.');
 
         $this
             ->createEloquentWizardWithFilters(['trashed' => $value], SoftDeleteModel::class)

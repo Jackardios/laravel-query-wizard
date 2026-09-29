@@ -118,7 +118,7 @@ final class FilterValueParser
             }
         }
 
-        throw self::invalid($value, $filter, $key, 'one of: with, only, without');
+        throw self::invalid($value, $filter, $key, 'one of: with, only, without, true, false');
     }
 
     /**
