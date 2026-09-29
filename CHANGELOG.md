@@ -51,6 +51,9 @@ Changed:
   every row of the table rather than that user. Pass the class or a query, or use `ModelQueryWizard::for($user)`.
 - `OperatorFilter::make()` takes `($property, $operator, $alias)`, the order of `EloquentFilter::operator()`, and its
   constructor is protected like the other filters'.
+- `allowed*()`, `disallowed*()` and `default*()` flatten nested arrays at any depth and skip `null` items. Any other item
+  that is not a name (or, for filters, sorts and includes, a definition of that kind) throws
+  `InvalidArgumentException`; a nested array used to fail with a PHP `Error`, and a non-string name was dropped.
 - A call that neither `EloquentQueryWizard` nor its builder handles (a method, macro, named scope or dynamic `where*`)
   throws `BadMethodCallException` naming the wizard before the request is read. A typo such as `allowedFilter()` was
   forwarded to the builder after the build, so a request with filters turned it into a 400.

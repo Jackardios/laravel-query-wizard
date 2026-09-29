@@ -45,51 +45,54 @@ trait HandlesConfiguration
     }
 
     /**
-     * Flatten definitions array (handle variadic with nested arrays).
+     * Flatten definitions passed variadically or in arrays, at any depth; null items are skipped.
      *
-     * @template T
+     * @template T of object
      *
-     * @param  array<array-key, T|array<array-key, T>>  $items
-     * @return array<int, T>
+     * @param  array<array-key, mixed>  $items
+     * @param  class-string<T>  $type
+     * @return list<T|string>
+     *
+     * @throws \InvalidArgumentException When an item is neither a name nor a definition
      */
-    protected function flattenDefinitions(array $items): array
+    protected function flattenDefinitions(array $items, string $type): array
     {
         $result = [];
-        foreach ($items as $item) {
-            if (is_array($item)) {
-                foreach ($item as $i) {
-                    if ($i !== null && $i !== '' && $i !== []) {
-                        $result[] = $i;
-                    }
-                }
-            } elseif ($item !== null && $item !== '') {
+
+        array_walk_recursive($items, function (mixed $item) use (&$result, $type): void {
+            if ($item !== null && ! is_string($item) && ! $item instanceof $type) {
+                throw new \InvalidArgumentException('Expected a name or '.$type.', got '.get_debug_type($item).'.');
+            }
+
+            if ($item !== null && $item !== '') {
                 $result[] = $item;
             }
-        }
+        });
 
         return $result;
     }
 
     /**
-     * Flatten string array (handle variadic with nested arrays).
+     * Flatten names passed variadically or in arrays, at any depth; null items are skipped.
      *
-     * @param  array<string|array<string>>  $items
-     * @return array<string>
+     * @param  array<array-key, mixed>  $items
+     * @return list<string>
+     *
+     * @throws \InvalidArgumentException When an item is not a string
      */
     protected function flattenStringArray(array $items): array
     {
         $result = [];
-        foreach ($items as $item) {
-            if (is_array($item)) {
-                foreach ($item as $i) {
-                    if (is_string($i)) {
-                        $result[] = $i;
-                    }
-                }
-            } elseif (is_string($item)) {
+
+        array_walk_recursive($items, function (mixed $item) use (&$result): void {
+            if ($item !== null && ! is_string($item)) {
+                throw new \InvalidArgumentException('Expected a name, got '.get_debug_type($item).'.');
+            }
+
+            if ($item !== null && $item !== '') {
                 $result[] = $item;
             }
-        }
+        });
 
         return $result;
     }

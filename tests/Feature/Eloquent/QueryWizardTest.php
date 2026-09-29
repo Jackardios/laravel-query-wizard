@@ -10,11 +10,13 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
+use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
@@ -77,6 +79,37 @@ class QueryWizardTest extends TestCase
         $this->expectException(\TypeError::class);
 
         EloquentQueryWizard::for($model);
+    }
+
+    #[Test]
+    public function definitions_and_names_are_flattened_at_any_depth(): void
+    {
+        $model = TestModel::factory()->create();
+
+        $result = $this->createEloquentWizardFromQuery(['filter' => ['name' => $model->name], 'fields' => ['testModel' => 'id']])
+            ->allowedFilters([['name', null], [[EloquentFilter::exact('id')]]])
+            ->allowedFields([['id', ['name']]])
+            ->get();
+
+        $this->assertSame([['id' => $model->id]], $result->toArray());
+    }
+
+    #[Test]
+    public function an_item_that_is_neither_a_name_nor_a_definition_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected a name or '.FilterInterface::class.', got '.FieldSort::class.'.');
+
+        EloquentQueryWizard::for(TestModel::class)->allowedFilters([EloquentSort::field('name')]);
+    }
+
+    #[Test]
+    public function a_name_list_rejects_non_strings(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected a name, got int.');
+
+        EloquentQueryWizard::for(TestModel::class)->allowedFields(['id', 5]);
     }
 
     #[Test]

@@ -49,7 +49,7 @@ trait HandlesIncludes
     public function allowedIncludes(IncludeInterface|string|array ...$includes): static
     {
         $this->invalidateBuild();
-        $this->allowedIncludes = $this->flattenDefinitions($includes);
+        $this->allowedIncludes = $this->flattenDefinitions($includes, IncludeInterface::class);
         $this->allowedIncludesExplicitlySet = true;
 
         return $this;

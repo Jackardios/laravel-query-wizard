@@ -279,7 +279,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     public function allowedFilters(FilterInterface|string|array ...$filters): static
     {
         $this->invalidateBuild();
-        $this->allowedFilters = $this->flattenDefinitions($filters);
+        $this->allowedFilters = $this->flattenDefinitions($filters, FilterInterface::class);
         $this->allowedFiltersExplicitlySet = true;
 
         return $this;
@@ -306,7 +306,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     public function allowedSorts(SortInterface|string|array ...$sorts): static
     {
         $this->invalidateBuild();
-        $this->allowedSorts = $this->flattenDefinitions($sorts);
+        $this->allowedSorts = $this->flattenDefinitions($sorts, SortInterface::class);
         $this->allowedSortsExplicitlySet = true;
 
         return $this;
