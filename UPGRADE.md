@@ -207,6 +207,9 @@ a later TypeError).
 - `AbstractFilter::$prepareValueCallback` is now `$valuePreparers` (a list).
 - Removed without replacement: `NullFilter::strict()`, `DateRangeFilter::strict()`,
   `OperatorFilter::requiresNumericValue()`, `QueryParametersManager::convertFiltersArray()`.
+- `OperatorFilter::make($property, $operator, $alias)` takes the operator second, like `EloquentFilter::operator()`
+  (it took the alias second, so `make('price', FilterOperator::GREATER_THAN)` was a `TypeError`). Its constructor is
+  protected, like the other filters', with the same order.
 - `ParsesRangeValues::normalizeRangeValue()` takes the bound's key as a second argument.
 - Filters using `HandlesRelationFiltering` override `resolveConstraint()` instead of `hasEffectiveConstraint()`;
   `applyOnQuery()` receives what it returns. `ExactFilter` returns the value unchanged.

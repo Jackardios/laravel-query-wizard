@@ -49,6 +49,8 @@ Changed:
   limit, and their messages no longer name a count.
 - `EloquentQueryWizard::for()` no longer accepts a model instance: `for($user)` built `$user->newQuery()`, which selects
   every row of the table rather than that user. Pass the class or a query, or use `ModelQueryWizard::for($user)`.
+- `OperatorFilter::make()` takes `($property, $operator, $alias)`, the order of `EloquentFilter::operator()`, and its
+  constructor is protected like the other filters'.
 - A call that neither `EloquentQueryWizard` nor its builder handles (a method, macro, named scope or dynamic `where*`)
   throws `BadMethodCallException` naming the wizard before the request is read. A typo such as `allowedFilter()` was
   forwarded to the builder after the build, so a request with filters turned it into a 400.

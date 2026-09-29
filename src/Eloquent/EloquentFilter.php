@@ -152,6 +152,6 @@ final class EloquentFilter
      */
     public static function operator(string $property, FilterOperator $operator = FilterOperator::EQUAL, ?string $alias = null): OperatorFilter
     {
-        return OperatorFilter::make($property, $alias, $operator);
+        return OperatorFilter::make($property, $operator, $alias);
     }
 }

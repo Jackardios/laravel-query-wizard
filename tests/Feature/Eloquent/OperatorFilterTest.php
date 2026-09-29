@@ -34,6 +34,18 @@ class OperatorFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
+    public function make_takes_the_operator_before_the_alias(): void
+    {
+        $model = TestModel::factory()->create(['name' => 'test', 'id' => 1000]);
+
+        $filter = OperatorFilter::make('id', FilterOperator::GREATER_THAN, 'min_id');
+        $models = $this->createEloquentWizardWithFilters(['min_id' => 999])->allowedFilters($filter)->get();
+
+        $this->assertSame('min_id', $filter->getName());
+        $this->assertSame([$model->id], $models->pluck('id')->all());
+    }
+
+    #[Test]
     public function it_can_filter_with_not_equal_operator(): void
     {
         $model = $this->models->first();
@@ -789,9 +801,14 @@ class OperatorFilterTest extends EloquentFilterTestCase
     #[Test]
     public function a_dynamic_value_is_parsed_once_per_application(): void
     {
-        $filter = new class('relatedModels.id', null, FilterOperator::DYNAMIC) extends OperatorFilter
+        $filter = new class extends OperatorFilter
         {
             public int $parses = 0;
+
+            public function __construct()
+            {
+                parent::__construct('relatedModels.id', FilterOperator::DYNAMIC);
+            }
 
             protected function parseDynamicOperator(mixed $value): array
             {

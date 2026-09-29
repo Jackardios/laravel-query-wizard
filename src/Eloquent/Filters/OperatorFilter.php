@@ -38,7 +38,7 @@ class OperatorFilter extends AbstractFilter
 
     protected FilterOperator $operator;
 
-    public function __construct(string $property, ?string $alias = null, FilterOperator $operator = FilterOperator::EQUAL)
+    protected function __construct(string $property, FilterOperator $operator = FilterOperator::EQUAL, ?string $alias = null)
     {
         parent::__construct($property, $alias);
         $this->operator = $operator;
@@ -47,12 +47,12 @@ class OperatorFilter extends AbstractFilter
 
     /**
      * @param  string  $property  The column name to filter on
-     * @param  string|null  $alias  Optional alias for URL parameter name
      * @param  FilterOperator  $operator  The comparison operator (default: EQUAL)
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
-    public static function make(string $property, ?string $alias = null, FilterOperator $operator = FilterOperator::EQUAL): static
+    public static function make(string $property, FilterOperator $operator = FilterOperator::EQUAL, ?string $alias = null): static
     {
-        return new static($property, $alias, $operator);
+        return new static($property, $operator, $alias);
     }
 
     public function getType(): string
