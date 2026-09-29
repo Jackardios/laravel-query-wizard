@@ -219,3 +219,6 @@ Removed:
 ## [2.1.3] and earlier
 
 See the [GitHub releases](https://github.com/jackardios/laravel-query-wizard/releases).
+
+[3.0.0]: https://github.com/Jackardios/laravel-query-wizard/compare/v2.1.3...HEAD
+[2.1.3]: https://github.com/Jackardios/laravel-query-wizard/releases/tag/v2.1.3
