@@ -521,9 +521,14 @@ $processed = ModelQueryWizard::for($user)->schema(UserSchema::class)->process();
 EloquentQueryWizard::forSchema(UserSchema::class)
     ->disallowedFilters('status')        // Remove from schema
     ->disallowedIncludes('posts')
-    ->allowedAppends('extra')            // Add to schema
+    ->addAllowedAppends('extra')         // Add to schema
     ->get();
 ```
+
+`allowed*()` replaces the schema's list and any earlier call; `addAllowed*()` (`addAllowedFilters()`,
+`addAllowedSorts()`, `addAllowedIncludes()`, `addAllowedFields()`, `addAllowedAppends()`) adds to the list set with
+`allowed*()` or, when none was set, to the schema's. `disallowed*()` calls add up, so a later call never re-allows what
+an earlier one removed.
 
 > **Warning:** `disallowedFilters()` also drops the schema's `defaultFilters()` entry for that filter. A default such as
 > `['status' => 'published']` stops restricting the results once `status` is disallowed. Put a condition that must

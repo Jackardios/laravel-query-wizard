@@ -14,19 +14,24 @@
 | Method | Description |
 |--------|-------------|
 | `schema($schema)` | Set ResourceSchema for configuration |
-| `allowedFilters(...$filters)` | Set allowed filters |
-| `disallowedFilters(...$names)` | Remove filters (supports wildcards: `*`, `relation.*`, `relation`) |
-| `allowedSorts(...$sorts)` | Set allowed sorts |
-| `disallowedSorts(...$names)` | Remove sorts (supports wildcards: `*`, `relation.*`, `relation`) |
+| `allowedFilters(...$filters)` | Set allowed filters, replacing the schema's list and earlier calls |
+| `addAllowedFilters(...$filters)` | Add to the allowed filters (to the schema's when `allowedFilters()` was not called) |
+| `disallowedFilters(...$names)` | Remove filters; repeated calls add up (supports wildcards: `*`, `relation.*`, `relation`) |
+| `allowedSorts(...$sorts)` | Set allowed sorts, replacing the schema's list and earlier calls |
+| `addAllowedSorts(...$sorts)` | Add to the allowed sorts (to the schema's when `allowedSorts()` was not called) |
+| `disallowedSorts(...$names)` | Remove sorts; repeated calls add up (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultSorts(...$sorts)` | Set default sorts (applied only when `sort` is absent) |
-| `allowedIncludes(...$includes)` | Set allowed includes |
-| `disallowedIncludes(...$names)` | Remove includes (supports wildcards: `*`, `relation.*`, `relation`) |
+| `allowedIncludes(...$includes)` | Set allowed includes, replacing the schema's list and earlier calls |
+| `addAllowedIncludes(...$includes)` | Add to the allowed includes (to the schema's when `allowedIncludes()` was not called) |
+| `disallowedIncludes(...$names)` | Remove includes; repeated calls add up (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultIncludes(...$names)` | Set default includes (applied only when `include` is absent; `?include=` disables defaults) |
-| `allowedFields(...$fields)` | Set allowed fields (supports wildcards: `*`, `relation.*`) |
-| `disallowedFields(...$names)` | Remove fields (supports wildcards: `*`, `relation.*`, `relation`) |
+| `allowedFields(...$fields)` | Set allowed fields, replacing the schema's list and earlier calls (supports wildcards: `*`, `relation.*`) |
+| `addAllowedFields(...$fields)` | Add to the allowed fields (to the schema's when `allowedFields()` was not called) |
+| `disallowedFields(...$names)` | Remove fields; repeated calls add up (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultFields(...$fields)` | Set default fields (applied only when `fields` is absent; `?fields=` is an explicit empty root fieldset) |
-| `allowedAppends(...$appends)` | Set allowed appends (supports wildcards: `*`, `relation.*`) |
-| `disallowedAppends(...$names)` | Remove appends (supports wildcards: `*`, `relation.*`, `relation`) |
+| `allowedAppends(...$appends)` | Set allowed appends, replacing the schema's list and earlier calls (supports wildcards: `*`, `relation.*`) |
+| `addAllowedAppends(...$appends)` | Add to the allowed appends (to the schema's when `allowedAppends()` was not called) |
+| `disallowedAppends(...$names)` | Remove appends; repeated calls add up (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultAppends(...$appends)` | Set default appends (applied only when `append` is absent; `?append=` disables defaults) |
 | `tap(callable $callback)` | Add query modification callback |
 
@@ -73,14 +78,17 @@ builder itself returns the wizard, anything else is returned as is.
 | Method | Description |
 |--------|-------------|
 | `schema($schema)` | Set ResourceSchema for configuration |
-| `allowedIncludes(...$includes)` | Set allowed includes |
-| `disallowedIncludes(...$names)` | Remove includes |
+| `allowedIncludes(...$includes)` | Set allowed includes, replacing the schema's list and earlier calls |
+| `addAllowedIncludes(...$includes)` | Add to the allowed includes (to the schema's when `allowedIncludes()` was not called) |
+| `disallowedIncludes(...$names)` | Remove includes; repeated calls add up |
 | `defaultIncludes(...$names)` | Set default includes (effective only when `include` is absent and the names are also allowed by allowlist/schema) |
-| `allowedFields(...$fields)` | Set allowed fields |
-| `disallowedFields(...$names)` | Remove fields |
+| `allowedFields(...$fields)` | Set allowed fields, replacing the schema's list and earlier calls |
+| `addAllowedFields(...$fields)` | Add to the allowed fields (to the schema's when `allowedFields()` was not called) |
+| `disallowedFields(...$names)` | Remove fields; repeated calls add up |
 | `defaultFields(...$fields)` | Set default fields (effective only when `fields` is absent) |
-| `allowedAppends(...$appends)` | Set allowed appends |
-| `disallowedAppends(...$names)` | Remove appends |
+| `allowedAppends(...$appends)` | Set allowed appends, replacing the schema's list and earlier calls |
+| `addAllowedAppends(...$appends)` | Add to the allowed appends (to the schema's when `allowedAppends()` was not called) |
+| `disallowedAppends(...$names)` | Remove appends; repeated calls add up |
 | `defaultAppends(...$appends)` | Set default appends (effective only when `append` is absent and the names are also allowed by allowlist/schema) |
 
 All configuration methods must be called before `process()`. After processing, create a new `ModelQueryWizard` instance for any different configuration or request parameters.

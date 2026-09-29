@@ -107,6 +107,14 @@ both). Keys no nested filter takes stay with `name`.
 it is an instance of the subject's class; any other return value is ignored (before: it replaced the subject and caused
 a later TypeError).
 
+### Allowed, Disallowed and Default Lists
+
+- `disallowed*()` calls add up: `->disallowedFilters('a')->disallowedFilters('b')` disallows both (before: the second
+  call replaced the first, re-allowing `a`). `allowed*()` still replaces the list, including the schema's.
+- New `addAllowedFilters()`, `addAllowedSorts()`, `addAllowedIncludes()`, `addAllowedFields()` and
+  `addAllowedAppends()` add to the list set with `allowed*()` or, when none was set, to the schema's. Replace
+  `->allowedAppends([...$schema->appends($wizard), 'extra'])` with `->addAllowedAppends('extra')`.
+
 ### Sorts
 
 - `?sort=-`, `?sort=,` and `?sort[]=-` behave like `?sort=`: 400, or with `disable_invalid_sort_query_exception` "no sort

@@ -25,6 +25,9 @@ trait HandlesFields
     protected bool $allowedFieldsExplicitlySet = false;
 
     /** @var array<string> */
+    protected array $addedAllowedFields = [];
+
+    /** @var array<string> */
     protected array $disallowedFields = [];
 
     /** @var array<string> */
@@ -45,7 +48,7 @@ trait HandlesFields
     abstract protected function resolveAppendAccessorModel(string $relationPath): ?Model;
 
     /**
-     * Set allowed fields.
+     * Set allowed fields, replacing the schema's and any earlier call; addAllowedFields() adds instead.
      *
      * Empty array means all fields are forbidden.
      * Use ['*'] to allow any fields requested by client.
@@ -58,19 +61,33 @@ trait HandlesFields
         $this->invalidateBuild();
         $this->allowedFields = $this->flattenStringArray($fields);
         $this->allowedFieldsExplicitlySet = true;
+        $this->addedAllowedFields = [];
 
         return $this;
     }
 
     /**
-     * Set disallowed fields (to override schema).
+     * Add to the allowed fields: the list set with allowedFields(), or the schema's when none was set.
+     *
+     * @param  string|array<string>  ...$fields
+     */
+    public function addAllowedFields(string|array ...$fields): static
+    {
+        $this->invalidateBuild();
+        $this->addedAllowedFields = [...$this->addedAllowedFields, ...$this->flattenStringArray($fields)];
+
+        return $this;
+    }
+
+    /**
+     * Disallow fields, including the schema's; repeated calls add to the list.
      *
      * @param  string|array<string>  ...$names
      */
     public function disallowedFields(string|array ...$names): static
     {
         $this->invalidateBuild();
-        $this->disallowedFields = $this->flattenStringArray($names);
+        $this->disallowedFields = [...$this->disallowedFields, ...$this->flattenStringArray($names)];
 
         return $this;
     }
@@ -114,7 +131,7 @@ trait HandlesFields
         }
 
         return $this->removeDisallowedStrings(
-            $this->normalizePublicPaths($fields),
+            array_values(array_unique($this->normalizePublicPaths([...$fields, ...$this->addedAllowedFields]))),
             $this->disallowedFields
         );
     }

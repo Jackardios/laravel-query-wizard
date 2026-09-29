@@ -269,7 +269,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     }
 
     /**
-     * Set allowed filters.
+     * Set allowed filters, replacing the schema's and any earlier call; addAllowedFilters() adds instead.
      *
      * Empty array means all filters are forbidden.
      * Not calling this method falls back to schema filters (if any).
@@ -281,25 +281,39 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $this->invalidateBuild();
         $this->allowedFilters = $this->flattenDefinitions($filters, FilterInterface::class);
         $this->allowedFiltersExplicitlySet = true;
+        $this->addedAllowedFilters = [];
 
         return $this;
     }
 
     /**
-     * Set disallowed filters (to override schema).
+     * Add to the allowed filters: the list set with allowedFilters(), or the schema's when none was set.
+     *
+     * @param  FilterInterface|string|array<FilterInterface|string>  ...$filters
+     */
+    public function addAllowedFilters(FilterInterface|string|array ...$filters): static
+    {
+        $this->invalidateBuild();
+        $this->addedAllowedFilters = [...$this->addedAllowedFilters, ...$this->flattenDefinitions($filters, FilterInterface::class)];
+
+        return $this;
+    }
+
+    /**
+     * Disallow filters, including the schema's; repeated calls add to the list.
      *
      * @param  string|array<string>  ...$names
      */
     public function disallowedFilters(string|array ...$names): static
     {
         $this->invalidateBuild();
-        $this->disallowedFilters = $this->flattenStringArray($names);
+        $this->disallowedFilters = [...$this->disallowedFilters, ...$this->flattenStringArray($names)];
 
         return $this;
     }
 
     /**
-     * Set allowed sorts.
+     * Set allowed sorts, replacing the schema's and any earlier call; addAllowedSorts() adds instead.
      *
      * @param  SortInterface|string|array<SortInterface|string>  ...$sorts
      */
@@ -308,19 +322,33 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $this->invalidateBuild();
         $this->allowedSorts = $this->flattenDefinitions($sorts, SortInterface::class);
         $this->allowedSortsExplicitlySet = true;
+        $this->addedAllowedSorts = [];
 
         return $this;
     }
 
     /**
-     * Set disallowed sorts (to override schema).
+     * Add to the allowed sorts: the list set with allowedSorts(), or the schema's when none was set.
+     *
+     * @param  SortInterface|string|array<SortInterface|string>  ...$sorts
+     */
+    public function addAllowedSorts(SortInterface|string|array ...$sorts): static
+    {
+        $this->invalidateBuild();
+        $this->addedAllowedSorts = [...$this->addedAllowedSorts, ...$this->flattenDefinitions($sorts, SortInterface::class)];
+
+        return $this;
+    }
+
+    /**
+     * Disallow sorts, including the schema's; repeated calls add to the list.
      *
      * @param  string|array<string>  ...$names
      */
     public function disallowedSorts(string|array ...$names): static
     {
         $this->invalidateBuild();
-        $this->disallowedSorts = $this->flattenStringArray($names);
+        $this->disallowedSorts = [...$this->disallowedSorts, ...$this->flattenStringArray($names)];
 
         return $this;
     }

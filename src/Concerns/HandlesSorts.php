@@ -20,6 +20,9 @@ trait HandlesSorts
 
     protected bool $allowedSortsExplicitlySet = false;
 
+    /** @var array<SortInterface|string> */
+    protected array $addedAllowedSorts = [];
+
     /** @var array<string> */
     protected array $disallowedSorts = [];
 
@@ -51,9 +54,10 @@ trait HandlesSorts
             return $this->cachedEffectiveSorts;
         }
 
-        $sorts = $this->allowedSortsExplicitlySet
-            ? $this->allowedSorts
-            : ($this->getSchema()?->sorts($this) ?? []);
+        $sorts = [
+            ...($this->allowedSortsExplicitlySet ? $this->allowedSorts : ($this->getSchema()?->sorts($this) ?? [])),
+            ...$this->addedAllowedSorts,
+        ];
 
         $disallowed = $this->disallowedSorts;
         $result = [];

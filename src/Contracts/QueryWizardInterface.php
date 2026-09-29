@@ -21,14 +21,21 @@ interface QueryWizardInterface
     public function getResourceKey(): string;
 
     /**
-     * Set allowed includes.
+     * Set allowed includes, replacing the schema's and any earlier call; addAllowedIncludes() adds instead.
      *
      * @param  IncludeInterface|string|array<IncludeInterface|string>  ...$includes
      */
     public function allowedIncludes(IncludeInterface|string|array ...$includes): static;
 
     /**
-     * Set disallowed includes (to override schema).
+     * Add to the allowed includes: the list set with allowedIncludes(), or the schema's when none was set.
+     *
+     * @param  IncludeInterface|string|array<IncludeInterface|string>  ...$includes
+     */
+    public function addAllowedIncludes(IncludeInterface|string|array ...$includes): static;
+
+    /**
+     * Disallow includes, including the schema's; repeated calls add to the list.
      *
      * @param  string|array<string>  ...$names
      */
@@ -44,14 +51,21 @@ interface QueryWizardInterface
     public function defaultIncludes(string|array ...$names): static;
 
     /**
-     * Set allowed fields.
+     * Set allowed fields, replacing the schema's and any earlier call; addAllowedFields() adds instead.
      *
      * @param  string|array<string>  ...$fields
      */
     public function allowedFields(string|array ...$fields): static;
 
     /**
-     * Set disallowed fields (to override schema).
+     * Add to the allowed fields: the list set with allowedFields(), or the schema's when none was set.
+     *
+     * @param  string|array<string>  ...$fields
+     */
+    public function addAllowedFields(string|array ...$fields): static;
+
+    /**
+     * Disallow fields, including the schema's; repeated calls add to the list.
      *
      * @param  string|array<string>  ...$names
      */
@@ -68,14 +82,21 @@ interface QueryWizardInterface
     public function defaultFields(string|array ...$fields): static;
 
     /**
-     * Set allowed appends.
+     * Set allowed appends, replacing the schema's and any earlier call; addAllowedAppends() adds instead.
      *
      * @param  string|array<string>  ...$appends
      */
     public function allowedAppends(string|array ...$appends): static;
 
     /**
-     * Set disallowed appends (to override schema).
+     * Add to the allowed appends: the list set with allowedAppends(), or the schema's when none was set.
+     *
+     * @param  string|array<string>  ...$appends
+     */
+    public function addAllowedAppends(string|array ...$appends): static;
+
+    /**
+     * Disallow appends, including the schema's; repeated calls add to the list.
      *
      * @param  string|array<string>  ...$names
      */

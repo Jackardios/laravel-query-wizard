@@ -37,6 +37,9 @@ Added:
   columns (selected, hidden unless requested); `postProcess($results)` applies the fieldsets and appends to a model, a
   collection, a paginator or an array. `EloquentQueryWizard` runs the same steps.
 - `@api`: `normalizePublicPath()` and `resolveDefaultResourceKey()`.
+- `addAllowedFilters()`, `addAllowedSorts()`, `addAllowedIncludes()`, `addAllowedFields()` and `addAllowedAppends()`
+  add to the list set with `allowed*()` or, when none was set, to the schema's (`QueryWizardInterface` gains the
+  include, field and append ones). `getConfiguredFilters()` returns the allowed filters before `disallowedFilters()`.
 
 Changed:
 
@@ -54,6 +57,7 @@ Changed:
 - `allowed*()`, `disallowed*()` and `default*()` flatten nested arrays at any depth and skip `null` items. Any other item
   that is not a name (or, for filters, sorts and includes, a definition of that kind) throws
   `InvalidArgumentException`; a nested array used to fail with a PHP `Error`, and a non-string name was dropped.
+- `disallowed*()` calls add up; a second call used to replace the first and re-allow what it removed.
 - A call that neither `EloquentQueryWizard` nor its builder handles (a method, macro, named scope or dynamic `where*`)
   throws `BadMethodCallException` naming the wizard before the request is read. A typo such as `allowedFilter()` was
   forwarded to the builder after the build, so a request with filters turned it into a 400.

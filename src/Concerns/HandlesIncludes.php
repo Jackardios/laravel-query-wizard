@@ -23,6 +23,9 @@ trait HandlesIncludes
 
     protected bool $allowedIncludesExplicitlySet = false;
 
+    /** @var array<IncludeInterface|string> */
+    protected array $addedAllowedIncludes = [];
+
     /** @var array<string> */
     protected array $disallowedIncludes = [];
 
@@ -42,7 +45,7 @@ trait HandlesIncludes
     abstract protected function normalizeStringToInclude(string $name): IncludeInterface;
 
     /**
-     * Set allowed includes.
+     * Set allowed includes, replacing the schema's and any earlier call; addAllowedIncludes() adds instead.
      *
      * @param  IncludeInterface|string|array<IncludeInterface|string>  ...$includes
      */
@@ -51,19 +54,33 @@ trait HandlesIncludes
         $this->invalidateBuild();
         $this->allowedIncludes = $this->flattenDefinitions($includes, IncludeInterface::class);
         $this->allowedIncludesExplicitlySet = true;
+        $this->addedAllowedIncludes = [];
 
         return $this;
     }
 
     /**
-     * Set disallowed includes (to override schema).
+     * Add to the allowed includes: the list set with allowedIncludes(), or the schema's when none was set.
+     *
+     * @param  IncludeInterface|string|array<IncludeInterface|string>  ...$includes
+     */
+    public function addAllowedIncludes(IncludeInterface|string|array ...$includes): static
+    {
+        $this->invalidateBuild();
+        $this->addedAllowedIncludes = [...$this->addedAllowedIncludes, ...$this->flattenDefinitions($includes, IncludeInterface::class)];
+
+        return $this;
+    }
+
+    /**
+     * Disallow includes, including the schema's; repeated calls add to the list.
      *
      * @param  string|array<string>  ...$names
      */
     public function disallowedIncludes(string|array ...$names): static
     {
         $this->invalidateBuild();
-        $this->disallowedIncludes = $this->flattenStringArray($names);
+        $this->disallowedIncludes = [...$this->disallowedIncludes, ...$this->flattenStringArray($names)];
 
         return $this;
     }
@@ -99,9 +116,10 @@ trait HandlesIncludes
             return $this->cachedEffectiveIncludes;
         }
 
-        $includes = $this->allowedIncludesExplicitlySet
-            ? $this->allowedIncludes
-            : ($this->getSchema()?->includes($this) ?? []);
+        $includes = [
+            ...($this->allowedIncludesExplicitlySet ? $this->allowedIncludes : ($this->getSchema()?->includes($this) ?? [])),
+            ...$this->addedAllowedIncludes,
+        ];
 
         $disallowed = $this->disallowedIncludes;
         $result = [];

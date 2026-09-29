@@ -19,6 +19,9 @@ trait HandlesFilters
 
     protected bool $allowedFiltersExplicitlySet = false;
 
+    /** @var array<FilterInterface|string> */
+    protected array $addedAllowedFilters = [];
+
     /** @var array<string> */
     protected array $disallowedFilters = [];
 
@@ -41,6 +44,21 @@ trait HandlesFilters
     abstract protected function normalizeStringToFilter(string $name): FilterInterface;
 
     /**
+     * The allowed filters before disallowedFilters() applies: those set with
+     * allowedFilters(), or the schema's, followed by addAllowedFilters().
+     *
+     * @return array<FilterInterface|string>
+     */
+    protected function getConfiguredFilters(): array
+    {
+        $filters = $this->allowedFiltersExplicitlySet
+            ? $this->allowedFilters
+            : ($this->getSchema()?->filters($this) ?? []);
+
+        return [...$filters, ...$this->addedAllowedFilters];
+    }
+
+    /**
      * Get effective filters.
      *
      * If allowedFilters() was called explicitly, use those (even if empty).
@@ -55,10 +73,7 @@ trait HandlesFilters
             return $this->cachedEffectiveFilters;
         }
 
-        $filters = $this->allowedFiltersExplicitlySet
-            ? $this->allowedFilters
-            : ($this->getSchema()?->filters($this) ?? []);
-
+        $filters = $this->getConfiguredFilters();
         $disallowed = $this->disallowedFilters;
         $result = [];
 

@@ -26,6 +26,9 @@ trait HandlesAppends
     protected bool $allowedAppendsExplicitlySet = false;
 
     /** @var array<string> */
+    protected array $addedAllowedAppends = [];
+
+    /** @var array<string> */
     protected array $disallowedAppends = [];
 
     /** @var array<string> */
@@ -46,7 +49,7 @@ trait HandlesAppends
     abstract protected function getMergedRequestedIncludes(): array;
 
     /**
-     * Set allowed appends.
+     * Set allowed appends, replacing the schema's and any earlier call; addAllowedAppends() adds instead.
      *
      * @param  string|array<string>  ...$appends
      */
@@ -55,19 +58,33 @@ trait HandlesAppends
         $this->invalidateBuild();
         $this->allowedAppends = $this->flattenStringArray($appends);
         $this->allowedAppendsExplicitlySet = true;
+        $this->addedAllowedAppends = [];
 
         return $this;
     }
 
     /**
-     * Set disallowed appends (to override schema).
+     * Add to the allowed appends: the list set with allowedAppends(), or the schema's when none was set.
+     *
+     * @param  string|array<string>  ...$appends
+     */
+    public function addAllowedAppends(string|array ...$appends): static
+    {
+        $this->invalidateBuild();
+        $this->addedAllowedAppends = [...$this->addedAllowedAppends, ...$this->flattenStringArray($appends)];
+
+        return $this;
+    }
+
+    /**
+     * Disallow appends, including the schema's; repeated calls add to the list.
      *
      * @param  string|array<string>  ...$names
      */
     public function disallowedAppends(string|array ...$names): static
     {
         $this->invalidateBuild();
-        $this->disallowedAppends = $this->flattenStringArray($names);
+        $this->disallowedAppends = [...$this->disallowedAppends, ...$this->flattenStringArray($names)];
 
         return $this;
     }
@@ -341,12 +358,13 @@ trait HandlesAppends
      */
     protected function getEffectiveAppends(): array
     {
-        $appends = $this->allowedAppendsExplicitlySet
-            ? $this->allowedAppends
-            : ($this->getSchema()?->appends($this) ?? []);
+        $appends = [
+            ...($this->allowedAppendsExplicitlySet ? $this->allowedAppends : ($this->getSchema()?->appends($this) ?? [])),
+            ...$this->addedAllowedAppends,
+        ];
 
         return $this->removeDisallowedStrings(
-            $this->normalizePublicPaths($appends),
+            array_values(array_unique($this->normalizePublicPaths($appends))),
             $this->disallowedAppends
         );
     }

@@ -159,7 +159,7 @@ class ModelQueryWizard implements QueryWizardInterface
      */
     protected function cleanUnwantedRelations(array $effectiveIncludes, array $requestedIncludeNames): void
     {
-        if (! $this->allowedIncludesExplicitlySet && $this->schema === null) {
+        if (! $this->allowedIncludesExplicitlySet && $this->addedAllowedIncludes === [] && $this->schema === null) {
             if (empty($this->disallowedIncludes)) {
                 return;
             }
