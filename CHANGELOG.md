@@ -7,8 +7,8 @@ All notable changes to this project are documented in this file. The format foll
 
 Version 3 is a rewrite: fluent `allowed*()` configuration, `EloquentFilter`/`EloquentSort`/`EloquentInclude` factories,
 resource schemas, `ModelQueryWizard::process()`, request limits. See [UPGRADE.md](UPGRADE.md) for migrating from v2.x
-and from `dev-master` snapshots. The entries below cover the changes made before the release; pre-release v3.0.0-rc.1
-was tagged on 2026-09-25, and the changes since then are listed first.
+and from `dev-master` snapshots. The entries below cover the changes made before the release; pre-releases v3.0.0-rc.1
+and v3.0.0-rc.2 were tagged on 2026-09-25, and the changes since each of them are listed first.
 
 ### Since v3.0.0-rc.2
 
@@ -50,6 +50,15 @@ Fixed:
   `EloquentShape::applyTo()` take `Builder<covariant Model>` and `Relation<covariant Model, covariant Model, *>`, so
   `EloquentQueryWizard::for(User::query())` and `for($user->posts())` no longer fail PHPStan/Larastan with
   `argument.type`. PHPDoc only; `tests/Types` keeps it checked.
+- A rejected query whose message repeats bytes that are not UTF-8 (`?sort=%B1`, `?filter[%B1]=1`, a filter value) is a
+  400 again: the message replaces those bytes, so the JSON response no longer fails with a 500. An invalid filter
+  value is repeated in the message up to 100 characters.
+- `?append=*` and append names that are not UTF-8 are rejected (400) instead of failing with a 500 when
+  `allowedAppends('*')` is set.
+- A decimal that overflows to infinity (`?filter[price][min]=999…9.5`) is a 400 instead of a bound that matched no
+  rows.
+- A date bound after a day on which midnight was skipped by a daylight-saving change starts at midnight of the next
+  day, not at 01:00.
 
 Documentation:
 

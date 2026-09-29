@@ -8,6 +8,10 @@ class MaxFilterValuesCountExceeded extends QueryLimitExceeded
 {
     public readonly string $filterName;
 
+    /**
+     * How many values were counted before the check stopped: one more than
+     * the limit, not the total the filter received.
+     */
     public readonly int $count;
 
     public readonly int $maxCount;
