@@ -391,7 +391,7 @@ there (`QueryException`), so list the columns explicitly when clients may send a
 every relation fieldset. `disallowedFields()` rejects names a client requests; it does not hide them from a `*` request,
 which still returns all columns. A name that matches a disallowed field or one of the model's `$hidden` attributes in
 another letter case (`NAME` for `name`) is rejected too, since MySQL would return that column under the name as written.
-Other names are returned as written. There is no limit on the number of requested fields.
+Other names are returned as written. At most `limits.max_fields_count` fields (100 by default) may be requested across every fieldset.
 
 ### Relation Fields
 
