@@ -12,6 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class InvalidFilterValue extends InvalidQuery
 {
+    private const MAX_ECHOED_VALUE_LENGTH = 100;
+
     public readonly string $filterName;
 
     public readonly mixed $filterValue;
@@ -46,7 +48,7 @@ class InvalidFilterValue extends InvalidQuery
     public static function make(mixed $value, string|FilterInterface $filter = '', ?string $reason = null): static
     {
         $filterName = $filter instanceof FilterInterface ? $filter->getName() : $filter;
-        $valueString = self::formatValue($value);
+        $valueString = self::shorten(self::formatValue($value));
 
         $message = $filterName !== ''
             ? "Filter value `{$valueString}` is invalid for filter `{$filterName}`."
@@ -57,6 +59,15 @@ class InvalidFilterValue extends InvalidQuery
         }
 
         return new static(Response::HTTP_BAD_REQUEST, $message, $filterName, $value, $reason);
+    }
+
+    private static function shorten(string $value): string
+    {
+        $value = mb_scrub($value, 'UTF-8');
+
+        return mb_strlen($value) > self::MAX_ECHOED_VALUE_LENGTH
+            ? mb_substr($value, 0, self::MAX_ECHOED_VALUE_LENGTH).'…'
+            : $value;
     }
 
     private static function formatValue(mixed $value): string

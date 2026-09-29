@@ -13,6 +13,9 @@ use Throwable;
  * `errorCode` is a stable machine-readable reason (e.g. `filter_not_allowed`)
  * and `parameter` the request parameter it refers to, as configured under
  * `query-wizard.parameters` (e.g. `filter`), or null when not tied to one.
+ *
+ * The message repeats what the client sent, so bytes that are not UTF-8 are
+ * replaced (with `?` by default): a JSON response could not encode them.
  */
 abstract class InvalidQuery extends HttpException
 {
@@ -28,7 +31,7 @@ abstract class InvalidQuery extends HttpException
         public readonly string $errorCode = 'invalid_query',
         public readonly ?string $parameter = null,
     ) {
-        parent::__construct($statusCode, $message, $previous, $headers, $code);
+        parent::__construct($statusCode, mb_scrub($message, 'UTF-8'), $previous, $headers, $code);
     }
 
     /**

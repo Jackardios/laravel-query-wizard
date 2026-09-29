@@ -238,6 +238,14 @@ trait HandlesAppends
         foreach ($attributes as $attr) {
             $name = $path !== '' ? "{$path}.{$attr}" : $attr;
 
+            if (str_contains($attr, '*') || ! mb_check_encoding($attr, 'UTF-8')) {
+                if ($canThrow) {
+                    $invalid[] = $name;
+                }
+
+                continue;
+            }
+
             if ($modelPath !== null && $policy->allowsAttribute($path, $attr) && ! $policy->allowsAttributeByName($path, $attr)) {
                 $model = $model === false ? $this->resolveAppendAccessorModel($modelPath) : $model;
 
