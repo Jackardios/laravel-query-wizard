@@ -142,7 +142,13 @@ final class FilterValueParser
 
         if (is_string($value) && preg_match(self::NUMBER_PATTERN, $number = trim($value)) === 1) {
             if (preg_match(self::INTEGER_PATTERN, $number) !== 1) {
-                return (float) $number;
+                $decimal = (float) $number;
+
+                if (! is_finite($decimal)) {
+                    throw self::invalid($value, $filter, $key, 'a decimal number');
+                }
+
+                return $decimal;
             }
 
             $number = self::withoutLeadingZeros($number);

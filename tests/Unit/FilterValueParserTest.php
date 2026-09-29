@@ -156,6 +156,7 @@ class FilterValueParserTest extends TestCase
             'word' => ['ten'],
             'nan' => [NAN],
             'infinity' => [INF],
+            'decimal overflowing to infinity' => [str_repeat('9', 400).'.5'],
             'bool' => [true],
             'list' => [['1']],
         ];
