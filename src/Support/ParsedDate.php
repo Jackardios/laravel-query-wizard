@@ -52,7 +52,7 @@ final class ParsedDate
     }
 
     /**
-     * The next day for a date, or the value itself for an instant.
+     * The start of the next day for a date, or the value itself for an instant.
      *
      * 10000-01-01 sorts before every four-digit date as text, so the last day
      * of year 9999 ends at its last second instead.
@@ -63,7 +63,7 @@ final class ParsedDate
             return $this;
         }
 
-        $nextDay = $this->value->modify('+1 day');
+        $nextDay = $this->value->modify('+1 day')->setTime(0, 0);
 
         return (int) $nextDay->format('Y') > 9999
             ? new self($this->value->setTime(23, 59, 59), false)

@@ -30,6 +30,19 @@ final class ParsedDateTest extends TestCase
     }
 
     #[Test]
+    public function the_next_day_starts_at_midnight_after_a_day_that_skipped_it(): void
+    {
+        $timezone = new DateTimeZone('America/Sao_Paulo');
+        $date = FilterValueParser::isoDate('2018-11-04', 'day', $timezone);
+
+        [, $end] = $date->upToBound();
+        [, $start] = $date->afterBound();
+
+        $this->assertSame('2018-11-05 00:00:00', $end->value->format('Y-m-d H:i:s'));
+        $this->assertSame('2018-11-05 00:00:00', $start->value->format('Y-m-d H:i:s'));
+    }
+
+    #[Test]
     public function an_instant_is_its_own_bound(): void
     {
         $instant = self::date('2024-01-31 10:15:00', false);
