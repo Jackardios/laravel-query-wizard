@@ -23,7 +23,6 @@ use function PHPStan\Testing\assertType;
 function publicInputTypes(TestModel $model, Builder $builder, HasMany $relation, EloquentShape $shape): void
 {
     EloquentQueryWizard::for(TestModel::class);
-    EloquentQueryWizard::for($model);
     EloquentQueryWizard::for($builder);
     EloquentQueryWizard::for($relation);
     EloquentQueryWizard::for($model->relatedModels());

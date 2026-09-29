@@ -153,6 +153,8 @@ a later TypeError).
 - Builder calls through the wizard return the wizard only when the builder returns itself; a different builder or
   relation (`getRelation()`, `clone()`, a scope returning a new builder) is returned as is (before: it silently replaced
   the wizard's subject and dropped the filters).
+- `EloquentQueryWizard::for()` no longer accepts a model instance (`TypeError`). `for($user)` queried the whole table,
+  not that user; pass `User::class` or a query, or use `ModelQueryWizard::for($user)` to process a loaded model.
 - A method that neither the wizard nor its builder has throws `BadMethodCallException` naming the wizard before the
   request is read (before: the build ran first, so a typo such as `allowedFilter()` could surface as a 400 blaming the
   request, or as a `BadMethodCallException` naming the Eloquent builder).

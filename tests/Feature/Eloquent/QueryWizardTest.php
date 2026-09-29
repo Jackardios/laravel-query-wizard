@@ -70,6 +70,16 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function it_rejects_a_model_instance(): void
+    {
+        $model = TestModel::factory()->create();
+
+        $this->expectException(\TypeError::class);
+
+        EloquentQueryWizard::for($model);
+    }
+
+    #[Test]
     public function it_creates_wizard_with_custom_parameters(): void
     {
         $params = new QueryParametersManager(new Request(['filter' => ['name' => 'test']]));

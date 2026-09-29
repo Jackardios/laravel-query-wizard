@@ -92,18 +92,19 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
-     * Create a wizard for a model, query builder, or relation.
+     * Create a wizard for a model class, query builder, or relation.
      *
-     * @param  class-string<Model>|Builder<covariant Model>|Relation<covariant Model, covariant Model, *>|Model  $subject
+     * A model instance is not accepted: its query would select every row, not
+     * the model. Use `ModelQueryWizard` to process a loaded model.
+     *
+     * @param  class-string<Model>|Builder<covariant Model>|Relation<covariant Model, covariant Model, *>  $subject
      */
-    public static function for(string|Builder|Relation|Model $subject): static
+    public static function for(string|Builder|Relation $subject): static
     {
         if (is_string($subject)) {
             /** @var class-string<Model> $className */
             $className = $subject;
             $subject = $className::query();
-        } elseif ($subject instanceof Model) {
-            $subject = $subject->newQuery();
         }
 
         return new static($subject);
