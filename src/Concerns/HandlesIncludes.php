@@ -123,6 +123,7 @@ trait HandlesIncludes
 
         $disallowed = $this->disallowedIncludes;
         $result = [];
+        $names = [];
 
         foreach ($includes as $include) {
             if (is_string($include)) {
@@ -141,6 +142,9 @@ trait HandlesIncludes
                 continue;
             }
 
+            $normalizedName = $this->normalizePublicPath($name);
+            $this->assertUniqueDefinitionName('include', $normalizedName, isset($names[$normalizedName]));
+            $names[$normalizedName] = true;
             $result[] = $include;
         }
 

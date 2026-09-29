@@ -7,6 +7,8 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
+use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
@@ -162,5 +164,51 @@ class AllowListCompositionTest extends TestCase
 
         $this->assertFalse($processed->relationLoaded('relatedModels'));
         $this->assertTrue($processed->relationLoaded('otherRelatedModels'));
+    }
+
+    #[Test]
+    public function definitions_sharing_a_public_name_throw(): void
+    {
+        $cases = [
+            'filter' => fn () => $this->createEloquentWizardFromQuery()->allowedFilters('name', EloquentFilter::partial('title')->alias('name')),
+            'sort' => fn () => $this->createEloquentWizardFromQuery()->allowedSorts('name', EloquentSort::field('title', 'name')),
+            'include' => fn () => $this->createEloquentWizardFromQuery()->allowedIncludes('relatedModels', EloquentInclude::count('relatedModels')->alias('relatedModels')),
+            'schema filter' => fn () => $this->createEloquentWizardFromQuery()->schema($this->schema())->addAllowedFilters(EloquentFilter::partial('name')),
+        ];
+
+        foreach ($cases as $kind => $wizard) {
+            try {
+                $wizard()->get();
+                $this->fail("Expected a duplicate {$kind} to throw");
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString('is named `', $e->getMessage());
+            }
+        }
+    }
+
+    #[Test]
+    public function an_empty_count_suffix_that_names_a_count_include_like_its_relationship_include_throws(): void
+    {
+        config()->set('query-wizard.count_suffix', '');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('More than one allowed include is named `relatedModels`.');
+
+        $this->createEloquentWizardFromQuery(['include' => 'relatedModels'])
+            ->allowedIncludes('relatedModels', EloquentInclude::count('relatedModels'))
+            ->get();
+    }
+
+    #[Test]
+    public function disallowed_duplicates_do_not_count(): void
+    {
+        $model = TestModel::factory()->create();
+
+        $result = $this->createEloquentWizardFromQuery(['filter' => ['id' => $model->id]])
+            ->allowedFilters('name', EloquentFilter::partial('title')->alias('name'), 'id')
+            ->disallowedFilters('name')
+            ->get();
+
+        $this->assertSame([$model->id], $result->pluck('id')->all());
     }
 }

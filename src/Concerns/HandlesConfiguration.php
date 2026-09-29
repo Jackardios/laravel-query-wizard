@@ -251,6 +251,20 @@ trait HandlesConfiguration
     }
 
     /**
+     * Two definitions of one kind can't share a public name: the request could only reach one of them.
+     *
+     * @throws \InvalidArgumentException When the name is already taken
+     */
+    private function assertUniqueDefinitionName(string $kind, string $name, bool $taken): void
+    {
+        if ($taken) {
+            throw new \InvalidArgumentException(
+                "More than one allowed {$kind} is named `{$name}`. Give each a unique name, for example with alias()."
+            );
+        }
+    }
+
+    /**
      * Limits guard client input; a developer default over one is a configuration error.
      */
     private function assertDefaultWithinLimit(string $subject, int $value, ?int $limit, string $limitKey): void

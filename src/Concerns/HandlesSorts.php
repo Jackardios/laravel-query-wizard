@@ -72,6 +72,7 @@ trait HandlesSorts
                 continue;
             }
 
+            $this->assertUniqueDefinitionName('sort', $name, isset($result[$name]));
             $result[$name] = $sort;
         }
 

@@ -87,6 +87,7 @@ trait HandlesFilters
                 continue;
             }
 
+            $this->assertUniqueDefinitionName('filter', $name, isset($result[$name]));
             $result[$name] = $filter;
         }
 

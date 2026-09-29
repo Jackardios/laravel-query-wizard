@@ -111,6 +111,10 @@ a later TypeError).
 
 - `disallowed*()` calls add up: `->disallowedFilters('a')->disallowedFilters('b')` disallows both (before: the second
   call replaced the first, re-allowing `a`). `allowed*()` still replaces the list, including the schema's.
+- Two allowed filters, sorts or includes with the same public name throw `InvalidArgumentException` when the wizard
+  resolves them (before: the last one won silently). This includes a count or exists include named like a relationship
+  include, through `alias()` or an empty `count_suffix`/`exists_suffix`, and `addAllowed*()` repeating a schema name.
+  Disallowed definitions are not counted.
 - New `addAllowedFilters()`, `addAllowedSorts()`, `addAllowedIncludes()`, `addAllowedFields()` and
   `addAllowedAppends()` add to the list set with `allowed*()` or, when none was set, to the schema's. Replace
   `->allowedAppends([...$schema->appends($wizard), 'extra'])` with `->addAllowedAppends('extra')`.

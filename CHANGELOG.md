@@ -57,6 +57,8 @@ Changed:
 - `allowed*()`, `disallowed*()` and `default*()` flatten nested arrays at any depth and skip `null` items. Any other item
   that is not a name (or, for filters, sorts and includes, a definition of that kind) throws
   `InvalidArgumentException`; a nested array used to fail with a PHP `Error`, and a non-string name was dropped.
+- Allowed filters, sorts or includes sharing a public name throw `InvalidArgumentException`; the last one used to win
+  silently (with an empty `count_suffix`, `?include=posts` loaded only the count).
 - `disallowed*()` calls add up; a second call used to replace the first and re-allow what it removed.
 - A call that neither `EloquentQueryWizard` nor its builder handles (a method, macro, named scope or dynamic `where*`)
   throws `BadMethodCallException` naming the wizard before the request is read. A typo such as `allowedFilter()` was
