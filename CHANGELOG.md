@@ -59,6 +59,10 @@ Fixed:
   rows, and so is a JSON body number that does (`{"filter": {"id": 1e400}}`, `InvalidRequestBody`).
 - A date bound after a day on which midnight was skipped by a daylight-saving change starts at midnight of the next
   day, not at 01:00.
+- `applyPostProcessingTo()` and `EloquentShape::postProcess()` return a new lazy collection for a lazy collection,
+  post-processing each model as it is read; they used to run its query, post-process models that were then dropped,
+  and return a collection that ran the query again unprocessed. A generator, which they used up, throws
+  `InvalidArgumentException`.
 
 Documentation:
 

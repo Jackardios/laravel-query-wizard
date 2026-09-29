@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Expression;
+use InvalidArgumentException;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 
@@ -126,6 +127,19 @@ final class EloquentShapeSteps
         }
 
         $query->setBindings($selectBindings, 'select');
+    }
+
+    /**
+     * @throws InvalidArgumentException For a generator: post-processing would use it up
+     */
+    public static function assertNotGenerator(mixed $results): void
+    {
+        if ($results instanceof \Generator) {
+            throw new InvalidArgumentException(
+                'A generator can be read only once, so post-processing it would leave nothing to return. '
+                .'Post-process each model it yields, or pass a LazyCollection.'
+            );
+        }
     }
 
     /**

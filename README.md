@@ -767,7 +767,12 @@ For queries you run on the builder yourself:
 ```php
 $user = $wizard->toQuery()->find($id);
 $wizard->applyPostProcessingTo($user);
+
+$users = $wizard->applyPostProcessingTo($wizard->toQuery()->lazy()); // use the returned lazy collection
 ```
+
+A lazy collection is not read: `applyPostProcessingTo()` returns a new one that post-processes each model as it is read.
+A generator is refused with `InvalidArgumentException`, since reading it would leave nothing to return.
 
 ### Extending
 

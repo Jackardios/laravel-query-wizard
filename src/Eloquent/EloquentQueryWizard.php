@@ -403,14 +403,25 @@ class EloquentQueryWizard extends BaseQueryWizard
      * (e.g., `$wizard->toQuery()->chunk()`). For direct wizard methods like `$wizard->chunk()`,
      * `$wizard->lazy()`, etc., post-processing is applied automatically.
      *
+     * A lazy collection is not read: a new one is returned that post-processes
+     * each model as it is read.
+     *
      * @template T of Model|\Traversable<mixed>|array<mixed>
      *
-     * @param  T  $results  Single model, collection, or iterable of models
-     * @return T The same results with post-processing applied
+     * @param  T  $results  Single model, collection, lazy collection, or iterable of models
+     * @return (T is LazyCollection<array-key, mixed> ? LazyCollection<array-key, mixed> : T) The same results with post-processing applied, or a new lazy collection for a lazy collection
+     *
+     * @throws \InvalidArgumentException For a generator, which post-processing would use up
      */
     public function applyPostProcessingTo(mixed $results): mixed
     {
         $this->buildSubject();
+
+        if ($results instanceof LazyCollection) {
+            return $results->tapEach(fn (mixed $item) => $this->applyPostProcessingToResults($item));
+        }
+
+        EloquentShapeSteps::assertNotGenerator($results);
         $this->applyPostProcessingToResults($results);
 
         return $results;

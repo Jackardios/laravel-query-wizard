@@ -73,6 +73,31 @@ class ManualPostProcessingTest extends TestCase
     }
 
     #[Test]
+    public function it_post_processes_a_lazy_collection_as_it_is_read(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithAppends('fullname')
+            ->allowedAppends('fullname');
+
+        $processed = $wizard->applyPostProcessingTo($wizard->toQuery()->lazy(2))->all();
+
+        $this->assertCount(5, $processed);
+        $this->assertTrue(collect($processed)->every(fn ($m) => array_key_exists('fullname', $m->toArray())));
+    }
+
+    #[Test]
+    public function it_refuses_a_generator(): void
+    {
+        $wizard = $this
+            ->createEloquentWizardWithAppends('fullname')
+            ->allowedAppends('fullname');
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $wizard->applyPostProcessingTo((fn () => yield from AppendModel::all())());
+    }
+
+    #[Test]
     public function it_applies_appends_to_single_model(): void
     {
         $wizard = $this

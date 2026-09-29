@@ -146,6 +146,33 @@ final class EloquentShapeTest extends TestCase
     }
 
     #[Test]
+    public function a_lazy_collection_is_post_processed_as_it_is_read_without_running_its_query_first(): void
+    {
+        $shape = $this->shape(['fields' => ['testModel' => 'name'], 'append' => 'fullname']);
+
+        DB::enableQueryLog();
+        $lazy = $shape->postProcess(TestModel::query()->whereKey($this->ids)->cursor());
+
+        $this->assertSame([], DB::getQueryLog());
+        $this->assertSame([['name', 'fullname'], ['name', 'fullname']], $lazy->map(fn (TestModel $model) => array_keys($model->toArray()))->all());
+        $this->assertCount(1, DB::getQueryLog());
+    }
+
+    #[Test]
+    public function a_generator_is_refused(): void
+    {
+        $shape = $this->shape(['append' => 'fullname']);
+        $models = (function () {
+            yield from TestModel::query()->whereKey($this->ids)->get();
+        })();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('A generator can be read only once');
+
+        $shape->postProcess($models);
+    }
+
+    #[Test]
     public function root_appends_keep_the_whole_root_select(): void
     {
         $shape = $this->shape(['fields' => ['testModel' => 'name'], 'append' => 'fullname'], ['id']);

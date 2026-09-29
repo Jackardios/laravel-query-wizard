@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Eloquent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\LazyCollection;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Support\EloquentShapeSteps;
 use Jackardios\QueryWizard\Support\RelationResolver;
@@ -85,13 +86,28 @@ final class EloquentShape
     /**
      * Apply the root and relation fieldsets and the appends to loaded models.
      *
+     * A lazy collection is not read: a new one is returned that post-processes
+     * each model as it is read.
+     *
      * @template TResults of Model|\Traversable<mixed>|array<mixed>
      *
-     * @param  TResults  $results  A model, a collection, a paginator or an array of models
-     * @return TResults The same results
+     * @param  TResults  $results  A model, a collection, a lazy collection, a paginator or an array of models
+     * @return (TResults is LazyCollection<array-key, mixed> ? LazyCollection<array-key, mixed> : TResults) The same results, or a new lazy collection for a lazy collection
+     *
+     * @throws \InvalidArgumentException For a generator, which post-processing would use up
      */
     public function postProcess(mixed $results): mixed
     {
+        if ($results instanceof LazyCollection) {
+            return $results->tapEach(fn (mixed $item) => EloquentShapeSteps::postProcess(
+                $item,
+                $this->rootVisibleFields,
+                $this->appendTree,
+                $this->relationFieldTree
+            ));
+        }
+
+        EloquentShapeSteps::assertNotGenerator($results);
         EloquentShapeSteps::postProcess($results, $this->rootVisibleFields, $this->appendTree, $this->relationFieldTree);
 
         return $results;
