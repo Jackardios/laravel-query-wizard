@@ -19,75 +19,58 @@ use Jackardios\QueryWizard\Values\Sort;
  */
 final class ParameterParser
 {
+    /**
+     * @param  bool  $snakeCaseNames  Deduplicate and count items by their snake_case names, which they are converted to
+     */
     public function __construct(
-        private readonly string $arraySeparator = ','
+        private readonly string $arraySeparator = ',',
+        private readonly bool $snakeCaseNames = false
     ) {}
 
     /**
-     * Parse a list parameter (includes, appends, etc.) into a collection.
+     * Parse a list parameter (includes, appends, etc.) into a collection of distinct, trimmed, non-blank items.
      *
      * @return Collection<int, string>
+     *
+     * @throws ListLimitExceeded When the list names more than $maxCount distinct items
      */
-    public function parseList(mixed $value): Collection
+    public function parseList(mixed $value, ?int $maxCount = null): Collection
     {
-        if (is_string($value)) {
-            $value = $this->splitString($value);
-        }
+        $seen = [];
 
-        if (! is_iterable($value)) {
-            return collect();
-        }
-
-        /** @var Collection<int, string> */
-        return collect($value)
-            ->map(function (mixed $item): ?string {
-                if (is_string($item)) {
-                    return trim($item);
-                }
-
-                if (is_int($item) || is_float($item)) {
-                    return (string) $item;
-                }
-
-                return null;
-            })
-            ->filter(static fn (?string $item): bool => $item !== null && $item !== '')
-            ->unique()
-            ->values();
+        return collect($this->distinctItems($this->items($value), $maxCount, $seen));
     }
 
     /**
-     * Parse sorts parameter into Sort value objects.
+     * Parse sorts parameter into Sort value objects, one per field.
      *
      * @return Collection<int, Sort>
+     *
+     * @throws ListLimitExceeded When the list sorts by more than $maxCount distinct fields
      */
-    public function parseSorts(mixed $value): Collection
+    public function parseSorts(mixed $value, ?int $maxCount = null): Collection
     {
-        if (is_string($value)) {
-            $value = $this->splitString($value);
-        }
-
-        if (! is_iterable($value)) {
-            return collect();
-        }
-
         $sorts = [];
 
-        foreach ($value as $field) {
-            if (is_string($field)) {
-                $field = trim($field);
-            } elseif (is_int($field) || is_float($field)) {
-                $field = (string) $field;
-            } else {
-                continue;
-            }
+        foreach ($this->items($value) as $field) {
+            $field = self::listItem($field);
 
-            if (ltrim($field, '-') === '') {
+            if ($field === null || ltrim($field, '-') === '') {
                 continue;
             }
 
             $sort = new Sort($field);
-            $sorts[$sort->getField()] ??= $sort;
+            $key = $this->pathKey($sort->getField());
+
+            if (isset($sorts[$key])) {
+                continue;
+            }
+
+            $sorts[$key] = $sort;
+
+            if ($maxCount !== null && count($sorts) > $maxCount) {
+                throw new ListLimitExceeded(count($sorts));
+            }
         }
 
         return collect(array_values($sorts));
@@ -104,45 +87,41 @@ final class ParameterParser
      * @return Collection<string, array<string>>
      *
      * @throws \InvalidArgumentException When a list holds a nested list
+     * @throws ListLimitExceeded When the groups name more than $maxCount distinct fields together
      */
-    public function parseFields(mixed $value): Collection
+    public function parseFields(mixed $value, ?int $maxCount = null): Collection
     {
-        if (is_string($value)) {
-            $value = trim($value) === ''
-                ? ['' => []]
-                : $this->parseFieldsString($value);
-        } elseif (is_array($value) && $this->isSequentialArray($value)) {
+        if (is_array($value) && array_is_list($value)) {
             $this->assertFlatList($value);
-            $joined = implode($this->arraySeparator, $value);
-            $value = trim($joined) === ''
-                ? ['' => []]
-                : $this->parseFieldsString($joined);
+            $value = implode($this->arraySeparator, $value);
+        }
+
+        if (is_string($value)) {
+            /** @var Collection<string, array<string>> */
+            return collect(trim($value) === '' ? ['' => []] : $this->parseFieldsString($value, $maxCount));
         }
 
         if (! is_iterable($value)) {
             return collect();
         }
 
-        /** @var iterable<string, mixed> $value */
-        /** @var Collection<string, array<string>> */
-        return collect($value)
-            ->map(function ($fields) {
-                if (is_string($fields)) {
-                    if (trim($fields) === '') {
-                        return [];
-                    }
+        $grouped = [];
+        $seen = [];
 
-                    $fields = $this->splitString($fields);
-                }
-
-                if (! is_iterable($fields)) {
-                    return [];
-                }
-
+        foreach ($value as $group => $fields) {
+            if (is_string($fields)) {
+                $fields = $this->items($fields);
+            } elseif (is_iterable($fields)) {
                 $this->assertFlatList($fields);
+            } else {
+                $fields = [];
+            }
 
-                return $this->parseList($fields)->toArray();
-            });
+            $grouped[$group] = $this->distinctItems($fields, $maxCount, $seen, (string) $group);
+        }
+
+        /** @var Collection<string, array<string>> */
+        return collect($grouped);
     }
 
     /**
@@ -162,63 +141,142 @@ final class ParameterParser
     }
 
     /**
-     * Check if array is sequential (numeric keys starting from 0).
-     *
-     * @param  array<mixed>  $array
-     */
-    private function isSequentialArray(array $array): bool
-    {
-        return array_is_list($array);
-    }
-
-    /**
      * Parse fields string with dot notation into grouped format.
      *
      * Example: 'user.id,user.name,post.title,simpleField'
      * Returns: ['user' => ['id', 'name'], 'post' => ['title'], '' => ['simpleField']]
      *
      * @return array<string, array<string>>
+     *
+     * @throws ListLimitExceeded
      */
-    private function parseFieldsString(string $fieldsString): array
+    private function parseFieldsString(string $fieldsString, ?int $maxCount): array
     {
-        $fields = $this->splitString($fieldsString);
         $grouped = [];
+        $seen = [];
 
-        foreach ($fields as $field) {
+        foreach ($this->split($fieldsString) as $field) {
             $field = trim($field);
+
             if ($field === '') {
                 continue;
             }
 
             $lastDotPos = strrpos($field, '.');
-            if ($lastDotPos !== false) {
-                $resource = substr($field, 0, $lastDotPos);
-                $fieldName = substr($field, $lastDotPos + 1);
-            } else {
-                $resource = '';
-                $fieldName = $field;
+            $resource = $lastDotPos === false ? '' : substr($field, 0, $lastDotPos);
+            $fieldName = $lastDotPos === false ? $field : trim(substr($field, $lastDotPos + 1));
+            $grouped[$resource] ??= [];
+            $key = $this->fieldKey($resource, $fieldName);
+
+            if ($fieldName === '' || isset($seen[$key])) {
+                continue;
             }
 
-            if (! isset($grouped[$resource])) {
-                $grouped[$resource] = [];
-            }
+            $seen[$key] = true;
             $grouped[$resource][] = $fieldName;
+
+            if ($maxCount !== null && count($seen) > $maxCount) {
+                throw new ListLimitExceeded(count($seen));
+            }
         }
 
         return $grouped;
     }
 
     /**
-     * Split a string by separator.
+     * The distinct items of a list, trimmed, without blanks and values that are not scalars.
      *
+     * @param  iterable<mixed>  $items
+     * @param  array<array-key, true>  $seen  Keys of the items counted so far, shared by the lists of one parameter
+     * @param  string|null  $group  The fieldset the items belong to, or null for a plain list
      * @return array<int, string>
+     *
+     * @throws ListLimitExceeded
      */
-    private function splitString(string $value): array
+    private function distinctItems(iterable $items, ?int $maxCount, array &$seen, ?string $group = null): array
     {
-        if ($this->arraySeparator === '') {
-            return [$value];
+        $distinct = [];
+
+        foreach ($items as $item) {
+            $item = self::listItem($item);
+
+            if ($item === null) {
+                continue;
+            }
+
+            $key = $group === null ? $this->pathKey($item) : $this->fieldKey($group, $item);
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $distinct[] = $item;
+
+            if ($maxCount !== null && count($seen) > $maxCount) {
+                throw new ListLimitExceeded(count($seen));
+            }
         }
 
-        return explode($this->arraySeparator, $value);
+        return $distinct;
+    }
+
+    private function pathKey(string $path): string
+    {
+        return $this->snakeCaseNames ? NameConverter::pathToSnakeCase($path) : $path;
+    }
+
+    private function fieldKey(string $group, string $field): string
+    {
+        return $this->snakeCaseNames
+            ? NameConverter::pathToSnakeCase($group)."\0".NameConverter::toSnakeCase($field)
+            : $group."\0".$field;
+    }
+
+    private static function listItem(mixed $item): ?string
+    {
+        if (is_string($item)) {
+            $item = trim($item);
+
+            return $item === '' ? null : $item;
+        }
+
+        return is_int($item) || is_float($item) ? (string) $item : null;
+    }
+
+    /**
+     * @return iterable<mixed>
+     */
+    private function items(mixed $value): iterable
+    {
+        if (is_string($value)) {
+            return $this->split($value);
+        }
+
+        return is_iterable($value) ? $value : [];
+    }
+
+    /**
+     * Split a string by the separator one item at a time, so a reader that stops early never splits the rest.
+     *
+     * @return \Generator<int, string>
+     */
+    private function split(string $value): \Generator
+    {
+        if ($this->arraySeparator === '') {
+            yield $value;
+
+            return;
+        }
+
+        $offset = 0;
+        $separatorLength = strlen($this->arraySeparator);
+
+        while (($position = strpos($value, $this->arraySeparator, $offset)) !== false) {
+            yield substr($value, $offset, $position - $offset);
+            $offset = $position + $separatorLength;
+        }
+
+        yield substr($value, $offset);
     }
 }

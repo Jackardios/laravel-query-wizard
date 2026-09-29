@@ -600,6 +600,7 @@ Built-in protection against resource exhaustion attacks:
 | `max_includes_count` | 10 | Max includes per request |
 | `max_filters_count` | 20 | Max filters per request |
 | `max_filter_values_count` | 1000 | Max values one filter receives (list items, counted through nested lists) |
+| `max_fields_count` | 100 | Max fields per request, across every fieldset |
 | `max_appends_count` | 20 | Max appends per request |
 | `max_append_depth` | 3 | Max append nesting (e.g., `posts.author.full_name` = 3) |
 | `max_sorts_count` | 5 | Max sorts per request |
@@ -607,6 +608,12 @@ Built-in protection against resource exhaustion attacks:
 Configure in `config/query-wizard.php`. Set a limit to `null` to disable it. Any other value that is not a positive
 integer (`0`, `''` from an empty environment variable, `false`, `-1`) throws `InvalidArgumentException` instead of
 silently disabling the limit, and a limit missing from a published `limits` array takes the package default.
+
+Includes, sorts, fields and appends are counted while the request is read, before any name is validated: a list is
+split only until it names one item more than its limit. A name repeated in the list, or differing only in naming style
+under `convert_parameters_to_snake_case`, counts once, and blank items don't count; a sort counts once whatever its
+direction. Appends are counted as requested, including names that `disable_invalid_append_query_exception` later
+ignores. The exception's `$count` is then one more than the limit, not the total the request names.
 
 Limits apply to what the client sends. Developer defaults (`defaultSorts()`, `defaultIncludes()`, `defaultAppends()`,
 schema defaults) over a limit throw `InvalidArgumentException`, since only the developer can fix them.
@@ -664,6 +671,7 @@ return [
         'max_includes_count' => 10,
         'max_filters_count' => 20,
         'max_filter_values_count' => 1000,
+        'max_fields_count' => 100,
         'max_appends_count' => 20,
         'max_sorts_count' => 5,
         'max_append_depth' => 3,
@@ -711,6 +719,7 @@ All exceptions extend `InvalidQuery` (extends Symfony's `HttpException`, status 
 | `MaxFilterValuesCountExceeded` | `max_filter_values_count_exceeded` | Too many values for one filter |
 | `MaxSortsCountExceeded` | `max_sorts_count_exceeded` | Too many sorts |
 | `MaxIncludesCountExceeded` | `max_includes_count_exceeded` | Too many includes |
+| `MaxFieldsCountExceeded` | `max_fields_count_exceeded` | Too many fields |
 | `MaxIncludeDepthExceeded` | `max_include_depth_exceeded` | Include nesting too deep |
 | `MaxAppendsCountExceeded` | `max_appends_count_exceeded` | Too many appends |
 | `MaxAppendDepthExceeded` | `max_append_depth_exceeded` | Append nesting too deep |

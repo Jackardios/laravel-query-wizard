@@ -27,6 +27,8 @@ Added:
   list items through nested lists, throws `MaxFilterValuesCountExceeded` (400,
   `max_filter_values_count_exceeded`). A value kept whole by `withoutValueSplitting()` counts as one; defaults are not
   counted.
+- `limits.max_fields_count` (default 100, `null` disables it): a request naming more fields, counted across every
+  fieldset, throws `MaxFieldsCountExceeded` (400, `max_fields_count_exceeded`).
 - `dev-master` is aliased `3.x-dev`, so dependants can require `^3.0@dev` instead of `dev-master`.
 - `@api` `BaseQueryWizard::resolveEloquentShape()` and `Eloquent\EloquentShape`, for wizards that load the models with
   an Eloquent query of their own. Called from `finalizeBuild()`, the factory validates relation fieldsets and appends and
@@ -35,6 +37,16 @@ Added:
   columns (selected, hidden unless requested); `postProcess($results)` applies the fieldsets and appends to a model, a
   collection, a paginator or an array. `EloquentQueryWizard` runs the same steps.
 - `@api`: `normalizePublicPath()` and `resolveDefaultResourceKey()`.
+
+Changed:
+
+- Includes, sorts, fields and appends are counted against their limits while the request is read, before any name is
+  validated, and a list is split only until it names one item more than the limit (a 100 000-item `?include=` is
+  rejected in microseconds instead of being split and deduplicated first). Repeated names, names that differ only in
+  naming style under `convert_parameters_to_snake_case` and blank items count once or not at all, as before; appends
+  are now counted as requested, including names that `disable_invalid_append_query_exception` ignores.
+  `MaxIncludesCountExceeded`, `MaxSortsCountExceeded` and `MaxAppendsCountExceeded` report `$count` as one more than the
+  limit, and their messages no longer name a count.
 
 Removed:
 

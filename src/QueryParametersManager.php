@@ -12,8 +12,13 @@ use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidRequestBody;
+use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxFieldsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Support\FilterValueTransformer;
+use Jackardios\QueryWizard\Support\ListLimitExceeded;
 use Jackardios\QueryWizard\Support\NameConverter;
 use Jackardios\QueryWizard\Support\ParameterParser;
 use Jackardios\QueryWizard\Values\Sort;
@@ -92,7 +97,8 @@ class QueryParametersManager
                 'fields' => $this->settings()->getFieldsSeparator(),
                 'appends' => $this->settings()->getAppendsSeparator(),
                 default => throw new \InvalidArgumentException("Unsupported parser type [{$type}]."),
-            }
+            },
+            $this->settings()->shouldConvertParametersToSnakeCase()
         );
     }
 
@@ -654,11 +660,13 @@ class QueryParametersManager
 
     /**
      * @return Collection<string, array<string>>
+     *
+     * @throws ListLimitExceeded
      */
-    private function parseFieldsParameter(string $type, mixed $rawValue): Collection
+    private function parseFieldsParameter(string $type, mixed $rawValue, ?int $limit): Collection
     {
         try {
-            return $this->getParser($type)->parseFields($rawValue);
+            return $this->getParser($type)->parseFields($rawValue, $limit);
         } catch (\InvalidArgumentException $exception) {
             throw $type === 'fields'
                 ? InvalidFieldQuery::invalidFormat($exception->getMessage())
@@ -667,20 +675,38 @@ class QueryParametersManager
     }
 
     /**
+     * Parse a list parameter, counting its distinct items against the limit as it is read.
+     *
      * @return Collection<int, string>|Collection<int, Sort>|Collection<string, array<string>>
+     *
+     * @throws MaxIncludesCountExceeded|MaxSortsCountExceeded|MaxFieldsCountExceeded|MaxAppendsCountExceeded
      */
     protected function parseSimpleParameter(string $type, mixed $rawValue): Collection
     {
-        return match ($type) {
-            'fields', 'appends' => $this->convertFieldsCollection($this->parseFieldsParameter($type, $rawValue)),
-            'includes' => $this->convertListCollection(
-                $this->getParser($type)->parseList($rawValue)
-            ),
-            'sorts' => $this->convertSortsCollection(
-                $this->getParser($type)->parseSorts($rawValue)
-            ),
+        $limit = match ($type) {
+            'includes' => $this->settings()->getMaxIncludesCount(),
+            'sorts' => $this->settings()->getMaxSortsCount(),
+            'fields' => $this->settings()->getMaxFieldsCount(),
+            'appends' => $this->settings()->getMaxAppendsCount(),
             default => throw new \InvalidArgumentException("Unsupported parameter type [{$type}]."),
         };
+
+        try {
+            return match ($type) {
+                'fields', 'appends' => $this->convertFieldsCollection($this->parseFieldsParameter($type, $rawValue, $limit)),
+                'includes' => $this->convertListCollection($this->getParser($type)->parseList($rawValue, $limit)),
+                default => $this->convertSortsCollection($this->getParser($type)->parseSorts($rawValue, $limit)),
+            };
+        } catch (ListLimitExceeded $exception) {
+            $maxCount = (int) $limit;
+
+            throw match ($type) {
+                'includes' => new MaxIncludesCountExceeded($exception->count, $maxCount),
+                'sorts' => new MaxSortsCountExceeded($exception->count, $maxCount),
+                'fields' => new MaxFieldsCountExceeded($exception->count, $maxCount),
+                default => new MaxAppendsCountExceeded($exception->count, $maxCount),
+            };
+        }
     }
 
     /**

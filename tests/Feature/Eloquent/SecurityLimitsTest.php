@@ -12,6 +12,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxFieldsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFilterValuesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
@@ -124,7 +125,7 @@ class SecurityLimitsTest extends TestCase
         Config::set('query-wizard.limits.max_includes_count', 2);
 
         $this->expectException(MaxIncludesCountExceeded::class);
-        $this->expectExceptionMessage('The number of requested includes (3) exceeds the maximum allowed (2)');
+        $this->expectExceptionMessage('The number of requested includes exceeds the maximum allowed (2).');
 
         $this
             ->createEloquentWizardWithIncludes('relatedModels,otherRelatedModels,morphModels')
@@ -337,7 +338,7 @@ class SecurityLimitsTest extends TestCase
         Config::set('query-wizard.limits.max_sorts_count', 2);
 
         $this->expectException(MaxSortsCountExceeded::class);
-        $this->expectExceptionMessage('The number of requested sorts (3) exceeds the maximum allowed (2)');
+        $this->expectExceptionMessage('The number of requested sorts exceeds the maximum allowed (2).');
 
         $this
             ->createEloquentWizardWithSorts('name,-id,created_at')
@@ -418,7 +419,7 @@ class SecurityLimitsTest extends TestCase
         Config::set('query-wizard.limits.max_appends_count', 1);
 
         $this->expectException(MaxAppendsCountExceeded::class);
-        $this->expectExceptionMessage('The number of requested appends (2) exceeds the maximum allowed (1)');
+        $this->expectExceptionMessage('The number of requested appends exceeds the maximum allowed (1).');
 
         $this
             ->createEloquentWizardWithAppends('fullname,reversename', AppendModel::class)
@@ -831,5 +832,139 @@ class SecurityLimitsTest extends TestCase
         $this->expectException(MaxFiltersCountExceeded::class);
 
         $wizard->get();
+    }
+
+    // ========== Fields Count Limit Tests ==========
+
+    #[Test]
+    public function the_fields_limit_defaults_to_100(): void
+    {
+        $this->assertSame(100, (new QueryWizardConfig)->getMaxFieldsCount());
+    }
+
+    #[Test]
+    public function more_fields_than_the_limit_are_rejected(): void
+    {
+        Config::set('query-wizard.limits.max_fields_count', 2);
+
+        try {
+            $this->createEloquentWizardWithFields('id,name,created_at')->allowedFields('id', 'name', 'created_at')->get();
+            $this->fail('Expected MaxFieldsCountExceeded');
+        } catch (MaxFieldsCountExceeded $exception) {
+            $this->assertSame('The number of requested fields exceeds the maximum allowed (2).', $exception->getMessage());
+            $this->assertSame(3, $exception->count);
+            $this->assertSame(2, $exception->maxCount);
+            $this->assertSame(400, $exception->getStatusCode());
+            $this->assertSame('max_fields_count_exceeded', $exception->errorCode);
+            $this->assertSame('fields', $exception->parameter);
+        }
+    }
+
+    #[Test]
+    public function fields_are_counted_across_every_fieldset(): void
+    {
+        Config::set('query-wizard.limits.max_fields_count', 2);
+
+        $this->expectException(MaxFieldsCountExceeded::class);
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => ['testModel' => 'id,name', 'relatedModels' => 'id'],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name', 'relatedModels.id')
+            ->get();
+    }
+
+    #[Test]
+    public function repeated_and_blank_fields_do_not_count_towards_the_limit(): void
+    {
+        Config::set('query-wizard.limits.max_fields_count', 2);
+
+        $models = $this
+            ->createEloquentWizardWithFields('id, ,id,name,name')
+            ->allowedFields('id', 'name')
+            ->get();
+
+        $this->assertSame(['id', 'name'], array_keys($models->first()->toArray()));
+    }
+
+    #[Test]
+    public function any_number_of_fields_is_allowed_when_the_limit_is_null(): void
+    {
+        Config::set('query-wizard.limits.max_fields_count', null);
+
+        $models = $this
+            ->createEloquentWizardWithFields('id,name,created_at')
+            ->allowedFields('id', 'name', 'created_at')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    // ========== Counting While The Request Is Read ==========
+
+    #[Test]
+    public function appends_are_counted_as_requested_before_unknown_names_are_ignored(): void
+    {
+        Config::set('query-wizard.limits.max_appends_count', 2);
+        Config::set('query-wizard.disable_invalid_append_query_exception', true);
+
+        $this->expectException(MaxAppendsCountExceeded::class);
+
+        $this
+            ->createEloquentWizardWithAppends('fullname,unknownOne,unknownTwo', AppendModel::class)
+            ->allowedAppends('fullname')
+            ->get();
+    }
+
+    #[Test]
+    public function a_list_is_read_only_until_it_passes_the_limit(): void
+    {
+        Config::set('query-wizard.limits.max_includes_count', 2);
+
+        $endless = (static function (): \Generator {
+            for ($i = 0; ; $i++) {
+                yield "relation{$i}";
+            }
+        })();
+
+        try {
+            app(QueryParametersManager::class)->setIncludesParameter($endless);
+            $this->fail('Expected MaxIncludesCountExceeded');
+        } catch (MaxIncludesCountExceeded $exception) {
+            $this->assertSame(3, $exception->count);
+            $this->assertSame(2, $exception->maxCount);
+        }
+    }
+
+    #[Test]
+    public function sorts_by_the_same_field_count_once(): void
+    {
+        Config::set('query-wizard.limits.max_sorts_count', 1);
+
+        $models = $this
+            ->createEloquentWizardWithSorts('name,-name, name')
+            ->allowedSorts('name')
+            ->get();
+
+        $this->assertNotEmpty($models);
+    }
+
+    #[Test]
+    public function names_that_convert_to_one_snake_case_name_count_once(): void
+    {
+        Config::set('query-wizard.naming.convert_parameters_to_snake_case', true);
+        Config::set('query-wizard.limits.max_sorts_count', 1);
+        Config::set('query-wizard.limits.max_fields_count', 1);
+
+        $models = $this
+            ->createEloquentWizardFromQuery(['sort' => 'createdAt,-created_at', 'fields' => 'createdAt,created_at'])
+            ->allowedSorts('created_at')
+            ->allowedFields('created_at')
+            ->get();
+
+        $this->assertSame(['created_at'], array_keys($models->first()->toArray()));
     }
 }

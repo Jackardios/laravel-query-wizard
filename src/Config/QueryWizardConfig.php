@@ -55,6 +55,7 @@ final class QueryWizardConfig
             'max_include_depth' => 3,
             'max_filters_count' => 20,
             'max_filter_values_count' => 1000,
+            'max_fields_count' => 100,
             'max_appends_count' => 20,
             'max_append_depth' => 3,
             'max_sorts_count' => 5,
@@ -253,6 +254,14 @@ final class QueryWizardConfig
     public function getMaxFilterValuesCount(): ?int
     {
         return $this->limit('max_filter_values_count');
+    }
+
+    /**
+     * The most fields one request may name, counted across every fieldset.
+     */
+    public function getMaxFieldsCount(): ?int
+    {
+        return $this->limit('max_fields_count');
     }
 
     public function getMaxSortsCount(): ?int

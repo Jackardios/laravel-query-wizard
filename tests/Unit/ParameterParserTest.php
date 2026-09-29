@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Jackardios\QueryWizard\Support\ListLimitExceeded;
 use Jackardios\QueryWizard\Support\ParameterParser;
 use Jackardios\QueryWizard\Tests\TestCase;
 use Jackardios\QueryWizard\Values\Sort;
@@ -413,5 +414,87 @@ class ParameterParserTest extends TestCase
         $result = $parser->parseList(',a,b,c');
 
         $this->assertEquals(['a', 'b', 'c'], $result->toArray());
+    }
+
+    // ========== Item Limit Tests ==========
+
+    #[Test]
+    public function a_list_within_the_limit_counts_distinct_non_blank_items(): void
+    {
+        $parser = new ParameterParser;
+
+        $this->assertSame(['a', 'b'], $parser->parseList('a, a,,  ,b', 2)->all());
+        $this->assertSame(['a', 'b'], $parser->parseList(['a', 'a', null, true, 'b'], 2)->all());
+    }
+
+    #[Test]
+    public function a_list_over_the_limit_stops_one_item_past_it(): void
+    {
+        $this->assertListLimitExceeded(3, fn () => (new ParameterParser)->parseList('a,b,c,d,e', 2));
+    }
+
+    #[Test]
+    public function sorts_count_each_field_once_whatever_its_direction(): void
+    {
+        $parser = new ParameterParser;
+
+        $this->assertCount(2, $parser->parseSorts('name,-name,id,-', 2));
+        $this->assertListLimitExceeded(3, fn () => $parser->parseSorts('name,-id,created_at', 2));
+    }
+
+    #[Test]
+    public function fields_count_across_every_fieldset(): void
+    {
+        $parser = new ParameterParser;
+
+        $this->assertSame(
+            ['user' => ['id'], '' => ['id']],
+            $parser->parseFields('user.id,user.id,id,user.', 2)->all()
+        );
+        $this->assertListLimitExceeded(3, fn () => $parser->parseFields(['user' => 'id,name', 'post' => ['title']], 2));
+        $this->assertListLimitExceeded(3, fn () => $parser->parseFields('user.id,post.id,id', 2));
+        $this->assertListLimitExceeded(3, fn () => $parser->parseFields(['user.id', 'post.id', 'id'], 2));
+    }
+
+    #[Test]
+    public function a_long_list_is_not_split_past_the_limit(): void
+    {
+        $parser = new ParameterParser;
+        $value = implode(',', range(1, 200_000));
+
+        $this->assertListLimitExceeded(4, fn () => $parser->parseList($value, 3));
+        $this->assertCount(200_000, $parser->parseList($value));
+    }
+
+    #[Test]
+    public function a_multi_character_separator_splits_lazily(): void
+    {
+        $parser = new ParameterParser('::');
+
+        $this->assertSame(['a', 'b:c', 'd'], $parser->parseList('a::b:c::::d::', 3)->all());
+    }
+
+    #[Test]
+    public function with_snake_case_names_items_that_convert_to_one_name_count_once(): void
+    {
+        $parser = new ParameterParser(',', true);
+
+        $this->assertSame(['relatedModels'], $parser->parseList('relatedModels,related_models', 1)->all());
+        $this->assertCount(1, $parser->parseSorts('createdAt,-created_at', 1));
+        $this->assertSame(
+            ['relatedModels' => ['firstName'], 'related_models' => []],
+            $parser->parseFields(['relatedModels' => 'firstName', 'related_models' => 'first_name'], 1)->all()
+        );
+        $this->assertListLimitExceeded(2, fn () => (new ParameterParser)->parseList('relatedModels,related_models', 1));
+    }
+
+    private function assertListLimitExceeded(int $count, \Closure $parse): void
+    {
+        try {
+            $parse();
+            $this->fail('Expected ListLimitExceeded');
+        } catch (ListLimitExceeded $exception) {
+            $this->assertSame($count, $exception->count);
+        }
     }
 }

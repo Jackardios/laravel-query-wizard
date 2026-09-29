@@ -231,6 +231,7 @@ a later TypeError).
 - [ ] Check chained `prepareValueWith()` calls
 - [ ] Check config limits: `0`/`''`/`false` now throw; missing limits now apply
 - [ ] Raise or disable `limits.max_filter_values_count` if clients send more than 1000 values to one filter
+- [ ] Raise or disable `limits.max_fields_count` if clients request more than 100 fields in all fieldsets together
 - [ ] Replace nested count/aggregate sorts and includes with callbacks
 - [ ] Handle `errorCode` in your exception renderer if you map errors
 - [ ] Flush response caches
@@ -913,6 +914,7 @@ Protection against resource exhaustion attacks:
     'max_include_depth' => 3,      // Max nesting (posts.comments.author)
     'max_filters_count' => 20,     // Max filters per request
     'max_filter_values_count' => 1000, // Max values one filter receives
+    'max_fields_count' => 100,     // Max fields per request, across every fieldset
     'max_appends_count' => 20,     // Max appends per request
     'max_append_depth' => 3,       // Max append nesting
     'max_sorts_count' => 5,        // Max sorts per request
@@ -999,6 +1001,7 @@ return [
         'max_include_depth' => 3,
         'max_filters_count' => 20,
         'max_filter_values_count' => 1000,
+        'max_fields_count' => 100,
         'max_appends_count' => 20,
         'max_append_depth' => 3,
         'max_sorts_count' => 5,
@@ -1009,7 +1012,8 @@ return [
 ### New Exception Types
 
 Limit exceptions (extend `QueryLimitExceeded` → `InvalidQuery`):
-- `MaxFiltersCountExceeded`, `MaxSortsCountExceeded`, `MaxIncludesCountExceeded`
+- `MaxFiltersCountExceeded`, `MaxFilterValuesCountExceeded`, `MaxSortsCountExceeded`, `MaxIncludesCountExceeded`,
+  `MaxFieldsCountExceeded`
 - `MaxIncludeDepthExceeded`, `MaxAppendsCountExceeded`, `MaxAppendDepthExceeded`
 
 Other:

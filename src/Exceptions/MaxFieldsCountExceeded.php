@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Exceptions;
 
-class MaxSortsCountExceeded extends QueryLimitExceeded
+class MaxFieldsCountExceeded extends QueryLimitExceeded
 {
     /**
-     * How many distinct sorts were counted before the check stopped: one more
+     * How many distinct fields were counted before the check stopped: one more
      * than the limit when the request is read, not the total it names.
      */
     public readonly int $count;
@@ -19,7 +19,7 @@ class MaxSortsCountExceeded extends QueryLimitExceeded
         $this->count = $count;
         $this->maxCount = $maxCount;
 
-        $message = "The number of requested sorts exceeds the maximum allowed ({$maxCount}).";
-        parent::__construct($message, 'max_sorts_count_exceeded', self::parameterName('sorts'));
+        $message = "The number of requested fields exceeds the maximum allowed ({$maxCount}).";
+        parent::__construct($message, 'max_fields_count_exceeded', self::parameterName('fields'));
     }
 }

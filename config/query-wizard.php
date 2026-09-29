@@ -138,6 +138,7 @@ return [
         'max_include_depth' => 3,
         'max_filters_count' => 20,
         'max_filter_values_count' => 1000,
+        'max_fields_count' => 100,
         'max_appends_count' => 20,
         'max_append_depth' => 3,
         'max_sorts_count' => 5,
