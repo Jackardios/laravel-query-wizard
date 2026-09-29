@@ -985,6 +985,60 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function mistyped_method_throws_before_the_request_is_read(): void
+    {
+        $wizard = $this->createEloquentWizardWithFilters(['name' => 'x']);
+
+        try {
+            $wizard->allowedFilter('name');
+            $this->fail('Expected BadMethodCallException');
+        } catch (\BadMethodCallException $e) {
+            $this->assertSame('Call to undefined method '.EloquentQueryWizard::class.'::allowedFilter()', $e->getMessage());
+        }
+    }
+
+    #[Test]
+    public function mistyped_method_on_a_relation_subject_names_the_wizard(): void
+    {
+        $model = TestModel::factory()->create();
+
+        $this->expectException(\BadMethodCallException::class);
+        $this->expectExceptionMessage(EloquentQueryWizard::class.'::defaultSort()');
+
+        EloquentQueryWizard::for($model->relatedModels())->defaultSort('name');
+    }
+
+    #[Test]
+    public function proxy_reaches_scopes_macros_dynamic_wheres_and_relation_methods(): void
+    {
+        $model = TestModel::factory()->create(['name' => 'kept']);
+        Builder::macro('wizardProbeGlobalMacro', fn () => $this);
+        \Illuminate\Database\Query\Builder::macro('wizardProbeQueryMacro', fn () => $this);
+        Relation::macro('wizardProbeRelationMacro', fn () => 'relation macro');
+
+        try {
+            $wizard = EloquentQueryWizard::for(TestModel::class);
+            $wizard->macro('wizardProbeLocalMacro', fn (Builder $builder) => $builder);
+
+            $this->assertSame($wizard, $wizard->named('kept'));
+            $this->assertSame($wizard, $wizard->whereName('kept'));
+            $this->assertSame($wizard, $wizard->wizardProbeLocalMacro());
+            $this->assertSame($wizard, $wizard->wizardProbeGlobalMacro());
+            $this->assertSame($wizard, $wizard->wizardProbeQueryMacro());
+            $this->assertSame([$model->id], $wizard->pluck('id')->all());
+
+            $relationWizard = EloquentQueryWizard::for($model->relatedThroughPivotModels());
+            $this->assertSame('relation macro', $relationWizard->wizardProbeRelationMacro());
+            $this->assertSame($relationWizard, $relationWizard->wherePivot('location', 'x'));
+        } finally {
+            $macros = new \ReflectionProperty(Builder::class, 'macros');
+            $macros->setValue(null, array_diff_key($macros->getValue(), ['wizardProbeGlobalMacro' => true]));
+            \Illuminate\Database\Query\Builder::flushMacros();
+            Relation::flushMacros();
+        }
+    }
+
+    #[Test]
     public function proxy_returns_other_builders_without_replacing_the_subject(): void
     {
         $wizard = $this->createEloquentWizardWithFilters(['name' => 'x'])->allowedFilters('name');

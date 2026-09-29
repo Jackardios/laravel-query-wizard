@@ -869,10 +869,18 @@ class EloquentQueryWizard extends BaseQueryWizard
      * (find(), sole(), firstWhere(), ...) return post-processed models, except
      * for the result of a findOr()/firstOr() fallback callback.
      *
+     * A method the subject cannot handle throws before the request is read.
+     *
      * @param  array<int, mixed>  $arguments
+     *
+     * @throws \BadMethodCallException When neither the wizard nor its subject has the method
      */
     public function __call(string $name, array $arguments): mixed
     {
+        if (! EloquentSubject::handles($this->subject, $name)) {
+            throw new \BadMethodCallException(sprintf('Call to undefined method %s::%s()', static::class, $name));
+        }
+
         $this->buildSubject();
 
         $postProcess = isset(self::POST_PROCESSED_PROXY_METHODS[strtolower($name)]);

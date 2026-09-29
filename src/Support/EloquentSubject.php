@@ -19,6 +19,9 @@ use Illuminate\Support\Str;
  */
 final class EloquentSubject
 {
+    /** @var array<class-string, array<string, true>> */
+    private static array $publicMethods = [];
+
     /**
      * The Eloquent builder a subject applies its constraints to.
      *
@@ -39,6 +42,52 @@ final class EloquentSubject
     public static function baseQuery(Builder|Relation $subject): QueryBuilder
     {
         return self::builder($subject)->getQuery();
+    }
+
+    /**
+     * Whether calling the method on the subject reaches a method, macro, named scope or dynamic `where*`
+     * rather than ending in a `BadMethodCallException`.
+     *
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
+     */
+    public static function handles(Builder|Relation $subject, string $method): bool
+    {
+        if ($subject instanceof Relation) {
+            if (self::hasPublicMethod($subject, $method) || $subject::hasMacro($method)) {
+                return true;
+            }
+
+            $subject = $subject->getQuery();
+        }
+
+        if ($method === 'macro'
+            || self::hasPublicMethod($subject, $method)
+            || $subject->hasMacro($method)
+            || $subject::hasGlobalMacro($method)
+            || $subject->hasNamedScope($method)) {
+            return true;
+        }
+
+        $query = $subject->getQuery();
+
+        return self::hasPublicMethod($query, $method)
+            || $query::hasMacro($method)
+            || str_starts_with($method, 'where');
+    }
+
+    private static function hasPublicMethod(object $object, string $method): bool
+    {
+        if (! isset(self::$publicMethods[$object::class])) {
+            $methods = [];
+
+            foreach ((new \ReflectionClass($object))->getMethods(\ReflectionMethod::IS_PUBLIC) as $reflection) {
+                $methods[strtolower($reflection->getName())] = true;
+            }
+
+            self::$publicMethods[$object::class] = $methods;
+        }
+
+        return isset(self::$publicMethods[$object::class][strtolower($method)]);
     }
 
     /**

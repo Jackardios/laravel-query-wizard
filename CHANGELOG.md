@@ -47,6 +47,9 @@ Changed:
   are now counted as requested, including names that `disable_invalid_append_query_exception` ignores.
   `MaxIncludesCountExceeded`, `MaxSortsCountExceeded` and `MaxAppendsCountExceeded` report `$count` as one more than the
   limit, and their messages no longer name a count.
+- A call that neither `EloquentQueryWizard` nor its builder handles (a method, macro, named scope or dynamic `where*`)
+  throws `BadMethodCallException` naming the wizard before the request is read. A typo such as `allowedFilter()` was
+  forwarded to the builder after the build, so a request with filters turned it into a 400.
 
 Removed:
 
