@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
@@ -90,6 +91,25 @@ class AuditRegressionTest extends TestCase
 
         $this->assertCount(1, $models);
         $this->assertSame($targetModel->id, $models->first()->id);
+    }
+
+    #[Test]
+    public function value_callbacks_accept_any_callable(): void
+    {
+        $targetModel = $this->models->first();
+        $targetModel->update(['name' => 'callable target']);
+
+        $models = $this
+            ->createEloquentWizardWithFilters(['name' => '  Callable TARGET  '])
+            ->allowedFilters(
+                EloquentFilter::exact('name')
+                    ->prepareValueWith('trim')
+                    ->prepareValueWith([Str::class, 'lower'])
+                    ->when('is_string')
+            )
+            ->get();
+
+        $this->assertSame([$targetModel->id], $models->pluck('id')->all());
     }
 
     #[Test]

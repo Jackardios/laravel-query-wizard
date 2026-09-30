@@ -148,6 +148,8 @@ Changed:
 - A fieldset for a relation that has no allowed fields names it: "Requested field(s) `relatedModels.id` are not
   allowed. No fields are allowed for `relatedModels`." instead of "No fields are allowed.", which read as if no root
   fields were allowed either.
+- `prepareValueWith()` and `when()` take any callable (`prepareValueWith('trim')`), like the callback factories; they
+  took only a `Closure`. A subclass that overrides them declares `callable $callback`.
 
 Removed:
 

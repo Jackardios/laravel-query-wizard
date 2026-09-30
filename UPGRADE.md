@@ -271,6 +271,7 @@ a later TypeError).
 ### Subclasses and Custom Filters
 
 - `AbstractFilter::$prepareValueCallback` is now `$valuePreparers` (a list).
+- `prepareValueWith()` and `when()` take `callable` instead of `Closure`; an override declares `callable $callback`.
 - Removed without replacement: `NullFilter::strict()`, `DateRangeFilter::strict()`,
   `OperatorFilter::requiresNumericValue()`, `QueryParametersManager::convertFiltersArray()`.
 - `OperatorFilter::make($property, $operator, $alias)` takes the operator second, like `EloquentFilter::operator()`

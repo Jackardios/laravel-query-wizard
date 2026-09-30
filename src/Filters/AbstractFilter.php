@@ -91,11 +91,11 @@ abstract class AbstractFilter implements FilterInterface
      * Callbacks, including the one asBoolean() adds, run in the order they were
      * added, each receiving the previous result. A null result skips the filter.
      *
-     * @param  Closure(mixed): mixed  $callback
+     * @param  callable(mixed): mixed  $callback
      */
-    public function prepareValueWith(Closure $callback): static
+    public function prepareValueWith(callable $callback): static
     {
-        $this->valuePreparers[] = $callback;
+        $this->valuePreparers[] = $callback(...);
 
         return $this;
     }
@@ -109,11 +109,11 @@ abstract class AbstractFilter implements FilterInterface
      *   ->when(fn($value) => auth()->check())
      *   ->when(fn($value) => $value !== 'all')
      *
-     * @param  Closure(mixed): bool  $callback
+     * @param  callable(mixed): bool  $callback
      */
-    public function when(Closure $callback): static
+    public function when(callable $callback): static
     {
-        $this->whenCallback = $callback;
+        $this->whenCallback = $callback(...);
 
         return $this;
     }
