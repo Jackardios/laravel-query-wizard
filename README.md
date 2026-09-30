@@ -198,6 +198,17 @@ EloquentFilter::exact('status')
     ->asBoolean()                              // Read true/false/1/0/yes/no/on/off as bool; anything else is a 400
 ```
 
+#### Reusing Definitions
+
+Modifiers change the definition they are called on and return it, as Eloquent builders do. A definition shared by two
+wizards carries the changes one of them makes, so clone it before changing a shared one:
+
+```php
+$status = EloquentFilter::exact('status');
+
+$public = (clone $status)->default('published');  // $status is unchanged
+```
+
 `prepareValueWith()` and `asBoolean()` add steps to one chain that runs in the order the methods were called, each
 step receiving the previous result; a `null` result skips the filter. `asBoolean()` reads a list item by item, so
 `?filter[is_active]=1,0` on an exact filter matches either value; a callback filter takes a single boolean and rejects a
@@ -381,7 +392,8 @@ When root sparse fieldsets are applied, explicit or default `count` / `exists` i
 
 ## Selecting Fields
 
-Allow sparse fieldsets (JSON:API compatible).
+Allow sparse fieldsets, in the style of JSON:API. Unlike JSON:API's `fields[TYPE]`, a fieldset is keyed by the root
+resource key (the camelCase model name or the schema's `type()`) or by a relation's include name.
 
 ```php
 EloquentQueryWizard::for(User::class)
@@ -904,7 +916,14 @@ traits are `@internal`: the wizard methods they provide are covered, using a tra
 
 ### Laravel Octane
 
-Fully compatible. `QueryParametersManager` uses `scoped()` binding for per-request instances.
+The wizards keep no state between requests: `QueryParametersManager` is bound with `scoped()`, so each request reads
+its own parameters, and the configuration is read once per build. Two things to keep in mind on a long-lived worker:
+
+- Definitions are mutable (see [Reusing Definitions](#reusing-definitions)). Build wizards and their definitions per
+  request, in the controller or a schema, not in a static property or a singleton.
+- `QueryWizardConfig` may be warmed: the singleton holds no values and reads `config()` when a build starts. The
+  package's static caches hold per-class data (model methods, scope signatures) and a bounded cache of snake_case
+  names, so request input cannot grow a worker's memory.
 
 ## API Reference
 
@@ -912,18 +931,24 @@ See [docs/api-reference.md](docs/api-reference.md) for complete method reference
 
 ## Comparison with spatie/laravel-query-builder
 
+Moving an endpoint from spatie? Read [docs/migrating-from-spatie.md](docs/migrating-from-spatie.md) first: string
+filters are exact, the second factory argument is the public name, and booleans are not converted.
+
 | Feature | Query Wizard | Spatie |
 |---------|:---:|:---:|
 | **Filters** | | |
 | Exact, Partial, Scope, Trashed, Callback | Yes | Yes |
 | Range, Date Range, Null, JSON Contains | Yes | No |
-| Passthrough, Conditional (`when()`) | Yes | No |
+| Passthrough | Yes | No |
+| Conditional (`when()`) | Yes | `ignore()` for given values |
 | Value transformation (`prepareValueWith()`) | Yes | No |
+| Begins with / ends with, belongs to | Callback filter | Yes |
 | **Sorts** | | |
 | Field, Callback | Yes | Yes |
 | Relationship count/aggregate | Yes | No |
 | **Includes** | | |
 | Relationship, Count, Exists, Callback | Yes | Yes |
+| Aggregate includes (sum, avg, min, max) | Callback include | Yes |
 | Default includes | Yes | No |
 | **Appends** | | |
 | Appends with nesting | Yes | No |

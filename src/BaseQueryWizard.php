@@ -390,9 +390,11 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     }
 
     /**
-     * Add a tap callback to modify the subject.
+     * Add a callback that modifies the subject when the wizard builds.
      *
-     * Callback return value is ignored.
+     * Unlike Builder::tap(), the callback does not run now: it runs at the
+     * start of every build, before filters, sorts and includes are applied.
+     * Its return value is ignored, so it changes the subject in place.
      *
      * @param  callable(TSubject): mixed  $callback
      */

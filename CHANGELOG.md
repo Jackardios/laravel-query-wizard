@@ -200,6 +200,12 @@ Fixed:
 
 Documentation:
 
+- `docs/migrating-from-spatie.md` lists what changes when an endpoint moves from spatie/laravel-query-builder (exact
+  string filters, the order of the factory arguments, boolean values, sort directions, count includes, fieldset keys)
+  and maps the definitions and configuration keys. The README comparison lists what spatie has and this package lacks.
+- README "Reusing Definitions" shows cloning a shared definition before changing it, "Laravel Octane" says what to build
+  per request, and `tap()` documents that its callback runs when the wizard builds. Sparse fieldsets are described as
+  JSON:API-style rather than JSON:API compatible, with how their keys differ.
 - README "Backward Compatibility" states what 3.x keeps stable: public members of classes not marked `@internal`,
   protected members marked `@api`, and the `@api` definition interfaces. The `Concerns` traits are `@internal`, and the
   constructors of `AbstractFilter`, `AbstractSort` and `AbstractInclude` and the value shape helpers are `@api`.

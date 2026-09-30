@@ -33,7 +33,7 @@
 | `addAllowedAppends(...$appends)` | Add to the allowed appends (to the schema's when `allowedAppends()` was not called) |
 | `disallowedAppends(...$names)` | Remove appends; repeated calls add up (supports wildcards: `*`, `relation.*`, `relation`) |
 | `defaultAppends(...$appends)` | Set default appends (applied only when `append` is absent; `?append=` disables defaults) |
-| `tap(callable $callback)` | Add query modification callback |
+| `tap(callable $callback)` | Add a callback that modifies the query when the wizard builds, before filters, sorts and includes (not immediately, unlike `Builder::tap()`); its return value is ignored |
 
 ### Execution Methods
 
