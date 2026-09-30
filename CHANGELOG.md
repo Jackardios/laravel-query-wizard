@@ -8,15 +8,13 @@ All notable changes to this project are documented in this file. The format foll
 Version 3 is a rewrite: fluent `allowed*()` configuration, `EloquentFilter`/`EloquentSort`/`EloquentInclude` factories,
 resource schemas, `ModelQueryWizard::process()`, request limits. See [UPGRADE.md](UPGRADE.md) for migrating from v2.x
 and from `dev-master` snapshots. The entries below cover the changes made before the release; pre-releases v3.0.0-rc.1
-and v3.0.0-rc.2 were tagged on 2026-09-25 and v3.0.0-rc.3 on 2026-09-30, and the changes since each of them are listed
-first.
+and v3.0.0-rc.2 were tagged on 2026-09-25 and v3.0.0-rc.3 and v3.0.0-rc.4 on 2026-09-30, and the changes since each of
+them are listed first.
 
-### Since v3.0.0-rc.3
+### Since v3.0.0-rc.4
 
 Changed:
 
-- Laravel 12.69.0+ or 13.30.0+ (was 12.61.1+ or 13.12.0+): CVE-2026-102279, an XSS in the debug error page, affects the
-  earlier releases, and the floors stay the first releases without open security advisories.
 - Schema `defaultFilters()` keys are checked against the names `resolveAllowedFilterNames()` accepts, so a key naming
   a leaf of a composite filter (an elastic-query-wizard group) applies instead of throwing on every build, and a key
   naming the container throws instead of doing nothing. With `convert_parameters_to_snake_case`, a key is matched in
@@ -25,6 +23,13 @@ Changed:
   to no value, so it covers the leaves of composite filters without their wizard reading the disallowed list.
 - The `@api` `BaseQueryWizard` constructor rejects a schema of another model than `resourceModel()`, so wizard
   subclasses get the check without calling a protected helper.
+
+### Since v3.0.0-rc.3
+
+Changed:
+
+- Laravel 12.69.0+ or 13.30.0+ (was 12.61.1+ or 13.12.0+): CVE-2026-102279, an XSS in the debug error page, affects the
+  earlier releases, and the floors stay the first releases without open security advisories.
 
 ### Since v3.0.0-rc.2
 
