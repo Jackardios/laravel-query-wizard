@@ -13,10 +13,8 @@ use Closure;
  * A returned object of the subject's class becomes the new subject; any other
  * return value is ignored.
  * This is a generic implementation that can be used across different query builders.
- *
- * @phpstan-consistent-constructor
  */
-class CallbackFilter extends AbstractFilter
+final class CallbackFilter extends AbstractFilter
 {
     /** @var Closure(mixed, mixed, string): mixed */
     protected Closure $callback;
@@ -42,7 +40,7 @@ class CallbackFilter extends AbstractFilter
      */
     public static function make(string $property, callable $callback, ?string $alias = null): static
     {
-        return new static($property, $callback(...), $alias);
+        return new self($property, $callback(...), $alias);
     }
 
     protected function supportsBooleanLists(): bool

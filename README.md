@@ -800,8 +800,47 @@ A generator is refused with `InvalidArgumentException`, since reading it would l
 
 ### Extending
 
-Custom filters, sorts and includes extend `AbstractFilter`, `AbstractSort` or `AbstractInclude`. These hooks are part of
-the supported API:
+Custom filters, sorts and includes extend `AbstractFilter`, `AbstractSort` or `AbstractInclude`; filters on Eloquent
+columns can add `HandlesRelationFiltering` (dot-notation properties go through `whereHas()`) or extend
+`AbstractRangeFilter`. The built-in definitions are `final`: to change one, write a filter on these bases.
+
+```php
+use Illuminate\Database\Eloquent\Builder;
+use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
+use Jackardios\QueryWizard\Filters\AbstractFilter;
+
+final class NullOrEqualFilter extends AbstractFilter
+{
+    /** @use HandlesRelationFiltering<mixed> */
+    use HandlesRelationFiltering;
+
+    public static function make(string $property, ?string $alias = null): static
+    {
+        return new self($property, $alias);
+    }
+
+    public function validateValueShape(mixed $value): ?string
+    {
+        return $this->validateScalarOrFlatListValueShape($value);
+    }
+
+    public function apply(mixed $subject, mixed $value): mixed
+    {
+        return $this->applyToSubject($subject, $value);
+    }
+
+    protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
+    {
+        $column = $builder->qualifyColumn($column);
+
+        return $builder->where(fn (Builder $query) => $query->whereNull($column)->orWhereIn($column, (array) $value));
+    }
+}
+
+EloquentQueryWizard::for(User::class)->allowedFilters(NullOrEqualFilter::make('team_id'));
+```
+
+These hooks are part of the supported API:
 
 | Hook | Purpose |
 |------|---------|
@@ -810,7 +849,9 @@ the supported API:
 | `Support\ParsedDate` | Result of the date readers: `value` (`DateTimeImmutable`) and `dateOnly`; `upToBound()` and `afterBound()` give the comparison for "on or before" and "after", where a date names its whole day |
 | `AbstractFilter::supportsBooleanValues()` | Return `false` when the filter can't take booleans, so `asBoolean()` throws `LogicException` |
 | `AbstractFilter::supportsBooleanLists()` | Return `false` when `asBoolean()` must reject lists |
+| `validateScalarOnlyValueShape()`, `validateScalarOrFlatListValueShape()` | Ready-made `validateValueShape()` bodies for filters taking a scalar, or a scalar or flat list |
 | `resolveConstraint(mixed $value): mixed` | For filters using `HandlesRelationFiltering`: read the value once into what `applyOnQuery()` receives; `null` adds no condition, so no `whereHas` is added |
+| `applyRelationFilter($builder, $property, $value)` | For filters using `HandlesRelationFiltering`: how a dot-notation property constrains the relation (default: `whereHas()` running `applyOnQuery()`) |
 | `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |
 | `Contracts\EagerLoadsRelation` | Includes whose `apply()` eager loads `getRelation()`: `fields[relation]` narrows the eager load after `apply()`, relation fields and appends are validated, and disallowing the relation path denies the include under any alias |
 | `Contracts\AppliesToModel` | Includes `ModelQueryWizard` can run on a loaded model (`applyToModel(Model $model): void`); other custom includes throw `LogicException` there |

@@ -86,6 +86,11 @@ Changed:
   exists includes `CountInclude` and `ExistsInclude`, and relationship semantics come from `EagerLoadsRelation`. A
   custom filter whose `getType()` returned `'passthrough'` was never applied, and a custom include returning
   `'relationship'` got fieldsets but no way to apply them to a loaded model.
+- `ExactFilter`, `OperatorFilter`, `CallbackFilter`, `CallbackSort` and `CallbackInclude` are `final`, like the other
+  built-in definitions, and `PartialFilter` no longer extends `ExactFilter` (`instanceof ExactFilter` was true for
+  partial filters). The supported extension points are the `@api` bases `AbstractFilter`, `AbstractSort`,
+  `AbstractInclude` and `AbstractRangeFilter` and the `HandlesRelationFiltering` trait; README "Extending" shows a
+  custom filter.
 - `FilterInterface` declares `shouldSplitValues()`, `allowsStructuredInput()` and `validateValueShape()`, which the
   wizard called only on `AbstractFilter` subclasses: a filter implementing the interface directly got nested arrays
   unchecked and could not keep values whole.

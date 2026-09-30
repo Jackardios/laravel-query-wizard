@@ -6,7 +6,10 @@ namespace Jackardios\QueryWizard\Eloquent\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Jackardios\QueryWizard\Eloquent\Filters\Concerns\HandlesRelationFiltering;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
+use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Support\FilterValueParser;
 use Jackardios\QueryWizard\Support\LikeClause;
 
@@ -23,8 +26,11 @@ use Jackardios\QueryWizard\Support\LikeClause;
  * a list (`?filter[name][]=a&filter[name][]=b`) to match any of several
  * phrases, or call withValueSplitting() to restore separator splitting.
  */
-final class PartialFilter extends ExactFilter
+final class PartialFilter extends AbstractFilter
 {
+    /** @use HandlesRelationFiltering<non-empty-array<string|int|float>|string|int|float> */
+    use HandlesRelationFiltering;
+
     protected bool $splitValues = false;
 
     /**
@@ -36,6 +42,20 @@ final class PartialFilter extends ExactFilter
     public static function make(string $property, ?string $alias = null): static
     {
         return new self($property, $alias);
+    }
+
+    public function validateValueShape(mixed $value): ?string
+    {
+        return $this->validateScalarOrFlatListValueShape($value);
+    }
+
+    /**
+     * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
+     * @return Builder<Model>|Relation<Model, Model, mixed>
+     */
+    public function apply(mixed $subject, mixed $value): mixed
+    {
+        return $this->applyToSubject($subject, $value);
     }
 
     /**

@@ -288,6 +288,11 @@ abstract class AbstractFilter implements FilterInterface
         return true;
     }
 
+    /**
+     * A validateValueShape() for filters that take one scalar.
+     *
+     * @api
+     */
     protected function validateScalarOnlyValueShape(mixed $value): ?string
     {
         if ($value === null || is_scalar($value)) {
@@ -297,6 +302,11 @@ abstract class AbstractFilter implements FilterInterface
         return "Filter `{$this->getName()}` expects a scalar value.";
     }
 
+    /**
+     * A validateValueShape() for filters that take a scalar or a flat list of scalars.
+     *
+     * @api
+     */
     protected function validateScalarOrFlatListValueShape(mixed $value): ?string
     {
         if ($value === null || is_scalar($value)) {

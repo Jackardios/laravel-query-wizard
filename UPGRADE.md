@@ -254,6 +254,55 @@ a later TypeError).
 
   An include with a constraint that implements `EagerLoadsRelation` but not `AppliesToModel` throws `LogicException`
   on `ModelQueryWizard`, since loading the bare relation would drop the constraint.
+- `ExactFilter`, `OperatorFilter`, `CallbackFilter`, `CallbackSort` and `CallbackInclude` are `final`. A subclass of
+  one of them extends `AbstractFilter`, `AbstractSort` or `AbstractInclude` instead; an exact filter with its own SQL
+  keeps relation filtering with `HandlesRelationFiltering`. `PartialFilter` is no longer an `ExactFilter`.
+
+  ```php
+  // Before: class NullableExactFilter extends ExactFilter, overriding apply(), applyOnQuery()
+  // and addRelationConstraint()
+  final class NullableExactFilter extends AbstractFilter
+  {
+      /** @use HandlesRelationFiltering<mixed> */
+      use HandlesRelationFiltering;
+
+      public static function make(string $property, ?string $alias = null): static
+      {
+          return new self($property, $alias);
+      }
+
+      public function validateValueShape(mixed $value): ?string
+      {
+          return $this->validateScalarOrFlatListValueShape($value);
+      }
+
+      public function apply(mixed $subject, mixed $value): mixed
+      {
+          return $this->applyToSubject($subject, $value);
+      }
+
+      protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
+      {
+          $column = $builder->qualifyColumn($column);
+
+          return $builder->where(fn (Builder $query) => $query
+              ->whereNull($column)
+              ->when(is_array($value), fn (Builder $query) => $query->orWhereIn($column, $value))
+              ->when(! is_array($value), fn (Builder $query) => $query->orWhere($column, $value)));
+      }
+
+      protected function applyRelationFilter(Builder $builder, string $property, mixed $value): Builder
+      {
+          $relation = Str::beforeLast($property, '.');
+          $column = Str::afterLast($property, '.');
+
+          return $builder->where(fn (Builder $query) => $query
+              ->doesntHave($relation)
+              ->orWhereHas($relation, fn (Builder $query) => $this->applyOnQuery($query, $value, $column)));
+      }
+  }
+  ```
+
 - A filter implementing `FilterInterface` without extending `AbstractFilter` adds `shouldSplitValues(): bool`,
   `allowsStructuredInput(): bool` and `validateValueShape(mixed $value): ?string` (return `null` to accept a value).
 - `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` are removed from includes. Only

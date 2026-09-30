@@ -14,10 +14,8 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
  * Filter by exact value match.
  *
  * Supports array values (uses whereIn) and dot notation for relation filtering.
- *
- * @phpstan-consistent-constructor
  */
-class ExactFilter extends AbstractFilter
+final class ExactFilter extends AbstractFilter
 {
     /** @use HandlesRelationFiltering<mixed> */
     use HandlesRelationFiltering;
@@ -30,7 +28,7 @@ class ExactFilter extends AbstractFilter
      */
     public static function make(string $property, ?string $alias = null): static
     {
-        return new static($property, $alias);
+        return new self($property, $alias);
     }
 
     public function validateValueShape(mixed $value): ?string

@@ -19,6 +19,8 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
  * Expects: ?filter[property][minKey]=X&filter[property][maxKey]=Y
  *
  * @template TConstraint of array<mixed>
+ *
+ * @api
  */
 abstract class AbstractRangeFilter extends AbstractFilter
 {

@@ -16,10 +16,8 @@ use Jackardios\QueryWizard\Contracts\ProvidesRuntimeAttributes;
  * A returned object of the subject's class becomes the new subject; any other
  * return value is ignored.
  * This is a generic implementation that can be used across different query builders.
- *
- * @phpstan-consistent-constructor
  */
-class CallbackInclude extends AbstractInclude implements AppliesToModel, ProvidesRuntimeAttributes
+final class CallbackInclude extends AbstractInclude implements AppliesToModel, ProvidesRuntimeAttributes
 {
     /** @var Closure(mixed, string): mixed */
     protected Closure $callback;
@@ -48,7 +46,7 @@ class CallbackInclude extends AbstractInclude implements AppliesToModel, Provide
      */
     public static function make(string $relation, callable $callback, ?string $alias = null): static
     {
-        return new static($relation, $callback(...), $alias);
+        return new self($relation, $callback(...), $alias);
     }
 
     /**

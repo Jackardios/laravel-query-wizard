@@ -17,6 +17,8 @@ use Jackardios\QueryWizard\Support\EloquentSubject;
  * automatically applies the filter within a whereHas clause for the relation.
  *
  * @template TConstraint The value resolveConstraint() reads and applyOnQuery() applies
+ *
+ * @api
  */
 trait HandlesRelationFiltering
 {
@@ -88,8 +90,6 @@ trait HandlesRelationFiltering
      * the rows without related records.
      *
      * @return TConstraint|null
-     *
-     * @api
      */
     protected function resolveConstraint(mixed $value): mixed
     {

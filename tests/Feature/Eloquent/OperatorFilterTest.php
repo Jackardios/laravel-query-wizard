@@ -799,27 +799,15 @@ class OperatorFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function a_dynamic_value_is_parsed_once_per_application(): void
+    public function a_dynamic_operator_on_a_relation_property_applies_inside_where_has(): void
     {
-        $filter = new class extends OperatorFilter
-        {
-            public int $parses = 0;
+        $query = $this
+            ->createEloquentWizardWithFilters(['relatedModels.id' => '>=1'])
+            ->allowedFilters(EloquentFilter::operator('relatedModels.id', FilterOperator::DYNAMIC))
+            ->toQuery();
 
-            public function __construct()
-            {
-                parent::__construct('relatedModels.id', FilterOperator::DYNAMIC);
-            }
-
-            protected function parseDynamicOperator(mixed $value): array
-            {
-                $this->parses++;
-
-                return parent::parseDynamicOperator($value);
-            }
-        };
-
-        $this->createEloquentWizardWithFilters(['relatedModels.id' => '>=1'])->allowedFilters($filter)->toQuery();
-
-        $this->assertSame(1, $filter->parses);
+        $this->assertStringContainsString('exists (select', $query->toSql());
+        $this->assertStringContainsString('"related_models"."id" >= ?', $query->toSql());
+        $this->assertSame([1], $query->getBindings());
     }
 }

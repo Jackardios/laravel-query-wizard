@@ -28,10 +28,8 @@ use Stringable;
  * or an ISO 8601 date, read in the application timezone; anything else is
  * rejected with a 400. A date names the whole day, so `<=2024-01-31` matches
  * all of January 31. A DYNAMIC operator without an operand is absent.
- *
- * @phpstan-consistent-constructor
  */
-class OperatorFilter extends AbstractFilter
+final class OperatorFilter extends AbstractFilter
 {
     /** @use HandlesRelationFiltering<array{0: FilterOperator, 1: mixed}> */
     use HandlesRelationFiltering;
@@ -52,7 +50,7 @@ class OperatorFilter extends AbstractFilter
      */
     public static function make(string $property, FilterOperator $operator = FilterOperator::EQUAL, ?string $alias = null): static
     {
-        return new static($property, $operator, $alias);
+        return new self($property, $operator, $alias);
     }
 
     public function validateValueShape(mixed $value): ?string
