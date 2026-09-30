@@ -89,10 +89,6 @@ class EloquentQueryWizard extends BaseQueryWizard
     ) {
         /** @var Builder<Model>|Relation<Model, Model, mixed> $subject */
         parent::__construct($subject, $parameters, $config, $schema);
-
-        if ($schema !== null) {
-            $this->assertSchemaDescribesResourceModel($schema);
-        }
         $this->state = new EloquentBuildState;
     }
 

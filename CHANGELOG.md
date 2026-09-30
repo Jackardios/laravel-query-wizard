@@ -23,6 +23,8 @@ Changed:
   snake case like a request key.
 - `disallowedFilters()` also removes the names `resolveAllowedFilterNames()` returns, and a disallowed filter resolves
   to no value, so it covers the leaves of composite filters without their wizard reading the disallowed list.
+- The `@api` `BaseQueryWizard` constructor rejects a schema of another model than `resourceModel()`, so wizard
+  subclasses get the check without calling a protected helper.
 
 ### Since v3.0.0-rc.2
 

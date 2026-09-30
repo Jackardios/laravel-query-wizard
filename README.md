@@ -891,7 +891,7 @@ These hooks are part of the supported API:
 | `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |
 | `Contracts\EagerLoadsRelation` | Includes whose `apply()` eager loads `getRelation()`: `fields[relation]` narrows the eager load after `apply()`, relation fields and appends are validated, and disallowing the relation path denies the include under any alias |
 | `Contracts\AppliesToModel` | Includes `ModelQueryWizard` can run on a loaded model (`applyToModel(Model $model): void`); other custom includes throw `LogicException` there |
-| `BaseQueryWizard::__construct($subject, $parameters, $config, $schema)` | Wizard subclasses call it from their own constructor; `null` parameters and config resolve from the container |
+| `BaseQueryWizard::__construct($subject, $parameters, $config, $schema)` | Wizard subclasses call it from their own constructor; `null` parameters and config resolve from the container. A schema of another model than `resourceModel()` throws, so set what `resourceModel()` reads first |
 | `$subject`, `isBuilt(): bool` | The subject the build shapes, and whether it is built for the current configuration and request |
 | `rollbackFailedBuild(): void` | Wizard subclasses reset their own state after a build throws (call the parent) |
 | `resourceModel(): ?Model` | The resource's model; the default `resolveAppendAccessorModel()` checks it and its relations |

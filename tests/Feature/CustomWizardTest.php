@@ -129,6 +129,15 @@ final class CustomWizardTest extends TestCase
 
         $requested->build();
     }
+
+    #[Test]
+    public function the_base_constructor_rejects_a_schema_of_another_model(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('describes '.TestModel::class.', but the wizard queries '.RelatedModel::class.'.');
+
+        new GroupWizard(new ArrayObject, new QueryParametersManager(new Request), new GroupSchema([]), new RelatedModel);
+    }
 }
 
 /**

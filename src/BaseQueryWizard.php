@@ -94,6 +94,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      * @param  TSubject  $subject
      * @param  QueryParametersManager|null  $parameters  Null resolves the request-scoped manager on every read
      * @param  QueryWizardConfig|null  $config  Null uses the container's configuration
+     * @param  ResourceSchemaInterface|null  $schema  Checked against resourceModel(), so a subclass
+     *                                                sets what that reads before calling this
+     *
+     * @throws \InvalidArgumentException When the schema describes another model
      *
      * @api
      */
@@ -108,6 +112,11 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $this->resolveParametersFromContainer = $parameters === null;
         $this->parameters = $parameters ?? app(QueryParametersManager::class);
         $this->config = $config ?? app(QueryWizardConfig::class);
+
+        if ($schema !== null) {
+            $this->assertSchemaDescribesResourceModel($schema);
+        }
+
         $this->schema = $schema;
     }
 
