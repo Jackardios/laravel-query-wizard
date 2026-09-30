@@ -9,8 +9,8 @@ use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
+use Jackardios\QueryWizard\Eloquent\Sorts\AggregateSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
-use Jackardios\QueryWizard\Eloquent\Sorts\RelationSort;
 use Jackardios\QueryWizard\Sorts\CallbackSort;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
@@ -174,32 +174,41 @@ class SortDefinitionTest extends TestCase
         $this->assertEquals('author.name', $sort->getProperty());
     }
 
-    // ========== RelationSort Aggregate Validation Tests ==========
+    // ========== AggregateSort Tests ==========
 
     #[Test]
-    public function relation_sort_accepts_valid_aggregates(): void
+    public function aggregate_factories_name_their_function(): void
     {
-        foreach (['min', 'max', 'sum', 'avg', 'count', 'exists'] as $aggregate) {
-            $sort = RelationSort::make('posts', 'created_at', $aggregate);
-            $this->assertEquals($aggregate, $sort->getAggregate());
+        foreach (['min', 'max', 'sum', 'avg'] as $function) {
+            $sort = EloquentSort::{$function}('posts', 'created_at');
+
+            $this->assertSame($function, $sort->getFunction());
+            $this->assertSame('created_at', $sort->getColumn());
+            $this->assertSame('posts', $sort->getName());
         }
     }
 
     #[Test]
-    public function relation_sort_rejects_invalid_aggregate(): void
+    #[DataProvider('invalidAggregateFunctions')]
+    public function aggregate_sort_rejects_other_functions(string $function): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid aggregate');
+        $this->expectExceptionMessage("Invalid aggregate function `{$function}`. Allowed: min, max, sum, avg. Use EloquentSort::count() to sort by a count.");
 
-        RelationSort::make('posts', 'created_at', 'invalid');
+        AggregateSort::make('posts', 'created_at', $function);
     }
 
-    #[Test]
-    public function relation_sort_rejects_sql_injection_aggregate(): void
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function invalidAggregateFunctions(): array
     {
-        $this->expectException(\InvalidArgumentException::class);
-
-        RelationSort::make('posts', 'created_at', 'max; DROP TABLE users');
+        return [
+            'count' => ['count'],
+            'exists' => ['exists'],
+            'upper case' => ['MAX'],
+            'injection' => ['max; DROP TABLE users'],
+        ];
     }
 
     #[Test]
@@ -222,9 +231,9 @@ class SortDefinitionTest extends TestCase
                 fn () => EloquentSort::count('posts.comments'),
                 'A count sort does not support nested relations (`posts.comments`). Use a callback sort instead.',
             ],
-            'relation' => [
-                fn () => EloquentSort::relation('posts.comments', 'votes', 'sum'),
-                'A relation sort does not support nested relations (`posts.comments`).',
+            'aggregate' => [
+                fn () => EloquentSort::sum('posts.comments', 'votes'),
+                'An aggregate sort does not support nested relations (`posts.comments`). Use a callback sort instead.',
             ],
         ];
     }

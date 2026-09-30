@@ -135,7 +135,11 @@ a later TypeError).
 
 - `?sort=-`, `?sort=,` and `?sort[]=-` behave like `?sort=`: a 400 (`invalid_sort_format`), also with
   `ignore_unknown.sorts`.
-- `EloquentSort::count('posts.comments')` and `EloquentSort::relation()` with a dotted relation throw
+- `EloquentSort::relation($relation, $column, $aggregate)` is replaced by `EloquentSort::max()`, `min()`, `sum()` and
+  `avg()` (`relation('orders', 'total', 'sum')` → `sum('orders', 'total')`), and `RelationSort` by `AggregateSort`
+  (`getAggregate()` → `getFunction()`). Sort by a count with `EloquentSort::count()`; `count` and `exists` aggregates
+  are gone.
+- `EloquentSort::count('posts.comments')` and aggregate sorts with a dotted relation throw
   `InvalidArgumentException` when defined (before: 500 at request time). Use a callback sort.
 - Duplicate sorts are removed by exact name (`1` and `01` are no longer merged).
 - A sort property or alias starting with `-` throws `InvalidArgumentException` (`field('-created_at')` ordered by a
@@ -551,8 +555,8 @@ EloquentSort::count('posts')                    // ?sort=posts or ?sort=-posts
 EloquentSort::count('comments')->alias('popularity')
 
 // Sort by related model's aggregate
-EloquentSort::relation('orders', 'total', 'sum')     // Sort by sum of order totals
-EloquentSort::relation('posts', 'created_at', 'max') // Sort by newest post date
+EloquentSort::sum('orders', 'total')     // Sort by sum of order totals
+EloquentSort::max('posts', 'created_at') // Sort by newest post date
 ```
 
 ### Laravel Octane Support

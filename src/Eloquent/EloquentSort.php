@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Eloquent;
 
+use Jackardios\QueryWizard\Eloquent\Sorts\AggregateSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\CountSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
-use Jackardios\QueryWizard\Eloquent\Sorts\RelationSort;
 use Jackardios\QueryWizard\Sorts\CallbackSort;
 
 /**
@@ -42,22 +42,59 @@ final class EloquentSort
     }
 
     /**
-     * Create a relation sort (sort by related model's field using aggregate).
+     * Create a sort by the largest value of a related model's column (`withMax`).
      *
-     * Example: EloquentSort::relation('orders', 'total', 'sum') to sort by sum of order totals
+     * Example: EloquentSort::max('posts', 'created_at') to sort by the newest post
      *
      * @param  string  $relation  The relationship name
      * @param  string  $column  The column on the related model
-     * @param  string  $aggregate  The aggregate function (max, min, sum, avg)
      * @param  string|null  $alias  Optional alias for URL parameter name
      */
-    public static function relation(
-        string $relation,
-        string $column,
-        string $aggregate = 'max',
-        ?string $alias = null
-    ): RelationSort {
-        return RelationSort::make($relation, $column, $aggregate, $alias);
+    public static function max(string $relation, string $column, ?string $alias = null): AggregateSort
+    {
+        return AggregateSort::make($relation, $column, 'max', $alias);
+    }
+
+    /**
+     * Create a sort by the smallest value of a related model's column (`withMin`).
+     *
+     * Example: EloquentSort::min('orders', 'created_at') to sort by the first order
+     *
+     * @param  string  $relation  The relationship name
+     * @param  string  $column  The column on the related model
+     * @param  string|null  $alias  Optional alias for URL parameter name
+     */
+    public static function min(string $relation, string $column, ?string $alias = null): AggregateSort
+    {
+        return AggregateSort::make($relation, $column, 'min', $alias);
+    }
+
+    /**
+     * Create a sort by the sum of a related model's column (`withSum`).
+     *
+     * Example: EloquentSort::sum('orders', 'total') to sort by the total order amount
+     *
+     * @param  string  $relation  The relationship name
+     * @param  string  $column  The column on the related model
+     * @param  string|null  $alias  Optional alias for URL parameter name
+     */
+    public static function sum(string $relation, string $column, ?string $alias = null): AggregateSort
+    {
+        return AggregateSort::make($relation, $column, 'sum', $alias);
+    }
+
+    /**
+     * Create a sort by the average of a related model's column (`withAvg`).
+     *
+     * Example: EloquentSort::avg('reviews', 'rating') to sort by the average rating
+     *
+     * @param  string  $relation  The relationship name
+     * @param  string  $column  The column on the related model
+     * @param  string|null  $alias  Optional alias for URL parameter name
+     */
+    public static function avg(string $relation, string $column, ?string $alias = null): AggregateSort
+    {
+        return AggregateSort::make($relation, $column, 'avg', $alias);
     }
 
     /**

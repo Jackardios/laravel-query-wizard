@@ -94,14 +94,14 @@ class SortSqlVerificationTest extends TestCase
         $this->assertEquals(1, $subqueryCount);
     }
 
-    // ========== RelationSort SQL Verification ==========
+    // ========== AggregateSort SQL Verification ==========
 
     #[Test]
-    public function relation_sort_asc_generates_with_aggregate(): void
+    public function aggregate_sort_asc_generates_with_aggregate(): void
     {
         $sql = $this
             ->createEloquentWizardWithSorts('relatedName')
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'name', 'max')->alias('relatedName'))
+            ->allowedSorts(EloquentSort::max('relatedModels', 'name')->alias('relatedName'))
             ->toQuery()
             ->toSql();
 
@@ -112,11 +112,11 @@ class SortSqlVerificationTest extends TestCase
     }
 
     #[Test]
-    public function relation_sort_accepts_a_table_qualified_column(): void
+    public function aggregate_sort_accepts_a_table_qualified_column(): void
     {
         $query = $this
             ->createEloquentWizardWithSorts('-latestRelated')
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'related_models.id', 'max')->alias('latestRelated'))
+            ->allowedSorts(EloquentSort::max('relatedModels', 'related_models.id')->alias('latestRelated'))
             ->toQuery();
 
         $this->assertStringEndsWith('order by "related_models_max_related_modelsid" desc', $query->toSql());
@@ -124,11 +124,11 @@ class SortSqlVerificationTest extends TestCase
     }
 
     #[Test]
-    public function relation_sort_desc_generates_with_aggregate(): void
+    public function aggregate_sort_desc_generates_with_aggregate(): void
     {
         $sql = $this
             ->createEloquentWizardWithSorts('-relatedName')
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'name', 'max')->alias('relatedName'))
+            ->allowedSorts(EloquentSort::max('relatedModels', 'name')->alias('relatedName'))
             ->toQuery()
             ->toSql();
 
@@ -138,11 +138,11 @@ class SortSqlVerificationTest extends TestCase
     }
 
     #[Test]
-    public function relation_sort_with_sum_aggregate(): void
+    public function aggregate_sort_with_sum_aggregate(): void
     {
         $sql = $this
             ->createEloquentWizardWithSorts('totalName')
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'name', 'sum')->alias('totalName'))
+            ->allowedSorts(EloquentSort::sum('relatedModels', 'name')->alias('totalName'))
             ->toQuery()
             ->toSql();
 
@@ -151,11 +151,11 @@ class SortSqlVerificationTest extends TestCase
     }
 
     #[Test]
-    public function relation_sort_with_avg_aggregate(): void
+    public function aggregate_sort_with_avg_aggregate(): void
     {
         $sql = $this
             ->createEloquentWizardWithSorts('avgName')
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'name', 'avg')->alias('avgName'))
+            ->allowedSorts(EloquentSort::avg('relatedModels', 'name')->alias('avgName'))
             ->toQuery()
             ->toSql();
 
@@ -164,11 +164,11 @@ class SortSqlVerificationTest extends TestCase
     }
 
     #[Test]
-    public function relation_sort_with_min_aggregate(): void
+    public function aggregate_sort_with_min_aggregate(): void
     {
         $sql = $this
             ->createEloquentWizardWithSorts('minName')
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'name', 'min')->alias('minName'))
+            ->allowedSorts(EloquentSort::min('relatedModels', 'name')->alias('minName'))
             ->toQuery()
             ->toSql();
 
@@ -177,14 +177,41 @@ class SortSqlVerificationTest extends TestCase
     }
 
     #[Test]
-    public function relation_sort_column_name_follows_convention(): void
+    public function aggregate_sort_column_name_follows_convention(): void
     {
         $sql = $this
             ->createEloquentWizardWithSorts('relatedName')
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'name', 'max')->alias('relatedName'))
+            ->allowedSorts(EloquentSort::max('relatedModels', 'name')->alias('relatedName'))
             ->toQuery()
             ->toSql();
 
         $this->assertStringContainsString('related_models_max_name', $sql);
+    }
+
+    #[Test]
+    public function aggregate_sort_answers_to_the_relation_name(): void
+    {
+        $sql = $this
+            ->createEloquentWizardWithSorts('-relatedModels')
+            ->allowedSorts(EloquentSort::sum('relatedModels', 'id'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringEndsWith('order by "related_models_sum_id" desc', $sql);
+    }
+
+    #[Test]
+    public function aggregate_sort_does_not_duplicate_the_aggregate(): void
+    {
+        $query = TestModel::query()->withMax('relatedModels', 'name');
+
+        $sql = $this
+            ->createEloquentWizardWithSorts('-relatedModels', $query)
+            ->allowedSorts(EloquentSort::max('relatedModels', 'name'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame(1, substr_count($sql, 'select max('));
+        $this->assertStringEndsWith('order by "related_models_max_name" desc', $sql);
     }
 }

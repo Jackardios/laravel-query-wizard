@@ -101,11 +101,12 @@ final class EloquentSubject
     }
 
     /**
-     * The alias Laravel gives `withCount($relation)` / `withExists($relation)`.
+     * The alias Laravel gives `withAggregate($relation, $column, $function)`, such as
+     * `withCount($relation)` (`posts_count`) or `withSum($relation, 'total')` (`posts_sum_total`).
      */
-    public static function aggregateAlias(string $relation, string $function): string
+    public static function aggregateAlias(string $relation, string $function, string $column = '*'): string
     {
-        return Str::snake((string) preg_replace('/[^[:alnum:][:space:]_]/u', '', sprintf('%s %s %s', $relation, $function, '*')));
+        return Str::snake((string) preg_replace('/[^[:alnum:][:space:]_]/u', '', sprintf('%s %s %s', $relation, $function, strtolower($column))));
     }
 
     /**

@@ -97,7 +97,7 @@ $wizard->getSubject();                  // Get underlying builder without buildi
 // Sorts
 EloquentSort::field('col')                              // ?sort=col or ?sort=-col
 EloquentSort::count('posts')                            // Sort by relationship count
-EloquentSort::relation('orders', 'total', 'sum')        // Sort by aggregate (min|max|sum|avg|count|exists)
+EloquentSort::sum('orders', 'total')                    // Sort by aggregate: max|min|sum|avg('relation', 'column')
 EloquentSort::callback('name', fn($q, $dir, $p) => ...)
 
 // Includes

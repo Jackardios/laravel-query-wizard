@@ -142,6 +142,11 @@ Removed:
 - `getType()` from `FilterInterface`, `SortInterface`, `IncludeInterface`, the abstract bases and the built-in
   definitions.
 - `Values\Sort::getSortDirection()` (use `getDirection()->value`) and `Values\Sort::parseSortDirection()`.
+- `EloquentSort::relation()` and `RelationSort`: `EloquentSort::max()`, `min()`, `sum()` and `avg()` replace them,
+  named like Laravel's `withMax()`/`withSum()`, and return an `AggregateSort` (`getFunction()`, `getColumn()`).
+  `relation()` took the aggregate as a case-sensitive string (`'MAX'` was an error) and also accepted `count`, which
+  counted the column's non-null values under another name than `EloquentSort::count()`, and `exists`.
+  An aggregate sort reuses an aggregate the query already selects (`withSum('orders', 'total')`), as count sorts do.
 - `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` from `IncludeInterface` and
   `AbstractInclude`: the wizard names count and exists includes without an alias after the `includes.count_suffix`
   and `includes.exists_suffix` settings itself, without changing the definition. `QueryWizardConfig::getIncludeAliasSuffix()` is

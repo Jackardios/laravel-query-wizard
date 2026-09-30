@@ -455,7 +455,7 @@ class AuditRegressionTest extends TestCase
                 'sort' => 'relatedName',
                 'fields' => ['testModel' => 'id,name'],
             ], TestModel::query()->whereKey([$apple->id, $mango->id, $zebra->id]))
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'name', 'max')->alias('relatedName'))
+            ->allowedSorts(EloquentSort::max('relatedModels', 'name')->alias('relatedName'))
             ->allowedFields('id', 'name')
             ->get();
 

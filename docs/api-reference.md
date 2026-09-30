@@ -177,7 +177,7 @@ Use `allowStructuredInput()` when a built-in filter should intentionally accept 
 |--------|-------------|
 | `field($property, $alias)` | Column sort |
 | `count($relation, $alias)` | Relationship count sort (a single relation; nested ones throw `InvalidArgumentException`) |
-| `relation($relation, $column, $aggregate, $alias)` | Relationship aggregate sort (min, max, sum, avg, count, exists; a single relation) |
+| `max($relation, $column, $alias)`, `min()`, `sum()`, `avg()` | Relationship aggregate sort, like `withMax()` (a single relation); the name defaults to the relation |
 | `callback($name, $callback, $alias)` | Custom callback sort |
 
 ## Include Factory Methods (EloquentInclude)

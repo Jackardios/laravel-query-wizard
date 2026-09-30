@@ -832,7 +832,7 @@ class SortTest extends TestCase
 
         $models = $this
             ->createEloquentWizardWithSorts('relatedName')
-            ->allowedSorts(EloquentSort::relation('relatedModels', 'name', 'max')->alias('relatedName'))
+            ->allowedSorts(EloquentSort::max('relatedModels', 'name')->alias('relatedName'))
             ->get();
 
         // Models with related records should be sorted by max related name alphabetically

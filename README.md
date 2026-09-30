@@ -321,11 +321,14 @@ EloquentQueryWizard::for(User::class)
 |------|---------|-------------|
 | Field | `EloquentSort::field('created_at')` | Sort by column |
 | Count | `EloquentSort::count('posts')` | Sort by relationship count |
-| Relation | `EloquentSort::relation('orders', 'total', 'sum')` | Sort by aggregate (min, max, sum, avg, count, exists) |
+| Aggregate | `EloquentSort::sum('orders', 'total')` | Sort by `max`, `min`, `sum` or `avg` of a related column |
 | Callback | `EloquentSort::callback('custom', fn($q, $dir, $p) => ...)` | Custom logic |
 
 A field sort orders by the qualified column (`users.total`), so it cannot sort by an alias from `select()`/`selectRaw()`.
 Use a callback sort for that: `EloquentSort::callback('total', fn ($q, $dir) => $q->orderBy('total', $dir))`.
+
+Count and aggregate sorts answer to the relation name (`?sort=-orders`); give two sorts on one relation aliases:
+`EloquentSort::sum('orders', 'total')->alias('ordersTotal')`.
 
 ## Including Relationships
 
