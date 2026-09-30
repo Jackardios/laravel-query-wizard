@@ -629,7 +629,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      * Priority: request value > filter->getDefault() > schema->defaultFilters()
      *
      * A blank value (see FilterValueParser::isBlank()) is absent: null is returned,
-     * or the default when `apply_filter_default_on_null` is enabled.
+     * or the default when `filters.apply_default_on_null` is enabled.
      */
     protected function resolveFilterValue(FilterInterface $filter): mixed
     {
@@ -751,7 +751,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $allowedFilterNamesIndex = array_flip($allowedFilterNames);
 
         foreach ($requestedFilterNames as $filterName) {
-            if (! isset($allowedFilterNamesIndex[$filterName]) && ! $this->getConfig()->isInvalidFilterQueryExceptionDisabled()) {
+            if (! isset($allowedFilterNamesIndex[$filterName]) && ! $this->getConfig()->shouldIgnoreUnknownFilters()) {
                 throw InvalidFilterQuery::filtersNotAllowed(
                     collect([$filterName]),
                     collect($allowedFilterNames)
@@ -786,15 +786,11 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
         $sortRequested = $parameters->hasSimpleParameter('sorts');
         if ($sortRequested && $requestedSorts->isEmpty()) {
-            if (! $this->getConfig()->isInvalidSortQueryExceptionDisabled()) {
-                $parameter = $this->getConfig()->getSortsParameterName() ?: 'sort';
+            $parameter = $this->getConfig()->getSortsParameterName() ?: 'sort';
 
-                throw InvalidSortQuery::invalidFormat(
-                    "The `{$parameter}` parameter must contain at least one sort field when present."
-                );
-            }
-
-            $sortRequested = false;
+            throw InvalidSortQuery::invalidFormat(
+                "The `{$parameter}` parameter must contain at least one sort field when present."
+            );
         }
 
         $sortsIndex = [];
@@ -807,7 +803,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         }
 
         if ($sortsIndex === []) {
-            if (! $this->getConfig()->isInvalidSortQueryExceptionDisabled()) {
+            if (! $this->getConfig()->shouldIgnoreUnknownSorts()) {
                 throw InvalidSortQuery::sortsNotAllowed(
                     $requestedSorts->map(fn (Sort $s) => $s->getField()),
                     collect([])
@@ -828,7 +824,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $field = $sortValue->getField();
 
             if (! isset($sortsIndex[$field])) {
-                if (! $this->getConfig()->isInvalidSortQueryExceptionDisabled()) {
+                if (! $this->getConfig()->shouldIgnoreUnknownSorts()) {
                     throw InvalidSortQuery::sortsNotAllowed(collect([$field]), collect($allowedSortNames));
                 }
 

@@ -3,8 +3,8 @@
 return [
 
     /*
-     * By default the package will use the `include`, `filter`, `sort`
-     * and `fields` query parameters as described in the readme.
+     * By default the package will use the `include`, `filter`, `sort`,
+     * `fields` and `append` query parameters as described in the readme.
      *
      * You can customize these query string parameters here.
      */
@@ -21,48 +21,6 @@ return [
     ],
 
     /*
-     * Related model counts are included using the relationship name suffixed with this string.
-     * For example: GET /users?include=postsCount
-     */
-    'count_suffix' => 'Count',
-
-    /*
-     * Relationship existence checks are included using the relationship name suffixed with this string.
-     * For example: GET /users?include=postsExists
-     */
-    'exists_suffix' => 'Exists',
-
-    /*
-     * By default the package will throw an `InvalidFilterQuery` exception when a filter in the
-     * URL is not allowed in the `allowedFilters()` method.
-     */
-    'disable_invalid_filter_query_exception' => false,
-
-    /*
-     * By default the package will throw an `InvalidSortQuery` exception when a sort in the
-     * URL is not allowed in the `allowedSorts()` method.
-     */
-    'disable_invalid_sort_query_exception' => false,
-
-    /*
-     * By default the package will throw an `InvalidIncludeQuery` exception when an include in the
-     * URL is not allowed in the `allowedIncludes()` method.
-     */
-    'disable_invalid_include_query_exception' => false,
-
-    /*
-     * By default the package will throw an `InvalidFieldQuery` exception when a field in the
-     * URL is not allowed in the `allowedFields()` method.
-     */
-    'disable_invalid_field_query_exception' => false,
-
-    /*
-     * By default the package will throw an `InvalidAppendQuery` exception when an append in the
-     * URL is not allowed in the `allowedAppends()` method.
-     */
-    'disable_invalid_append_query_exception' => false,
-
-    /*
      * By default the package inspects query string of request using $request->query().
      * You can change this behavior to inspect only the request body payload
      * by setting this value to `body`.
@@ -70,14 +28,6 @@ return [
      * Possible values: `query_string`, `body`
      */
     'request_data_source' => 'query_string',
-
-    /*
-     * By default, explicit null/empty filter values skip the filter and do NOT use default().
-     * Set this to true to apply filter default() even when request contains null/empty value.
-     */
-    'apply_filter_default_on_null' => false,
-
-    'array_value_separator' => ',',
 
     /*
      * Naming conversion options.
@@ -94,10 +44,9 @@ return [
     ],
 
     /*
-     * Per-parameter-type separators.
+     * Separators that split list parameters.
      *
-     * Allows using different separators for different parameter types.
-     * If a type-specific separator is not set, falls back to 'array_value_separator'.
+     * `default` applies to every parameter type without a separator of its own.
      *
      * Example: Use semicolon for filters to allow commas in filter values:
      *   'separators' => ['filters' => ';']
@@ -106,11 +55,47 @@ return [
      * Partial filters never split their value.
      */
     'separators' => [
+        'default' => ',',
         // 'includes' => ',',
         // 'sorts' => ',',
         // 'fields' => ',',
         // 'appends' => ',',
         // 'filters' => ',',
+    ],
+
+    /*
+     * By default a request naming a filter, sort, include, field or append that is
+     * not allowed is rejected with a 400 (`filter_not_allowed`, ...). Set a type to
+     * true to drop such names instead. Malformed parameters are rejected either way.
+     */
+    'ignore_unknown' => [
+        'filters' => false,
+        'sorts' => false,
+        'includes' => false,
+        'fields' => false,
+        'appends' => false,
+    ],
+
+    'includes' => [
+        /*
+         * Related model counts are included using the relationship name suffixed with this string.
+         * For example: GET /users?include=postsCount
+         */
+        'count_suffix' => 'Count',
+
+        /*
+         * Relationship existence checks are included using the relationship name suffixed with this string.
+         * For example: GET /users?include=postsExists
+         */
+        'exists_suffix' => 'Exists',
+    ],
+
+    'filters' => [
+        /*
+         * By default, explicit null/empty filter values skip the filter and do NOT use default().
+         * Set this to true to apply filter default() even when request contains null/empty value.
+         */
+        'apply_default_on_null' => false,
     ],
 
     /*

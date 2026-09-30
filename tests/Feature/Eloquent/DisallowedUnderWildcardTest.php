@@ -100,7 +100,7 @@ class DisallowedUnderWildcardTest extends TestCase
     #[Test]
     public function disallowed_fields_are_dropped_under_wildcards_when_exceptions_are_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $sql = $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'id,name']])
             ->allowedFields('*')
@@ -255,7 +255,7 @@ class DisallowedUnderWildcardTest extends TestCase
     #[Test]
     public function disallowed_appends_are_not_computed_when_exceptions_are_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_append_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.appends', true);
 
         $model = $this->createEloquentWizardFromQuery(['append' => 'fullname'])
             ->allowedAppends('*')

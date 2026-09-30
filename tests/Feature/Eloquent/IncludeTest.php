@@ -429,7 +429,7 @@ class IncludeTest extends TestCase
     #[Test]
     public function it_ignores_not_allowed_include_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_include_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.includes', true);
 
         $models = $this
             ->createEloquentWizardWithIncludes('notAllowed')
@@ -444,7 +444,7 @@ class IncludeTest extends TestCase
     #[Test]
     public function it_ignores_includes_with_empty_array_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_include_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.includes', true);
 
         $models = $this
             ->createEloquentWizardWithIncludes('relatedModels')

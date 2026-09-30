@@ -189,7 +189,7 @@ class AllowListCompositionTest extends TestCase
     #[Test]
     public function an_empty_count_suffix_that_names_a_count_include_like_its_relationship_include_throws(): void
     {
-        config()->set('query-wizard.count_suffix', '');
+        config()->set('query-wizard.includes.count_suffix', '');
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('More than one allowed include is named `relatedModels`.');

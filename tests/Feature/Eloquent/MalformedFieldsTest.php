@@ -221,15 +221,17 @@ class MalformedFieldsTest extends TestCase
     }
 
     #[Test]
-    public function tokens_that_are_not_field_names_never_reach_the_select_when_exceptions_are_disabled(): void
+    public function tokens_that_are_not_field_names_are_rejected_even_when_unknown_fields_are_ignored(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
-        $sql = $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name,name as id,relatedModels.name']])
-            ->allowedFields('*')
-            ->toQuery()
-            ->toSql();
-
-        $this->assertSame('select "test_models"."name" from "test_models"', $sql);
+        try {
+            $this->createEloquentWizardFromQuery(['fields' => ['testModel' => 'name,name as id']])
+                ->allowedFields('*')
+                ->toQuery();
+            $this->fail('Expected InvalidFieldQuery');
+        } catch (InvalidFieldQuery $e) {
+            $this->assertSame('invalid_field_format', $e->errorCode);
+        }
     }
 }

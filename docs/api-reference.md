@@ -107,7 +107,7 @@ All configuration methods must be called before `process()`. After processing, c
 - `?append=` means "append nothing" and does not merge `defaultAppends()`.
 - `?fields=` means an explicit empty root fieldset.
 - `?fields[relation]=` means an explicit empty fieldset for that relation.
-- `?sort=` (also `?sort=-`, `?sort=,`) is invalid and throws `InvalidSortQuery`; with `disable_invalid_sort_query_exception` it counts as absent and default sorts apply.
+- `?sort=` (also `?sort=-`, `?sort=,`) is invalid and throws `InvalidSortQuery`, also with `ignore_unknown.sorts`.
 - `default*()` called with no arguments means "no defaults" (the schema's defaults are not used).
 - Active `count` / `exists` includes remain visible even when the root fieldset is empty.
 
@@ -152,7 +152,7 @@ All configuration methods must be called before `process()`. After processing, c
 Malformed built-in filter payloads raise `InvalidFilterQuery::invalidFormat(...)`. Values a filter cannot read (a
 non-boolean for `asBoolean()`/`null`, a non-number for `range`, a non-ISO date for `dateRange`, ...) raise
 `InvalidFilterValue`. Blank values (whitespace, `,`, lists of blanks) are treated as absent.
-`disable_invalid_filter_query_exception` suppresses neither; it only affects unknown filter names.
+`ignore_unknown.filters` suppresses neither; it only affects unknown filter names.
 
 Use `allowStructuredInput()` when a built-in filter should intentionally accept structured raw input that will be normalized inside `prepareValueWith()`. The prepared value is still validated against the built-in filter's contract before `apply()` runs.
 

@@ -216,7 +216,7 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function it_ignores_not_allowed_include_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_include_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.includes', true);
 
         $result = $this
             ->createModelWizardWithIncludes('notAllowed', $this->model)
@@ -469,7 +469,7 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function it_ignores_not_allowed_append_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_append_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.appends', true);
 
         $appendModel = AppendModel::factory()->create();
 
@@ -1115,7 +1115,7 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function it_ignores_relation_fields_that_are_not_whitelisted_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $modelWithRelations = TestModel::with('relatedModels')->find($this->model->id);
 
@@ -1148,7 +1148,7 @@ class ModelQueryWizardTest extends TestCase
     #[Test]
     public function it_ignores_unknown_relation_keys_and_keeps_valid_relation_fieldsets_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $modelWithRelations = TestModel::with('relatedModels')->find($this->model->id);
 

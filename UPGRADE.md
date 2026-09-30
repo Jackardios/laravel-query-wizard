@@ -22,7 +22,7 @@ requests (see [Includes](#includes)), so flush response caches after deploying.
 ### Filter Values
 
 **Unreadable values are rejected.** A filter that must read a value and cannot now throws `InvalidFilterValue` (400,
-`invalid_filter_value`) instead of skipping itself. `disable_invalid_filter_query_exception` does not suppress it.
+`invalid_filter_value`) instead of skipping itself. `ignore_unknown.filters` does not suppress it.
 
 | Filter | Before | Now |
 |--------|--------|-----|
@@ -49,7 +49,7 @@ EloquentFilter::exact('is_active')
 **Blank values are absent.** `null`, a whitespace-only string, `,`, `[]=`, a list of blanks and a range with blank bounds
 add no condition (before: `where name in ('')` → empty result, or `where name = ' '`, or a 500 on a scope). Blank
 items in a partial or LIKE list are dropped (before: `['foo', ' ']` added `LIKE '% %'`). With
-`apply_filter_default_on_null`, the default applies to all of them. A blank `default()` (for example `[]`) is no default.
+`filters.apply_default_on_null`, the default applies to all of them. A blank `default()` (for example `[]`) is no default.
 `default('a,b')` is passed whole, not split.
 
 **Relation filters without a condition add no `whereHas`.** A dotted filter whose value adds nothing (blank, a range
@@ -125,7 +125,7 @@ a later TypeError).
   public names; a filter removed by `disallowedFilters()` still loses its default without an error.
 - Two allowed filters, sorts or includes with the same public name throw `InvalidArgumentException` when the wizard
   resolves them (before: the last one won silently). This includes a count or exists include named like a relationship
-  include, through `alias()` or an empty `count_suffix`/`exists_suffix`, and `addAllowed*()` repeating a schema name.
+  include, through `alias()` or an empty `includes.count_suffix`/`exists_suffix`, and `addAllowed*()` repeating a schema name.
   Disallowed definitions are not counted.
 - New `addAllowedFilters()`, `addAllowedSorts()`, `addAllowedIncludes()`, `addAllowedFields()` and
   `addAllowedAppends()` add to the list set with `allowed*()` or, when none was set, to the schema's. Replace
@@ -133,8 +133,8 @@ a later TypeError).
 
 ### Sorts
 
-- `?sort=-`, `?sort=,` and `?sort[]=-` behave like `?sort=`: 400, or with `disable_invalid_sort_query_exception` "no sort
-  requested", so the default sorts apply (before: `?sort=` was a 400 even with the flag).
+- `?sort=-`, `?sort=,` and `?sort[]=-` behave like `?sort=`: a 400 (`invalid_sort_format`), also with
+  `ignore_unknown.sorts`.
 - `EloquentSort::count('posts.comments')` and `EloquentSort::relation()` with a dotted relation throw
   `InvalidArgumentException` when defined (before: 500 at request time). Use a callback sort.
 - Duplicate sorts are removed by exact name (`1` and `01` are no longer merged).
@@ -204,8 +204,22 @@ a later TypeError).
 
 ### Configuration
 
+- Keys moved into groups; a published config with an old key throws `InvalidArgumentException` naming the new one:
+
+  | Old key | New key |
+  |---------|---------|
+  | `count_suffix`, `exists_suffix` | `includes.count_suffix`, `includes.exists_suffix` |
+  | `apply_filter_default_on_null` | `filters.apply_default_on_null` |
+  | `array_value_separator` | `separators.default` |
+  | `disable_invalid_{filter,sort,include,field,append}_query_exception` | `ignore_unknown.{filters,sorts,includes,fields,appends}` (`true` still ignores) |
+
+  `ignore_unknown` drops names that are not allowed (`*_not_allowed`) and nothing else: an empty `?sort=` and a field
+  that cannot name a column (`fields[user]=name as id` under `allowedFields('*')`) are 400s with the flag on too
+  (before: the sort flag applied the default sorts and the field flag dropped the token). The `QueryWizardConfig`
+  getters follow: `shouldIgnoreUnknownFilters()` (and `Sorts`, `Includes`, `Fields`, `Appends`) replace
+  `isInvalid*QueryExceptionDisabled()`, and `getDefaultSeparator()` replaces `getArrayValueSeparator()`.
 - The whole configuration is validated once per build, not only the values a request reads, and an unknown key inside
-  `parameters`, `naming`, `separators`, `fields` or `limits` throws `InvalidArgumentException` (before: a typo such as
+  `parameters`, `naming`, `separators`, `ignore_unknown`, `includes`, `filters`, `fields` or `limits` throws `InvalidArgumentException` (before: a typo such as
   `limits.max_filter_count` silently kept the default). A limit must be a positive integer or `null`; `0`, `''` (an empty environment
   variable), `false` and negative numbers now throw `InvalidArgumentException` (before: they disabled the limit). Invalid
   separators, parameter names (`''` used to disable a parameter; use `null`) and `request_data_source` throw as well.
@@ -318,7 +332,7 @@ a later TypeError).
 - A filter implementing `FilterInterface` without extending `AbstractFilter` adds `shouldSplitValues(): bool`,
   `allowsStructuredInput(): bool` and `validateValueShape(mixed $value): ?string` (return `null` to accept a value).
 - `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` are removed from includes. Only
-  `CountInclude` and `ExistsInclude` get the `count_suffix`/`exists_suffix` name; a custom include that relied on them
+  `CountInclude` and `ExistsInclude` get the `includes.count_suffix`/`exists_suffix` name; a custom include that relied on them
   sets its alias itself (`$alias ?? $relation.'Count'`).
 - `asBoolean()` throws `LogicException` on filters that can't take booleans (partial, range, date range, JSON contains,
   trashed, operator other than `EQUAL`/`NOT_EQUAL`); such a filter answered every request with a 400. A custom filter
@@ -350,7 +364,7 @@ a later TypeError).
 - [ ] Review boolean, null, trashed, range, date range and DYNAMIC filters for clients that send other values
 - [ ] Review clients that use `%`/`_` as LIKE wildcards or send `+` unencoded in date offsets
 - [ ] Check chained `prepareValueWith()` calls
-- [ ] Check config limits: `0`/`''`/`false` now throw; missing limits now apply
+- [ ] Move the renamed config keys (see Configuration) and check limits: `0`/`''`/`false` now throw; missing limits now apply
 - [ ] Raise or disable `limits.max_filter_values_count` if clients send more than 1000 values to one filter
 - [ ] Raise or disable `limits.max_fields_count` if clients request more than 100 fields in all fieldsets together
 - [ ] Replace nested count/aggregate sorts and includes with callbacks
@@ -1111,7 +1125,7 @@ return [
         'convert_parameters_to_snake_case' => false,  // ?filter[firstName] → first_name
     ],
 
-    // Per-type separators (default: array_value_separator)
+    // Per-type separators (default: separators.default)
     'separators' => [
         'filters' => ';',  // Use semicolon to allow commas in filter values
     ],

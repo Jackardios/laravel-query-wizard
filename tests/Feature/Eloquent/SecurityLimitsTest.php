@@ -939,7 +939,7 @@ class SecurityLimitsTest extends TestCase
     public function appends_are_counted_as_requested_before_unknown_names_are_ignored(): void
     {
         Config::set('query-wizard.limits.max_appends_count', 2);
-        Config::set('query-wizard.disable_invalid_append_query_exception', true);
+        Config::set('query-wizard.ignore_unknown.appends', true);
 
         $this->expectException(MaxAppendsCountExceeded::class);
 

@@ -156,13 +156,16 @@ abstract class ResourceSchema {
 ```php
 // config/query-wizard.php
 'request_data_source' => 'query_string',  // or 'body' for request body
-'apply_filter_default_on_null' => false,  // true = use default() when filter value is null/empty
 'naming' => [
     'convert_parameters_to_snake_case' => false,  // ?filter[firstName] → filter[first_name]
 ],
 'separators' => [
-    'filters' => ';',  // Per-type separator (default: ',')
+    'default' => ',',
+    'filters' => ';',  // Per-type separator (default: separators.default)
 ],
+'ignore_unknown' => ['filters' => false, ...],  // true = drop not-allowed names; format errors still 400
+'includes' => ['count_suffix' => 'Count', 'exists_suffix' => 'Exists'],
+'filters' => ['apply_default_on_null' => false],  // true = use default() when filter value is null/empty
 'limits' => [                        // positive int or null; 0/''/false throw
     'max_includes_count' => 10,
     'max_include_depth' => 3,
@@ -193,7 +196,7 @@ the parameters manager reads one from its first read until `reset()` (once per r
 
 ### 0. Unreadable filter values are 400s, blank values are absent
 `asBoolean()`, null, trashed, range, dateRange, comparison operator and partial filters throw `InvalidFilterValue` for
-values they cannot read; `disable_invalid_filter_query_exception` only covers unknown filter names. Whitespace, `,` and
+values they cannot read; `ignore_unknown.filters` only covers unknown filter names. Whitespace, `,` and
 lists of blanks apply no condition.
 
 ### 1. `allowedFilters([])` vs no call, and composing lists

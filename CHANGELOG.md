@@ -57,11 +57,18 @@ Added:
 
 Changed:
 
+- Configuration keys are grouped: `includes.count_suffix`/`exists_suffix`, `filters.apply_default_on_null`,
+  `separators.default` (was `array_value_separator`) and `ignore_unknown.{filters,sorts,includes,fields,appends}` (was
+  `disable_invalid_*_query_exception`). A published config with an old key throws `InvalidArgumentException` naming its
+  replacement. `ignore_unknown` covers names that are not allowed only: an empty `?sort=` and a field token that cannot
+  name a column are 400s with it on (they used to apply the default sorts and drop the token). `QueryWizardConfig`:
+  `shouldIgnoreUnknown{Filters,Sorts,Includes,Fields,Appends}()` and `getDefaultSeparator()` replace
+  `isInvalid*QueryExceptionDisabled()` and `getArrayValueSeparator()`.
 - Includes, sorts, fields and appends are counted against their limits while the request is read, before any name is
   validated, and a list is split only until it names one item more than the limit (a 100 000-item `?include=` is
   rejected in microseconds instead of being split and deduplicated first). Repeated names, names that differ only in
   naming style under `convert_parameters_to_snake_case` and blank items count once or not at all, as before; appends
-  are now counted as requested, including names that `disable_invalid_append_query_exception` ignores.
+  are now counted as requested, including names that `ignore_unknown.appends` ignores.
   `MaxIncludesCountExceeded`, `MaxSortsCountExceeded` and `MaxAppendsCountExceeded` report `$count` as one more than the
   limit, and their messages no longer name a count.
 - `EloquentQueryWizard::for()` no longer accepts a model instance: `for($user)` built `$user->newQuery()`, which selects
@@ -76,7 +83,7 @@ Changed:
   followed its own rule: defaults outside the allow-list were dropped silently, except sorts, whose defaults any
   `allowedSorts()` or unrelated `disallowedSorts()` call turned off.
 - `QueryWizardConfig::snapshot()`, taken once per build, validates every setting, so a broken value fails every request
-  instead of the ones that read it (`disable_invalid_filter_query_exception => 'maybe'` was a 500 only for requests with
+  instead of the ones that read it (`ignore_unknown.filters => 'maybe'` was a 500 only for requests with
   an unknown filter). An unknown key inside `parameters`, `naming`, `separators`, `fields` or `limits` throws
   `InvalidArgumentException`; a typo such as `limits.max_filter_count` used to keep the default silently.
 - Nested or keyed lists in `include`, `sort`, a fieldset or `append` are a 400 (`invalid_include_format`,
@@ -111,7 +118,7 @@ Changed:
 - A schema `defaultFilters()` key that names no allowed filter (a typo, a column behind an alias) throws
   `InvalidArgumentException` when the wizard builds; it used to be ignored.
 - Allowed filters, sorts or includes sharing a public name throw `InvalidArgumentException`; the last one used to win
-  silently (with an empty `count_suffix`, `?include=posts` loaded only the count).
+  silently (with an empty `includes.count_suffix`, `?include=posts` loaded only the count).
 - Reconfiguring a wizard from a schema method (`includes($wizard)` calling `$wizard->allowedFields()`) or from a
   `tap()` callback while it builds throws `LogicException`; it changed the configuration the running build had
   already partly read.
@@ -125,8 +132,8 @@ Removed:
 - `getType()` from `FilterInterface`, `SortInterface`, `IncludeInterface`, the abstract bases and the built-in
   definitions.
 - `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` from `IncludeInterface` and
-  `AbstractInclude`: the wizard names count and exists includes without an alias after the `count_suffix` and
-  `exists_suffix` settings itself, without changing the definition. `QueryWizardConfig::getIncludeAliasSuffix()` is
+  `AbstractInclude`: the wizard names count and exists includes without an alias after the `includes.count_suffix`
+  and `includes.exists_suffix` settings itself, without changing the definition. `QueryWizardConfig::getIncludeAliasSuffix()` is
   private; use `getCountSuffix()` and `getExistsSuffix()`.
 - The up-front relation-select plan: `prepareSafeRelationSelectPlan()`, `getSafeRelationSelectColumns()`,
   `applySafeRootFieldRequirements()`, `resetSafeRelationSelectState()` and their helpers, which only an external wizard
@@ -270,7 +277,6 @@ Removed:
 - Range filter lists must hold exactly two values, and range arrays only their boundary keys.
 - A request filter key belongs to the deepest allowed filter name.
 - Callback filters, sorts and includes replace the subject only with an instance of its class.
-- Empty sort variants honor `disable_invalid_sort_query_exception` and fall back to default sorts.
 - Nested relations in count/aggregate sorts and count/exists includes throw when defined.
 - Field and append names are validated more strictly (nested lists, dotted names, identifiers under wildcards,
   disallowed names under wildcards, accessors for wildcard appends, relation appends).

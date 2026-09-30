@@ -32,7 +32,7 @@ class QueryWizardConfigTest extends TestCase
     #[Test]
     public function it_returns_custom_count_suffix(): void
     {
-        Config::set('query-wizard.count_suffix', 'Total');
+        Config::set('query-wizard.includes.count_suffix', 'Total');
 
         $this->assertEquals('Total', $this->config->getCountSuffix());
     }
@@ -47,24 +47,24 @@ class QueryWizardConfigTest extends TestCase
     #[Test]
     public function it_returns_custom_exists_suffix(): void
     {
-        Config::set('query-wizard.exists_suffix', 'Has');
+        Config::set('query-wizard.includes.exists_suffix', 'Has');
 
         $this->assertEquals('Has', $this->config->getExistsSuffix());
     }
 
     // ========== Array Value Separator Tests ==========
     #[Test]
-    public function it_returns_default_array_value_separator(): void
+    public function it_returns_the_default_separator(): void
     {
-        $this->assertEquals(',', $this->config->getArrayValueSeparator());
+        $this->assertEquals(',', $this->config->getDefaultSeparator());
     }
 
     #[Test]
-    public function it_returns_custom_array_value_separator(): void
+    public function it_returns_a_custom_default_separator(): void
     {
-        Config::set('query-wizard.array_value_separator', '|');
+        Config::set('query-wizard.separators.default', '|');
 
-        $this->assertEquals('|', $this->config->getArrayValueSeparator());
+        $this->assertEquals('|', $this->config->getDefaultSeparator());
     }
 
     // ========== Per-Type Separator Tests ==========
@@ -115,19 +115,18 @@ class QueryWizardConfigTest extends TestCase
     }
 
     #[Test]
-    public function it_falls_back_to_array_value_separator_when_type_not_configured(): void
+    public function it_falls_back_to_the_default_separator_when_type_not_configured(): void
     {
-        Config::set('query-wizard.array_value_separator', '|');
-        Config::set('query-wizard.separators', []);
+        Config::set('query-wizard.separators', ['default' => '|']);
 
         $this->assertEquals('|', $this->config->getFiltersSeparator());
         $this->assertEquals('|', $this->config->getIncludesSeparator());
     }
 
     #[Test]
-    public function it_uses_type_specific_separator_over_array_value_separator(): void
+    public function it_uses_type_specific_separator_over_the_default_separator(): void
     {
-        Config::set('query-wizard.array_value_separator', '|');
+        Config::set('query-wizard.separators.default', '|');
         Config::set('query-wizard.separators.filters', ';');
 
         $this->assertEquals(';', $this->config->getFiltersSeparator());
@@ -235,7 +234,7 @@ class QueryWizardConfigTest extends TestCase
     #[Test]
     public function should_apply_filter_default_on_null_returns_true_when_configured(): void
     {
-        Config::set('query-wizard.apply_filter_default_on_null', true);
+        Config::set('query-wizard.filters.apply_default_on_null', true);
 
         $this->assertTrue($this->config->shouldApplyFilterDefaultOnNull());
     }
@@ -256,77 +255,77 @@ class QueryWizardConfigTest extends TestCase
 
     // ========== Invalid Filter Query Exception Tests ==========
     #[Test]
-    public function it_returns_false_for_disable_invalid_filter_query_exception_by_default(): void
+    public function it_returns_false_for_ignore_unknown_filters_by_default(): void
     {
-        $this->assertFalse($this->config->isInvalidFilterQueryExceptionDisabled());
+        $this->assertFalse($this->config->shouldIgnoreUnknownFilters());
     }
 
     #[Test]
     public function it_returns_true_when_invalid_filter_query_exception_disabled(): void
     {
-        Config::set('query-wizard.disable_invalid_filter_query_exception', true);
+        Config::set('query-wizard.ignore_unknown.filters', true);
 
-        $this->assertTrue($this->config->isInvalidFilterQueryExceptionDisabled());
+        $this->assertTrue($this->config->shouldIgnoreUnknownFilters());
     }
 
     // ========== Invalid Sort Query Exception Tests ==========
     #[Test]
-    public function it_returns_false_for_disable_invalid_sort_query_exception_by_default(): void
+    public function it_returns_false_for_ignore_unknown_sorts_by_default(): void
     {
-        $this->assertFalse($this->config->isInvalidSortQueryExceptionDisabled());
+        $this->assertFalse($this->config->shouldIgnoreUnknownSorts());
     }
 
     #[Test]
     public function it_returns_true_when_invalid_sort_query_exception_disabled(): void
     {
-        Config::set('query-wizard.disable_invalid_sort_query_exception', true);
+        Config::set('query-wizard.ignore_unknown.sorts', true);
 
-        $this->assertTrue($this->config->isInvalidSortQueryExceptionDisabled());
+        $this->assertTrue($this->config->shouldIgnoreUnknownSorts());
     }
 
     // ========== Invalid Include Query Exception Tests ==========
     #[Test]
-    public function it_returns_false_for_disable_invalid_include_query_exception_by_default(): void
+    public function it_returns_false_for_ignore_unknown_includes_by_default(): void
     {
-        $this->assertFalse($this->config->isInvalidIncludeQueryExceptionDisabled());
+        $this->assertFalse($this->config->shouldIgnoreUnknownIncludes());
     }
 
     #[Test]
     public function it_returns_true_when_invalid_include_query_exception_disabled(): void
     {
-        Config::set('query-wizard.disable_invalid_include_query_exception', true);
+        Config::set('query-wizard.ignore_unknown.includes', true);
 
-        $this->assertTrue($this->config->isInvalidIncludeQueryExceptionDisabled());
+        $this->assertTrue($this->config->shouldIgnoreUnknownIncludes());
     }
 
     // ========== Invalid Field Query Exception Tests ==========
     #[Test]
-    public function it_returns_false_for_disable_invalid_field_query_exception_by_default(): void
+    public function it_returns_false_for_ignore_unknown_fields_by_default(): void
     {
-        $this->assertFalse($this->config->isInvalidFieldQueryExceptionDisabled());
+        $this->assertFalse($this->config->shouldIgnoreUnknownFields());
     }
 
     #[Test]
     public function it_returns_true_when_invalid_field_query_exception_disabled(): void
     {
-        Config::set('query-wizard.disable_invalid_field_query_exception', true);
+        Config::set('query-wizard.ignore_unknown.fields', true);
 
-        $this->assertTrue($this->config->isInvalidFieldQueryExceptionDisabled());
+        $this->assertTrue($this->config->shouldIgnoreUnknownFields());
     }
 
     // ========== Invalid Append Query Exception Tests ==========
     #[Test]
-    public function it_returns_false_for_disable_invalid_append_query_exception_by_default(): void
+    public function it_returns_false_for_ignore_unknown_appends_by_default(): void
     {
-        $this->assertFalse($this->config->isInvalidAppendQueryExceptionDisabled());
+        $this->assertFalse($this->config->shouldIgnoreUnknownAppends());
     }
 
     #[Test]
     public function it_returns_true_when_invalid_append_query_exception_disabled(): void
     {
-        Config::set('query-wizard.disable_invalid_append_query_exception', true);
+        Config::set('query-wizard.ignore_unknown.appends', true);
 
-        $this->assertTrue($this->config->isInvalidAppendQueryExceptionDisabled());
+        $this->assertTrue($this->config->shouldIgnoreUnknownAppends());
     }
 
     // ========== Security Limits Tests ==========
@@ -438,9 +437,9 @@ class QueryWizardConfigTest extends TestCase
     #[DataProvider('booleanValues')]
     public function it_reads_booleans_written_as_strings_and_ints(mixed $value, bool $expected): void
     {
-        Config::set('query-wizard.disable_invalid_filter_query_exception', $value);
+        Config::set('query-wizard.ignore_unknown.filters', $value);
 
-        $this->assertSame($expected, $this->config->isInvalidFilterQueryExceptionDisabled());
+        $this->assertSame($expected, $this->config->shouldIgnoreUnknownFilters());
     }
 
     #[Test]
@@ -620,7 +619,7 @@ class QueryWizardConfigTest extends TestCase
             'empty' => ['separators.filters', '', 'Config `query-wizard.separators.filters` must be a non-empty string of at most 10 characters.'],
             'too long' => ['separators.filters', 'this-is-way-too-long', 'Config `query-wizard.separators.filters` must be a non-empty string of at most 10 characters.'],
             'array' => ['separators.filters', ['|'], 'Config `query-wizard.separators.filters` must be a non-empty string of at most 10 characters.'],
-            'empty fallback' => ['array_value_separator', '', 'Config `query-wizard.array_value_separator` must be a non-empty string of at most 10 characters.'],
+            'empty default' => ['separators.default', '', 'Config `query-wizard.separators.default` must be a non-empty string of at most 10 characters.'],
             'not a list of separators' => ['separators', ';', 'Config `query-wizard.separators` must be an array of separators keyed by parameter type.'],
         ];
     }
@@ -636,7 +635,7 @@ class QueryWizardConfigTest extends TestCase
     #[Test]
     public function a_null_suffix_blanks_it(): void
     {
-        Config::set('query-wizard.count_suffix', null);
+        Config::set('query-wizard.includes.count_suffix', null);
 
         $this->assertSame('', $this->config->getCountSuffix());
     }
@@ -665,8 +664,14 @@ class QueryWizardConfigTest extends TestCase
             'parameter typo' => ['parameters.include', 'with', 'Config `query-wizard.parameters` has unknown key(s) `include`'],
             'naming typo' => ['naming.convert_to_snake_case', true, 'Config `query-wizard.naming` has unknown key(s)'],
             'fields typo' => ['fields.use_allowed_as_defaults', true, 'Config `query-wizard.fields` has unknown key(s)'],
+            'ignore_unknown typo' => ['ignore_unknown.filter', true, 'Config `query-wizard.ignore_unknown` has unknown key(s) `filter`'],
+            'includes typo' => ['includes.countSuffix', 'Total', 'Config `query-wizard.includes` has unknown key(s) `countSuffix`'],
+            'filters typo' => ['filters.apply_default_on_empty', true, 'Config `query-wizard.filters` has unknown key(s)'],
+            'moved suffix' => ['count_suffix', 'Total', 'Config `query-wizard.count_suffix` has moved to `query-wizard.includes.count_suffix`.'],
+            'moved flag' => ['disable_invalid_sort_query_exception', true, 'Config `query-wizard.disable_invalid_sort_query_exception` has moved to `query-wizard.ignore_unknown.sorts` (true still means that unknown names are ignored).'],
+            'moved separator' => ['array_value_separator', '|', 'Config `query-wizard.array_value_separator` has moved to `query-wizard.separators.default`.'],
             'group not an array' => ['limits', 5, 'Config `query-wizard.limits` must be an array'],
-            'unread flag' => ['disable_invalid_filter_query_exception', 'maybe', 'Config `query-wizard.disable_invalid_filter_query_exception` must be a boolean'],
+            'unread flag' => ['ignore_unknown.filters', 'maybe', 'Config `query-wizard.ignore_unknown.filters` must be a boolean'],
             'unread separator' => ['separators.filters', '', 'Config `query-wizard.separators.filters` must be a non-empty string'],
             'unread limit' => ['limits.max_append_depth', 0, 'Config `query-wizard.limits.max_append_depth` must be a positive integer'],
         ];

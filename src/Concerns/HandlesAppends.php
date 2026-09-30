@@ -150,7 +150,7 @@ trait HandlesAppends
         );
 
         $maxDepth = $this->getConfig()->getMaxAppendDepth();
-        $exceptionsDisabled = $this->getConfig()->isInvalidAppendQueryExceptionDisabled();
+        $ignoreUnknown = $this->getConfig()->shouldIgnoreUnknownAppends();
         $validGrouped = [];
 
         foreach ($grouped as $key => $attributes) {
@@ -159,7 +159,7 @@ trait HandlesAppends
             if ($key === '') {
                 $valid = $useDefaults
                     ? $this->trustedDefaultAppends($key, $attributes)
-                    : $this->filterValidAttributes($key, $attributes, $allowed, true, $exceptionsDisabled, '');
+                    : $this->filterValidAttributes($key, $attributes, $allowed, true, $ignoreUnknown, '');
                 if (! empty($valid)) {
                     $validGrouped[''] = $valid;
                 }
@@ -197,7 +197,7 @@ trait HandlesAppends
             // This ensures allowedAppends(['related.formattedName']) works when include has alias 'related'
             $valid = $useDefaults
                 ? $this->trustedDefaultAppends($key, $attributes)
-                : $this->filterValidAttributes($key, $attributes, $allowed, true, $exceptionsDisabled, $relationPath);
+                : $this->filterValidAttributes($key, $attributes, $allowed, true, $ignoreUnknown, $relationPath);
 
             if ($loaded && ! empty($valid)) {
                 $validGrouped[$relationPath] = array_values(array_unique(array_merge($validGrouped[$relationPath] ?? [], $valid)));
@@ -263,7 +263,7 @@ trait HandlesAppends
         array $attributes,
         array $allowed,
         bool $canThrow,
-        bool $exceptionsDisabled,
+        bool $ignoreUnknown,
         ?string $modelPath = null
     ): array {
         $policy = NamePolicy::allowing($allowed);
@@ -310,7 +310,7 @@ trait HandlesAppends
             }
         }
 
-        if (! empty($invalid) && ! $exceptionsDisabled) {
+        if (! empty($invalid) && ! $ignoreUnknown) {
             if (! $disallowedFound) {
                 throw InvalidAppendQuery::appendsNotAllowed(collect($invalid), collect($allowed));
             }

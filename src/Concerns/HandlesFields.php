@@ -238,7 +238,7 @@ trait HandlesFields
         $allowedFields = $this->getEffectiveFields();
         $allFieldsAllowed = in_array('*', $allowedFields, true);
         $includeNameToPathMap = $this->buildIncludeNameToPathMap($this->getIncludesInUse());
-        $exceptionsDisabled = $this->getConfig()->isInvalidFieldQueryExceptionDisabled();
+        $ignoreUnknown = $this->getConfig()->shouldIgnoreUnknownFields();
 
         $allowedRelationFieldList = $allFieldsAllowed
             ? []
@@ -254,7 +254,7 @@ trait HandlesFields
 
             $relationPath = $includeNameToPathMap[$requestedKey] ?? null;
             if ($relationPath === null) {
-                if (! $exceptionsDisabled) {
+                if (! $ignoreUnknown) {
                     throw InvalidFieldQuery::fieldsNotAllowed(
                         collect($this->prefixGroupFields($requestedKey, $normalizedRequestedFields)),
                         collect($allowedRelationFieldList)
@@ -264,13 +264,7 @@ trait HandlesFields
                 continue;
             }
 
-            $normalizedRequestedFields = $this->withoutMalformedFieldTokens(
-                $normalizedRequestedFields,
-                $allowedFields,
-                $policy,
-                $requestedKey,
-                $exceptionsDisabled
-            );
+            $this->assertWellFormedFieldTokens($normalizedRequestedFields, $allowedFields, $policy, $requestedKey);
 
             $validFields = [];
             $invalidFields = [];
@@ -291,7 +285,7 @@ trait HandlesFields
             }
 
             if (! empty($invalidFields)) {
-                if (! $exceptionsDisabled) {
+                if (! $ignoreUnknown) {
                     throw $this->fieldsNotAllowed(
                         $this->prefixGroupFields($requestedKey, $invalidFields),
                         $allowedRelationFieldList,
@@ -473,19 +467,13 @@ trait HandlesFields
         }
 
         $allowedFields = $this->getEffectiveFields();
-        $exceptionsDisabled = $this->getConfig()->isInvalidFieldQueryExceptionDisabled();
+        $ignoreUnknown = $this->getConfig()->shouldIgnoreUnknownFields();
         $policy = NamePolicy::allowing($allowedFields);
         $denyPolicy = $this->fieldDenyPolicy();
         $caseProtectedNames = [];
 
         if (! $requestAbsent) {
-            $fields = $this->withoutMalformedFieldTokens(
-                $fields,
-                $allowedFields,
-                $policy,
-                '',
-                $exceptionsDisabled
-            );
+            $this->assertWellFormedFieldTokens($fields, $allowedFields, $policy, '');
         }
 
         $validFields = [];
@@ -512,7 +500,7 @@ trait HandlesFields
             }
         }
 
-        if (! empty($invalidFields) && ! $exceptionsDisabled) {
+        if (! empty($invalidFields) && ! $ignoreUnknown) {
             throw $this->fieldsNotAllowed($invalidFields, $allowedFields, $disallowedFound);
         }
 
@@ -633,7 +621,7 @@ trait HandlesFields
     }
 
     /**
-     * Drop, or reject with a 400, requested tokens that can't be field names.
+     * Reject with a 400 requested tokens that can't be field names.
      *
      * A dotted token is never a field of the fieldset it was sent in. A token
      * that only a wildcard allows has to be an identifier, so it can't carry an
@@ -642,32 +630,18 @@ trait HandlesFields
      *
      * @param  array<string>  $fields
      * @param  array<string>  $allowedFields
-     * @return array<string>
+     *
+     * @throws InvalidFieldQuery When a field could not name a column
      */
-    private function withoutMalformedFieldTokens(
-        array $fields,
-        array $allowedFields,
-        NamePolicy $policy,
-        string $group,
-        bool $exceptionsDisabled
-    ): array {
-        $wellFormed = [];
-
+    private function assertWellFormedFieldTokens(array $fields, array $allowedFields, NamePolicy $policy, string $group): void
+    {
         foreach ($fields as $field) {
-            if ($this->isWellFormedFieldToken($field, $allowedFields, $policy, $group)) {
-                $wellFormed[] = $field;
-
-                continue;
-            }
-
-            if (! $exceptionsDisabled) {
+            if (! $this->isWellFormedFieldToken($field, $allowedFields, $policy, $group)) {
                 $token = $group === '' ? $field : "{$group}.{$field}";
 
                 throw InvalidFieldQuery::invalidFormat("`{$token}` is not a valid field name.");
             }
         }
-
-        return $wellFormed;
     }
 
     /**

@@ -186,7 +186,7 @@ class AuditRegressionTest extends TestCase
     #[Test]
     public function malformed_filter_shape_is_not_suppressed_when_unknown_filter_exceptions_are_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_filter_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.filters', true);
 
         $this->expectException(InvalidFilterQuery::class);
 
@@ -255,7 +255,7 @@ class AuditRegressionTest extends TestCase
     #[Test]
     public function get_passthrough_filters_respects_disabled_unknown_filter_exceptions(): void
     {
-        config()->set('query-wizard.disable_invalid_filter_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.filters', true);
 
         $passthrough = $this
             ->createEloquentWizardWithFilters([

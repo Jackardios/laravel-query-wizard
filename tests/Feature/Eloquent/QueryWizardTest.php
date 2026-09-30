@@ -1202,7 +1202,7 @@ class QueryWizardTest extends TestCase
         } catch (InvalidIncludeQuery|\RuntimeException) {
         }
 
-        config()->set('query-wizard.count_suffix', 'Total');
+        config()->set('query-wizard.includes.count_suffix', 'Total');
 
         try {
             $wizard->get();
@@ -1609,9 +1609,9 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
-    public function disable_invalid_sort_query_exception_ignores_invalid_sorts(): void
+    public function ignore_unknown_sorts_ignores_invalid_sorts(): void
     {
-        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.sorts', true);
 
         $params = new QueryParametersManager(new Request(['sort' => 'nonexistent']));
 

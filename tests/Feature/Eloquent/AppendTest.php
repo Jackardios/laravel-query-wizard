@@ -133,7 +133,7 @@ class AppendTest extends TestCase
     #[Test]
     public function it_ignores_not_allowed_append_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_append_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.appends', true);
 
         $models = $this
             ->createEloquentWizardWithAppends('not_allowed')
@@ -148,7 +148,7 @@ class AppendTest extends TestCase
     #[Test]
     public function it_ignores_appends_with_empty_array_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_append_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.appends', true);
 
         $models = $this
             ->createEloquentWizardWithAppends('fullname')
@@ -899,7 +899,7 @@ class AppendTest extends TestCase
     #[Test]
     public function using_relation_name_when_alias_defined_is_ignored_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_append_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.appends', true);
 
         $result = $this
             ->createEloquentWizardFromQuery([

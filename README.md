@@ -246,7 +246,7 @@ Malformed payloads such as `?filter[name][foo][bar]=Alpha` raise `InvalidFilterQ
 If you intentionally accept structured raw payloads and normalize them in `prepareValueWith()`, opt in with `allowStructuredInput()`. The built-in filter still validates the prepared value shape before applying it to the query.
 
 A blank value is absent: `?filter=` applies no filters, and `?filter[name]=`, a value of spaces, `?filter[name]=,` and a
-list of empty items apply no condition (with `apply_filter_default_on_null` enabled, the filter's `default()` applies instead). A value that a
+list of empty items apply no condition (with `filters.apply_default_on_null` enabled, the filter's `default()` applies instead). A value that a
 filter has to read and cannot is rejected with `InvalidFilterValue` (400), whose message says what was expected:
 
 | Filter | Accepts |
@@ -282,7 +282,7 @@ EloquentFilter::exact('is_active')
     ->prepareValueWith(fn ($v) => filter_var($v, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE))
 ```
 
-`disable_invalid_filter_query_exception` only suppresses unknown filter names. It never suppresses malformed payloads
+`ignore_unknown.filters` only drops unknown filter names. It never suppresses malformed payloads
 or values a filter cannot read.
 
 ### Relation Filtering
@@ -313,7 +313,7 @@ EloquentQueryWizard::for(User::class)
 
 **Request:** `?sort=name` (asc), `?sort=-name` (desc), `?sort=-created_at,name` (multiple)
 
-`?sort=` (and variants such as `?sort=-` or `?sort=,`) is treated as an invalid request and throws `InvalidSortQuery`. With `disable_invalid_sort_query_exception` enabled, every empty variant counts as "no sort requested" and the default sorts apply.
+`?sort=` (and variants such as `?sort=-` or `?sort=,`) is treated as an invalid request and throws `InvalidSortQuery` (`invalid_sort_format`), also with `ignore_unknown.sorts` enabled.
 
 ### Available Sort Types
 
@@ -454,7 +454,7 @@ and a typo in a default fails in the database or in Eloquent instead of being sk
 - `?append=` means "append nothing"
 - `?fields=` means "show no root fields", except active `count` / `exists` include attributes remain visible
 - `?fields[relation]=` means "show no fields for that relation"
-- `?sort=` is invalid and throws `InvalidSortQuery` (with `disable_invalid_sort_query_exception`, the defaults apply)
+- `?sort=` is invalid and throws `InvalidSortQuery`
 
 ## Resource Schemas
 
@@ -625,7 +625,7 @@ silently disabling the limit, and a limit missing from a published `limits` arra
 Includes, sorts, fields and appends are counted while the request is read, before any name is validated: a list is
 split only until it names one item more than its limit. A name repeated in the list, or differing only in naming style
 under `convert_parameters_to_snake_case`, counts once, and blank items don't count; a sort counts once whatever its
-direction. Appends are counted as requested, including names that `disable_invalid_append_query_exception` later
+direction. Appends are counted as requested, including names that `ignore_unknown.appends` later
 ignores. The exception's `$count` is then one more than the limit, not the total the request names.
 
 Limits apply to what the client sends. Developer defaults (`defaultSorts()`, `defaultIncludes()`, `defaultAppends()`,
@@ -662,17 +662,28 @@ return [
         'appends' => 'append',     // ?append=full_name
     ],
 
-    'count_suffix' => 'Count',     // postsCount → count include
-    'exists_suffix' => 'Exists',   // postsExists → exists include
-
-    'disable_invalid_filter_query_exception' => false,  // Throw on invalid filter
-    // ... similar for sort, include, field, append
-
     'request_data_source' => 'query_string',  // 'query_string' or 'body' (body only, query string ignored)
-    'apply_filter_default_on_null' => false,  // Apply default() when filter value is null/empty
 
     'naming' => [
         'convert_parameters_to_snake_case' => false,  // ?filter[firstName] → first_name
+    ],
+
+    'separators' => [
+        'default' => ',',  // Splits list parameters; 'filters' => ';' etc. per type
+    ],
+
+    'ignore_unknown' => [
+        'filters' => false,  // true: drop filters that are not allowed instead of a 400
+        // ... likewise sorts, includes, fields, appends; malformed parameters are always a 400
+    ],
+
+    'includes' => [
+        'count_suffix' => 'Count',     // postsCount → count include
+        'exists_suffix' => 'Exists',   // postsExists → exists include
+    ],
+
+    'filters' => [
+        'apply_default_on_null' => false,  // Apply default() when filter value is null/empty
     ],
 
     'fields' => [
@@ -694,7 +705,7 @@ return [
 
 When `fields.use_allowed_as_default` is enabled and `?fields` is absent, default fields resolve in this order: explicit `defaultFields()` on the wizard, schema `defaultFields()`, then the effective allowed root fields. Relation field allow-lists are not promoted into the root `SELECT`. This only affects default field selection and does not allow arbitrary `?fields[...]` requests when allowed fields are not configured. If no allowed fields are configured, the package keeps its normal behavior: root queries still default to all columns, while explicit `?fields[...]` requests are validated against the configured allow-list.
 
-`getPassthroughFilters()` uses the same filter validation, defaults, `prepareValueWith()`, `when()`, and `max_filters_count` enforcement as normal query execution. Unknown filters still honor `disable_invalid_filter_query_exception`; malformed built-in filter payloads do not.
+`getPassthroughFilters()` uses the same filter validation, defaults, `prepareValueWith()`, `when()`, and `max_filters_count` enforcement as normal query execution. Unknown filters still honor `ignore_unknown.filters`; malformed built-in filter payloads do not.
 
 The whole configuration is validated when a build reads it, whatever the request uses: an invalid limit, separator (a
 non-empty string of at most 10 characters), parameter name (a non-empty string, or `null` to turn the parameter off),

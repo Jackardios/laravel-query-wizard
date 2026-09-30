@@ -439,7 +439,7 @@ class FieldsTest extends TestCase
     #[Test]
     public function it_ignores_not_allowed_field_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,secret_field'])
@@ -456,7 +456,7 @@ class FieldsTest extends TestCase
     #[Test]
     public function it_intersects_not_allowed_relation_fields_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $models = $this
             ->createEloquentWizardFromQuery([
@@ -481,7 +481,7 @@ class FieldsTest extends TestCase
     #[Test]
     public function it_ignores_unknown_relation_keys_and_keeps_valid_relation_fieldsets_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $models = $this
             ->createEloquentWizardFromQuery([
@@ -699,7 +699,7 @@ class FieldsTest extends TestCase
     #[Test]
     public function it_ignores_relation_resource_without_whitelist_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $models = $this
             ->createEloquentWizardFromQuery([
@@ -1026,7 +1026,7 @@ class FieldsTest extends TestCase
     #[Test]
     public function all_invalid_root_fields_hide_all_visible_root_attributes_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'secretField'])
@@ -1039,7 +1039,7 @@ class FieldsTest extends TestCase
     #[Test]
     public function all_invalid_relation_fields_hide_relation_attributes_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $models = $this
             ->createEloquentWizardFromQuery([
@@ -1173,7 +1173,7 @@ class FieldsTest extends TestCase
     #[Test]
     public function default_fields_apply_when_an_ignored_unknown_fieldset_is_requested(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
         DB::enableQueryLog();
 
         $this

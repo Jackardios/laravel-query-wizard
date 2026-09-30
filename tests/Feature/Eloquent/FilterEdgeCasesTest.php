@@ -208,7 +208,7 @@ class FilterEdgeCasesTest extends TestCase
     #[Test]
     public function empty_filter_value_falls_back_to_default_when_opt_in_enabled(): void
     {
-        Config::set('query-wizard.apply_filter_default_on_null', true);
+        Config::set('query-wizard.filters.apply_default_on_null', true);
 
         $targetModel = TestModel::query()->firstOrFail();
 
@@ -227,7 +227,7 @@ class FilterEdgeCasesTest extends TestCase
     #[DataProvider('blankValues')]
     public function blank_filter_values_fall_back_to_default_when_opt_in_enabled(mixed $value): void
     {
-        Config::set('query-wizard.apply_filter_default_on_null', true);
+        Config::set('query-wizard.filters.apply_default_on_null', true);
 
         $targetModel = TestModel::query()->firstOrFail();
 
@@ -244,7 +244,7 @@ class FilterEdgeCasesTest extends TestCase
     #[Test]
     public function null_filter_value_falls_back_to_default_when_opt_in_enabled(): void
     {
-        Config::set('query-wizard.apply_filter_default_on_null', true);
+        Config::set('query-wizard.filters.apply_default_on_null', true);
 
         $targetModel = TestModel::query()->firstOrFail();
 

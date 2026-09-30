@@ -442,7 +442,7 @@ class SortTest extends TestCase
     #[Test]
     public function it_ignores_not_allowed_sort_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.sorts', true);
 
         $models = $this
             ->createEloquentWizardWithSorts('not_allowed')
@@ -456,7 +456,7 @@ class SortTest extends TestCase
     #[Test]
     public function it_ignores_sorts_with_empty_array_when_exception_disabled(): void
     {
-        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.sorts', true);
 
         $models = $this
             ->createEloquentWizardWithSorts('name')
@@ -522,18 +522,16 @@ class SortTest extends TestCase
 
     #[Test]
     #[DataProvider('emptySortValues')]
-    public function an_empty_sort_falls_back_to_default_sorts_when_exception_disabled(string|array $sort): void
+    public function an_empty_sort_is_a_format_error_even_when_unknown_sorts_are_ignored(string|array $sort): void
     {
-        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.sorts', true);
 
-        $sql = $this
-            ->createEloquentWizardWithSorts($sort)
-            ->allowedSorts('name')
-            ->defaultSorts('-name')
-            ->toQuery()
-            ->toSql();
-
-        $this->assertSame('select * from "test_models" order by "test_models"."name" desc', $sql);
+        try {
+            $this->createEloquentWizardWithSorts($sort)->allowedSorts('name')->defaultSorts('-name')->toQuery();
+            $this->fail('Expected InvalidSortQuery');
+        } catch (InvalidSortQuery $e) {
+            $this->assertSame('invalid_sort_format', $e->errorCode);
+        }
     }
 
     /**

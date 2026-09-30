@@ -42,7 +42,7 @@ class DisabledExceptionsTest extends TestCase
     #[Test]
     public function invalid_filter_is_ignored_and_valid_filter_applies(): void
     {
-        config()->set('query-wizard.disable_invalid_filter_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.filters', true);
 
         $target = $this->models->first();
 
@@ -61,7 +61,7 @@ class DisabledExceptionsTest extends TestCase
     #[Test]
     public function the_filter_flag_does_not_hide_values_a_filter_cannot_read(): void
     {
-        config()->set('query-wizard.disable_invalid_filter_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.filters', true);
 
         $this->expectException(InvalidFilterValue::class);
 
@@ -76,7 +76,7 @@ class DisabledExceptionsTest extends TestCase
     #[Test]
     public function invalid_sort_is_ignored_and_valid_sort_applies(): void
     {
-        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.sorts', true);
 
         $models = $this
             ->createEloquentWizardWithSorts('not_real,-name')
@@ -96,7 +96,7 @@ class DisabledExceptionsTest extends TestCase
     #[Test]
     public function invalid_include_is_ignored_and_valid_include_loads(): void
     {
-        config()->set('query-wizard.disable_invalid_include_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.includes', true);
 
         $models = $this
             ->createEloquentWizardWithIncludes('notReal,relatedModels')
@@ -113,7 +113,7 @@ class DisabledExceptionsTest extends TestCase
     #[Test]
     public function invalid_fields_are_silently_intersected(): void
     {
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
 
         $models = $this
             ->createEloquentWizardWithFields(['testModel' => 'id,name,secret_field'])
@@ -132,7 +132,7 @@ class DisabledExceptionsTest extends TestCase
     #[Test]
     public function invalid_appends_are_filtered_out(): void
     {
-        config()->set('query-wizard.disable_invalid_append_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.appends', true);
 
         $models = $this
             ->createEloquentWizardWithAppends('fullname,not_real')
@@ -149,11 +149,11 @@ class DisabledExceptionsTest extends TestCase
     #[Test]
     public function all_exceptions_disabled_with_mixed_valid_and_invalid(): void
     {
-        config()->set('query-wizard.disable_invalid_filter_query_exception', true);
-        config()->set('query-wizard.disable_invalid_sort_query_exception', true);
-        config()->set('query-wizard.disable_invalid_include_query_exception', true);
-        config()->set('query-wizard.disable_invalid_field_query_exception', true);
-        config()->set('query-wizard.disable_invalid_append_query_exception', true);
+        config()->set('query-wizard.ignore_unknown.filters', true);
+        config()->set('query-wizard.ignore_unknown.sorts', true);
+        config()->set('query-wizard.ignore_unknown.includes', true);
+        config()->set('query-wizard.ignore_unknown.fields', true);
+        config()->set('query-wizard.ignore_unknown.appends', true);
 
         $target = $this->models->first();
 

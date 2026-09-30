@@ -295,7 +295,7 @@ trait HandlesIncludes
         }
 
         if (empty($includes)) {
-            if (! $usingDefaults && $requestedIncludes !== [] && ! $this->getConfig()->isInvalidIncludeQueryExceptionDisabled()) {
+            if (! $usingDefaults && $requestedIncludes !== [] && ! $this->getConfig()->shouldIgnoreUnknownIncludes()) {
                 throw InvalidIncludeQuery::includesNotAllowed(
                     collect($requestedIncludes),
                     collect([])
@@ -310,7 +310,7 @@ trait HandlesIncludes
         $validRequestedIncludes = [];
         foreach ($requestedIncludes as $includeName) {
             if (! isset($includesIndex[$includeName])) {
-                if (! $usingDefaults && ! $this->getConfig()->isInvalidIncludeQueryExceptionDisabled()) {
+                if (! $usingDefaults && ! $this->getConfig()->shouldIgnoreUnknownIncludes()) {
                     throw InvalidIncludeQuery::includesNotAllowed(
                         collect([$includeName]),
                         collect($allowedIncludeNames)

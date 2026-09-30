@@ -27,7 +27,22 @@ final class QueryWizardConfig
     /**
      * Groups whose keys are all known, so an unknown key is a typo.
      */
-    private const CLOSED_GROUPS = ['parameters', 'naming', 'separators', 'fields', 'limits'];
+    private const CLOSED_GROUPS = ['parameters', 'naming', 'separators', 'ignore_unknown', 'includes', 'filters', 'fields', 'limits'];
+
+    /**
+     * Keys of earlier configurations and the keys that replaced them.
+     */
+    private const MOVED_KEYS = [
+        'count_suffix' => 'includes.count_suffix',
+        'exists_suffix' => 'includes.exists_suffix',
+        'apply_filter_default_on_null' => 'filters.apply_default_on_null',
+        'array_value_separator' => 'separators.default',
+        'disable_invalid_filter_query_exception' => 'ignore_unknown.filters',
+        'disable_invalid_sort_query_exception' => 'ignore_unknown.sorts',
+        'disable_invalid_include_query_exception' => 'ignore_unknown.includes',
+        'disable_invalid_field_query_exception' => 'ignore_unknown.fields',
+        'disable_invalid_append_query_exception' => 'ignore_unknown.appends',
+    ];
 
     /**
      * Package defaults, the same as config/query-wizard.php.
@@ -40,20 +55,27 @@ final class QueryWizardConfig
             'fields' => 'fields',
             'appends' => 'append',
         ],
-        'count_suffix' => 'Count',
-        'exists_suffix' => 'Exists',
-        'disable_invalid_filter_query_exception' => false,
-        'disable_invalid_sort_query_exception' => false,
-        'disable_invalid_include_query_exception' => false,
-        'disable_invalid_field_query_exception' => false,
-        'disable_invalid_append_query_exception' => false,
         'request_data_source' => 'query_string',
-        'apply_filter_default_on_null' => false,
-        'array_value_separator' => ',',
         'naming' => [
             'convert_parameters_to_snake_case' => false,
         ],
-        'separators' => [],
+        'separators' => [
+            'default' => ',',
+        ],
+        'ignore_unknown' => [
+            'filters' => false,
+            'sorts' => false,
+            'includes' => false,
+            'fields' => false,
+            'appends' => false,
+        ],
+        'includes' => [
+            'count_suffix' => 'Count',
+            'exists_suffix' => 'Exists',
+        ],
+        'filters' => [
+            'apply_default_on_null' => false,
+        ],
         'fields' => [
             'use_allowed_as_default' => false,
         ],
@@ -81,7 +103,7 @@ final class QueryWizardConfig
      * Every setting is validated when the snapshot is taken, so a broken
      * configuration fails every request rather than the few that read it.
      *
-     * @throws InvalidArgumentException When a setting is invalid or a closed group has an unknown key
+     * @throws InvalidArgumentException When a setting is invalid, a closed group has an unknown key or a key has moved
      *
      * @api
      */
@@ -98,6 +120,15 @@ final class QueryWizardConfig
      */
     private function validate(): void
     {
+        foreach (self::MOVED_KEYS as $old => $new) {
+            if ($this->find($old)[0]) {
+                throw new InvalidArgumentException(
+                    'Config `'.self::CONFIG_PREFIX.".{$old}` has moved to `".self::CONFIG_PREFIX.".{$new}`"
+                    .(str_starts_with($old, 'disable_') ? ' (true still means that unknown names are ignored).' : '.')
+                );
+            }
+        }
+
         foreach (self::CLOSED_GROUPS as $group) {
             [$found, $values] = $this->find($group);
 
@@ -109,7 +140,7 @@ final class QueryWizardConfig
                 throw self::invalid($group, 'must be an array');
             }
 
-            $known = $group === 'separators' ? self::PARAMETER_TYPES : array_keys(self::DEFAULTS[$group]);
+            $known = $group === 'separators' ? ['default', ...self::PARAMETER_TYPES] : array_keys(self::DEFAULTS[$group]);
             $unknown = array_diff(array_map(strval(...), array_keys($values)), $known);
 
             if ($unknown !== []) {
@@ -122,7 +153,7 @@ final class QueryWizardConfig
 
         $this->getCountSuffix();
         $this->getExistsSuffix();
-        $this->getArrayValueSeparator();
+        $this->getDefaultSeparator();
         $this->getRequestDataSource();
         $this->shouldApplyFilterDefaultOnNull();
         $this->shouldConvertParametersToSnakeCase();
@@ -131,10 +162,7 @@ final class QueryWizardConfig
         foreach (self::PARAMETER_TYPES as $type) {
             $this->getSeparator($type);
             $this->parameterName($type);
-        }
-
-        foreach (['filter', 'sort', 'include', 'field', 'append'] as $kind) {
-            $this->flag("disable_invalid_{$kind}_query_exception");
+            $this->flag("ignore_unknown.{$type}");
         }
 
         foreach (array_keys(self::DEFAULTS['limits']) as $limit) {
@@ -144,12 +172,12 @@ final class QueryWizardConfig
 
     public function getCountSuffix(): string
     {
-        return $this->getIncludeAliasSuffix('count_suffix', 'Count');
+        return $this->getIncludeAliasSuffix('includes.count_suffix', 'Count');
     }
 
     public function getExistsSuffix(): string
     {
-        return $this->getIncludeAliasSuffix('exists_suffix', 'Exists');
+        return $this->getIncludeAliasSuffix('includes.exists_suffix', 'Exists');
     }
 
     private function getIncludeAliasSuffix(string $configKey, string $default): string
@@ -169,9 +197,12 @@ final class QueryWizardConfig
         return (string) $value;
     }
 
-    public function getArrayValueSeparator(): string
+    /**
+     * The separator of parameter types without one of their own.
+     */
+    public function getDefaultSeparator(): string
     {
-        return $this->separatorAt('array_value_separator', $this->get('array_value_separator'));
+        return $this->separatorAt('separators.default', $this->get('separators.default'));
     }
 
     private function getSeparator(string $type): string
@@ -179,7 +210,7 @@ final class QueryWizardConfig
         $separators = $this->get('separators');
 
         if ($separators === null) {
-            return $this->getArrayValueSeparator();
+            return $this->getDefaultSeparator();
         }
 
         if (! is_array($separators)) {
@@ -189,7 +220,7 @@ final class QueryWizardConfig
         $separator = $separators[$type] ?? null;
 
         return $separator === null
-            ? $this->getArrayValueSeparator()
+            ? $this->getDefaultSeparator()
             : $this->separatorAt("separators.{$type}", $separator);
     }
 
@@ -263,32 +294,35 @@ final class QueryWizardConfig
 
     public function shouldApplyFilterDefaultOnNull(): bool
     {
-        return $this->flag('apply_filter_default_on_null');
+        return $this->flag('filters.apply_default_on_null');
     }
 
-    public function isInvalidFilterQueryExceptionDisabled(): bool
+    /**
+     * Whether a requested filter that is not allowed is dropped instead of rejected.
+     */
+    public function shouldIgnoreUnknownFilters(): bool
     {
-        return $this->flag('disable_invalid_filter_query_exception');
+        return $this->flag('ignore_unknown.filters');
     }
 
-    public function isInvalidSortQueryExceptionDisabled(): bool
+    public function shouldIgnoreUnknownSorts(): bool
     {
-        return $this->flag('disable_invalid_sort_query_exception');
+        return $this->flag('ignore_unknown.sorts');
     }
 
-    public function isInvalidIncludeQueryExceptionDisabled(): bool
+    public function shouldIgnoreUnknownIncludes(): bool
     {
-        return $this->flag('disable_invalid_include_query_exception');
+        return $this->flag('ignore_unknown.includes');
     }
 
-    public function isInvalidFieldQueryExceptionDisabled(): bool
+    public function shouldIgnoreUnknownFields(): bool
     {
-        return $this->flag('disable_invalid_field_query_exception');
+        return $this->flag('ignore_unknown.fields');
     }
 
-    public function isInvalidAppendQueryExceptionDisabled(): bool
+    public function shouldIgnoreUnknownAppends(): bool
     {
-        return $this->flag('disable_invalid_append_query_exception');
+        return $this->flag('ignore_unknown.appends');
     }
 
     public function getMaxIncludeDepth(): ?int

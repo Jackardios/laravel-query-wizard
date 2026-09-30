@@ -94,7 +94,7 @@ class PassthroughFilterTest extends EloquentFilterTestCase
     #[Test]
     public function passthrough_filter_applies_default_for_explicit_empty_value_when_opt_in_enabled(): void
     {
-        config()->set('query-wizard.apply_filter_default_on_null', true);
+        config()->set('query-wizard.filters.apply_default_on_null', true);
 
         $wizard = $this
             ->createEloquentWizardWithFilters(['custom' => ''])
@@ -109,7 +109,7 @@ class PassthroughFilterTest extends EloquentFilterTestCase
     #[Test]
     public function passthrough_filter_applies_default_for_explicit_null_value_when_opt_in_enabled(): void
     {
-        config()->set('query-wizard.apply_filter_default_on_null', true);
+        config()->set('query-wizard.filters.apply_default_on_null', true);
 
         $wizard = $this
             ->createEloquentWizardWithFilters(['custom' => null])
