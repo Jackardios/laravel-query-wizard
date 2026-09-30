@@ -255,9 +255,11 @@ trait HandlesFields
             $relationPath = $includeNameToPathMap[$requestedKey] ?? null;
             if ($relationPath === null) {
                 if (! $ignoreUnknown) {
-                    throw InvalidFieldQuery::fieldsNotAllowed(
-                        collect($this->prefixGroupFields($requestedKey, $normalizedRequestedFields)),
-                        collect($allowedRelationFieldList)
+                    throw $this->relationFieldsNotAllowed(
+                        $requestedKey,
+                        $this->prefixGroupFields($requestedKey, $normalizedRequestedFields),
+                        $allowedRelationFieldList,
+                        false
                     );
                 }
 
@@ -286,7 +288,8 @@ trait HandlesFields
 
             if (! empty($invalidFields)) {
                 if (! $ignoreUnknown) {
-                    throw $this->fieldsNotAllowed(
+                    throw $this->relationFieldsNotAllowed(
+                        $requestedKey,
                         $this->prefixGroupFields($requestedKey, $invalidFields),
                         $allowedRelationFieldList,
                         $disallowedFound
@@ -599,6 +602,25 @@ trait HandlesFields
     private static function lowercase(string $name): string
     {
         return preg_match('/[\x80-\xff]/', $name) === 1 ? mb_strtolower($name) : strtolower($name);
+    }
+
+    /**
+     * @param  array<string>  $fields
+     * @param  array<string>  $allowedFields  The allowed fields of every relation
+     */
+    private function relationFieldsNotAllowed(string $relation, array $fields, array $allowedFields, bool $disallowed): InvalidFieldQuery
+    {
+        if ($allowedFields !== [] || $disallowed) {
+            return $this->fieldsNotAllowed($fields, $allowedFields, $disallowed);
+        }
+
+        $joinedFields = implode(', ', $fields);
+
+        return new InvalidFieldQuery(
+            collect($fields),
+            collect(),
+            "Requested field(s) `{$joinedFields}` are not allowed. No fields are allowed for `{$relation}`."
+        );
     }
 
     /**

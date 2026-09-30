@@ -381,6 +381,22 @@ class FieldsTest extends TestCase
     }
 
     #[Test]
+    public function a_relation_without_allowed_fields_is_named_in_the_error(): void
+    {
+        $this->expectException(InvalidFieldQuery::class);
+        $this->expectExceptionMessage('Requested field(s) `relatedModels.id` are not allowed. No fields are allowed for `relatedModels`.');
+
+        $this
+            ->createEloquentWizardFromQuery([
+                'include' => 'relatedModels',
+                'fields' => ['relatedModels' => 'id'],
+            ])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('id', 'name')
+            ->get();
+    }
+
+    #[Test]
     public function it_throws_exception_for_relation_wildcard_field_when_not_allowed(): void
     {
         $this->expectException(InvalidFieldQuery::class);

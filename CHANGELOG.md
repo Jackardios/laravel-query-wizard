@@ -143,6 +143,9 @@ Changed:
   is a 400 (`invalid_sort_format`); it ordered by a column named `-name`.
 - `InvalidFilterValue::$filterName` is `?string`, `null` instead of `''` when the value was read without a filter;
   `InvalidFilterValue::make()` takes `null` for no filter.
+- A fieldset for a relation that has no allowed fields names it: "Requested field(s) `relatedModels.id` are not
+  allowed. No fields are allowed for `relatedModels`." instead of "No fields are allowed.", which read as if no root
+  fields were allowed either.
 
 Removed:
 
