@@ -106,4 +106,9 @@ final class PartialFilter extends ExactFilter
 
         return $builder;
     }
+
+    protected function supportsBooleanValues(): bool
+    {
+        return false;
+    }
 }

@@ -139,7 +139,7 @@ All configuration methods must be called before `process()`. After processing, c
 | `when($callback)` | Conditionally skip filter |
 | `allowStructuredInput()` | Skip raw shape validation and validate only the prepared value shape |
 | `withValueSplitting()` / `withoutValueSplitting()` | Split string values by the filters separator, or keep them whole (default: split; `partial` keeps them whole) |
-| `asBoolean()` | Add a step reading `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` (any case) as booleans, item by item for lists; anything else throws `InvalidFilterValue` |
+| `asBoolean()` | Add a step reading `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` (any case) as booleans, item by item for lists; anything else throws `InvalidFilterValue`. Throws `LogicException` on filters that can't take booleans |
 
 ### Built-in Filter Value Shapes
 

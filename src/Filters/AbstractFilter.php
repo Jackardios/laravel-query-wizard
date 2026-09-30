@@ -217,9 +217,19 @@ abstract class AbstractFilter implements FilterInterface
      * Reads true, false, 1, 0, yes, no, on and off, in any letter case, as PHP
      * booleans; anything else is rejected with a 400. A list is read item by
      * item, unless the filter takes a single value (see supportsBooleanLists()).
+     *
+     * @throws \LogicException When the filter can't take booleans (see supportsBooleanValues())
      */
     public function asBoolean(): static
     {
+        if (! $this->supportsBooleanValues()) {
+            throw new \LogicException(sprintf(
+                'Filter `%s` (%s) does not take booleans, so asBoolean() would reject every value.',
+                $this->getName(),
+                static::class
+            ));
+        }
+
         return $this->prepareValueWith(function (mixed $value): bool|array|null {
             if (! is_array($value)) {
                 return FilterValueParser::boolean($value, $this);
@@ -241,6 +251,16 @@ abstract class AbstractFilter implements FilterInterface
 
             return $booleans === [] ? null : $booleans;
         });
+    }
+
+    /**
+     * Whether the filter can take the booleans asBoolean() produces.
+     *
+     * @api
+     */
+    protected function supportsBooleanValues(): bool
+    {
+        return true;
     }
 
     /**

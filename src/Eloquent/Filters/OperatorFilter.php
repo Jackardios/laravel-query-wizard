@@ -277,4 +277,12 @@ class OperatorFilter extends AbstractFilter
 
         return $builder;
     }
+
+    /**
+     * Only `=` and `!=` compare with a boolean.
+     */
+    protected function supportsBooleanValues(): bool
+    {
+        return $this->operator === FilterOperator::EQUAL || $this->operator === FilterOperator::NOT_EQUAL;
+    }
 }

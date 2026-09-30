@@ -53,4 +53,9 @@ final class TrashedFilter extends AbstractFilter
 
         return $subject;
     }
+
+    protected function supportsBooleanValues(): bool
+    {
+        return false;
+    }
 }

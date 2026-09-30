@@ -106,4 +106,9 @@ abstract class AbstractRangeFilter extends AbstractFilter
     {
         return "Filter `{$this->getName()}` expects an array with `{$this->minKey}`/`{$this->maxKey}` keys or a flat list of two values.";
     }
+
+    protected function supportsBooleanValues(): bool
+    {
+        return false;
+    }
 }

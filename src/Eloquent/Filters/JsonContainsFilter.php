@@ -115,4 +115,9 @@ final class JsonContainsFilter extends AbstractFilter
 
         return $qualifiedBase.'->'.implode('->', $parts);
     }
+
+    protected function supportsBooleanValues(): bool
+    {
+        return false;
+    }
 }

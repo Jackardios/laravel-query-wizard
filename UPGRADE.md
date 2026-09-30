@@ -235,6 +235,9 @@ a later TypeError).
   (it took the alias second, so `make('price', FilterOperator::GREATER_THAN)` was a `TypeError`). Its constructor is
   protected, like the other filters', with the same order.
 - `ParsesRangeValues::normalizeRangeValue()` takes the bound's key as a second argument.
+- `asBoolean()` throws `LogicException` on filters that can't take booleans (partial, range, date range, JSON contains,
+  trashed, operator other than `EQUAL`/`NOT_EQUAL`); such a filter answered every request with a 400. A custom filter
+  opts out by overriding `supportsBooleanValues()`.
 - Filters using `HandlesRelationFiltering` override `resolveConstraint()` instead of `hasEffectiveConstraint()`;
   `applyOnQuery()` receives what it returns. `ExactFilter` returns the value unchanged.
 - Filters override `validateValueShape()` only: `validateIncomingValueShape()`, `validatePreparedValueShape()` and

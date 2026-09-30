@@ -14,8 +14,10 @@ use Jackardios\QueryWizard\Eloquent\Filters\PartialFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\RangeFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\ScopeFilter;
 use Jackardios\QueryWizard\Eloquent\Filters\TrashedFilter;
+use Jackardios\QueryWizard\Enums\FilterOperator;
 use Jackardios\QueryWizard\Filters\CallbackFilter;
 use Jackardios\QueryWizard\Filters\PassthroughFilter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -358,5 +360,48 @@ class FilterDefinitionTest extends TestCase
             ->asBoolean();
 
         $this->assertNull($filter->prepareValue('true'));
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(): FilterInterface}>
+     */
+    public static function filtersWithoutBooleans(): iterable
+    {
+        yield 'partial' => [fn () => EloquentFilter::partial('name')];
+        yield 'range' => [fn () => EloquentFilter::range('id')];
+        yield 'dateRange' => [fn () => EloquentFilter::dateRange('created_at')];
+        yield 'jsonContains' => [fn () => EloquentFilter::jsonContains('tags')];
+        yield 'trashed' => [fn () => EloquentFilter::trashed()];
+        yield 'operator >' => [fn () => EloquentFilter::operator('id', FilterOperator::GREATER_THAN)];
+        yield 'operator LIKE' => [fn () => EloquentFilter::operator('name', FilterOperator::LIKE)];
+        yield 'operator DYNAMIC' => [fn () => EloquentFilter::operator('id', FilterOperator::DYNAMIC)];
+    }
+
+    #[Test]
+    #[DataProvider('filtersWithoutBooleans')]
+    public function as_boolean_throws_on_filters_that_do_not_take_booleans(\Closure $make): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('does not take booleans');
+
+        $make()->asBoolean();
+    }
+
+    #[Test]
+    public function as_boolean_is_accepted_by_filters_that_take_booleans(): void
+    {
+        $filters = [
+            EloquentFilter::exact('active'),
+            EloquentFilter::operator('active', FilterOperator::EQUAL),
+            EloquentFilter::operator('active', FilterOperator::NOT_EQUAL),
+            EloquentFilter::scope('active'),
+            EloquentFilter::null('deleted_at'),
+            EloquentFilter::callback('active', fn () => null),
+            EloquentFilter::passthrough('active'),
+        ];
+
+        foreach ($filters as $filter) {
+            $this->assertSame($filter, $filter->asBoolean());
+        }
     }
 }

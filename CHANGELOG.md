@@ -61,6 +61,9 @@ Changed:
   (an alias, a count sort) uses it, and one that `disallowed*()` removes throws `InvalidArgumentException`. Each kind
   followed its own rule: defaults outside the allow-list were dropped silently, except sorts, whose defaults any
   `allowedSorts()` or unrelated `disallowedSorts()` call turned off.
+- `asBoolean()` throws `LogicException` on partial, range, date range, JSON contains and trashed filters and on operator
+  filters other than `EQUAL`/`NOT_EQUAL`, which turned every request into a 400. `@api` hook:
+  `AbstractFilter::supportsBooleanValues()`.
 - `ModelQueryWizard::process()` throws `LogicException` for a requested include that is not a relationship, count,
   exists or callback include, before changing the model; such an include was accepted and did nothing.
 - A schema whose `model()` is not the wizard's model (or a parent class of it) throws `InvalidArgumentException` in

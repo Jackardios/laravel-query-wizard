@@ -200,7 +200,8 @@ EloquentFilter::exact('status')
 `prepareValueWith()` and `asBoolean()` add steps to one chain that runs in the order the methods were called, each
 step receiving the previous result; a `null` result skips the filter. `asBoolean()` reads a list item by item, so
 `?filter[is_active]=1,0` on an exact filter matches either value; a callback filter takes a single boolean and rejects a
-list.
+list. Filters that cannot compare with a boolean (partial, range, date range, JSON contains, trashed, and operator
+filters other than `EQUAL`/`NOT_EQUAL`) throw `LogicException` from `asBoolean()`.
 
 String values are split by the filters separator (`?filter[status]=active,pending` → `['active', 'pending']`) for every
 filter except `partial` and the `LIKE`/`NOT_LIKE` operators, whose value is a search phrase. Use `withoutValueSplitting()` / `withValueSplitting()` to change
@@ -805,6 +806,7 @@ the supported API:
 | `Support\FilterValueParser` | Read request values the way built-in filters do: `isBlank()`, `boolean()`, `number()`, `isoDate()`, `trashedMode()`, `comparable()`, `defaultTimezone()`; unreadable values throw `InvalidFilterValue` |
 | `InvalidFilterValue::make($value, $filter, $reason)` | The 400 for a value a custom filter cannot read; `$reason` says what was expected. Called on a subclass, it returns that subclass |
 | `Support\ParsedDate` | Result of the date readers: `value` (`DateTimeImmutable`) and `dateOnly`; `upToBound()` and `afterBound()` give the comparison for "on or before" and "after", where a date names its whole day |
+| `AbstractFilter::supportsBooleanValues()` | Return `false` when the filter can't take booleans, so `asBoolean()` throws `LogicException` |
 | `AbstractFilter::supportsBooleanLists()` | Return `false` when `asBoolean()` must reject lists |
 | `resolveConstraint(mixed $value): mixed` | For filters using `HandlesRelationFiltering`: read the value once into what `applyOnQuery()` receives; `null` adds no condition, so no `whereHas` is added |
 | `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |
