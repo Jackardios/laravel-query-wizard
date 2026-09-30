@@ -112,6 +112,14 @@ class ExceptionsTest extends TestCase
     }
 
     #[Test]
+    public function invalid_filter_value_names_booleans_and_null(): void
+    {
+        $this->assertSame('Filter value `true` is invalid for filter `flag`.', InvalidFilterValue::make(true, 'flag')->getMessage());
+        $this->assertSame('Filter value `false` is invalid for filter `flag`.', InvalidFilterValue::make(false, 'flag')->getMessage());
+        $this->assertSame('Filter value `null` is invalid for filter `flag`.', InvalidFilterValue::make(null, 'flag')->getMessage());
+    }
+
+    #[Test]
     public function subclasses_built_with_the_http_exception_signature_get_the_default_code(): void
     {
         $exception = new class(422, 'Invalid range.') extends InvalidQuery {};

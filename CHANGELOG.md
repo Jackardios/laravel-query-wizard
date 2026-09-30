@@ -178,6 +178,8 @@ Removed:
 
 Fixed:
 
+- `InvalidFilterValue` messages print a boolean value as `true`/`false` and null as `null` (a value that
+  `asBoolean()` read as `true` was reported as `1`, and `false` and null as an empty value).
 - Static analysis accepts builders and relations of concrete models: `EloquentQueryWizard::for()`, its constructor and
   `EloquentShape::applyTo()` take `Builder<covariant Model>` and `Relation<covariant Model, covariant Model, *>`, so
   `EloquentQueryWizard::for(User::query())` and `for($user->posts())` no longer fail PHPStan/Larastan with
