@@ -373,6 +373,10 @@ closure, as `with()` does in Laravel; to keep both, read `$query->getEagerLoads(
 yours. Declare attributes a callback include adds with `->withRuntimeAttributes('posts_total')` so sparse fieldsets keep
 them visible.
 
+A callback include's name is read as a relation path, like a relationship include's: `callback('posts.stats', ...)`
+has depth 2 for `limits.max_include_depth`, its runtime attributes belong to the `posts` models, and
+`disallowedIncludes('posts')` removes it. Name an include that does not belong to a relation without dots.
+
 When root sparse fieldsets are applied, explicit or default `count` / `exists` includes remain visible in the serialized output. Their request alias stays request-facing only; the runtime attribute key still follows Laravel's default naming (`posts_count`, `posts_exists`).
 
 ## Selecting Fields

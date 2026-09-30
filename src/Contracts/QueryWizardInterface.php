@@ -16,7 +16,8 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 interface QueryWizardInterface
 {
     /**
-     * Get the resource key for sparse fieldsets.
+     * Get the resource key for sparse fieldsets: the schema's type(), or one
+     * derived from the model's class when there is no schema.
      *
      * Used as the key in ?fields[type]=id,name
      */

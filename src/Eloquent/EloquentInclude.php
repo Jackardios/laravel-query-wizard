@@ -55,6 +55,10 @@ final class EloquentInclude
     /**
      * Create a callback include for custom loading logic.
      *
+     * The name is read as a relation path: dots count toward the include
+     * depth, and the part before the last dot names the relation whose models
+     * get the include's runtime attributes.
+     *
      * @param  string  $name  The include name
      * @param  callable(mixed $query, string $relation): mixed  $callback
      * @param  string|null  $alias  Optional alias for URL parameter name
