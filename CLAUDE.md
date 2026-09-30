@@ -86,7 +86,7 @@ $wizard->getSubject();                  // Get underlying builder without buildi
 | JsonContains | `EloquentFilter::jsonContains('col')` | `?filter[col]=a,b` |
 | Callback | `EloquentFilter::callback('n', fn($q, $v, $p) => ...)` | `?filter[n]=val` |
 | Passthrough | `EloquentFilter::passthrough('n')` | Captured but not applied |
-| Operator | `EloquentFilter::operator('col', FilterOperator::GREATER_THAN)` | `?filter[col]=100` (number or ISO date for `>`/`>=`/`<`/`<=`) |
+| Operator | `EloquentFilter::operator('col', FilterOperator::GREATER_THAN)` (`OperatorFilter::make($col, $op, $alias)`) | `?filter[col]=100` (number or ISO date for `>`/`>=`/`<`/`<=`) |
 | Operator (dynamic) | `EloquentFilter::operator('col', FilterOperator::DYNAMIC)` | `?filter[col]=>=100` (number or ISO date after `>`/`>=`/`<`/`<=`) |
 
 **FilterOperator enum:** `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`, `LIKE`, `NOT_LIKE`, `DYNAMIC`
@@ -175,7 +175,8 @@ abstract class ResourceSchema {
 ],
 ```
 
-Config values are validated when read (`InvalidArgumentException` naming the key); missing keys take the defaults in
+Config values are validated at every `snapshot()` (`InvalidArgumentException` naming the key; unknown keys in
+`parameters`, `naming`, `separators`, `fields`, `limits` throw too); missing keys take the defaults in
 `QueryWizardConfig::DEFAULTS`, which a test keeps equal to `config/query-wizard.php`. Wizards read one snapshot per build;
 the parameters manager reads one from its first read until `reset()` (once per request).
 
@@ -195,11 +196,20 @@ the parameters manager reads one from its first read until `reset()` (once per r
 values they cannot read; `disable_invalid_filter_query_exception` only covers unknown filter names. Whitespace, `,` and
 lists of blanks apply no condition.
 
-### 1. `allowedFilters([])` vs no call
+### 1. `allowedFilters([])` vs no call, and composing lists
 ```php
 ->allowedFilters([])  // FORBIDS all filters (throws InvalidFilterQuery)
 // vs no call = uses schema filters
+->allowedFilters('a')->allowedFilters('b')     // replaces: only b
+->addAllowedFilters('c')                        // adds to the allowed list (or the schema's)
+->disallowedFilters('a')->disallowedFilters('b') // adds up: both disallowed
 ```
+Two allowed definitions with one public name throw `InvalidArgumentException`.
+
+### 1a. Defaults are trusted
+`defaultSorts/Includes/Fields/Appends()` apply without `allowed*()`; a default naming an allowed definition (alias)
+uses it; a default that `disallowed*()` removes throws `InvalidArgumentException`. Schema `defaultFilters()` keys must
+name allowed filters (public/alias names).
 
 ### 2. Count/Exists includes require explicit allowance
 ```php
