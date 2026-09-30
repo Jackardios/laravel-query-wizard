@@ -187,6 +187,9 @@ a later TypeError).
 - A method that neither the wizard nor its builder has throws `BadMethodCallException` naming the wizard before the
   request is read (before: the build ran first, so a typo such as `allowedFilter()` could surface as a 400 blaming the
   request, or as a `BadMethodCallException` naming the Eloquent builder).
+- A schema method that reconfigures the wizard it receives, or a `tap()` callback that reconfigures the wizard during
+  its build, throws `LogicException`. Return the definitions from the schema, or configure the wizard where it is
+  created. A class implementing `QueryWizardInterface` itself adds `schema()` and `getSchema()`.
 - Cloning a wizard that received builder calls or exposed its builder keeps that state: reconfiguring the clone throws
   `LogicException`. Create a new wizard instead.
 - A build that throws is rolled back, so a retry does not apply taps, filters or sorts twice. A builder already handed

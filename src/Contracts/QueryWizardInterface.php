@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Contracts;
 
+use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
+
 /**
  * Common interface for query wizards.
  *
@@ -19,6 +21,17 @@ interface QueryWizardInterface
      * Used as the key in ?fields[type]=id,name
      */
     public function getResourceKey(): string;
+
+    /**
+     * Set the resource schema the wizard falls back to for what is not configured explicitly.
+     *
+     * @param  class-string<ResourceSchemaInterface>|ResourceSchemaInterface  $schema
+     *
+     * @throws \InvalidArgumentException When the schema describes another model
+     */
+    public function schema(string|ResourceSchemaInterface $schema): static;
+
+    public function getSchema(): ?ResourceSchemaInterface;
 
     /**
      * Set allowed includes, replacing the schema's and any earlier call; addAllowedIncludes() adds instead.

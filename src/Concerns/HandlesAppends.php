@@ -9,6 +9,7 @@ use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
+use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
 use Jackardios\QueryWizard\Support\NamePolicy;
 
@@ -379,7 +380,7 @@ trait HandlesAppends
     protected function getEffectiveAppends(): array
     {
         $appends = [
-            ...($this->allowedAppendsExplicitlySet ? $this->allowedAppends : ($this->getSchema()?->appends($this) ?? [])),
+            ...($this->allowedAppendsExplicitlySet ? $this->allowedAppends : ($this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->appends($this)) ?? [])),
             ...$this->addedAllowedAppends,
         ];
 
@@ -398,7 +399,7 @@ trait HandlesAppends
     {
         $defaults = $this->defaultAppendsExplicitlySet
             ? $this->defaultAppends
-            : ($this->getSchema()?->defaultAppends($this) ?? []);
+            : ($this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->defaultAppends($this)) ?? []);
 
         return $this->normalizePublicPaths($defaults);
     }

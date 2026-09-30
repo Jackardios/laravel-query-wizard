@@ -486,6 +486,8 @@ class ModelQueryWizard implements QueryWizardInterface
      */
     protected function invalidateBuild(): void
     {
+        $this->assertNotReadingSchema();
+
         if ($this->processed) {
             throw new \LogicException(
                 'ModelQueryWizard cannot be reconfigured after process() has been called. '

@@ -13,6 +13,7 @@ use Jackardios\QueryWizard\Eloquent\Includes\ExistsInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
+use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
 /**
  * Shared include handling logic for query wizards.
@@ -130,7 +131,7 @@ trait HandlesIncludes
         }
 
         $includes = [
-            ...($this->allowedIncludesExplicitlySet ? $this->allowedIncludes : ($this->getSchema()?->includes($this) ?? [])),
+            ...($this->allowedIncludesExplicitlySet ? $this->allowedIncludes : ($this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->includes($this)) ?? [])),
             ...$this->addedAllowedIncludes,
         ];
 
@@ -230,7 +231,7 @@ trait HandlesIncludes
     {
         $defaults = $this->defaultIncludesExplicitlySet
             ? $this->defaultIncludes
-            : ($this->getSchema()?->defaultIncludes($this) ?? []);
+            : ($this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->defaultIncludes($this)) ?? []);
 
         return $this->normalizePublicPaths($defaults);
     }

@@ -23,10 +23,10 @@ composer format-check                  # Check formatting
 ## Architecture
 
 ```
-BaseQueryWizard (abstract)    # Config API, build logic, no execution
-    ↓
-EloquentQueryWizard           # Filters, sorts, includes, fields, appends → get(), paginate()
-ModelQueryWizard              # Includes, fields, appends only → process()
+QueryWizardInterface              # Include, field and append config, schema(), getSchema()
+├── BaseQueryWizard (abstract)    # Config API, build logic, no execution
+│   └── EloquentQueryWizard       # Filters, sorts, includes, fields, appends → get(), paginate()
+└── ModelQueryWizard              # Includes, fields, appends only → process()
 ```
 
 ### Key Files

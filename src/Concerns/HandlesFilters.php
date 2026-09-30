@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Concerns;
 
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
+use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 
 /**
  * Shared filter handling logic for query wizards.
@@ -56,7 +57,7 @@ trait HandlesFilters
     {
         $filters = $this->allowedFiltersExplicitlySet
             ? $this->allowedFilters
-            : ($this->getSchema()?->filters($this) ?? []);
+            : ($this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->filters($this)) ?? []);
 
         return [...$filters, ...$this->addedAllowedFilters];
     }
@@ -310,6 +311,6 @@ trait HandlesFilters
      */
     protected function getSchemaDefaultFilters(): array
     {
-        return $this->schemaDefaultFilters ??= $this->getSchema()?->defaultFilters($this) ?? [];
+        return $this->schemaDefaultFilters ??= $this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->defaultFilters($this)) ?? [];
     }
 }

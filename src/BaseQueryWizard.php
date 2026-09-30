@@ -203,10 +203,18 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      * This ensures that calling build() after configuration changes
      * will re-apply all filters, sorts, includes, and fields.
      *
+     * @throws \LogicException While the wizard builds or a schema method runs
+     *
      * @api
      */
     protected function invalidateBuild(): void
     {
+        $this->assertNotReadingSchema();
+
+        if ($this->building) {
+            throw new \LogicException('The wizard cannot be reconfigured while it builds.');
+        }
+
         $this->resetBuild($this->built);
     }
 

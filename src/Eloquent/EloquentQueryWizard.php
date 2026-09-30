@@ -512,6 +512,8 @@ class EloquentQueryWizard extends BaseQueryWizard
 
     protected function invalidateBuild(): void
     {
+        $this->assertNotReadingSchema();
+
         if ($this->proxyModified) {
             throw new \LogicException(
                 'Cannot modify query wizard configuration after calling query builder methods (e.g. where(), orderBy()). '

@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Concerns;
 
 use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
+use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Values\Sort;
 
 /**
@@ -58,7 +59,7 @@ trait HandlesSorts
         }
 
         $sorts = [
-            ...($this->allowedSortsExplicitlySet ? $this->allowedSorts : ($this->getSchema()?->sorts($this) ?? [])),
+            ...($this->allowedSortsExplicitlySet ? $this->allowedSorts : ($this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->sorts($this)) ?? [])),
             ...$this->addedAllowedSorts,
         ];
 
@@ -91,7 +92,7 @@ trait HandlesSorts
     {
         $defaults = $this->defaultSortsExplicitlySet
             ? $this->defaultSorts
-            : ($this->getSchema()?->defaultSorts($this) ?? []);
+            : ($this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->defaultSorts($this)) ?? []);
 
         return $this->normalizePublicPaths($defaults);
     }

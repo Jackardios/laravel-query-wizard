@@ -42,6 +42,7 @@ Added:
 - `addAllowedFilters()`, `addAllowedSorts()`, `addAllowedIncludes()`, `addAllowedFields()` and `addAllowedAppends()`
   add to the list set with `allowed*()` or, when none was set, to the schema's (`QueryWizardInterface` gains the
   include, field and append ones). `getConfiguredFilters()` returns the allowed filters before `disallowedFilters()`.
+- `QueryWizardInterface` declares `schema()` and `getSchema()`, which both wizards had.
 - `@api` include contracts: `Contracts\EagerLoadsRelation` (implemented by relationship includes) gives a custom include
   relation fieldsets, relation field and append validation and the disallowed-path check;
   `Contracts\AppliesToModel` (`applyToModel(Model $model): void`, implemented by callback includes) lets
@@ -100,6 +101,9 @@ Changed:
   `InvalidArgumentException` when the wizard builds; it used to be ignored.
 - Allowed filters, sorts or includes sharing a public name throw `InvalidArgumentException`; the last one used to win
   silently (with an empty `count_suffix`, `?include=posts` loaded only the count).
+- Reconfiguring a wizard from a schema method (`includes($wizard)` calling `$wizard->allowedFields()`) or from a
+  `tap()` callback while it builds throws `LogicException`; it changed the configuration the running build had
+  already partly read.
 - `disallowed*()` calls add up; a second call used to replace the first and re-allow what it removed.
 - A call that neither `EloquentQueryWizard` nor its builder handles (a method, macro, named scope or dynamic `where*`)
   throws `BadMethodCallException` naming the wizard before the request is read. A typo such as `allowedFilter()` was

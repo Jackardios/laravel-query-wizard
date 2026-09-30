@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
@@ -32,6 +33,8 @@ trait HandlesConfiguration
         return null;
     }
 
+    private int $schemaReads = 0;
+
     private ?bool $normalizePublicInputMemo = null;
 
     private ?QueryWizardConfig $configSnapshot = null;
@@ -57,6 +60,47 @@ trait HandlesConfiguration
         $this->schema = $schema;
 
         return $this;
+    }
+
+    /**
+     * Call a schema method, or return null without a schema.
+     *
+     * While it runs, reconfiguring the wizard throws: the schema is describing
+     * the configuration being resolved.
+     *
+     * @template TResult
+     *
+     * @param  Closure(ResourceSchemaInterface): TResult  $read
+     * @return TResult|null
+     */
+    protected function readSchema(Closure $read): mixed
+    {
+        $schema = $this->getSchema();
+
+        if ($schema === null) {
+            return null;
+        }
+
+        $this->schemaReads++;
+
+        try {
+            return $read($schema);
+        } finally {
+            $this->schemaReads--;
+        }
+    }
+
+    /**
+     * @throws \LogicException When a schema method is reconfiguring the wizard it describes
+     */
+    protected function assertNotReadingSchema(): void
+    {
+        if ($this->schemaReads > 0) {
+            throw new \LogicException(
+                'A schema method cannot reconfigure the wizard it receives: return the definitions instead, '
+                .'or configure the wizard where it is created.'
+            );
+        }
     }
 
     /**

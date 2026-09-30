@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Concerns;
 use Illuminate\Database\Eloquent\Model;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
+use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\DotNotationTreeBuilder;
 use Jackardios\QueryWizard\Support\ModelPostProcessor;
 use Jackardios\QueryWizard\Support\NamePolicy;
@@ -129,7 +130,7 @@ trait HandlesFields
         if ($this->allowedFieldsExplicitlySet) {
             $fields = $this->allowedFields;
         } else {
-            $schemaFields = $this->getSchema()?->fields($this);
+            $schemaFields = $this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->fields($this));
             $fields = ! empty($schemaFields) ? $schemaFields : [];
         }
 
@@ -156,7 +157,7 @@ trait HandlesFields
             return $this->rootDefaultFields($this->defaultFields);
         }
 
-        $schemaDefaults = $this->getSchema()?->defaultFields($this);
+        $schemaDefaults = $this->readSchema(fn (ResourceSchemaInterface $schema): array => $schema->defaultFields($this));
         if (! empty($schemaDefaults)) {
             return $this->rootDefaultFields($schemaDefaults);
         }
