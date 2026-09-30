@@ -254,6 +254,8 @@ a later TypeError).
 
   An include with a constraint that implements `EagerLoadsRelation` but not `AppliesToModel` throws `LogicException`
   on `ModelQueryWizard`, since loading the bare relation would drop the constraint.
+- A filter implementing `FilterInterface` without extending `AbstractFilter` adds `shouldSplitValues(): bool`,
+  `allowsStructuredInput(): bool` and `validateValueShape(mixed $value): ?string` (return `null` to accept a value).
 - `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` are removed from includes. Only
   `CountInclude` and `ExistsInclude` get the `count_suffix`/`exists_suffix` name; a custom include that relied on them
   sets its alias itself (`$alias ?? $relation.'Count'`).

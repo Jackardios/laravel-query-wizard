@@ -38,6 +38,26 @@ interface FilterInterface
     public function getDefault(): mixed;
 
     /**
+     * Whether string request values are split by the filters separator (`a,b` → ['a', 'b']).
+     */
+    public function shouldSplitValues(): bool;
+
+    /**
+     * Whether the raw request value may be a nested structure that only prepareValue() makes readable.
+     *
+     * When false, validateValueShape() checks the raw value before prepareValue();
+     * the prepared value is checked either way when preparation changed it.
+     */
+    public function allowsStructuredInput(): bool;
+
+    /**
+     * Check the shape of a request value.
+     *
+     * @return string|null Null when the shape is acceptable, otherwise the details for InvalidFilterQuery::invalidFormat() (a 400)
+     */
+    public function validateValueShape(mixed $value): ?string;
+
+    /**
      * Prepare the filter value before applying.
      *
      * Use this to transform, validate, or normalize the value

@@ -86,6 +86,9 @@ Changed:
   exists includes `CountInclude` and `ExistsInclude`, and relationship semantics come from `EagerLoadsRelation`. A
   custom filter whose `getType()` returned `'passthrough'` was never applied, and a custom include returning
   `'relationship'` got fieldsets but no way to apply them to a loaded model.
+- `FilterInterface` declares `shouldSplitValues()`, `allowsStructuredInput()` and `validateValueShape()`, which the
+  wizard called only on `AbstractFilter` subclasses: a filter implementing the interface directly got nested arrays
+  unchecked and could not keep values whole.
 - A schema whose `model()` is not the wizard's model (or a parent class of it) throws `InvalidArgumentException` in
   `schema()` and the `EloquentQueryWizard` and `ModelQueryWizard` constructors.
 - A schema `defaultFilters()` key that names no allowed filter (a typo, a column behind an alias) throws

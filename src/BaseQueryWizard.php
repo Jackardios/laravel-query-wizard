@@ -28,7 +28,6 @@ use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxFilterValuesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
-use Jackardios\QueryWizard\Filters\AbstractFilter;
 use Jackardios\QueryWizard\Filters\PassthroughFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\FilterValueParser;
@@ -597,7 +596,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return null;
         }
 
-        $structuredInputAllowed = $filter instanceof AbstractFilter && $filter->allowsStructuredInput();
+        $structuredInputAllowed = $filter->allowsStructuredInput();
 
         if (! $structuredInputAllowed) {
             $this->validateFilterValueShape($filter, $value);
@@ -627,7 +626,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     protected function resolveFilterValue(FilterInterface $filter): mixed
     {
         $name = $this->normalizePublicPath($filter->getName());
-        $splitValues = ! $filter instanceof AbstractFilter || $filter->shouldSplitValues();
+        $splitValues = $filter->shouldSplitValues();
         [$inRequest, $value] = $this->getOwnFilterValueFromRequest($name, $splitValues);
 
         if ($inRequest) {
@@ -755,10 +754,6 @@ abstract class BaseQueryWizard implements QueryWizardInterface
 
     private function validateFilterValueShape(FilterInterface $filter, mixed $value): void
     {
-        if (! $filter instanceof AbstractFilter) {
-            return;
-        }
-
         $details = $filter->validateValueShape($value);
 
         if ($details !== null) {
