@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Support\ListLimitExceeded;
 use Jackardios\QueryWizard\Support\ParameterParser;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -137,9 +138,9 @@ class ParameterParserTest extends TestCase
         $this->assertCount(2, $result);
         $this->assertInstanceOf(Sort::class, $result[0]);
         $this->assertEquals('name', $result[0]->getField());
-        $this->assertEquals('asc', $result[0]->getDirection());
+        $this->assertSame(SortDirection::Ascending, $result[0]->getDirection());
         $this->assertEquals('created_at', $result[1]->getField());
-        $this->assertEquals('desc', $result[1]->getDirection());
+        $this->assertSame(SortDirection::Descending, $result[1]->getDirection());
     }
 
     #[Test]
@@ -184,7 +185,7 @@ class ParameterParserTest extends TestCase
 
         $result = $parser->parseSorts(['-name', 'created_at', 'name', 7, '-created_at', ' id ', '-7']);
 
-        $this->assertSame(['-name', 'created_at', '7', 'id'], $result->map(fn ($sort) => $sort->getDirection() === 'desc' ? '-'.$sort->getField() : $sort->getField())->all());
+        $this->assertSame(['-name', 'created_at', '7', 'id'], $result->map(fn ($sort) => $sort->isDescending() ? '-'.$sort->getField() : $sort->getField())->all());
     }
 
     #[Test]

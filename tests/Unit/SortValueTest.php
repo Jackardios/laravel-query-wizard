@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Unit;
 
+use InvalidArgumentException;
 use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Values\Sort;
 use PHPUnit\Framework\Attributes\Test;
@@ -17,8 +18,8 @@ class SortValueTest extends TestCase
         $sort = new Sort('name');
 
         $this->assertEquals('name', $sort->getField());
-        $this->assertEquals('asc', $sort->getDirection());
-        $this->assertEquals(SortDirection::Ascending, $sort->getSortDirection());
+        $this->assertSame(SortDirection::Ascending, $sort->getDirection());
+        $this->assertFalse($sort->isDescending());
     }
 
     #[Test]
@@ -27,8 +28,8 @@ class SortValueTest extends TestCase
         $sort = new Sort('-name');
 
         $this->assertEquals('name', $sort->getField());
-        $this->assertEquals('desc', $sort->getDirection());
-        $this->assertEquals(SortDirection::Descending, $sort->getSortDirection());
+        $this->assertSame(SortDirection::Descending, $sort->getDirection());
+        $this->assertTrue($sort->isDescending());
     }
 
     #[Test]
@@ -37,27 +38,25 @@ class SortValueTest extends TestCase
         $sort = new Sort('name', SortDirection::Descending);
 
         $this->assertEquals('name', $sort->getField());
-        $this->assertEquals('desc', $sort->getDirection());
+        $this->assertSame(SortDirection::Descending, $sort->getDirection());
     }
 
     #[Test]
-    public function explicit_direction_overrides_prefix(): void
+    public function a_prefix_and_a_direction_together_are_rejected(): void
     {
-        $sort = new Sort('-name', SortDirection::Ascending);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('has a leading `-` and a direction');
 
-        $this->assertEquals('name', $sort->getField());
-        $this->assertEquals('asc', $sort->getDirection());
+        new Sort('-name', SortDirection::Ascending);
     }
 
     #[Test]
-    public function it_handles_multiple_minus_signs(): void
+    public function more_than_one_leading_minus_is_rejected(): void
     {
-        $sort = new Sort('--name');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('has more than one leading `-`');
 
-        // ltrim removes ALL leading minuses
-        $this->assertEquals('name', $sort->getField());
-        // Still desc because it starts with -
-        $this->assertEquals('desc', $sort->getDirection());
+        new Sort('--name');
     }
 
     #[Test]
@@ -66,23 +65,7 @@ class SortValueTest extends TestCase
         $sort = new Sort('-author.name');
 
         $this->assertEquals('author.name', $sort->getField());
-        $this->assertEquals('desc', $sort->getDirection());
-    }
-
-    #[Test]
-    public function parse_sort_direction_returns_ascending_for_regular_field(): void
-    {
-        $direction = Sort::parseSortDirection('name');
-
-        $this->assertEquals(SortDirection::Ascending, $direction);
-    }
-
-    #[Test]
-    public function parse_sort_direction_returns_descending_for_prefixed_field(): void
-    {
-        $direction = Sort::parseSortDirection('-name');
-
-        $this->assertEquals(SortDirection::Descending, $direction);
+        $this->assertSame(SortDirection::Descending, $sort->getDirection());
     }
 
     #[Test]
@@ -91,7 +74,7 @@ class SortValueTest extends TestCase
         $sort = new Sort('');
 
         $this->assertEquals('', $sort->getField());
-        $this->assertEquals('asc', $sort->getDirection());
+        $this->assertSame(SortDirection::Ascending, $sort->getDirection());
     }
 
     #[Test]
@@ -100,6 +83,6 @@ class SortValueTest extends TestCase
         $sort = new Sort('-');
 
         $this->assertEquals('', $sort->getField());
-        $this->assertEquals('desc', $sort->getDirection());
+        $this->assertSame(SortDirection::Descending, $sort->getDirection());
     }
 }

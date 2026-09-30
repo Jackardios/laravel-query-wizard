@@ -103,7 +103,7 @@ trait HandlesSorts
     protected function extractSortName(string|Sort $sort): string
     {
         if ($sort instanceof Sort) {
-            $prefix = $sort->getDirection() === 'desc' ? '-' : '';
+            $prefix = $sort->isDescending() ? '-' : '';
 
             return $prefix.$sort->getField();
         }

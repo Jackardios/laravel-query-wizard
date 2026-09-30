@@ -131,11 +131,17 @@ Changed:
 - A call that neither `EloquentQueryWizard` nor its builder handles (a method, macro, named scope or dynamic `where*`)
   throws `BadMethodCallException` naming the wizard before the request is read. A typo such as `allowedFilter()` was
   forwarded to the builder after the build, so a request with filters turned it into a 400.
+- `SortInterface::apply()` takes the direction as a `SortDirection` (was `'asc'`/`'desc'`); a custom sort passes
+  `$direction->value` to `orderBy()`. Callback sorts still receive the string. `Values\Sort` is a `final readonly`
+  class with `getDirection(): SortDirection` and `isDescending()`, and its constructor throws
+  `InvalidArgumentException` for a field with two leading `-` or with a leading `-` and a direction. `?sort=--name`
+  is a 400 (`invalid_sort_format`); it ordered by a column named `-name`.
 
 Removed:
 
 - `getType()` from `FilterInterface`, `SortInterface`, `IncludeInterface`, the abstract bases and the built-in
   definitions.
+- `Values\Sort::getSortDirection()` (use `getDirection()->value`) and `Values\Sort::parseSortDirection()`.
 - `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` from `IncludeInterface` and
   `AbstractInclude`: the wizard names count and exists includes without an alias after the `includes.count_suffix`
   and `includes.exists_suffix` settings itself, without changing the definition. `QueryWizardConfig::getIncludeAliasSuffix()` is

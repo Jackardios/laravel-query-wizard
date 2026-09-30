@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Sorts;
 
 use Jackardios\QueryWizard\Contracts\SortInterface;
+use Jackardios\QueryWizard\Enums\SortDirection;
 
 /**
  * Base class for sort implementations.
@@ -104,8 +105,7 @@ abstract class AbstractSort implements SortInterface
      * Apply the sort to the subject.
      *
      * @param  mixed  $subject  The query builder or similar
-     * @param  'asc'|'desc'  $direction  The sort direction
      * @return mixed The modified subject
      */
-    abstract public function apply(mixed $subject, string $direction): mixed;
+    abstract public function apply(mixed $subject, SortDirection $direction): mixed;
 }

@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Sorts;
 
 use Closure;
+use Jackardios\QueryWizard\Enums\SortDirection;
 
 /**
  * Sort using a custom callback function.
  *
- * The callback receives ($subject, $direction, $property) parameters.
+ * The callback receives ($subject, $direction, $property), the direction as 'asc' or 'desc'.
  * A returned object of the subject's class becomes the new subject; any other
  * return value is ignored.
  * This is a generic implementation that can be used across different query builders.
@@ -43,9 +44,9 @@ final class CallbackSort extends AbstractSort
         return new self($property, $callback(...), $alias);
     }
 
-    public function apply(mixed $subject, string $direction): mixed
+    public function apply(mixed $subject, SortDirection $direction): mixed
     {
-        $result = ($this->callback)($subject, $direction, $this->property);
+        $result = ($this->callback)($subject, $direction->value, $this->property);
 
         return is_object($subject) && $result instanceof $subject ? $result : $subject;
     }

@@ -22,6 +22,7 @@ use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentShape;
+use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
@@ -772,7 +773,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Validate the requested (or default) sorts and resolve them to definitions.
      *
-     * @return list<array{SortInterface, 'asc'|'desc'}>
+     * @return list<array{SortInterface, SortDirection}>
      *
      * @throws InvalidSortQuery When requested sort is not allowed
      * @throws MaxSortsCountExceeded When sort count exceeds configured limit
@@ -849,7 +850,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      *
      * @param  list<string>  $defaultSorts
      * @param  array<string, SortInterface>  $sortsIndex
-     * @return list<array{SortInterface, 'asc'|'desc'}>
+     * @return list<array{SortInterface, SortDirection}>
      *
      * @throws \InvalidArgumentException When a default sort is disallowed or over the limit
      */

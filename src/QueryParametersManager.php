@@ -167,7 +167,7 @@ final class QueryParametersManager
 
         foreach ($collection as $sort) {
             $field = $this->convertPath($sort->getField());
-            $sorts[$field] ??= $field === $sort->getField() ? $sort : new Sort($field, $sort->getSortDirection());
+            $sorts[$field] ??= $field === $sort->getField() ? $sort : new Sort($field, $sort->getDirection());
         }
 
         return collect(array_values($sorts));

@@ -141,6 +141,7 @@ a later TypeError).
 - A sort property or alias starting with `-` throws `InvalidArgumentException` (`field('-created_at')` ordered by a
   column named `-created_at`; an alias `-x` answered `?sort=x`). Put the direction in `defaultSorts('-created_at')`.
 - An empty alias on any definition throws `InvalidArgumentException`.
+- `?sort=--name` is a 400 (`invalid_sort_format`); it ordered by a column named `-name`.
 
 ### Includes
 
@@ -271,6 +272,24 @@ a later TypeError).
   `Equal`, `NOT_LIKE` → `NotLike`, `DYNAMIC` → `Dynamic`, and so on. A search for `FilterOperator::[A-Z_]+\b` finds
   them all.
 - `ParsesRangeValues::normalizeRangeValue()` takes the bound's key as a second argument.
+- `SortInterface::apply(mixed $subject, SortDirection $direction)` takes a `SortDirection` instead of `'asc'`/`'desc'`:
+
+  ```php
+  // Before
+  public function apply(mixed $subject, string $direction): mixed
+  {
+      return $subject->orderBy($this->getProperty(), $direction);
+  }
+
+  // After
+  public function apply(mixed $subject, SortDirection $direction): mixed
+  {
+      return $subject->orderBy($this->getProperty(), $direction->value);
+  }
+  ```
+
+  Callback sorts still receive `'asc'` or `'desc'`. `Values\Sort::getSortDirection()` is `getDirection()->value`,
+  `parseSortDirection()` is gone, and `new Sort('-name', SortDirection::Ascending)` throws `InvalidArgumentException`.
 - `getType()` is gone from the contracts and built-in definitions; the wizards no longer read it. A leftover
   `getType()` in a custom class is harmless, but what its string meant now comes from a type:
 

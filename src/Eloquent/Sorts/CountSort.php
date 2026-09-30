@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Eloquent\Sorts;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Sorts\AbstractSort;
 use Jackardios\QueryWizard\Support\EloquentSubject;
 
@@ -39,10 +40,9 @@ final class CountSort extends AbstractSort
 
     /**
      * @param  Builder<Model>  $subject
-     * @param  'asc'|'desc'  $direction
      * @return Builder<Model>
      */
-    public function apply(mixed $subject, string $direction): mixed
+    public function apply(mixed $subject, SortDirection $direction): mixed
     {
         $countColumn = EloquentSubject::aggregateAlias($this->property, 'count');
 
@@ -50,7 +50,7 @@ final class CountSort extends AbstractSort
             $subject->withCount($this->property);
         }
 
-        $subject->orderBy($countColumn, $direction);
+        $subject->orderBy($countColumn, $direction->value);
 
         return $subject;
     }

@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 
 use Illuminate\Http\Request;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Tests\TestCase;
@@ -362,9 +363,9 @@ class QueryParametersManagerTest extends TestCase
         $this->assertCount(2, $sorts);
         $this->assertInstanceOf(Sort::class, $sorts[0]);
         $this->assertEquals('name', $sorts[0]->getField());
-        $this->assertEquals('asc', $sorts[0]->getDirection());
+        $this->assertSame(SortDirection::Ascending, $sorts[0]->getDirection());
         $this->assertEquals('created_at', $sorts[1]->getField());
-        $this->assertEquals('desc', $sorts[1]->getDirection());
+        $this->assertSame(SortDirection::Descending, $sorts[1]->getDirection());
     }
 
     #[Test]
@@ -388,7 +389,7 @@ class QueryParametersManagerTest extends TestCase
 
         $this->assertCount(1, $sorts);
         $this->assertEquals('name', $sorts[0]->getField());
-        $this->assertEquals('asc', $sorts[0]->getDirection());
+        $this->assertSame(SortDirection::Ascending, $sorts[0]->getDirection());
     }
 
     #[Test]
@@ -876,9 +877,9 @@ class QueryParametersManagerTest extends TestCase
 
         $this->assertCount(2, $sorts);
         $this->assertEquals('name', $sorts[0]->getField());
-        $this->assertEquals('asc', $sorts[0]->getDirection());
+        $this->assertSame(SortDirection::Ascending, $sorts[0]->getDirection());
         $this->assertEquals('created_at', $sorts[1]->getField());
-        $this->assertEquals('desc', $sorts[1]->getDirection());
+        $this->assertSame(SortDirection::Descending, $sorts[1]->getDirection());
     }
 
     #[Test]
@@ -1122,7 +1123,7 @@ class QueryParametersManagerTest extends TestCase
 
         $this->assertSame(
             [['created_at', 'asc'], ['name', 'asc']],
-            $manager->getSorts()->map(fn (Sort $sort) => [$sort->getField(), $sort->getDirection()])->all()
+            $manager->getSorts()->map(fn (Sort $sort) => [$sort->getField(), $sort->getDirection()->value])->all()
         );
         $this->assertSame(['related_models'], $manager->getIncludes()->all());
         $this->assertSame(['test_model' => ['first_name', 'id']], $manager->getFields()->all());
@@ -1165,9 +1166,9 @@ class QueryParametersManagerTest extends TestCase
         $sorts = $manager->getSorts();
 
         $this->assertEquals('first_name', $sorts[0]->getField());
-        $this->assertEquals('asc', $sorts[0]->getDirection());
+        $this->assertSame(SortDirection::Ascending, $sorts[0]->getDirection());
         $this->assertEquals('created_at', $sorts[1]->getField());
-        $this->assertEquals('desc', $sorts[1]->getDirection());
+        $this->assertSame(SortDirection::Descending, $sorts[1]->getDirection());
     }
 
     #[Test]

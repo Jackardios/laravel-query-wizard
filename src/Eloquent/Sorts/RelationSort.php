@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Eloquent\Sorts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Sorts\AbstractSort;
 
 /**
@@ -84,15 +85,14 @@ final class RelationSort extends AbstractSort
 
     /**
      * @param  Builder<Model>  $subject
-     * @param  'asc'|'desc'  $direction
      * @return Builder<Model>
      */
-    public function apply(mixed $subject, string $direction): mixed
+    public function apply(mixed $subject, SortDirection $direction): mixed
     {
         $aggregateColumn = Str::snake($this->property).'_'.$this->aggregate.'_'.preg_replace('/[^[:alnum:]_]/u', '', $this->column);
 
         $subject->withAggregate("{$this->property} as {$aggregateColumn}", $this->column, $this->aggregate);
-        $subject->orderBy($aggregateColumn, $direction);
+        $subject->orderBy($aggregateColumn, $direction->value);
 
         return $subject;
     }

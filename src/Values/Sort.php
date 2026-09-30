@@ -4,21 +4,38 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Values;
 
+use InvalidArgumentException;
 use Jackardios\QueryWizard\Enums\SortDirection;
 
-class Sort
+/**
+ * A requested or default sort: a field and its direction.
+ */
+final readonly class Sort
 {
-    protected string $field;
+    private string $field;
 
-    protected SortDirection $direction;
+    private SortDirection $direction;
 
     /**
-     * @param  string  $field  Field name (may include leading '-' for descending)
+     * @param  string  $field  Field name; a leading '-' means descending when no direction is given
+     *
+     * @throws InvalidArgumentException When the field has more than one leading '-', or one together with a direction
      */
     public function __construct(string $field, ?SortDirection $direction = null)
     {
-        $this->field = ltrim($field, '-');
-        $this->direction = $direction ?? self::parseSortDirection($field);
+        $descending = str_starts_with($field, '-');
+        $name = $descending ? substr($field, 1) : $field;
+
+        if (str_starts_with($name, '-')) {
+            throw new InvalidArgumentException("Sort field `{$field}` has more than one leading `-`.");
+        }
+
+        if ($descending && $direction !== null) {
+            throw new InvalidArgumentException("Sort field `{$field}` has a leading `-` and a direction; give one of them.");
+        }
+
+        $this->field = $name;
+        $this->direction = $direction ?? ($descending ? SortDirection::Descending : SortDirection::Ascending);
     }
 
     public function getField(): string
@@ -26,21 +43,13 @@ class Sort
         return $this->field;
     }
 
-    /**
-     * @return 'asc'|'desc'
-     */
-    public function getDirection(): string
-    {
-        return $this->direction->value;
-    }
-
-    public function getSortDirection(): SortDirection
+    public function getDirection(): SortDirection
     {
         return $this->direction;
     }
 
-    public static function parseSortDirection(string $field): SortDirection
+    public function isDescending(): bool
     {
-        return str_starts_with($field, '-') ? SortDirection::Descending : SortDirection::Ascending;
+        return $this->direction === SortDirection::Descending;
     }
 }

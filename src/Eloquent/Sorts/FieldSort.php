@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Eloquent\Sorts;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Sorts\AbstractSort;
 
 /**
@@ -26,13 +27,12 @@ final class FieldSort extends AbstractSort
 
     /**
      * @param  Builder<Model>  $subject
-     * @param  'asc'|'desc'  $direction
      * @return Builder<Model>
      */
-    public function apply(mixed $subject, string $direction): mixed
+    public function apply(mixed $subject, SortDirection $direction): mixed
     {
         $column = $subject->qualifyColumn($this->property);
-        $subject->orderBy($column, $direction);
+        $subject->orderBy($column, $direction->value);
 
         return $subject;
     }

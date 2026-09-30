@@ -17,6 +17,7 @@ use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentQueryWizard;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
+use Jackardios\QueryWizard\Enums\SortDirection;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
@@ -387,7 +388,7 @@ class QueryWizardTest extends TestCase
 
         $this->assertCount(2, $sorts);
         $this->assertEquals('name', $sorts[0]->getField());
-        $this->assertEquals('desc', $sorts[0]->getDirection());
+        $this->assertSame(SortDirection::Descending, $sorts[0]->getDirection());
     }
 
     // ========== Schema with Definitions Tests ==========

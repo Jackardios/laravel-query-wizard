@@ -508,6 +508,17 @@ class SortTest extends TestCase
 
     // ========== Edge Cases ==========
     #[Test]
+    public function a_sort_with_two_leading_minuses_is_a_format_error(): void
+    {
+        try {
+            $this->createEloquentWizardWithSorts('--name')->allowedSorts('name')->toQuery();
+            $this->fail('Expected InvalidSortQuery');
+        } catch (InvalidSortQuery $e) {
+            $this->assertSame('invalid_sort_format', $e->errorCode);
+        }
+    }
+
+    #[Test]
     #[DataProvider('emptySortValues')]
     public function it_rejects_an_empty_sort(string|array $sort): void
     {
