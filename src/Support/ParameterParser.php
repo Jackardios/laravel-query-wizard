@@ -32,6 +32,7 @@ final class ParameterParser
      *
      * @return Collection<int, string>
      *
+     * @throws \InvalidArgumentException When an array is keyed or holds a nested list
      * @throws ListLimitExceeded When the list names more than $maxCount distinct items
      */
     public function parseList(mixed $value, ?int $maxCount = null): Collection
@@ -46,6 +47,7 @@ final class ParameterParser
      *
      * @return Collection<int, Sort>
      *
+     * @throws \InvalidArgumentException When an array is keyed or holds a nested list
      * @throws ListLimitExceeded When the list sorts by more than $maxCount distinct fields
      */
     public function parseSorts(mixed $value, ?int $maxCount = null): Collection
@@ -86,7 +88,7 @@ final class ParameterParser
      *
      * @return Collection<string, array<string>>
      *
-     * @throws \InvalidArgumentException When a list holds a nested list
+     * @throws \InvalidArgumentException When a list is keyed or holds a nested list
      * @throws ListLimitExceeded When the groups name more than $maxCount distinct fields together
      */
     public function parseFields(mixed $value, ?int $maxCount = null): Collection
@@ -109,13 +111,7 @@ final class ParameterParser
         $seen = [];
 
         foreach ($value as $group => $fields) {
-            if (is_string($fields)) {
-                $fields = $this->items($fields);
-            } elseif (is_iterable($fields)) {
-                $this->assertFlatList($fields);
-            } else {
-                $fields = [];
-            }
+            $fields = is_string($fields) || is_iterable($fields) ? $this->items($fields) : [];
 
             $grouped[$group] = $this->distinctItems($fields, $maxCount, $seen, (string) $group);
         }
@@ -125,14 +121,18 @@ final class ParameterParser
     }
 
     /**
-     * @param  iterable<mixed>  $items
+     * @param  array<mixed>  $items
      *
-     * @phpstan-assert iterable<scalar|null> $items
+     * @phpstan-assert array<int, scalar|null> $items
      *
      * @throws \InvalidArgumentException
      */
-    private function assertFlatList(iterable $items): void
+    private function assertFlatList(array $items): void
     {
+        if (! array_is_list($items)) {
+            throw new \InvalidArgumentException('Keyed lists are not supported.');
+        }
+
         foreach ($items as $item) {
             if (is_array($item) || is_object($item)) {
                 throw new \InvalidArgumentException('Nested lists are not supported.');
@@ -253,7 +253,32 @@ final class ParameterParser
             return $this->split($value);
         }
 
-        return is_iterable($value) ? $value : [];
+        if (is_array($value)) {
+            $this->assertFlatList($value);
+
+            return $value;
+        }
+
+        return is_iterable($value) ? self::flatItems($value) : [];
+    }
+
+    /**
+     * The items of an iterable, checked one at a time so a reader that stops early never reads the rest.
+     *
+     * @param  iterable<mixed>  $items
+     * @return \Generator<int, mixed>
+     *
+     * @throws \InvalidArgumentException When an item is a nested list
+     */
+    private static function flatItems(iterable $items): \Generator
+    {
+        foreach ($items as $item) {
+            if (is_array($item) || is_object($item)) {
+                throw new \InvalidArgumentException('Nested lists are not supported.');
+            }
+
+            yield $item;
+        }
     }
 
     /**

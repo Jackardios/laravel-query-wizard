@@ -11,7 +11,9 @@ use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
+use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidRequestBody;
+use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFieldsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
@@ -675,6 +677,34 @@ class QueryParametersManager
     }
 
     /**
+     * @return Collection<int, string>
+     *
+     * @throws ListLimitExceeded
+     */
+    private function parseListParameter(string $type, mixed $rawValue, ?int $limit): Collection
+    {
+        try {
+            return $this->getParser($type)->parseList($rawValue, $limit);
+        } catch (\InvalidArgumentException $exception) {
+            throw InvalidIncludeQuery::invalidFormat($exception->getMessage());
+        }
+    }
+
+    /**
+     * @return Collection<int, Sort>
+     *
+     * @throws ListLimitExceeded
+     */
+    private function parseSortsParameter(mixed $rawValue, ?int $limit): Collection
+    {
+        try {
+            return $this->getParser('sorts')->parseSorts($rawValue, $limit);
+        } catch (\InvalidArgumentException $exception) {
+            throw InvalidSortQuery::invalidFormat($exception->getMessage());
+        }
+    }
+
+    /**
      * Parse a list parameter, counting its distinct items against the limit as it is read.
      *
      * @return Collection<int, string>|Collection<int, Sort>|Collection<string, array<string>>
@@ -694,8 +724,8 @@ class QueryParametersManager
         try {
             return match ($type) {
                 'fields', 'appends' => $this->convertFieldsCollection($this->parseFieldsParameter($type, $rawValue, $limit)),
-                'includes' => $this->convertListCollection($this->getParser($type)->parseList($rawValue, $limit)),
-                default => $this->convertSortsCollection($this->getParser($type)->parseSorts($rawValue, $limit)),
+                'includes' => $this->convertListCollection($this->parseListParameter($type, $rawValue, $limit)),
+                default => $this->convertSortsCollection($this->parseSortsParameter($rawValue, $limit)),
             };
         } catch (ListLimitExceeded $exception) {
             $maxCount = (int) $limit;

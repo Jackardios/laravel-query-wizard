@@ -721,12 +721,13 @@ All exceptions extend `InvalidQuery` (extends Symfony's `HttpException`, status 
 | `InvalidFilterQuery` | `invalid_filter_format` | Malformed `filter` payload |
 | `InvalidFilterValue` | `invalid_filter_value` | A value the filter cannot read (see `$reason`, `$filterName`, `$filterValue`) |
 | `InvalidSortQuery` | `sort_not_allowed` | Unknown sort |
-| `InvalidSortQuery` | `invalid_sort_format` | Empty or malformed `sort` |
+| `InvalidSortQuery` | `invalid_sort_format` | Empty `sort`, or nested or keyed lists in it |
 | `InvalidIncludeQuery` | `include_not_allowed` | Unknown or disallowed include |
+| `InvalidIncludeQuery` | `invalid_include_format` | Nested or keyed lists in `include` |
 | `InvalidFieldQuery` | `field_not_allowed` | Unknown or disallowed field |
-| `InvalidFieldQuery` | `invalid_field_format` | Nested lists, a dotted name inside a fieldset, or a name that is not a valid column identifier |
+| `InvalidFieldQuery` | `invalid_field_format` | Nested or keyed lists, a dotted name inside a fieldset, or a name that is not a valid column identifier |
 | `InvalidAppendQuery` | `append_not_allowed` | Unknown or disallowed append |
-| `InvalidAppendQuery` | `invalid_append_format` | Nested lists in `append` |
+| `InvalidAppendQuery` | `invalid_append_format` | Nested or keyed lists in `append` |
 | `InvalidRequestBody` | `invalid_request_body` | Malformed or non-object JSON body in `body` mode |
 | `MaxFiltersCountExceeded` | `max_filters_count_exceeded` | Too many filters |
 | `MaxFilterValuesCountExceeded` | `max_filter_values_count_exceeded` | Too many values for one filter |

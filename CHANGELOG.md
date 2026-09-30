@@ -37,6 +37,8 @@ Added:
   columns (selected, hidden unless requested); `postProcess($results)` applies the fieldsets and appends to a model, a
   collection, a paginator or an array. `EloquentQueryWizard` runs the same steps.
 - `@api`: `normalizePublicPath()` and `resolveDefaultResourceKey()`.
+- `InvalidIncludeQuery::invalidFormat()` (`invalid_include_format`), and `$message`/`$errorCode` constructor parameters
+  like the other `Invalid*Query` exceptions.
 - `addAllowedFilters()`, `addAllowedSorts()`, `addAllowedIncludes()`, `addAllowedFields()` and `addAllowedAppends()`
   add to the list set with `allowed*()` or, when none was set, to the schema's (`QueryWizardInterface` gains the
   include, field and append ones). `getConfiguredFilters()` returns the allowed filters before `disallowedFilters()`.
@@ -61,6 +63,9 @@ Changed:
   (an alias, a count sort) uses it, and one that `disallowed*()` removes throws `InvalidArgumentException`. Each kind
   followed its own rule: defaults outside the allow-list were dropped silently, except sorts, whose defaults any
   `allowedSorts()` or unrelated `disallowedSorts()` call turned off.
+- Nested or keyed lists in `include`, `sort`, a fieldset or `append` are a 400 (`invalid_include_format`,
+  `invalid_sort_format`, `invalid_field_format`, `invalid_append_format`): `?include[a][b]=x` was ignored with a 200,
+  `?sort[a][b]=x` got a message about an empty sort, and `?fields[a][b]=x` dropped the key `b`.
 - An empty alias, and a sort property or alias starting with `-`, throw `InvalidArgumentException` when the definition
   is made (an empty alias gave the definition an empty name; `field('-name')` ordered by a column named `-name`).
 - `asBoolean()` throws `LogicException` on partial, range, date range, JSON contains and trashed filters and on operator

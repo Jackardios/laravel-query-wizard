@@ -144,6 +144,8 @@ a later TypeError).
 
 ### Includes
 
+- A nested or keyed `include` list (`?include[a][b]=x`, `?include[a]=posts`) throws `InvalidIncludeQuery` with
+  `invalid_include_format` (before: ignored with a 200). `sort` and fieldsets reject them too.
 - A client include no longer replaces a constraint the developer registered for the same relation
   (`with(['posts' => fn ...])`), a callback include's constraint or a parent include's select. Responses may change.
 - `disallowedIncludes()` also matches a relationship include's relation path, so an alias cannot load a disallowed
