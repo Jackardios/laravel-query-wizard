@@ -31,7 +31,7 @@ requests (see [Includes](#includes)), so flush response caches after deploying.
 | `trashed` | unknown values ignored | `with`, `only`, `without`, `true`, `false` (any case), else 400 (`1`/`0` included) |
 | `range` | bounds bound as strings; non-numeric bound dropped | decimal numbers (no exponents or hex), bound as int/float, else 400 |
 | `dateRange` | any `strtotime()` string bound raw; unparseable bound dropped | a date or an ISO 8601 date-time, else 400; see below |
-| `operator` `DYNAMIC` | non-numeric operand → filter skipped (`>=2024-01-31` never applied) | decimal number or ISO 8601 date after `>`, `>=`, `<`, `<=`, else 400 |
+| `operator` `Dynamic` | non-numeric operand → filter skipped (`>=2024-01-31` never applied) | decimal number or ISO 8601 date after `>`, `>=`, `<`, `<=`, else 400 |
 | `operator` `>`, `>=`, `<`, `<=` | value bound as sent (`name > 'M'`, dates compared as text) | decimal number or ISO 8601 date, else 400; a date names the whole day |
 | `partial` | `true` → `%1%`, `false` → `%%` (matches all) | booleans and objects → 400 (numbers are still searched as text) |
 
@@ -53,7 +53,7 @@ items in a partial or LIKE list are dropped (before: `['foo', ' ']` added `LIKE 
 `default('a,b')` is passed whole, not split.
 
 **Relation filters without a condition add no `whereHas`.** A dotted filter whose value adds nothing (blank, a range
-without bounds, a DYNAMIC operator without a value) no longer adds an unconstrained `whereHas`, which dropped parents
+without bounds, a `Dynamic` operator without a value) no longer adds an unconstrained `whereHas`, which dropped parents
 without related rows. Custom filters using `HandlesRelationFiltering` can override `resolveConstraint()`: it reads the
 value once, returns what `applyOnQuery()` receives, or `null` for no condition.
 
@@ -69,15 +69,15 @@ value once, returns what `applyOnQuery()` receives, or `null` for no condition.
   integers. Use it only on integer columns.
 - `strict()` is removed; strict parsing is the default.
 
-**Dynamic operators** (`FilterOperator::DYNAMIC`): a date operand names the whole day (`>2024-01-31` →
+**Dynamic operators** (`FilterOperator::Dynamic`): a date operand names the whole day (`>2024-01-31` →
 `>= 2024-02-01`, `<=2024-01-31` → `< 2024-02-01`). An operator inside a list (`>=1,3`) → 400 (before: `whereIn` with
 the literal `>=1`). `=`, `!=`, `<>` and plain values are still compared as sent.
 
-**LIKE is literal.** `partial` filters and the `LIKE`/`NOT_LIKE` operators escape `%`, `_` and `!` (`ESCAPE '!'`) on
-every database. Clients that used `%` or `_` as wildcards now match them literally. `LIKE`/`NOT_LIKE` values are no
-longer split by the separator (`->withValueSplitting()` restores it); a list matches any phrase (`NOT_LIKE`: none) instead
+**LIKE is literal.** `partial` filters and the `Like`/`NotLike` operators escape `%`, `_` and `!` (`ESCAPE '!'`) on
+every database. Clients that used `%` or `_` as wildcards now match them literally. `Like`/`NotLike` values are no
+longer split by the separator (`->withValueSplitting()` restores it); a list matches any phrase (`NotLike`: none) instead
 of throwing. On PostgreSQL the column is compared as text, so `partial` works on integer columns (before: 500).
-As a result, the `LIKE`/`NOT_LIKE` operators are case-sensitive on a `citext` column (they were not); `partial`
+As a result, the `Like`/`NotLike` operators are case-sensitive on a `citext` column (they were not); `partial`
 lowercases both sides and is unaffected.
 
 **Value preparers chain.** `prepareValueWith()` adds a step instead of replacing the previous one, and `asBoolean()` is
@@ -265,8 +265,11 @@ a later TypeError).
 - Removed without replacement: `NullFilter::strict()`, `DateRangeFilter::strict()`,
   `OperatorFilter::requiresNumericValue()`, `QueryParametersManager::convertFiltersArray()`.
 - `OperatorFilter::make($property, $operator, $alias)` takes the operator second, like `EloquentFilter::operator()`
-  (it took the alias second, so `make('price', FilterOperator::GREATER_THAN)` was a `TypeError`). Its constructor is
+  (it took the alias second, so `make('price', FilterOperator::GreaterThan)` was a `TypeError`). Its constructor is
   protected, like the other filters', with the same order.
+- `FilterOperator` cases are PascalCase: `FilterOperator::GREATER_THAN` → `FilterOperator::GreaterThan`, `EQUAL` →
+  `Equal`, `NOT_LIKE` → `NotLike`, `DYNAMIC` → `Dynamic`, and so on. A search for `FilterOperator::[A-Z_]+\b` finds
+  them all.
 - `ParsesRangeValues::normalizeRangeValue()` takes the bound's key as a second argument.
 - `getType()` is gone from the contracts and built-in definitions; the wizards no longer read it. A leftover
   `getType()` in a custom class is harmless, but what its string meant now comes from a type:
@@ -335,7 +338,7 @@ a later TypeError).
   `CountInclude` and `ExistsInclude` get the `includes.count_suffix`/`exists_suffix` name; a custom include that relied on them
   sets its alias itself (`$alias ?? $relation.'Count'`).
 - `asBoolean()` throws `LogicException` on filters that can't take booleans (partial, range, date range, JSON contains,
-  trashed, operator other than `EQUAL`/`NOT_EQUAL`); such a filter answered every request with a 400. A custom filter
+  trashed, operator other than `Equal`/`NotEqual`); such a filter answered every request with a 400. A custom filter
   opts out by overriding `supportsBooleanValues()`.
 - Filters using `HandlesRelationFiltering` override `resolveConstraint()` instead of `hasEffectiveConstraint()`;
   `applyOnQuery()` receives what it returns. `ExactFilter` returns the value unchanged.
@@ -361,7 +364,7 @@ a later TypeError).
 
 - [ ] PHP 8.2+, Laravel 12.61.1+ or 13.12.0+
 - [ ] Replace `->strict()` calls on null and date range filters (strict is the default now)
-- [ ] Review boolean, null, trashed, range, date range and DYNAMIC filters for clients that send other values
+- [ ] Review boolean, null, trashed, range, date range and `Dynamic` filters for clients that send other values
 - [ ] Review clients that use `%`/`_` as LIKE wildcards or send `+` unencoded in date offsets
 - [ ] Check chained `prepareValueWith()` calls
 - [ ] Move the renamed config keys (see Configuration) and check limits: `0`/`''`/`false` now throw; missing limits now apply
@@ -972,9 +975,9 @@ EloquentFilter::jsonContains('tags')     // ?filter[tags]=laravel,php
 EloquentFilter::passthrough('context')   // Captured, not applied. Use getPassthroughFilters()
 
 // Operator filter with comparison operators
-EloquentFilter::operator('age', FilterOperator::GREATER_THAN)  // ?filter[age]=18 → age > 18
-EloquentFilter::operator('price', FilterOperator::DYNAMIC)     // ?filter[price]=>=100 → price >= 100
-// Operators: EQUAL, NOT_EQUAL, GREATER_THAN, GREATER_THAN_OR_EQUAL, LESS_THAN, LESS_THAN_OR_EQUAL, LIKE, NOT_LIKE, DYNAMIC
+EloquentFilter::operator('age', FilterOperator::GreaterThan)  // ?filter[age]=18 → age > 18
+EloquentFilter::operator('price', FilterOperator::Dynamic)     // ?filter[price]=>=100 → price >= 100
+// Operators: Equal, NotEqual, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Like, NotLike, Dynamic
 ```
 
 ### Exists Include

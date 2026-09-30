@@ -325,20 +325,20 @@ class FilterValueParserTest extends TestCase
     public static function dynamicValues(): array
     {
         return [
-            'plain value' => ['active', FilterOperator::EQUAL, 'active'],
-            'equals sign is not an operator' => ['=5', FilterOperator::EQUAL, '=5'],
-            'leading space before an operator' => [' >5', FilterOperator::EQUAL, ' >5'],
-            'integer' => [5, FilterOperator::EQUAL, 5],
-            'float' => [1.5, FilterOperator::EQUAL, 1.5],
-            'bool' => [true, FilterOperator::EQUAL, true],
-            'list' => [['a', 'b'], FilterOperator::EQUAL, ['a', 'b']],
-            'greater than or equal' => ['>=10', FilterOperator::GREATER_THAN_OR_EQUAL, 10],
-            'less than or equal' => ['<=10.5', FilterOperator::LESS_THAN_OR_EQUAL, 10.5],
-            'greater than' => ['> 10', FilterOperator::GREATER_THAN, 10],
-            'less than' => ['<-3', FilterOperator::LESS_THAN, -3],
-            'big integer' => ['>123456789012345678901234567890', FilterOperator::GREATER_THAN, '123456789012345678901234567890'],
-            'not equal keeps the raw operand' => ['!= draft ', FilterOperator::NOT_EQUAL, ' draft '],
-            'angle not equal' => ['<>draft', FilterOperator::NOT_EQUAL, 'draft'],
+            'plain value' => ['active', FilterOperator::Equal, 'active'],
+            'equals sign is not an operator' => ['=5', FilterOperator::Equal, '=5'],
+            'leading space before an operator' => [' >5', FilterOperator::Equal, ' >5'],
+            'integer' => [5, FilterOperator::Equal, 5],
+            'float' => [1.5, FilterOperator::Equal, 1.5],
+            'bool' => [true, FilterOperator::Equal, true],
+            'list' => [['a', 'b'], FilterOperator::Equal, ['a', 'b']],
+            'greater than or equal' => ['>=10', FilterOperator::GreaterThanOrEqual, 10],
+            'less than or equal' => ['<=10.5', FilterOperator::LessThanOrEqual, 10.5],
+            'greater than' => ['> 10', FilterOperator::GreaterThan, 10],
+            'less than' => ['<-3', FilterOperator::LessThan, -3],
+            'big integer' => ['>123456789012345678901234567890', FilterOperator::GreaterThan, '123456789012345678901234567890'],
+            'not equal keeps the raw operand' => ['!= draft ', FilterOperator::NotEqual, ' draft '],
+            'angle not equal' => ['<>draft', FilterOperator::NotEqual, 'draft'],
             'bare operator' => ['>=', null, null],
             'operator with blank operand' => ['>=  ', null, null],
             'blank' => ['', null, null],
@@ -368,7 +368,7 @@ class FilterValueParserTest extends TestCase
 
         [$operator, $date] = FilterValueParser::dynamic('<=2024-01-31', 'created_at', $timezone) ?? [null, null];
 
-        $this->assertSame(FilterOperator::LESS_THAN_OR_EQUAL, $operator);
+        $this->assertSame(FilterOperator::LessThanOrEqual, $operator);
         $this->assertInstanceOf(ParsedDate::class, $date);
         $this->assertTrue($date->dateOnly);
         $this->assertSame('2024-01-31 00:00:00 +03:00', $date->value->format('Y-m-d H:i:s P'));

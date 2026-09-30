@@ -362,9 +362,9 @@ class FilterDefinitionTest extends TestCase
         yield 'dateRange' => [fn () => EloquentFilter::dateRange('created_at')];
         yield 'jsonContains' => [fn () => EloquentFilter::jsonContains('tags')];
         yield 'trashed' => [fn () => EloquentFilter::trashed()];
-        yield 'operator >' => [fn () => EloquentFilter::operator('id', FilterOperator::GREATER_THAN)];
-        yield 'operator LIKE' => [fn () => EloquentFilter::operator('name', FilterOperator::LIKE)];
-        yield 'operator DYNAMIC' => [fn () => EloquentFilter::operator('id', FilterOperator::DYNAMIC)];
+        yield 'operator >' => [fn () => EloquentFilter::operator('id', FilterOperator::GreaterThan)];
+        yield 'operator LIKE' => [fn () => EloquentFilter::operator('name', FilterOperator::Like)];
+        yield 'operator DYNAMIC' => [fn () => EloquentFilter::operator('id', FilterOperator::Dynamic)];
     }
 
     #[Test]
@@ -382,8 +382,8 @@ class FilterDefinitionTest extends TestCase
     {
         $filters = [
             EloquentFilter::exact('active'),
-            EloquentFilter::operator('active', FilterOperator::EQUAL),
-            EloquentFilter::operator('active', FilterOperator::NOT_EQUAL),
+            EloquentFilter::operator('active', FilterOperator::Equal),
+            EloquentFilter::operator('active', FilterOperator::NotEqual),
             EloquentFilter::scope('active'),
             EloquentFilter::null('deleted_at'),
             EloquentFilter::callback('active', fn () => null),

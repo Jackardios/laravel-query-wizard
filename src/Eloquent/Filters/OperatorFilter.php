@@ -24,10 +24,10 @@ use Stringable;
  * Supports static operators (=, !=, >, >=, <, <=, LIKE, NOT LIKE) or dynamic
  * operator parsing from the filter value itself.
  *
- * The operand of >, >=, < and <=, static or DYNAMIC, must be a decimal number
+ * The operand of >, >=, < and <=, static or dynamic, must be a decimal number
  * or an ISO 8601 date, read in the application timezone; anything else is
  * rejected with a 400. A date names the whole day, so `<=2024-01-31` matches
- * all of January 31. A DYNAMIC operator without an operand is absent.
+ * all of January 31. A dynamic operator without an operand is absent.
  */
 final class OperatorFilter extends AbstractFilter
 {
@@ -36,7 +36,7 @@ final class OperatorFilter extends AbstractFilter
 
     protected FilterOperator $operator;
 
-    protected function __construct(string $property, FilterOperator $operator = FilterOperator::EQUAL, ?string $alias = null)
+    protected function __construct(string $property, FilterOperator $operator = FilterOperator::Equal, ?string $alias = null)
     {
         parent::__construct($property, $alias);
         $this->operator = $operator;
@@ -48,7 +48,7 @@ final class OperatorFilter extends AbstractFilter
      * @param  FilterOperator  $operator  The comparison operator (default: EQUAL)
      * @param  string|null  $alias  Optional alias for URL parameter name
      */
-    public static function make(string $property, FilterOperator $operator = FilterOperator::EQUAL, ?string $alias = null): static
+    public static function make(string $property, FilterOperator $operator = FilterOperator::Equal, ?string $alias = null): static
     {
         return new self($property, $operator, $alias);
     }
@@ -83,7 +83,7 @@ final class OperatorFilter extends AbstractFilter
     {
         $operator = $this->operator;
 
-        if ($operator === FilterOperator::DYNAMIC) {
+        if ($operator === FilterOperator::Dynamic) {
             [$operator, $value] = $this->parseDynamicOperator($value);
 
             if ($operator === null) {
@@ -117,7 +117,7 @@ final class OperatorFilter extends AbstractFilter
         [$operator, $actualValue] = $value;
 
         if (self::isLike($operator)) {
-            return $this->applyLike($builder, $column, $operator === FilterOperator::NOT_LIKE, (array) $actualValue);
+            return $this->applyLike($builder, $column, $operator === FilterOperator::NotLike, (array) $actualValue);
         }
 
         if (is_array($actualValue)) {
@@ -125,10 +125,10 @@ final class OperatorFilter extends AbstractFilter
         }
 
         $comparison = match ($operator) {
-            FilterOperator::GREATER_THAN => '>',
-            FilterOperator::GREATER_THAN_OR_EQUAL => '>=',
-            FilterOperator::LESS_THAN => '<',
-            FilterOperator::LESS_THAN_OR_EQUAL => '<=',
+            FilterOperator::GreaterThan => '>',
+            FilterOperator::GreaterThanOrEqual => '>=',
+            FilterOperator::LessThan => '<',
+            FilterOperator::LessThanOrEqual => '<=',
             default => null,
         };
 
@@ -143,14 +143,14 @@ final class OperatorFilter extends AbstractFilter
 
     private static function isLike(FilterOperator $operator): bool
     {
-        return $operator === FilterOperator::LIKE || $operator === FilterOperator::NOT_LIKE;
+        return $operator === FilterOperator::Like || $operator === FilterOperator::NotLike;
     }
 
     private static function isComparison(FilterOperator $operator): bool
     {
         return match ($operator) {
-            FilterOperator::GREATER_THAN, FilterOperator::GREATER_THAN_OR_EQUAL,
-            FilterOperator::LESS_THAN, FilterOperator::LESS_THAN_OR_EQUAL => true,
+            FilterOperator::GreaterThan, FilterOperator::GreaterThanOrEqual,
+            FilterOperator::LessThan, FilterOperator::LessThanOrEqual => true,
             default => false,
         };
     }
@@ -231,8 +231,8 @@ final class OperatorFilter extends AbstractFilter
     private static function dateComparison(FilterOperator $operator, ParsedDate $date): array
     {
         [$sqlOperator, $bound] = match ($operator) {
-            FilterOperator::GREATER_THAN => $date->afterBound(),
-            FilterOperator::LESS_THAN_OR_EQUAL => $date->upToBound(),
+            FilterOperator::GreaterThan => $date->afterBound(),
+            FilterOperator::LessThanOrEqual => $date->upToBound(),
             default => [$operator->value, $date],
         };
 
@@ -258,11 +258,11 @@ final class OperatorFilter extends AbstractFilter
             throw InvalidFilterValue::make(
                 $values,
                 $this,
-                'Lists of values are only supported by the = and != operators.'
+                'Lists of values are only supported by the =, !=, LIKE and NOT LIKE operators.'
             );
         }
 
-        if ($operator === FilterOperator::EQUAL) {
+        if ($operator === FilterOperator::Equal) {
             $builder->whereIn($qualifiedColumn, $values);
         } else {
             $builder->whereNotIn($qualifiedColumn, $values);
@@ -276,6 +276,6 @@ final class OperatorFilter extends AbstractFilter
      */
     protected function supportsBooleanValues(): bool
     {
-        return $this->operator === FilterOperator::EQUAL || $this->operator === FilterOperator::NOT_EQUAL;
+        return $this->operator === FilterOperator::Equal || $this->operator === FilterOperator::NotEqual;
     }
 }

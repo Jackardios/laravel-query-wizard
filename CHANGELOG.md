@@ -57,6 +57,11 @@ Added:
 
 Changed:
 
+- `FilterOperator` cases are PascalCase, like `SortDirection`'s: `Equal`, `NotEqual`, `GreaterThan`,
+  `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Like`, `NotLike`, `Dynamic` (were `EQUAL`, … `DYNAMIC`). The
+  values are unchanged, so `FilterOperator::from('>=')` still works. `supportsArrayValues()` and `getSqlOperator()` are
+  `@internal`. The error for a list sent to a comparison operator names `LIKE` and `NOT LIKE` among the operators that
+  take lists.
 - Configuration keys are grouped: `includes.count_suffix`/`exists_suffix`, `filters.apply_default_on_null`,
   `separators.default` (was `array_value_separator`) and `ignore_unknown.{filters,sorts,includes,fields,appends}` (was
   `disable_invalid_*_query_exception`). A published config with an old key throws `InvalidArgumentException` naming its
@@ -92,7 +97,7 @@ Changed:
 - An empty alias, and a sort property or alias starting with `-`, throw `InvalidArgumentException` when the definition
   is made (an empty alias gave the definition an empty name; `field('-name')` ordered by a column named `-name`).
 - `asBoolean()` throws `LogicException` on partial, range, date range, JSON contains and trashed filters and on operator
-  filters other than `EQUAL`/`NOT_EQUAL`, which turned every request into a 400. `@api` hook:
+  filters other than `Equal`/`NotEqual`, which turned every request into a 400. `@api` hook:
   `AbstractFilter::supportsBooleanValues()`.
 - `ModelQueryWizard::process()` throws `LogicException` for a requested include that is not a relationship, count or
   exists include and does not implement `AppliesToModel`, before changing the model; such an include was accepted and
@@ -173,9 +178,9 @@ Documentation:
 
 Changed:
 
-- Static `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN` and `LESS_THAN_OR_EQUAL` operators read their value like
-  the operand of a DYNAMIC comparison: a decimal number or an ISO 8601 date, else a 400. A date names the whole day, so
-  `LESS_THAN_OR_EQUAL` with `2024-01-31` matches all of January 31. A text value (`name > 'M'`) is now a 400.
+- Static `GreaterThan`, `GreaterThanOrEqual`, `LessThan` and `LessThanOrEqual` operators read their value like
+  the operand of a `Dynamic` comparison: a decimal number or an ISO 8601 date, else a 400. A date names the whole day, so
+  `LessThanOrEqual` with `2024-01-31` matches all of January 31. A text value (`name > 'M'`) is now a 400.
 - Sparse fieldsets always keep the key columns eager loading needs; the `optimizations.relation_select_mode` option is
   gone (its `'off'` mode left relations unmatched when a fieldset left out their keys). A published key is ignored.
 - Filters using `HandlesRelationFiltering` override `resolveConstraint()` instead of `hasEffectiveConstraint()`: it
@@ -208,7 +213,7 @@ Changed:
 Fixed:
 
 - `chunk()`, `chunkById()` and `chunkByIdDesc()` pass the page number to the callback.
-- Range and DYNAMIC comparisons with fractions or integers beyond 64 bits work on PostgreSQL integer columns (they were
+- Range and `Dynamic` comparisons with fractions or integers beyond 64 bits work on PostgreSQL integer columns (they were
   500s).
 - Two fieldsets for one relation, such as a relation and its alias, merge regardless of their order.
 - A configuration call the wizard refuses leaves it unchanged.
@@ -265,13 +270,13 @@ Removed:
 ### Changed
 
 - Filter values a filter cannot read are rejected with a 400 instead of skipping the filter: `asBoolean()`, null,
-  trashed, range, date range, DYNAMIC operator and partial filters.
+  trashed, range, date range, `Dynamic` operator and partial filters.
 - Blank filter values (whitespace, `,`, lists of blanks) are absent, and blank items are dropped from partial and LIKE
   lists; relation filters without a condition add no `whereHas`.
 - Date range bounds must be dates or ISO 8601 date-times, are read in the application timezone, and a date-only `to`
   covers the whole day. `dateFormat()` formats every bound.
-- DYNAMIC operators compare ISO dates and decimal numbers; operators inside lists are rejected.
-- `LIKE`/`NOT_LIKE` operators match literally, accept lists and do not split values by default.
+- `Dynamic` operators compare ISO dates and decimal numbers; operators inside lists are rejected.
+- `Like`/`NotLike` operators match literally, accept lists and do not split values by default.
 - `prepareValueWith()` calls chain instead of replacing each other.
 - Scope filters check the number of values, and each value's type, against the scope's signature.
 - Range filter lists must hold exactly two values, and range arrays only their boundary keys.

@@ -26,7 +26,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $model->name])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::EQUAL))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Equal))
             ->get();
 
         $this->assertCount(1, $models);
@@ -38,7 +38,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $model = TestModel::factory()->create(['name' => 'test', 'id' => 1000]);
 
-        $filter = OperatorFilter::make('id', FilterOperator::GREATER_THAN, 'min_id');
+        $filter = OperatorFilter::make('id', FilterOperator::GreaterThan, 'min_id');
         $models = $this->createEloquentWizardWithFilters(['min_id' => 999])->allowedFilters($filter)->get();
 
         $this->assertSame('min_id', $filter->getName());
@@ -52,7 +52,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $model->name])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NOT_EQUAL))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NotEqual))
             ->get();
 
         $this->assertCount(4, $models);
@@ -66,7 +66,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => 999])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GREATER_THAN))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GreaterThan))
             ->get();
 
         $this->assertTrue($models->contains('id', $model->id));
@@ -78,7 +78,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => $this->models->first()->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GREATER_THAN_OR_EQUAL))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GreaterThanOrEqual))
             ->get();
 
         $this->assertCount(5, $models);
@@ -89,7 +89,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => $this->models->last()->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::LESS_THAN))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::LessThan))
             ->get();
 
         $this->assertCount(4, $models);
@@ -101,7 +101,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => $this->models->last()->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::LESS_THAN_OR_EQUAL))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::LessThanOrEqual))
             ->get();
 
         $this->assertCount(5, $models);
@@ -114,7 +114,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'unique_test'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Like))
             ->get();
 
         $this->assertCount(1, $models);
@@ -128,7 +128,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'unique_special'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NOT_LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NotLike))
             ->get();
 
         $this->assertCount(5, $models);
@@ -143,11 +143,11 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $byId = $this
             ->createEloquentWizardWithFilters(['id' => $model->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->toQuery();
         $byFlag = $this
             ->createEloquentWizardWithFilters(['is_visible' => true])
-            ->allowedFilters(EloquentFilter::operator('is_visible', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('is_visible', FilterOperator::Dynamic))
             ->toQuery();
 
         $this->assertSame('select * from "test_models" where "test_models"."id" = ?', $byId->toSql());
@@ -165,7 +165,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
         $models = $this
             ->createEloquentWizardWithFilters(['created_at' => 'ignored'])
             ->allowedFilters(
-                EloquentFilter::operator('created_at', FilterOperator::DYNAMIC)
+                EloquentFilter::operator('created_at', FilterOperator::Dynamic)
                     ->prepareValueWith(fn () => $model->created_at->toDateTimeImmutable())
             )
             ->get();
@@ -180,7 +180,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '>1999'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertTrue($models->contains('id', $model->id));
@@ -193,7 +193,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '>=3000'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertTrue($models->contains('id', $model->id));
@@ -204,7 +204,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '<'.$this->models->last()->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(4, $models);
@@ -215,7 +215,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '<='.$this->models->last()->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(5, $models);
@@ -228,7 +228,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '!='.$model->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(4, $models);
@@ -242,7 +242,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '<>'.$model->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(4, $models);
@@ -256,7 +256,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $model->name])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(1, $models);
@@ -268,7 +268,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => ''])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(5, $models);
@@ -279,7 +279,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '>='])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(5, $models);
@@ -294,7 +294,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $names])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::EQUAL))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Equal))
             ->get();
 
         $this->assertCount(2, $models);
@@ -308,7 +308,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $names])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NOT_EQUAL))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NotEqual))
             ->get();
 
         $this->assertCount(3, $models);
@@ -319,12 +319,12 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $this->expectException(InvalidFilterValue::class);
         $this->expectExceptionMessage(
-            'Filter value `[1,2,3]` is invalid for filter `id`. Lists of values are only supported by the = and != operators.'
+            'Filter value `[1,2,3]` is invalid for filter `id`. Lists of values are only supported by the =, !=, LIKE and NOT LIKE operators.'
         );
 
         $this
             ->createEloquentWizardWithFilters(['id' => [1, 2, 3]])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GREATER_THAN))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GreaterThan))
             ->get();
     }
 
@@ -336,7 +336,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $names = $this
             ->createEloquentWizardWithFilters(['name' => ['first_m', 'second_m']])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Like))
             ->get()
             ->pluck('name')
             ->sort()
@@ -351,7 +351,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['relatedModels.name' => 'x'])
-            ->allowedFilters(EloquentFilter::operator('relatedModels.name', FilterOperator::LIKE)->prepareValueWith(fn () => ' '))
+            ->allowedFilters(EloquentFilter::operator('relatedModels.name', FilterOperator::Like)->prepareValueWith(fn () => ' '))
             ->toQuery()
             ->toSql();
 
@@ -366,7 +366,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => ['first_m', ' ']])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Like))
             ->get();
 
         $this->assertSame([$target->id], $models->modelKeys());
@@ -380,7 +380,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $names = $this
             ->createEloquentWizardWithFilters(['name' => ['first_m', 'second_m']])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NOT_LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::NotLike))
             ->get()
             ->pluck('name');
 
@@ -397,7 +397,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $names = $this
             ->createEloquentWizardWithFilters(['name' => 'a_c 100%'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Like))
             ->get()
             ->pluck('name')
             ->all();
@@ -410,12 +410,12 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $whole = $this
             ->createEloquentWizardWithFilters(['name' => 'Moscow, Russia'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Like))
             ->toQuery();
 
         $split = $this
             ->createEloquentWizardWithFilters(['name' => 'Moscow,Russia'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE)->withValueSplitting())
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Like)->withValueSplitting())
             ->toQuery();
 
         $this->assertSame(['%Moscow, Russia%'], $whole->getBindings());
@@ -429,7 +429,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '1'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::LIKE))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Like))
             ->get();
 
         $this->assertEqualsCanonicalizing($expected, $models->modelKeys());
@@ -440,7 +440,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['name' => []])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::EQUAL))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Equal))
             ->get();
 
         $this->assertCount(5, $models);
@@ -454,7 +454,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => $names])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(2, $models);
@@ -466,7 +466,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['id' => 100])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GREATER_THAN))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GreaterThan))
             ->toQuery()
             ->toSql();
 
@@ -478,7 +478,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['name' => 'test'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Like))
             ->toQuery()
             ->toSql();
 
@@ -493,7 +493,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => 'substring'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::LIKE))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Like))
             ->get();
 
         $this->assertCount(1, $models);
@@ -508,7 +508,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['price' => $model->id])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::EQUAL)->alias('price'))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Equal)->alias('price'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -521,7 +521,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardFromQuery()
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::EQUAL)->default('default_value'))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Equal)->default('default_value'))
             ->get();
 
         $this->assertCount(1, $models);
@@ -530,7 +530,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     #[Test]
     public function it_returns_correct_type(): void
     {
-        $filter = EloquentFilter::operator('name', FilterOperator::EQUAL);
+        $filter = EloquentFilter::operator('name', FilterOperator::Equal);
 
         $this->assertInstanceOf(OperatorFilter::class, $filter);
     }
@@ -538,9 +538,9 @@ class OperatorFilterTest extends EloquentFilterTestCase
     #[Test]
     public function it_returns_correct_operator(): void
     {
-        $filter = EloquentFilter::operator('name', FilterOperator::GREATER_THAN);
+        $filter = EloquentFilter::operator('name', FilterOperator::GreaterThan);
 
-        $this->assertEquals(FilterOperator::GREATER_THAN, $filter->getOperator());
+        $this->assertEquals(FilterOperator::GreaterThan, $filter->getOperator());
     }
 
     // ========== Dynamic Operator Numeric Validation Tests ==========
@@ -553,7 +553,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $this
             ->createEloquentWizardWithFilters(['id' => $value])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->toQuery();
     }
 
@@ -579,7 +579,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $query = $this
             ->createEloquentWizardWithFilters(['created_at' => $value])
-            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::Dynamic))
             ->toQuery();
 
         $this->assertStringEndsWith("\"created_at\" {$sqlOperator} ?", $query->toSql());
@@ -591,7 +591,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $ids = fn (string $value): array => $this
             ->createEloquentWizardWithFilters(['id' => $value])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get()
             ->modelKeys();
 
@@ -605,7 +605,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $sql = fn (string $value): string => $this
             ->createEloquentWizardFromQuery(['filter' => ['id' => $value]], $this->postgresQuery())
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->toQuery()
             ->toSql();
 
@@ -622,7 +622,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
         $last = TestModel::factory()->create(['created_at' => '9999-12-31 23:59:59']);
         $wizard = fn (string $value) => $this
             ->createEloquentWizardWithFilters(['created_at' => $value])
-            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::DYNAMIC));
+            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::Dynamic));
 
         $this->assertSame(TestModel::count(), $wizard('<=9999-12-31')->get()->count());
         $this->assertSame([], $wizard('>9999-12-31')->get()->modelKeys());
@@ -664,10 +664,10 @@ class OperatorFilterTest extends EloquentFilterTestCase
     public static function staticComparisons(): array
     {
         return [
-            'after the day' => [FilterOperator::GREATER_THAN, '2024-01-31', '>=', '2024-02-01'],
-            'up to the end of the day' => [FilterOperator::LESS_THAN_OR_EQUAL, '2024-01-31', '<', '2024-02-01'],
-            'from the day' => [FilterOperator::GREATER_THAN_OR_EQUAL, ' 2024-01-31 ', '>=', '2024-01-31'],
-            'integer' => [FilterOperator::LESS_THAN, '007', '<', 7],
+            'after the day' => [FilterOperator::GreaterThan, '2024-01-31', '>=', '2024-02-01'],
+            'up to the end of the day' => [FilterOperator::LessThanOrEqual, '2024-01-31', '<', '2024-02-01'],
+            'from the day' => [FilterOperator::GreaterThanOrEqual, ' 2024-01-31 ', '>=', '2024-01-31'],
+            'integer' => [FilterOperator::LessThan, '007', '<', 7],
         ];
     }
 
@@ -679,7 +679,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $this
             ->createEloquentWizardWithFilters(['name' => 'M'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::GREATER_THAN))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::GreaterThan))
             ->toQuery();
     }
 
@@ -688,7 +688,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $ids = $this
             ->createEloquentWizardWithFilters(['id' => '2.5'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GREATER_THAN))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GreaterThan))
             ->get()
             ->modelKeys();
 
@@ -696,7 +696,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
         $this->assertStringEndsWith(
             'where "test_models"."id" > CAST(? AS numeric)',
             $this->createEloquentWizardFromQuery(['filter' => ['id' => '2.5']], $this->postgresQuery())
-                ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GREATER_THAN))
+                ->allowedFilters(EloquentFilter::operator('id', FilterOperator::GreaterThan))
                 ->toQuery()
                 ->toSql()
         );
@@ -708,7 +708,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
         $query = $this
             ->createEloquentWizardWithFilters(['created_at' => 'ignored'])
             ->allowedFilters(
-                EloquentFilter::operator('created_at', FilterOperator::LESS_THAN)
+                EloquentFilter::operator('created_at', FilterOperator::LessThan)
                     ->prepareValueWith(fn () => new \DateTimeImmutable('2024-01-31 10:00:00'))
             )
             ->toQuery();
@@ -722,7 +722,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $query = $this
             ->createEloquentWizardWithFilters(['created_at' => '<=2024-01-31T10:15:00+03:00'])
-            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('created_at', FilterOperator::Dynamic))
             ->toQuery();
 
         $this->assertStringEndsWith('"created_at" <= ?', $query->toSql());
@@ -734,14 +734,14 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $query = $this
             ->createEloquentWizardWithFilters(['id' => '> 2.5'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->toQuery();
 
         $this->assertSame([2.5], $query->getBindings());
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '> 2'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertEqualsCanonicalizing([3, 4, 5], $models->modelKeys());
@@ -752,7 +752,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['id' => '>=  '])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->toQuery()
             ->toSql();
 
@@ -767,7 +767,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['name' => '!=unique_test_model'])
-            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('name', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(5, $models);
@@ -781,7 +781,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
 
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '>4999'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertTrue($models->contains('id', 5000));
@@ -792,7 +792,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $models = $this
             ->createEloquentWizardWithFilters(['id' => '>=-100'])
-            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('id', FilterOperator::Dynamic))
             ->get();
 
         $this->assertCount(5, $models);
@@ -803,7 +803,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $query = $this
             ->createEloquentWizardWithFilters(['relatedModels.id' => '>=1'])
-            ->allowedFilters(EloquentFilter::operator('relatedModels.id', FilterOperator::DYNAMIC))
+            ->allowedFilters(EloquentFilter::operator('relatedModels.id', FilterOperator::Dynamic))
             ->toQuery();
 
         $this->assertStringContainsString('exists (select', $query->toSql());

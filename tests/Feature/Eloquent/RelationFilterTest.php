@@ -360,8 +360,8 @@ class RelationFilterTest extends EloquentFilterTestCase
             'range-blank' => EloquentFilter::range($property)->prepareValueWith(fn () => ['min' => ' ']),
             'date-range-blank' => EloquentFilter::dateRange($property)->prepareValueWith(fn () => ['from' => ' ', 'to' => '']),
             'null' => EloquentFilter::null($property),
-            'dynamic' => EloquentFilter::operator($property, FilterOperator::DYNAMIC),
-            'operator-empty' => EloquentFilter::operator($property, FilterOperator::EQUAL)->prepareValueWith(fn () => []),
+            'dynamic' => EloquentFilter::operator($property, FilterOperator::Dynamic),
+            'operator-empty' => EloquentFilter::operator($property, FilterOperator::Equal)->prepareValueWith(fn () => []),
         };
     }
 }

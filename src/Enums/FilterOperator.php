@@ -6,28 +6,34 @@ namespace Jackardios\QueryWizard\Enums;
 
 enum FilterOperator: string
 {
-    case EQUAL = '=';
-    case NOT_EQUAL = '!=';
-    case GREATER_THAN = '>';
-    case GREATER_THAN_OR_EQUAL = '>=';
-    case LESS_THAN = '<';
-    case LESS_THAN_OR_EQUAL = '<=';
-    case LIKE = 'LIKE';
-    case NOT_LIKE = 'NOT LIKE';
-    case DYNAMIC = 'dynamic';
+    case Equal = '=';
+    case NotEqual = '!=';
+    case GreaterThan = '>';
+    case GreaterThanOrEqual = '>=';
+    case LessThan = '<';
+    case LessThanOrEqual = '<=';
+    case Like = 'LIKE';
+    case NotLike = 'NOT LIKE';
+    case Dynamic = 'dynamic';
 
+    /**
+     * @internal
+     */
     public function supportsArrayValues(): bool
     {
         return match ($this) {
-            self::EQUAL, self::NOT_EQUAL, self::LIKE, self::NOT_LIKE => true,
+            self::Equal, self::NotEqual, self::Like, self::NotLike => true,
             default => false,
         };
     }
 
+    /**
+     * @internal
+     */
     public function getSqlOperator(): ?string
     {
         return match ($this) {
-            self::DYNAMIC => null,
+            self::Dynamic => null,
             default => $this->value,
         };
     }

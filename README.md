@@ -177,8 +177,8 @@ EloquentQueryWizard::for(User::class)
 | Range | `EloquentFilter::range('price')` | `?filter[price][min]=10&filter[price][max]=100` |
 | Date Range | `EloquentFilter::dateRange('created_at')` | `?filter[created_at][from]=2024-01-01&filter[created_at][to]=2024-12-31` (ISO 8601; `to` includes the whole day) |
 | JSON Contains | `EloquentFilter::jsonContains('tags')` | `?filter[tags]=laravel,php` |
-| Operator | `EloquentFilter::operator('age', FilterOperator::GREATER_THAN)` | `?filter[age]=18` (age > 18; number or ISO date) |
-| Operator (dynamic) | `EloquentFilter::operator('price', FilterOperator::DYNAMIC)` | `?filter[price]=>=100` (price >= 100), `?filter[created_at]=<=2024-01-31` |
+| Operator | `EloquentFilter::operator('age', FilterOperator::GreaterThan)` | `?filter[age]=18` (age > 18; number or ISO date) |
+| Operator (dynamic) | `EloquentFilter::operator('price', FilterOperator::Dynamic)` | `?filter[price]=>=100` (price >= 100), `?filter[created_at]=<=2024-01-31` |
 | Callback | `EloquentFilter::callback('custom', fn($q, $v, $p) => ...)` | `?filter[custom]=value` |
 | Passthrough | `EloquentFilter::passthrough('context')` | Captured but not applied |
 
@@ -201,10 +201,10 @@ EloquentFilter::exact('status')
 step receiving the previous result; a `null` result skips the filter. `asBoolean()` reads a list item by item, so
 `?filter[is_active]=1,0` on an exact filter matches either value; a callback filter takes a single boolean and rejects a
 list. Filters that cannot compare with a boolean (partial, range, date range, JSON contains, trashed, and operator
-filters other than `EQUAL`/`NOT_EQUAL`) throw `LogicException` from `asBoolean()`.
+filters other than `Equal`/`NotEqual`) throw `LogicException` from `asBoolean()`.
 
 String values are split by the filters separator (`?filter[status]=active,pending` → `['active', 'pending']`) for every
-filter except `partial` and the `LIKE`/`NOT_LIKE` operators, whose value is a search phrase. Use `withoutValueSplitting()` / `withValueSplitting()` to change
+filter except `partial` and the `Like`/`NotLike` operators, whose value is a search phrase. Use `withoutValueSplitting()` / `withValueSplitting()` to change
 that per filter; a list sent as `?filter[name][]=a&filter[name][]=b` always arrives as an array.
 
 **Filter-specific modifiers:**
@@ -256,7 +256,7 @@ filter has to read and cannot is rejected with `InvalidFilterValue` (400), whose
 | `trashed` | `with`, `only`, `without` (`true`/`false` for with/without) |
 | `range` | decimal numbers (`10`, `-2.5`); no exponents or hex |
 | `dateRange` | a date (`2024-01-31`) or an ISO 8601 date-time (`2024-01-31T10:00:00+03:00`, `Z`, fractions); see below |
-| `operator` with `>`, `>=`, `<`, `<=` (static or after them with `DYNAMIC`) | a decimal number or an ISO 8601 date |
+| `operator` with `>`, `>=`, `<`, `<=` (static or after them with `Dynamic`) | a decimal number or an ISO 8601 date |
 | `partial` | text or numbers (a boolean is rejected) |
 | `scope` | as many values as the scope takes, each one its parameter's type accepts: `int`/`float` take numbers, `bool` takes the booleans above, a union takes any of its types |
 
@@ -270,9 +270,9 @@ as `%2B`, since an unencoded `+` in a query string is a space. `dateFormat()` fo
 absent, and an operator inside a list (`?filter[price]=>=1,5`) is rejected. `!=`/`<>` and plain values are compared as
 sent.
 
-**LIKE**: `partial` filters and the `LIKE`/`NOT_LIKE` operators match the value literally; `%` and `_` in the value are
-not wildcards. A list matches any of its phrases (`NOT_LIKE`: none of them). On PostgreSQL the column is compared as
-text, so non-text columns work too, and `LIKE`/`NOT_LIKE` are case-sensitive even on a `citext` column. `partial` lowercases both sides; SQLite's `LOWER()` only folds ASCII letters.
+**LIKE**: `partial` filters and the `Like`/`NotLike` operators match the value literally; `%` and `_` in the value are
+not wildcards. A list matches any of its phrases (`NotLike`: none of them). On PostgreSQL the column is compared as
+text, so non-text columns work too, and `Like`/`NotLike` are case-sensitive even on a `citext` column. `partial` lowercases both sides; SQLite's `LOWER()` only folds ASCII letters.
 
 To keep the old "skip what you can't read" behavior for a boolean filter, use your own preparer instead of
 `asBoolean()`:

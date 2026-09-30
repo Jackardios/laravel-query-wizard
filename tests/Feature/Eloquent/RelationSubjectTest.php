@@ -52,7 +52,7 @@ class RelationSubjectTest extends TestCase
         return [
             'exact' => [['name' => 'alpha'], fn ($w) => $w->allowedFilters('name')],
             'partial' => [['name' => 'lph'], fn ($w) => $w->allowedFilters(EloquentFilter::partial('name'))],
-            'operator' => [['name' => 'alpha'], fn ($w) => $w->allowedFilters(EloquentFilter::operator('name', FilterOperator::EQUAL))],
+            'operator' => [['name' => 'alpha'], fn ($w) => $w->allowedFilters(EloquentFilter::operator('name', FilterOperator::Equal))],
             'scope' => [['named' => 'alpha'], fn ($w) => $w->allowedFilters(EloquentFilter::scope('named'))],
             'relation property' => [['nestedRelatedModels.name' => 'deep'], fn ($w) => $w->allowedFilters('nestedRelatedModels.name')],
             'callback' => [['cb' => 'alpha'], fn ($w) => $w->allowedFilters(EloquentFilter::callback('cb', fn ($q, $v) => $q->where('name', $v)))],

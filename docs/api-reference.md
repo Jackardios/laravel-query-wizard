@@ -123,7 +123,7 @@ All configuration methods must be called before `process()`. After processing, c
 | `range($property, $alias)` | Numeric range filter |
 | `dateRange($property, $alias)` | Date range filter |
 | `jsonContains($property, $alias)` | JSON contains filter |
-| `operator($property, $operator, $alias)` | Operator filter (=, !=, >, >=, <, <=, LIKE, NOT LIKE, DYNAMIC) |
+| `operator($property, $operator, $alias)` | Operator filter (=, !=, >, >=, <, <=, LIKE, NOT LIKE, `Dynamic`) |
 | `callback($name, $callback, $alias)` | Custom callback filter |
 | `passthrough($name, $alias)` | Passthrough filter |
 
@@ -169,7 +169,7 @@ Use `allowStructuredInput()` when a built-in filter should intentionally accept 
 | DateRange | `dateFormat($format)` | Format every bound for the column (`'U'` = Unix timestamp) |
 | DateRange | `asUnixTimestamp()` | Integer column of Unix timestamps; also accepts timestamps in the request |
 | DateRange | `lenient()` | Also accept any date PHP can parse (`yesterday`, `-1 week`) |
-| Operator (LIKE, NOT_LIKE) | `withValueSplitting()` | Split the value into phrases (default: one phrase) |
+| Operator (`Like`, `NotLike`) | `withValueSplitting()` | Split the value into phrases (default: one phrase) |
 
 ## Sort Factory Methods (EloquentSort)
 

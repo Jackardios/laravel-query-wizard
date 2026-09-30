@@ -86,10 +86,10 @@ $wizard->getSubject();                  // Get underlying builder without buildi
 | JsonContains | `EloquentFilter::jsonContains('col')` | `?filter[col]=a,b` |
 | Callback | `EloquentFilter::callback('n', fn($q, $v, $p) => ...)` | `?filter[n]=val` |
 | Passthrough | `EloquentFilter::passthrough('n')` | Captured but not applied |
-| Operator | `EloquentFilter::operator('col', FilterOperator::GREATER_THAN)` (`OperatorFilter::make($col, $op, $alias)`) | `?filter[col]=100` (number or ISO date for `>`/`>=`/`<`/`<=`) |
-| Operator (dynamic) | `EloquentFilter::operator('col', FilterOperator::DYNAMIC)` | `?filter[col]=>=100` (number or ISO date after `>`/`>=`/`<`/`<=`) |
+| Operator | `EloquentFilter::operator('col', FilterOperator::GreaterThan)` (`OperatorFilter::make($col, $op, $alias)`) | `?filter[col]=100` (number or ISO date for `>`/`>=`/`<`/`<=`) |
+| Operator (dynamic) | `EloquentFilter::operator('col', FilterOperator::Dynamic)` | `?filter[col]=>=100` (number or ISO date after `>`/`>=`/`<`/`<=`) |
 
-**FilterOperator enum:** `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`, `LIKE`, `NOT_LIKE`, `DYNAMIC`
+**FilterOperator enum:** `Equal`, `NotEqual`, `GreaterThan`, `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Like`, `NotLike`, `Dynamic`
 
 ## Sort & Include Types
 

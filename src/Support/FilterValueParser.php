@@ -305,11 +305,11 @@ final class FilterValueParser
                 }
             }
 
-            return [FilterOperator::EQUAL, $value];
+            return [FilterOperator::Equal, $value];
         }
 
         if (! is_string($value) || preg_match(self::DYNAMIC_OPERATOR_PATTERN, $value, $matches) !== 1) {
-            return [FilterOperator::EQUAL, $value];
+            return [FilterOperator::Equal, $value];
         }
 
         $operand = $matches[2];
@@ -319,14 +319,14 @@ final class FilterValueParser
         }
 
         $operator = match ($matches[1]) {
-            '>=' => FilterOperator::GREATER_THAN_OR_EQUAL,
-            '<=' => FilterOperator::LESS_THAN_OR_EQUAL,
-            '>' => FilterOperator::GREATER_THAN,
-            '<' => FilterOperator::LESS_THAN,
-            default => FilterOperator::NOT_EQUAL,
+            '>=' => FilterOperator::GreaterThanOrEqual,
+            '<=' => FilterOperator::LessThanOrEqual,
+            '>' => FilterOperator::GreaterThan,
+            '<' => FilterOperator::LessThan,
+            default => FilterOperator::NotEqual,
         };
 
-        if ($operator === FilterOperator::NOT_EQUAL) {
+        if ($operator === FilterOperator::NotEqual) {
             return [$operator, $operand];
         }
 
