@@ -15,6 +15,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidFieldQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
+use Jackardios\QueryWizard\Includes\AbstractInclude;
 use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Schema\ResourceSchema;
@@ -587,6 +588,55 @@ class ModelQueryWizardTest extends TestCase
     }
 
     // ========== Default Includes Validation Tests ==========
+
+    #[Test]
+    public function an_include_it_cannot_apply_throws_before_the_model_changes(): void
+    {
+        $include = new class('relatedModels') extends AbstractInclude
+        {
+            public function __construct(string $relation)
+            {
+                parent::__construct($relation);
+            }
+
+            public function getType(): string
+            {
+                return 'latest';
+            }
+
+            public function apply(mixed $subject): mixed
+            {
+                return $subject;
+            }
+        };
+        $this->model->load('otherRelatedModels');
+        $wizard = $this->createModelWizardFromQuery(['include' => 'relatedModels'], $this->model)->allowedIncludes($include);
+
+        try {
+            $wizard->process();
+            $this->fail('Expected LogicException');
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('ModelQueryWizard cannot apply include `relatedModels`', $e->getMessage());
+        }
+
+        $this->assertTrue($this->model->relationLoaded('otherRelatedModels'));
+    }
+
+    #[Test]
+    public function a_callback_include_receives_the_loaded_model(): void
+    {
+        $received = null;
+
+        $this->createModelWizardFromQuery(['include' => 'stats'], $this->model)
+            ->allowedIncludes(EloquentInclude::callback('stats', function (mixed $subject) use (&$received): void {
+                $received = $subject;
+                $subject->loadCount('relatedModels');
+            }))
+            ->process();
+
+        $this->assertSame($this->model, $received);
+        $this->assertNotNull($this->model->related_models_count);
+    }
 
     #[Test]
     public function default_includes_apply_without_being_allowed(): void

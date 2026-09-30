@@ -592,7 +592,9 @@ $processed = ModelQueryWizard::for($user)
 
 | Feature | Behavior |
 |---------|----------|
-| Includes | Loads missing with `loadMissing()` |
+| Includes | Loads missing with `loadMissing()`, counts with `loadCount()`, existence with `loadExists()` |
+| Callback includes | The callback receives the loaded model, not a query: `fn ($model) => $model->loadCount('posts')` |
+| Other include classes | `LogicException` before the model is changed |
 | Fields | Hides non-requested with `makeHidden()` |
 | Appends | Adds with `append()` |
 | Relations not requested | Unset from the model (loaded relations not in `?include` are removed) |

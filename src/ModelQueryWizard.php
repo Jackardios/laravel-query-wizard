@@ -120,6 +120,7 @@ class ModelQueryWizard implements QueryWizardInterface
         $this->validatedRequest = null;
         $effectiveIncludes = $this->getIncludesInUse();
         $requestedIncludeNames = $this->resolveIncludesToApply()[0] ?? [];
+        $this->assertIncludesApplyToModels($effectiveIncludes, $requestedIncludeNames);
         $this->validatedRequest();
         $this->cleanUnwantedRelations($effectiveIncludes, $requestedIncludeNames);
         $this->loadMissingIncludes($effectiveIncludes, $requestedIncludeNames);
@@ -312,6 +313,33 @@ class ModelQueryWizard implements QueryWizardInterface
                         $this->cleanRelationsWithTree($item, $nestedAllowed, $visited);
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * A loaded model takes relationship, count, exists and callback includes;
+     * any other kind is an error rather than an include that does nothing.
+     *
+     * @param  array<IncludeInterface>  $includes
+     * @param  array<string>  $requestedIncludeNames
+     *
+     * @throws \LogicException When a requested include can't be applied to a loaded model
+     */
+    private function assertIncludesApplyToModels(array $includes, array $requestedIncludeNames): void
+    {
+        $index = $this->buildIncludesIndex($includes);
+
+        foreach ($requestedIncludeNames as $name) {
+            $include = $index[$name] ?? null;
+
+            if ($include !== null && ! in_array($include->getType(), ['relationship', 'count', 'exists', 'callback'], true)) {
+                throw new \LogicException(sprintf(
+                    'ModelQueryWizard cannot apply include `%s` (%s) to a loaded model; it takes relationship, count, '
+                    .'exists and callback includes.',
+                    $name,
+                    $include::class
+                ));
             }
         }
     }

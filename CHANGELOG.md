@@ -61,6 +61,8 @@ Changed:
   (an alias, a count sort) uses it, and one that `disallowed*()` removes throws `InvalidArgumentException`. Each kind
   followed its own rule: defaults outside the allow-list were dropped silently, except sorts, whose defaults any
   `allowedSorts()` or unrelated `disallowedSorts()` call turned off.
+- `ModelQueryWizard::process()` throws `LogicException` for a requested include that is not a relationship, count,
+  exists or callback include, before changing the model; such an include was accepted and did nothing.
 - A schema whose `model()` is not the wizard's model (or a parent class of it) throws `InvalidArgumentException` in
   `schema()` and the `EloquentQueryWizard` and `ModelQueryWizard` constructors.
 - A schema `defaultFilters()` key that names no allowed filter (a typo, a column behind an alias) throws

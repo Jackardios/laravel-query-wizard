@@ -118,6 +118,8 @@ a later TypeError).
   instead of being skipped. To turn a schema default off, call `defaultSorts()` (etc.) without arguments.
 - `schema()`, and the wizards' constructors, throw `InvalidArgumentException` for a schema whose `model()` is not the
   wizard's model or a parent of it (before: accepted, so another model's filters and fieldset key applied).
+- `ModelQueryWizard` throws `LogicException` for a requested custom include class (before: skipped silently). A
+  callback include receives the loaded model there, not a query.
 - A schema `defaultFilters()` key that names no allowed filter throws `InvalidArgumentException` when the wizard
   builds (before: ignored, so a typo or a key by column instead of alias dropped the condition). Keys are the filters'
   public names; a filter removed by `disallowedFilters()` still loses its default without an error.
