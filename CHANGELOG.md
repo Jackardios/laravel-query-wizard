@@ -59,6 +59,8 @@ Added:
 - Error code constants: `NOT_ALLOWED` and `INVALID_FORMAT` on `InvalidFilterQuery`, `InvalidSortQuery`,
   `InvalidIncludeQuery`, `InvalidFieldQuery` and `InvalidAppendQuery`, and `ERROR_CODE` on `InvalidFilterValue`,
   `InvalidRequestBody` and the `Max*Exceeded` exceptions.
+- The configuration publishes under the `query-wizard-config` tag (`vendor:publish --tag=query-wizard-config`); the
+  generic `config` tag still works.
 
 Changed:
 

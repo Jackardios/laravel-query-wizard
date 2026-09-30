@@ -34,7 +34,7 @@ The package uses Laravel's auto-discovery, so no additional setup is required.
 ### Publish Configuration (Optional)
 
 ```bash
-php artisan vendor:publish --provider="Jackardios\QueryWizard\QueryWizardServiceProvider" --tag="config"
+php artisan vendor:publish --tag=query-wizard-config
 ```
 
 ## Quick Start

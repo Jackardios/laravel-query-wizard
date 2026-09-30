@@ -77,6 +77,7 @@ class ServiceProviderTest extends TestCase
 
         $this->assertNotEmpty($paths);
         $this->assertStringContainsString('query-wizard.php', array_key_first($paths));
+        $this->assertSame($paths, ServiceProvider::pathsToPublish(group: 'query-wizard-config'));
     }
 
     #[Test]
