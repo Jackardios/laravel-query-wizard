@@ -20,7 +20,11 @@ use Throwable;
 abstract class InvalidQuery extends HttpException
 {
     /**
+     * For custom subclasses.
+     *
      * @param  array<string, string>  $headers
+     *
+     * @api
      */
     public function __construct(
         int $statusCode,

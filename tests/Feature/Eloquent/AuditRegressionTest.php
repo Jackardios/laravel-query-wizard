@@ -42,7 +42,7 @@ class AuditRegressionTest extends TestCase
     public function exact_filter_rejects_malformed_nested_payload(): void
     {
         $this->expectException(InvalidFilterQuery::class);
-        $this->expectExceptionMessage('Invalid `filter` parameter format');
+        $this->expectExceptionMessage('The `filter` parameter has an invalid format');
 
         $this
             ->createEloquentWizardWithFilters(['name' => ['foo' => ['bar' => 'Alpha']]])
@@ -54,7 +54,7 @@ class AuditRegressionTest extends TestCase
     public function partial_filter_rejects_malformed_nested_payload(): void
     {
         $this->expectException(InvalidFilterQuery::class);
-        $this->expectExceptionMessage('Invalid `filter` parameter format');
+        $this->expectExceptionMessage('The `filter` parameter has an invalid format');
 
         $this
             ->createEloquentWizardWithFilters(['name' => ['foo' => ['bar' => 'Alpha']]])
@@ -66,7 +66,7 @@ class AuditRegressionTest extends TestCase
     public function operator_filter_rejects_malformed_nested_payload(): void
     {
         $this->expectException(InvalidFilterQuery::class);
-        $this->expectExceptionMessage('Invalid `filter` parameter format');
+        $this->expectExceptionMessage('The `filter` parameter has an invalid format');
 
         $this
             ->createEloquentWizardWithFilters(['name' => ['foo' => ['bar' => 'Alpha']]])
@@ -96,7 +96,7 @@ class AuditRegressionTest extends TestCase
     public function structured_input_opt_in_still_validates_prepared_value_shape(): void
     {
         $this->expectException(InvalidFilterQuery::class);
-        $this->expectExceptionMessage('Invalid `filter` parameter format');
+        $this->expectExceptionMessage('The `filter` parameter has an invalid format');
 
         $this
             ->createEloquentWizardWithFilters(['name' => ['value' => 'Alpha']])

@@ -328,7 +328,7 @@ class QueryParametersManager
             $this->filters = $this->parseFiltersParameter($rawValue);
             $this->unsplitFilters = $this->parseFiltersParameter($rawValue, false);
         } catch (\InvalidArgumentException $exception) {
-            throw InvalidFilterQuery::invalidFormat($exception->getMessage());
+            throw InvalidFilterQuery::invalidFormat($exception->getMessage(), $exception);
         }
     }
 
@@ -614,7 +614,7 @@ class QueryParametersManager
         try {
             $decoded = json_decode($content, false, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
-            throw InvalidRequestBody::malformedJson($exception->getMessage());
+            throw InvalidRequestBody::malformedJson($exception->getMessage(), $exception);
         }
 
         if (! $decoded instanceof stdClass) {
@@ -671,8 +671,8 @@ class QueryParametersManager
             return $this->getParser($type)->parseFields($rawValue, $limit);
         } catch (\InvalidArgumentException $exception) {
             throw $type === 'fields'
-                ? InvalidFieldQuery::invalidFormat($exception->getMessage())
-                : InvalidAppendQuery::invalidFormat($exception->getMessage());
+                ? InvalidFieldQuery::invalidFormat($exception->getMessage(), $exception)
+                : InvalidAppendQuery::invalidFormat($exception->getMessage(), $exception);
         }
     }
 
@@ -686,7 +686,7 @@ class QueryParametersManager
         try {
             return $this->getParser($type)->parseList($rawValue, $limit);
         } catch (\InvalidArgumentException $exception) {
-            throw InvalidIncludeQuery::invalidFormat($exception->getMessage());
+            throw InvalidIncludeQuery::invalidFormat($exception->getMessage(), $exception);
         }
     }
 
@@ -700,7 +700,7 @@ class QueryParametersManager
         try {
             return $this->getParser('sorts')->parseSorts($rawValue, $limit);
         } catch (\InvalidArgumentException $exception) {
-            throw InvalidSortQuery::invalidFormat($exception->getMessage());
+            throw InvalidSortQuery::invalidFormat($exception->getMessage(), $exception);
         }
     }
 

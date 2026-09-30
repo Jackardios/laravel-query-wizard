@@ -43,6 +43,11 @@ Added:
   add to the list set with `allowed*()` or, when none was set, to the schema's (`QueryWizardInterface` gains the
   include, field and append ones). `getConfiguredFilters()` returns the allowed filters before `disallowedFilters()`.
 - `QueryWizardInterface` declares `schema()` and `getSchema()`, which both wizards had.
+- `invalidFormat()` on the `Invalid*Query` exceptions and `InvalidRequestBody::malformedJson()` take `?Throwable
+  $previous`; the format errors read from the request keep the parser's `InvalidArgumentException`, and a malformed
+  body its `JsonException`, as the previous exception.
+- Exceptions: `InvalidQuery::__construct()` is `@api`; the constructors of the `Invalid*Query` exceptions,
+  `InvalidFilterValue` and `InvalidRequestBody` are `@internal` in favor of their named constructors.
 - `@api` include contracts: `Contracts\EagerLoadsRelation` (implemented by relationship includes) gives a custom include
   relation fieldsets, relation field and append validation and the disallowed-path check;
   `Contracts\AppliesToModel` (`applyToModel(Model $model): void`, implemented by callback includes) lets
@@ -83,6 +88,10 @@ Changed:
 - `ModelQueryWizard::process()` throws `LogicException` for a requested include that is not a relationship, count or
   exists include and does not implement `AppliesToModel`, before changing the model; such an include was accepted and
   did nothing, and one whose `getType()` returned `'relationship'` was loaded without its constraint.
+- `InvalidFilterValue::__construct()` drops its leading `int $statusCode` (`new InvalidFilterValue(422, …)`
+  answered 422 where every other query error is a 400). `InvalidFilterQuery::invalidFormat()` takes an optional
+  details string like the other format errors and shares their message: "The `filter` parameter has an invalid
+  format." instead of "Invalid `filter` parameter format.".
 - The wizards dispatch on types instead of `getType()` strings: passthrough filters are `PassthroughFilter`, count and
   exists includes `CountInclude` and `ExistsInclude`, and relationship semantics come from `EagerLoadsRelation`. A
   custom filter whose `getType()` returned `'passthrough'` was never applied, and a custom include returning

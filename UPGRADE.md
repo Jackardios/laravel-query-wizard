@@ -234,6 +234,12 @@ a later TypeError).
 - `InvalidFilterValue::make($value, $filterOrName, ?string $reason = null)`: the reason is exposed as `$reason` and
   appended to the message.
 - New `InvalidRequestBody` (`invalid_request_body`).
+- Create exceptions with their named constructors: `filtersNotAllowed()`, `invalidFormat()` and the like,
+  `InvalidFilterValue::make()`, `InvalidRequestBody::malformedJson()`. The constructors of those classes are
+  `@internal`; `InvalidQuery::__construct()` (for custom subclasses) and the `Max*Exceeded` constructors are the API.
+- `new InvalidFilterValue(...)` no longer takes a status code first: it is always 400. Use `InvalidFilterValue::make()`.
+- `InvalidFilterQuery::invalidFormat()` takes `?string $details = null`, like the other `invalidFormat()`, and its
+  message reads "The `filter` parameter has an invalid format." (before: "Invalid `filter` parameter format.").
 - Configuration mistakes throw `InvalidArgumentException` (see above), not `InvalidQuery`.
 
 ### Subclasses and Custom Filters

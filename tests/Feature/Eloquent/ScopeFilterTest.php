@@ -114,7 +114,7 @@ class ScopeFilterTest extends EloquentFilterTestCase
     public function scope_filter_rejects_malformed_nested_payload(): void
     {
         $this->expectException(InvalidFilterQuery::class);
-        $this->expectExceptionMessage('Invalid `filter` parameter format');
+        $this->expectExceptionMessage('The `filter` parameter has an invalid format');
 
         $this
             ->createEloquentWizardWithFilters(['named' => ['foo' => ['bar' => 'Alpha']]])

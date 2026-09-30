@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Exceptions;
 
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class InvalidIncludeQuery extends InvalidQuery
 {
@@ -18,12 +19,15 @@ class InvalidIncludeQuery extends InvalidQuery
     /**
      * @param  Collection<int, string>  $unknownIncludes
      * @param  Collection<int, string>  $allowedIncludes
+     *
+     * @internal Use includesNotAllowed() or invalidFormat().
      */
     public function __construct(
         Collection $unknownIncludes,
         Collection $allowedIncludes,
         ?string $message = null,
-        string $errorCode = 'include_not_allowed'
+        string $errorCode = 'include_not_allowed',
+        ?Throwable $previous = null
     ) {
         $this->unknownIncludes = $unknownIncludes;
         $this->allowedIncludes = $allowedIncludes;
@@ -41,7 +45,7 @@ class InvalidIncludeQuery extends InvalidQuery
             }
         }
 
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: $errorCode, parameter: self::parameterName('includes'));
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, $previous, errorCode: $errorCode, parameter: self::parameterName('includes'));
     }
 
     /**
@@ -53,7 +57,7 @@ class InvalidIncludeQuery extends InvalidQuery
         return new self($unknownIncludes, $allowedIncludes);
     }
 
-    public static function invalidFormat(?string $details = null): self
+    public static function invalidFormat(?string $details = null, ?Throwable $previous = null): self
     {
         $parameter = self::parameterName('includes');
         $message = "The `{$parameter}` parameter has an invalid format.";
@@ -62,6 +66,6 @@ class InvalidIncludeQuery extends InvalidQuery
             $message .= ' '.$details;
         }
 
-        return new self(collect(), collect(), $message, 'invalid_include_format');
+        return new self(collect(), collect(), $message, 'invalid_include_format', $previous);
     }
 }

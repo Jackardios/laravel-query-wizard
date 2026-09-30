@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Exceptions;
 
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class InvalidFilterQuery extends InvalidQuery
 {
@@ -18,12 +19,15 @@ class InvalidFilterQuery extends InvalidQuery
     /**
      * @param  Collection<int, string>  $unknownFilters
      * @param  Collection<int, string>  $allowedFilters
+     *
+     * @internal Use filtersNotAllowed() or invalidFormat().
      */
     public function __construct(
         Collection $unknownFilters,
         Collection $allowedFilters,
         ?string $message = null,
-        string $errorCode = 'filter_not_allowed'
+        string $errorCode = 'filter_not_allowed',
+        ?Throwable $previous = null
     ) {
         $this->unknownFilters = $unknownFilters;
         $this->allowedFilters = $allowedFilters;
@@ -39,7 +43,7 @@ class InvalidFilterQuery extends InvalidQuery
             }
         }
 
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: $errorCode, parameter: self::parameterName('filters'));
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, $previous, errorCode: $errorCode, parameter: self::parameterName('filters'));
     }
 
     /**
@@ -51,15 +55,15 @@ class InvalidFilterQuery extends InvalidQuery
         return new self($unknownFilters, $allowedFilters);
     }
 
-    public static function invalidFormat(string $details): self
+    public static function invalidFormat(?string $details = null, ?Throwable $previous = null): self
     {
         $parameter = self::parameterName('filters');
+        $message = "The `{$parameter}` parameter has an invalid format.";
 
-        return new self(
-            collect([]),
-            collect([]),
-            "Invalid `{$parameter}` parameter format. {$details}",
-            'invalid_filter_format'
-        );
+        if ($details !== null && $details !== '') {
+            $message .= ' '.$details;
+        }
+
+        return new self(collect(), collect(), $message, 'invalid_filter_format', $previous);
     }
 }

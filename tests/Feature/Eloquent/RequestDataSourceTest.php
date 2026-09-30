@@ -202,6 +202,20 @@ class RequestDataSourceTest extends TestCase
     }
 
     #[Test]
+    public function a_malformed_json_body_keeps_the_parse_error(): void
+    {
+        config()->set('query-wizard.request_data_source', 'body');
+
+        try {
+            $this->wizardForJsonBody('{"filter": ')->allowedFilters('id')->get();
+
+            $this->fail('Expected InvalidRequestBody to be thrown');
+        } catch (InvalidRequestBody $e) {
+            $this->assertInstanceOf(\JsonException::class, $e->getPrevious());
+        }
+    }
+
+    #[Test]
     #[DataProvider('emptyObjectBodies')]
     public function it_reads_an_empty_json_body_as_no_parameters(string $body): void
     {

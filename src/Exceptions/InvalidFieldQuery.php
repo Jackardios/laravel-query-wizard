@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Exceptions;
 
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class InvalidFieldQuery extends InvalidQuery
 {
@@ -18,12 +19,15 @@ class InvalidFieldQuery extends InvalidQuery
     /**
      * @param  Collection<int, string>  $unknownFields
      * @param  Collection<int, string>  $allowedFields
+     *
+     * @internal Use fieldsNotAllowed() or invalidFormat().
      */
     public function __construct(
         Collection $unknownFields,
         Collection $allowedFields,
         ?string $message = null,
-        string $errorCode = 'field_not_allowed'
+        string $errorCode = 'field_not_allowed',
+        ?Throwable $previous = null
     ) {
         $this->unknownFields = $unknownFields;
         $this->allowedFields = $allowedFields;
@@ -39,7 +43,7 @@ class InvalidFieldQuery extends InvalidQuery
             }
         }
 
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: $errorCode, parameter: self::parameterName('fields'));
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, $previous, errorCode: $errorCode, parameter: self::parameterName('fields'));
     }
 
     /**
@@ -51,7 +55,7 @@ class InvalidFieldQuery extends InvalidQuery
         return new self($unknownFields, $allowedFields);
     }
 
-    public static function invalidFormat(?string $details = null): self
+    public static function invalidFormat(?string $details = null, ?Throwable $previous = null): self
     {
         $parameter = self::parameterName('fields');
         $message = "The `{$parameter}` parameter has an invalid format.";
@@ -60,6 +64,6 @@ class InvalidFieldQuery extends InvalidQuery
             $message .= ' '.$details;
         }
 
-        return new self(collect(), collect(), $message, 'invalid_field_format');
+        return new self(collect(), collect(), $message, 'invalid_field_format', $previous);
     }
 }

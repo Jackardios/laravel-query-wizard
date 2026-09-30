@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Exceptions;
 
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * The JSON request body the parameters are read from (request_data_source
@@ -12,14 +13,17 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class InvalidRequestBody extends InvalidQuery
 {
-    public function __construct(string $message)
+    /**
+     * @internal Use the named constructors.
+     */
+    public function __construct(string $message, ?Throwable $previous = null)
     {
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: 'invalid_request_body');
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, $previous, errorCode: 'invalid_request_body');
     }
 
-    public static function malformedJson(string $details): self
+    public static function malformedJson(string $details, ?Throwable $previous = null): self
     {
-        return new self("The request body is not valid JSON: {$details}.");
+        return new self("The request body is not valid JSON: {$details}.", $previous);
     }
 
     public static function notAnObject(): self

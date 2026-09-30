@@ -30,7 +30,7 @@ class ExceptionContextTest extends TestCase
         } catch (InvalidFilterQuery $exception) {
             $this->assertSame('invalid_filter_format', $exception->errorCode);
             $this->assertSame('where', $exception->parameter);
-            $this->assertStringStartsWith('Invalid `where` parameter format.', $exception->getMessage());
+            $this->assertStringStartsWith('The `where` parameter has an invalid format.', $exception->getMessage());
         }
 
         try {

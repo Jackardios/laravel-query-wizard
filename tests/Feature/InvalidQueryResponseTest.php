@@ -105,6 +105,7 @@ class InvalidQueryResponseTest extends TestCase
         } catch (InvalidQuery $e) {
             $this->assertSame(400, $e->getStatusCode());
             $this->assertSame($errorCode, $e->errorCode);
+            $this->assertInstanceOf(\InvalidArgumentException::class, $e->getPrevious());
         }
     }
 

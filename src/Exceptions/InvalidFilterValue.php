@@ -23,14 +23,16 @@ class InvalidFilterValue extends InvalidQuery
      */
     public readonly ?string $reason;
 
+    /**
+     * @internal Use make(), which writes the message from the value, the filter and the reason.
+     */
     public function __construct(
-        int $statusCode,
         string $message,
         string $filterName = '',
         mixed $filterValue = null,
         ?string $reason = null
     ) {
-        parent::__construct($statusCode, $message, errorCode: 'invalid_filter_value', parameter: self::parameterName('filters'));
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: 'invalid_filter_value', parameter: self::parameterName('filters'));
         $this->filterName = $filterName;
         $this->filterValue = $filterValue;
         $this->reason = $reason;
@@ -58,7 +60,7 @@ class InvalidFilterValue extends InvalidQuery
             $message .= ' '.$reason;
         }
 
-        return new static(Response::HTTP_BAD_REQUEST, $message, $filterName, $value, $reason);
+        return new static($message, $filterName, $value, $reason);
     }
 
     private static function shorten(string $value): string
