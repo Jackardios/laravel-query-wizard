@@ -234,6 +234,9 @@ a later TypeError).
 - `InvalidFilterValue::make($value, $filterOrName, ?string $reason = null)`: the reason is exposed as `$reason` and
   appended to the message.
 - New `InvalidRequestBody` (`invalid_request_body`).
+- `QueryParametersManager` is `final`: wrap it instead of extending it. Its constructor, the getters of parsed
+  parameters, `getFilterValue()`, `hasFilter()`, `getRequest()`, the `set*Parameter()` setters, `setRequest()` and
+  `reset()` are the API.
 - Create exceptions with their named constructors: `filtersNotAllowed()`, `invalidFormat()` and the like,
   `InvalidFilterValue::make()`, `InvalidRequestBody::malformedJson()`. The constructors of those classes are
   `@internal`; `InvalidQuery::__construct()` (for custom subclasses) and the `Max*Exceeded` constructors are the API.

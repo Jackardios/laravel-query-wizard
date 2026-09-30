@@ -46,6 +46,8 @@ Added:
 - `invalidFormat()` on the `Invalid*Query` exceptions and `InvalidRequestBody::malformedJson()` take `?Throwable
   $previous`; the format errors read from the request keep the parser's `InvalidArgumentException`, and a malformed
   body its `JsonException`, as the previous exception.
+- `QueryParametersManager` is `final`; `getConfig()`, `getStateVersion()`, `getUnsplitFilters()` and
+  `hasSimpleParameter()` are `@internal`. `QueryWizardConfig::getSeparator()` is private (use the per-type getters).
 - Exceptions: `InvalidQuery::__construct()` is `@api`; the constructors of the `Invalid*Query` exceptions,
   `InvalidFilterValue` and `InvalidRequestBody` are `@internal` in favor of their named constructors.
 - `@api` include contracts: `Contracts\EagerLoadsRelation` (implemented by relationship includes) gives a custom include

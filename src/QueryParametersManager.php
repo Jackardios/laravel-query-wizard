@@ -32,8 +32,11 @@ use stdClass;
  *
  * Handles parsing and caching of filter, sort, include, field, and append parameters.
  * Uses ParameterParser for list/sort parsing and FilterValueTransformer for filter values.
+ *
+ * The constructor, the getters of parsed parameters, getRequest(), the set*Parameter()
+ * setters, setRequest() and reset() are the API; members marked `@internal` serve the wizards.
  */
-class QueryParametersManager
+final class QueryParametersManager
 {
     private static ?object $missing = null;
 
@@ -249,6 +252,9 @@ class QueryParametersManager
         return $this->request;
     }
 
+    /**
+     * @internal The live configuration; parameters are parsed with a snapshot of it.
+     */
     public function getConfig(): QueryWizardConfig
     {
         return $this->config;
@@ -259,6 +265,8 @@ class QueryParametersManager
      *
      * Increases when request-bound or manually injected parameters change, and
      * is unique across managers, so no two states share a version.
+     *
+     * @internal
      */
     public function getStateVersion(): int
     {
@@ -301,6 +309,8 @@ class QueryParametersManager
      * Filter values as sent, without separator splitting.
      *
      * @return Collection<string, mixed>
+     *
+     * @internal Use getFilterValue($name, false).
      */
     public function getUnsplitFilters(): Collection
     {
@@ -355,6 +365,8 @@ class QueryParametersManager
      *
      * Presence is tracked separately from parsed emptiness so empty parameters like
      * ?include= or ?fields[user]= remain distinguishable from complete absence.
+     *
+     * @internal
      */
     public function hasSimpleParameter(string $type): bool
     {

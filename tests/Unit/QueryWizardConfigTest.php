@@ -135,17 +135,12 @@ class QueryWizardConfigTest extends TestCase
     }
 
     #[Test]
-    public function get_separator_returns_type_specific_value(): void
+    public function a_type_without_its_own_separator_uses_the_default(): void
     {
         Config::set('query-wizard.separators.filters', ';');
 
-        $this->assertEquals(';', $this->config->getSeparator('filters'));
-    }
-
-    #[Test]
-    public function get_separator_falls_back_to_default(): void
-    {
-        $this->assertEquals(',', $this->config->getSeparator('nonexistent'));
+        $this->assertEquals(';', $this->config->getFiltersSeparator());
+        $this->assertEquals(',', $this->config->getSortsSeparator());
     }
 
     // ========== Naming Conversion Tests ==========

@@ -174,7 +174,7 @@ final class QueryWizardConfig
         return $this->separatorAt('array_value_separator', $this->get('array_value_separator'));
     }
 
-    public function getSeparator(string $type): string
+    private function getSeparator(string $type): string
     {
         $separators = $this->get('separators');
 
