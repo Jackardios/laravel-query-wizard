@@ -10,6 +10,10 @@ use Throwable;
 
 class InvalidAppendQuery extends InvalidQuery
 {
+    public const NOT_ALLOWED = 'append_not_allowed';
+
+    public const INVALID_FORMAT = 'invalid_append_format';
+
     /** @var Collection<int, string> */
     public readonly Collection $unknownAppends;
 
@@ -26,7 +30,7 @@ class InvalidAppendQuery extends InvalidQuery
         Collection $unknownAppends,
         Collection $allowedAppends,
         ?string $message = null,
-        string $errorCode = 'append_not_allowed',
+        string $errorCode = self::NOT_ALLOWED,
         ?Throwable $previous = null
     ) {
         $this->unknownAppends = $unknownAppends;
@@ -64,6 +68,6 @@ class InvalidAppendQuery extends InvalidQuery
             $message .= ' '.$details;
         }
 
-        return new self(collect(), collect(), $message, 'invalid_append_format', $previous);
+        return new self(collect(), collect(), $message, self::INVALID_FORMAT, $previous);
     }
 }

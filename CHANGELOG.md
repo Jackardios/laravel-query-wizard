@@ -56,6 +56,9 @@ Added:
   `ModelQueryWizard` apply it to a loaded model.
 - `EloquentFilter::notNull()` (`NullFilter::notNull()`): `true` matches NOT NULL, `false` NULL.
 - `withoutStructuredInput()`, the counterpart of `withStructuredInput()`.
+- Error code constants: `NOT_ALLOWED` and `INVALID_FORMAT` on `InvalidFilterQuery`, `InvalidSortQuery`,
+  `InvalidIncludeQuery`, `InvalidFieldQuery` and `InvalidAppendQuery`, and `ERROR_CODE` on `InvalidFilterValue`,
+  `InvalidRequestBody` and the `Max*Exceeded` exceptions.
 
 Changed:
 

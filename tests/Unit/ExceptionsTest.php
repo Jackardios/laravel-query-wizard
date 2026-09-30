@@ -11,9 +11,11 @@ use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidFilterValue;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\InvalidQuery;
+use Jackardios\QueryWizard\Exceptions\InvalidRequestBody;
 use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxAppendsCountExceeded;
+use Jackardios\QueryWizard\Exceptions\MaxFieldsCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFiltersCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxFilterValuesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
@@ -22,6 +24,7 @@ use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ExceptionsTest extends TestCase
@@ -38,6 +41,7 @@ class ExceptionsTest extends TestCase
             'sort not allowed' => [InvalidSortQuery::sortsNotAllowed(collect(['a']), collect()), 'sort_not_allowed', 'sort'],
             'sort format' => [InvalidSortQuery::invalidFormat(), 'invalid_sort_format', 'sort'],
             'include not allowed' => [InvalidIncludeQuery::includesNotAllowed(collect(['a']), collect()), 'include_not_allowed', 'include'],
+            'include format' => [InvalidIncludeQuery::invalidFormat(), 'invalid_include_format', 'include'],
             'field not allowed' => [InvalidFieldQuery::fieldsNotAllowed(collect(['a']), collect()), 'field_not_allowed', 'fields'],
             'append not allowed' => [InvalidAppendQuery::appendsNotAllowed(collect(['a']), collect()), 'append_not_allowed', 'append'],
             'field format' => [InvalidFieldQuery::invalidFormat(), 'invalid_field_format', 'fields'],
@@ -45,6 +49,7 @@ class ExceptionsTest extends TestCase
             'filters count' => [new MaxFiltersCountExceeded(2, 1), 'max_filters_count_exceeded', 'filter'],
             'filter values count' => [new MaxFilterValuesCountExceeded('id', 2, 1), 'max_filter_values_count_exceeded', 'filter'],
             'sorts count' => [new MaxSortsCountExceeded(2, 1), 'max_sorts_count_exceeded', 'sort'],
+            'fields count' => [new MaxFieldsCountExceeded(2, 1), 'max_fields_count_exceeded', 'fields'],
             'includes count' => [new MaxIncludesCountExceeded(2, 1), 'max_includes_count_exceeded', 'include'],
             'include depth' => [new MaxIncludeDepthExceeded('a.b', 2, 1), 'max_include_depth_exceeded', 'include'],
             'appends count' => [new MaxAppendsCountExceeded(2, 1), 'max_appends_count_exceeded', 'append'],
@@ -59,6 +64,14 @@ class ExceptionsTest extends TestCase
         $this->assertSame($errorCode, $exception->errorCode);
         $this->assertSame($parameter, $exception->parameter);
         $this->assertSame(400, $exception->getStatusCode());
+        $this->assertContains($errorCode, (new ReflectionClass($exception))->getConstants(), 'The error code has a constant on its class.');
+    }
+
+    #[Test]
+    public function a_malformed_request_body_has_an_error_code_constant(): void
+    {
+        $this->assertSame('invalid_request_body', InvalidRequestBody::ERROR_CODE);
+        $this->assertSame(InvalidRequestBody::ERROR_CODE, InvalidRequestBody::notAnObject()->errorCode);
     }
 
     #[Test]
@@ -159,7 +172,7 @@ class ExceptionsTest extends TestCase
     #[Test]
     public function invalid_query_is_abstract(): void
     {
-        $reflection = new \ReflectionClass(InvalidQuery::class);
+        $reflection = new ReflectionClass(InvalidQuery::class);
 
         $this->assertTrue($reflection->isAbstract());
     }

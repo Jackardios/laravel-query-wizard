@@ -12,6 +12,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class InvalidFilterValue extends InvalidQuery
 {
+    public const ERROR_CODE = 'invalid_filter_value';
+
     private const MAX_ECHOED_VALUE_LENGTH = 100;
 
     /**
@@ -35,7 +37,7 @@ class InvalidFilterValue extends InvalidQuery
         mixed $filterValue = null,
         ?string $reason = null
     ) {
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: 'invalid_filter_value', parameter: self::parameterName('filters'));
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, errorCode: self::ERROR_CODE, parameter: self::parameterName('filters'));
         $this->filterName = $filterName;
         $this->filterValue = $filterValue;
         $this->reason = $reason;

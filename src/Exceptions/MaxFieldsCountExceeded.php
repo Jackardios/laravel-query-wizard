@@ -6,6 +6,8 @@ namespace Jackardios\QueryWizard\Exceptions;
 
 class MaxFieldsCountExceeded extends QueryLimitExceeded
 {
+    public const ERROR_CODE = 'max_fields_count_exceeded';
+
     /**
      * How many distinct fields were counted before the check stopped: one more
      * than the limit when the request is read, not the total it names.
@@ -20,6 +22,6 @@ class MaxFieldsCountExceeded extends QueryLimitExceeded
         $this->maxCount = $maxCount;
 
         $message = "The number of requested fields exceeds the maximum allowed ({$maxCount}).";
-        parent::__construct($message, 'max_fields_count_exceeded', self::parameterName('fields'));
+        parent::__construct($message, self::ERROR_CODE, self::parameterName('fields'));
     }
 }

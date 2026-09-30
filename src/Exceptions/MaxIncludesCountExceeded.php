@@ -6,6 +6,8 @@ namespace Jackardios\QueryWizard\Exceptions;
 
 class MaxIncludesCountExceeded extends QueryLimitExceeded
 {
+    public const ERROR_CODE = 'max_includes_count_exceeded';
+
     /**
      * How many distinct includes were counted before the check stopped: one more
      * than the limit when the request is read, not the total it names.
@@ -20,6 +22,6 @@ class MaxIncludesCountExceeded extends QueryLimitExceeded
         $this->maxCount = $maxCount;
 
         $message = "The number of requested includes exceeds the maximum allowed ({$maxCount}).";
-        parent::__construct($message, 'max_includes_count_exceeded', self::parameterName('includes'));
+        parent::__construct($message, self::ERROR_CODE, self::parameterName('includes'));
     }
 }

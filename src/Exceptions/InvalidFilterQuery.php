@@ -10,6 +10,10 @@ use Throwable;
 
 class InvalidFilterQuery extends InvalidQuery
 {
+    public const NOT_ALLOWED = 'filter_not_allowed';
+
+    public const INVALID_FORMAT = 'invalid_filter_format';
+
     /** @var Collection<int, string> */
     public readonly Collection $unknownFilters;
 
@@ -26,7 +30,7 @@ class InvalidFilterQuery extends InvalidQuery
         Collection $unknownFilters,
         Collection $allowedFilters,
         ?string $message = null,
-        string $errorCode = 'filter_not_allowed',
+        string $errorCode = self::NOT_ALLOWED,
         ?Throwable $previous = null
     ) {
         $this->unknownFilters = $unknownFilters;
@@ -64,6 +68,6 @@ class InvalidFilterQuery extends InvalidQuery
             $message .= ' '.$details;
         }
 
-        return new self(collect(), collect(), $message, 'invalid_filter_format', $previous);
+        return new self(collect(), collect(), $message, self::INVALID_FORMAT, $previous);
     }
 }

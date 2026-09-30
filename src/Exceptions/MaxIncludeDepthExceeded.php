@@ -6,6 +6,8 @@ namespace Jackardios\QueryWizard\Exceptions;
 
 class MaxIncludeDepthExceeded extends QueryLimitExceeded
 {
+    public const ERROR_CODE = 'max_include_depth_exceeded';
+
     public readonly int $depth;
 
     public readonly int $maxDepth;
@@ -19,6 +21,6 @@ class MaxIncludeDepthExceeded extends QueryLimitExceeded
         $this->maxDepth = $maxDepth;
 
         $message = "Include `{$include}` has depth {$depth} which exceeds the maximum allowed depth of {$maxDepth}.";
-        parent::__construct($message, 'max_include_depth_exceeded', self::parameterName('includes'));
+        parent::__construct($message, self::ERROR_CODE, self::parameterName('includes'));
     }
 }

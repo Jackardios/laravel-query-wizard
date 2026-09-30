@@ -13,12 +13,14 @@ use Throwable;
  */
 class InvalidRequestBody extends InvalidQuery
 {
+    public const ERROR_CODE = 'invalid_request_body';
+
     /**
      * @internal Use the named constructors.
      */
     public function __construct(string $message, ?Throwable $previous = null)
     {
-        parent::__construct(Response::HTTP_BAD_REQUEST, $message, $previous, errorCode: 'invalid_request_body');
+        parent::__construct(Response::HTTP_BAD_REQUEST, $message, $previous, errorCode: self::ERROR_CODE);
     }
 
     public static function malformedJson(string $details, ?Throwable $previous = null): self

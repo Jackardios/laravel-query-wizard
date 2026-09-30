@@ -10,6 +10,10 @@ use Throwable;
 
 class InvalidFieldQuery extends InvalidQuery
 {
+    public const NOT_ALLOWED = 'field_not_allowed';
+
+    public const INVALID_FORMAT = 'invalid_field_format';
+
     /** @var Collection<int, string> */
     public readonly Collection $unknownFields;
 
@@ -26,7 +30,7 @@ class InvalidFieldQuery extends InvalidQuery
         Collection $unknownFields,
         Collection $allowedFields,
         ?string $message = null,
-        string $errorCode = 'field_not_allowed',
+        string $errorCode = self::NOT_ALLOWED,
         ?Throwable $previous = null
     ) {
         $this->unknownFields = $unknownFields;
@@ -64,6 +68,6 @@ class InvalidFieldQuery extends InvalidQuery
             $message .= ' '.$details;
         }
 
-        return new self(collect(), collect(), $message, 'invalid_field_format', $previous);
+        return new self(collect(), collect(), $message, self::INVALID_FORMAT, $previous);
     }
 }

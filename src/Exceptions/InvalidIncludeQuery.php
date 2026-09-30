@@ -10,6 +10,10 @@ use Throwable;
 
 class InvalidIncludeQuery extends InvalidQuery
 {
+    public const NOT_ALLOWED = 'include_not_allowed';
+
+    public const INVALID_FORMAT = 'invalid_include_format';
+
     /** @var Collection<int, string> */
     public readonly Collection $unknownIncludes;
 
@@ -26,7 +30,7 @@ class InvalidIncludeQuery extends InvalidQuery
         Collection $unknownIncludes,
         Collection $allowedIncludes,
         ?string $message = null,
-        string $errorCode = 'include_not_allowed',
+        string $errorCode = self::NOT_ALLOWED,
         ?Throwable $previous = null
     ) {
         $this->unknownIncludes = $unknownIncludes;
@@ -66,6 +70,6 @@ class InvalidIncludeQuery extends InvalidQuery
             $message .= ' '.$details;
         }
 
-        return new self(collect(), collect(), $message, 'invalid_include_format', $previous);
+        return new self(collect(), collect(), $message, self::INVALID_FORMAT, $previous);
     }
 }

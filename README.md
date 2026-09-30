@@ -751,6 +751,11 @@ All exceptions extend `InvalidQuery` (extends Symfony's `HttpException`, status 
 | `MaxAppendsCountExceeded` | `max_appends_count_exceeded` | Too many appends |
 | `MaxAppendDepthExceeded` | `max_append_depth_exceeded` | Append nesting too deep |
 
+Each code has a constant on its class: `NOT_ALLOWED` and `INVALID_FORMAT` on the `Invalid*Query` exceptions
+(`InvalidSortQuery::INVALID_FORMAT`), `ERROR_CODE` on the others (`MaxIncludesCountExceeded::ERROR_CODE`). The limit
+exceptions carry `$maxCount` (or `$maxDepth`); `$count` is one more than the limit, since counting stops there, except on
+`MaxFiltersCountExceeded`, where it is the total.
+
 Configuration mistakes (invalid config values, developer defaults over a limit, a nested relation in a count sort or
 count/exists include) throw `InvalidArgumentException` instead, since they are not the client's fault.
 

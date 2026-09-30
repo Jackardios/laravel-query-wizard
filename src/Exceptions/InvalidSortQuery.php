@@ -10,6 +10,10 @@ use Throwable;
 
 class InvalidSortQuery extends InvalidQuery
 {
+    public const NOT_ALLOWED = 'sort_not_allowed';
+
+    public const INVALID_FORMAT = 'invalid_sort_format';
+
     /** @var Collection<int, string> */
     public readonly Collection $unknownSorts;
 
@@ -26,7 +30,7 @@ class InvalidSortQuery extends InvalidQuery
         Collection $unknownSorts,
         Collection $allowedSorts,
         ?string $message = null,
-        string $errorCode = 'sort_not_allowed',
+        string $errorCode = self::NOT_ALLOWED,
         ?Throwable $previous = null
     ) {
         $this->unknownSorts = $unknownSorts;
@@ -64,6 +68,6 @@ class InvalidSortQuery extends InvalidQuery
             $message .= ' '.$details;
         }
 
-        return new self(collect(), collect(), $message, 'invalid_sort_format', $previous);
+        return new self(collect(), collect(), $message, self::INVALID_FORMAT, $previous);
     }
 }
