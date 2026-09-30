@@ -504,7 +504,7 @@ class UserSchema extends ResourceSchema
 
     public function defaultFilters(QueryWizardInterface $wizard): array
     {
-        return ['status' => 'active'];  // Applied when filter is absent
+        return ['status' => 'active'];  // Applied when filter is absent; keyed by the public (alias) name
     }
 }
 ```

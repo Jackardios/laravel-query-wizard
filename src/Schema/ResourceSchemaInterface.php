@@ -111,7 +111,10 @@ interface ResourceSchemaInterface
     /**
      * Get default filter values to apply when not present in request.
      *
-     * Returns an associative array of filter name => default value.
+     * Returns an associative array of filter name => default value, keyed by
+     * the filter's public name (its alias, if it has one). A key that names no
+     * allowed filter throws `InvalidArgumentException` when the wizard builds;
+     * a filter removed by `disallowedFilters()` loses its default.
      *
      * @param  QueryWizardInterface  $wizard  The wizard requesting default filters (for conditional logic)
      * @return array<string, mixed>

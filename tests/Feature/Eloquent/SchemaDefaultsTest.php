@@ -230,6 +230,44 @@ class SchemaDefaultsTest extends TestCase
     }
 
     #[Test]
+    public function a_schema_default_filter_naming_no_allowed_filter_throws(): void
+    {
+        $schema = $this->createTestModelSchema([
+            'defaultFilters' => ['nmae' => 'x', 'name' => 'y'],
+        ]);
+
+        $wizard = $this->createEloquentWizardFromQuery(['filter' => ['name' => 'y']])->schema($schema);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Schema defaultFilters() names no allowed filter: `nmae`.');
+
+        $wizard->get();
+    }
+
+    #[Test]
+    public function a_schema_default_filter_is_keyed_by_the_alias(): void
+    {
+        $target = $this->models->first();
+        $schema = $this->createTestModelSchema([
+            'filters' => [EloquentFilter::exact('name')->alias('title')],
+            'defaultFilters' => ['title' => $target->name],
+        ]);
+
+        $models = $this->createEloquentWizardFromQuery()->schema($schema)->get();
+
+        $this->assertSame([$target->id], $models->pluck('id')->all());
+
+        $keyedByColumn = $this->createTestModelSchema([
+            'filters' => [EloquentFilter::exact('name')->alias('title')],
+            'defaultFilters' => ['name' => $target->name],
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->createEloquentWizardFromQuery()->schema($keyedByColumn)->get();
+    }
+
+    #[Test]
     public function disallowing_a_filter_also_drops_its_schema_default(): void
     {
         $schema = $this->createTestModelSchema([

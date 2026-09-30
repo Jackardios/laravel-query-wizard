@@ -550,6 +550,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $this->schemaDefaultFilters = null;
 
         try {
+            $this->assertSchemaDefaultFiltersAreKnown();
+
             foreach ($filters as $name => $filter) {
                 if (isset($shadowedFilterNames[$name])) {
                     continue;
@@ -676,6 +678,32 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         }
 
         return $count;
+    }
+
+    /**
+     * @throws \InvalidArgumentException When a schema default names no allowed filter
+     */
+    private function assertSchemaDefaultFiltersAreKnown(): void
+    {
+        $defaults = $this->getSchemaDefaultFilters();
+
+        if ($defaults === []) {
+            return;
+        }
+
+        $known = [];
+        foreach ($this->getConfiguredFilters() as $filter) {
+            $known[is_string($filter) ? $filter : $filter->getName()] = true;
+        }
+
+        $unknown = array_diff(array_map(strval(...), array_keys($defaults)), array_keys($known));
+
+        if ($unknown !== []) {
+            throw new \InvalidArgumentException(
+                'Schema defaultFilters() names no allowed filter: `'.implode('`, `', $unknown).'`. '
+                ."Key each default by an allowed filter's public name (its alias, if it has one)."
+            );
+        }
     }
 
     /**
