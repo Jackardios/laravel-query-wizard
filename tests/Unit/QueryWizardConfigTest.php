@@ -658,4 +658,42 @@ class QueryWizardConfigTest extends TestCase
         $this->assertSame(7, $snapshot->getMaxFiltersCount());
         $this->assertSame(9, $this->config->getMaxFiltersCount());
     }
+
+    /**
+     * @return array<string, array{string, mixed, string}>
+     */
+    public static function brokenConfigurations(): array
+    {
+        return [
+            'limit typo' => ['limits.max_filter_count', 1, 'Config `query-wizard.limits` has unknown key(s) `max_filter_count`'],
+            'separator typo' => ['separators.filter', ';', 'Config `query-wizard.separators` has unknown key(s) `filter`'],
+            'parameter typo' => ['parameters.include', 'with', 'Config `query-wizard.parameters` has unknown key(s) `include`'],
+            'naming typo' => ['naming.convert_to_snake_case', true, 'Config `query-wizard.naming` has unknown key(s)'],
+            'fields typo' => ['fields.use_allowed_as_defaults', true, 'Config `query-wizard.fields` has unknown key(s)'],
+            'group not an array' => ['limits', 5, 'Config `query-wizard.limits` must be an array'],
+            'unread flag' => ['disable_invalid_filter_query_exception', 'maybe', 'Config `query-wizard.disable_invalid_filter_query_exception` must be a boolean'],
+            'unread separator' => ['separators.filters', '', 'Config `query-wizard.separators.filters` must be a non-empty string'],
+            'unread limit' => ['limits.max_append_depth', 0, 'Config `query-wizard.limits.max_append_depth` must be a positive integer'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('brokenConfigurations')]
+    public function a_snapshot_validates_every_setting(string $key, mixed $value, string $message): void
+    {
+        Config::set("query-wizard.{$key}", $value);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage($message);
+
+        $this->config->snapshot();
+    }
+
+    #[Test]
+    public function unknown_top_level_keys_are_ignored(): void
+    {
+        Config::set('query-wizard.optimizations', ['relation_select_mode' => 'off']);
+
+        $this->assertSame(20, $this->config->snapshot()->getMaxFiltersCount());
+    }
 }

@@ -22,6 +22,13 @@ final class QueryWizardConfig
 
     private const MAX_SEPARATOR_LENGTH = 10;
 
+    private const PARAMETER_TYPES = ['includes', 'filters', 'sorts', 'fields', 'appends'];
+
+    /**
+     * Groups whose keys are all known, so an unknown key is a typo.
+     */
+    private const CLOSED_GROUPS = ['parameters', 'naming', 'separators', 'fields', 'limits'];
+
     /**
      * Package defaults, the same as config/query-wizard.php.
      */
@@ -71,11 +78,68 @@ final class QueryWizardConfig
      * A copy that keeps the current configuration values, so a build reads
      * config() once however many settings it uses.
      *
+     * Every setting is validated when the snapshot is taken, so a broken
+     * configuration fails every request rather than the few that read it.
+     *
+     * @throws InvalidArgumentException When a setting is invalid or a closed group has an unknown key
+     *
      * @api
      */
     public function snapshot(): self
     {
-        return new self($this->values());
+        $snapshot = new self($this->values());
+        $snapshot->validate();
+
+        return $snapshot;
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function validate(): void
+    {
+        foreach (self::CLOSED_GROUPS as $group) {
+            [$found, $values] = $this->find($group);
+
+            if (! $found || $values === null) {
+                continue;
+            }
+
+            if (! is_array($values)) {
+                throw self::invalid($group, 'must be an array');
+            }
+
+            $known = $group === 'separators' ? self::PARAMETER_TYPES : array_keys(self::DEFAULTS[$group]);
+            $unknown = array_diff(array_map(strval(...), array_keys($values)), $known);
+
+            if ($unknown !== []) {
+                throw self::invalid(
+                    $group,
+                    'has unknown key(s) `'.implode('`, `', $unknown).'`; the keys are `'.implode('`, `', $known).'`'
+                );
+            }
+        }
+
+        $this->getCountSuffix();
+        $this->getExistsSuffix();
+        $this->getArrayValueSeparator();
+        $this->getRequestDataSource();
+        $this->shouldApplyFilterDefaultOnNull();
+        $this->shouldConvertParametersToSnakeCase();
+        $this->shouldUseAllowedFieldsAsDefault();
+
+        foreach (self::PARAMETER_TYPES as $type) {
+            $this->getSeparator($type);
+            $this->parameterName($type);
+        }
+
+        foreach (['filter', 'sort', 'include', 'field', 'append'] as $kind) {
+            $this->flag("disable_invalid_{$kind}_query_exception");
+        }
+
+        foreach (array_keys(self::DEFAULTS['limits']) as $limit) {
+            $this->limit($limit);
+        }
     }
 
     public function getCountSuffix(): string

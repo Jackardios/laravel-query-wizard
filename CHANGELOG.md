@@ -63,6 +63,10 @@ Changed:
   (an alias, a count sort) uses it, and one that `disallowed*()` removes throws `InvalidArgumentException`. Each kind
   followed its own rule: defaults outside the allow-list were dropped silently, except sorts, whose defaults any
   `allowedSorts()` or unrelated `disallowedSorts()` call turned off.
+- `QueryWizardConfig::snapshot()`, taken once per build, validates every setting, so a broken value fails every request
+  instead of the ones that read it (`disable_invalid_filter_query_exception => 'maybe'` was a 500 only for requests with
+  an unknown filter). An unknown key inside `parameters`, `naming`, `separators`, `fields` or `limits` throws
+  `InvalidArgumentException`; a typo such as `limits.max_filter_count` used to keep the default silently.
 - Nested or keyed lists in `include`, `sort`, a fieldset or `append` are a 400 (`invalid_include_format`,
   `invalid_sort_format`, `invalid_field_format`, `invalid_append_format`): `?include[a][b]=x` was ignored with a 200,
   `?sort[a][b]=x` got a message about an empty sort, and `?fields[a][b]=x` dropped the key `b`.

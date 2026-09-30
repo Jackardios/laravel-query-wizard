@@ -201,7 +201,9 @@ a later TypeError).
 
 ### Configuration
 
-- Values are validated when read. A limit must be a positive integer or `null`; `0`, `''` (an empty environment
+- The whole configuration is validated once per build, not only the values a request reads, and an unknown key inside
+  `parameters`, `naming`, `separators`, `fields` or `limits` throws `InvalidArgumentException` (before: a typo such as
+  `limits.max_filter_count` silently kept the default). A limit must be a positive integer or `null`; `0`, `''` (an empty environment
   variable), `false` and negative numbers now throw `InvalidArgumentException` (before: they disabled the limit). Invalid
   separators, parameter names (`''` used to disable a parameter; use `null`) and `request_data_source` throw as well.
 - A key missing from a published config takes the package default. A published `limits` array that lists only some

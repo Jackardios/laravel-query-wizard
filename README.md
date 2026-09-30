@@ -696,11 +696,12 @@ When `fields.use_allowed_as_default` is enabled and `?fields` is absent, default
 
 `getPassthroughFilters()` uses the same filter validation, defaults, `prepareValueWith()`, `when()`, and `max_filters_count` enforcement as normal query execution. Unknown filters still honor `disable_invalid_filter_query_exception`; malformed built-in filter payloads do not.
 
-Configuration values are validated when they are read: an invalid limit, separator (a non-empty string of at most 10
-characters), parameter name (a non-empty string, or `null` to turn the parameter off), `request_data_source`
-or boolean option (`true`/`false`, or a string such as `'false'` or `'off'`) throws
-`InvalidArgumentException` naming the key. A key missing from the published file takes the
-package default. Each build reads the configuration once, so a `config()->set()` at runtime applies from the next build;
+The whole configuration is validated when a build reads it, whatever the request uses: an invalid limit, separator (a
+non-empty string of at most 10 characters), parameter name (a non-empty string, or `null` to turn the parameter off),
+`request_data_source` or boolean option (`true`/`false`, or a string such as `'false'` or `'off'`) throws
+`InvalidArgumentException` naming the key, and so does an unknown key inside `parameters`, `naming`, `separators`,
+`fields` or `limits` (a typo such as `limits.max_filter_count`). A key missing from the published file takes the
+package default; unknown top-level keys are ignored. Each build reads the configuration once, so a `config()->set()` at runtime applies from the next build;
 parameter names and separators apply from the next request.
 
 With `convert_parameters_to_snake_case` enabled, only the names of filters, sorts, includes, fields and appends are
