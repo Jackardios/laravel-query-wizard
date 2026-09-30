@@ -194,7 +194,7 @@ jobs:
         run: vendor/bin/phpstan analyse --memory-limit=1G
 
   downstream-elastic:
-    name: Downstream (elastic-query-wizard ${{ inputs.elastic_ref || vars.ELASTIC_DOWNSTREAM_REF || 'master' }})
+    name: Downstream (elastic-query-wizard ${{ inputs.elastic_ref || vars.ELASTIC_DOWNSTREAM_REF || 'v3-rc1' }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -210,7 +210,9 @@ jobs:
           repository: jackardios/elastic-query-wizard
           # A manual run can name a branch; the ELASTIC_DOWNSTREAM_REF repository
           # variable follows the elastic branch that tracks this one between releases.
-          ref: ${{ inputs.elastic_ref || vars.ELASTIC_DOWNSTREAM_REF || 'master' }}
+          # elastic's master is still the 2.x line, so the default is its 3.x branch
+          # until that branch is merged into master.
+          ref: ${{ inputs.elastic_ref || vars.ELASTIC_DOWNSTREAM_REF || 'v3-rc1' }}
           path: elastic-query-wizard
 
       - name: Setup PHP
