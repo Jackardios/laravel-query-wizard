@@ -962,7 +962,7 @@ filters are exact, the second factory argument is the public name, and booleans 
 ## Requirements
 
 - PHP 8.2+ (tested on 8.2–8.5)
-- Laravel 12.61.1+ or 13.12.0+
+- Laravel 12.69.0+ or 13.30.0+
 
 ## Testing
 

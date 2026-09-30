@@ -16,8 +16,8 @@ requests (see [Includes](#includes)), so flush response caches after deploying.
 ### Requirements
 
 - PHP 8.2+ (tested on 8.2–8.5).
-- Laravel 12.61.1+ or 13.12.0+. Laravel 10 and 11 are no longer supported; the floors are the first releases without
-  open security advisories.
+- Laravel 12.69.0+ or 13.30.0+. Laravel 10 and 11 are no longer supported; the floors are the first releases without
+  open security advisories (CVE-2026-102279 affects earlier 12.x and 13.x releases).
 
 ### Filter Values
 
@@ -401,7 +401,7 @@ a later TypeError).
 
 ### Checklist
 
-- [ ] PHP 8.2+, Laravel 12.61.1+ or 13.12.0+
+- [ ] PHP 8.2+, Laravel 12.69.0+ or 13.30.0+
 - [ ] Replace `->strict()` calls on null and date range filters (strict is the default now)
 - [ ] Review boolean, null, trashed, range, date range and `Dynamic` filters for clients that send other values
 - [ ] Review clients that use `%`/`_` as LIKE wildcards or send `+` unencoded in date offsets

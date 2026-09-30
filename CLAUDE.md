@@ -2,7 +2,7 @@
 
 Builds Eloquent queries from API request parameters like `?filter[status]=active&include=posts&sort=-created_at&fields[user]=id,name&append=full_name`.
 
-**Requirements:** PHP 8.2+, Laravel 12.61.1+/13.12.0+
+**Requirements:** PHP 8.2+, Laravel 12.69.0+/13.30.0+
 
 ## Code Style
 

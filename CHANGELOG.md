@@ -8,7 +8,15 @@ All notable changes to this project are documented in this file. The format foll
 Version 3 is a rewrite: fluent `allowed*()` configuration, `EloquentFilter`/`EloquentSort`/`EloquentInclude` factories,
 resource schemas, `ModelQueryWizard::process()`, request limits. See [UPGRADE.md](UPGRADE.md) for migrating from v2.x
 and from `dev-master` snapshots. The entries below cover the changes made before the release; pre-releases v3.0.0-rc.1
-and v3.0.0-rc.2 were tagged on 2026-09-25, and the changes since each of them are listed first.
+and v3.0.0-rc.2 were tagged on 2026-09-25 and v3.0.0-rc.3 on 2026-09-30, and the changes since each of them are listed
+first.
+
+### Since v3.0.0-rc.3
+
+Changed:
+
+- Laravel 12.69.0+ or 13.30.0+ (was 12.61.1+ or 13.12.0+): CVE-2026-102279, an XSS in the debug error page, affects the
+  earlier releases, and the floors stay the first releases without open security advisories.
 
 ### Since v3.0.0-rc.2
 
@@ -289,7 +297,7 @@ Removed:
 
 ### Requirements
 
-- PHP 8.2+ (tested on 8.2–8.5) and Laravel 12.61.1+ or 13.12.0+. Laravel 10 and 11 are no longer supported.
+- PHP 8.2+ (tested on 8.2–8.5) and Laravel 12.69.0+ or 13.30.0+. Laravel 10 and 11 are no longer supported.
 
 ### Added
 

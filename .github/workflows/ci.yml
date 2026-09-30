@@ -43,12 +43,12 @@ jobs:
             laravel: '12'
             testbench: '10'
             dependencies: 'lowest'
-            framework-floor: '12.61.1'
+            framework-floor: '12.69.0'
           - php: '8.3'
             laravel: '13'
             testbench: '11'
             dependencies: 'lowest'
-            framework-floor: '13.12.0'
+            framework-floor: '13.30.0'
         exclude:
           # Laravel 13 requires PHP 8.3+
           - php: '8.2'
