@@ -18,6 +18,11 @@ use Jackardios\QueryWizard\Contracts\IncludeInterface;
  */
 abstract class AbstractInclude implements IncludeInterface
 {
+    /**
+     * Subclasses call it from their static factory (`return new self(...)`), and read `$relation` and `$alias`.
+     *
+     * @api
+     */
     protected function __construct(
         protected string $relation,
         protected ?string $alias = null,

@@ -326,9 +326,10 @@ a later TypeError).
   fieldsets and appends from `resolveEloquentShape()` instead of the relation-select plan: `prepareSafeRelationSelectPlan()`,
   `getSafeRelationSelectColumns()`, `applySafeRootFieldRequirements()` and `resetSafeRelationSelectState()` are removed,
   and the `HandlesSafeRelationSelect` and `HandlesRelationPostProcessing` traits are `@internal`.
-- New extension points are listed under [Extending](README.md#extending) in the README; they and the classes marked
-  `@api` are the supported surface. Classes marked `@internal` may change in any release, among them
-  `Support\ParameterParser`, `FilterValueTransformer`, `NameConverter`, `RelationResolver` and `DotNotationTreeBuilder`.
+- New extension points are listed under [Extending](README.md#extending) in the README, and what 3.x keeps stable
+  under [Backward Compatibility](README.md#backward-compatibility). Classes marked `@internal` may change in any
+  release, among them the `Concerns` traits, `Support\ParameterParser`, `FilterValueTransformer`, `NameConverter`,
+  `RelationResolver` and `DotNotationTreeBuilder`.
 
 ### Checklist
 

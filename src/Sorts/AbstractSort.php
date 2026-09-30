@@ -18,6 +18,11 @@ use Jackardios\QueryWizard\Contracts\SortInterface;
  */
 abstract class AbstractSort implements SortInterface
 {
+    /**
+     * Subclasses call it from their static factory (`return new self(...)`), and read `$property` and `$alias`.
+     *
+     * @api
+     */
     protected function __construct(
         protected string $property,
         protected ?string $alias = null,

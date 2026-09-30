@@ -8,6 +8,8 @@ namespace Jackardios\QueryWizard\Contracts;
  * Interface for sort implementations.
  *
  * Sorts apply ordering to query subjects.
+ *
+ * @api
  */
 interface SortInterface
 {

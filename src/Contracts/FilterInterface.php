@@ -8,6 +8,8 @@ namespace Jackardios\QueryWizard\Contracts;
  * Interface for filter implementations.
  *
  * Filters transform values and apply conditions to query subjects.
+ *
+ * @api
  */
 interface FilterInterface
 {

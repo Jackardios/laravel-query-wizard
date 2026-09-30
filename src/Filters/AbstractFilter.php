@@ -36,6 +36,11 @@ abstract class AbstractFilter implements FilterInterface
 
     protected bool $splitValues = true;
 
+    /**
+     * Subclasses call it from their static factory (`return new self(...)`), and read `$property` and `$alias`.
+     *
+     * @api
+     */
     protected function __construct(
         protected string $property,
         protected ?string $alias = null,

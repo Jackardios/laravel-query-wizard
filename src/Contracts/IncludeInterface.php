@@ -6,6 +6,8 @@ namespace Jackardios\QueryWizard\Contracts;
 
 /**
  * Interface for include implementations.
+ *
+ * @api
  */
 interface IncludeInterface
 {

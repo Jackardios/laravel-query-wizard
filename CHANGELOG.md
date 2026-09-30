@@ -141,6 +141,9 @@ Fixed:
 
 Documentation:
 
+- README "Backward Compatibility" states what 3.x keeps stable: public members of classes not marked `@internal`,
+  protected members marked `@api`, and the `@api` definition interfaces. The `Concerns` traits are `@internal`, and the
+  constructors of `AbstractFilter`, `AbstractSort` and `AbstractInclude` and the value shape helpers are `@api`.
 - README "Schema Overrides" warns that `disallowedFilters()` also drops the schema's default for that filter and shows
   how to keep a condition that must always hold.
 

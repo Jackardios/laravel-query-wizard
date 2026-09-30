@@ -865,8 +865,18 @@ These hooks are part of the supported API:
 | `normalizePublicPath()`, `resolveDefaultResourceKey($model)` | A requested name in the form the wizard compares names in (snake case when configured); the default sparse-fieldset key for a model |
 | `QueryWizardConfig::snapshot()` | Configuration fixed at the time of the call |
 
-Classes marked `@internal` may change in any release, and so may protected members without `@api`, such as the
-`HandlesSafeRelationSelect` and `HandlesRelationPostProcessing` traits.
+### Backward Compatibility
+
+From 3.0.0, breaking changes wait for a major version in:
+
+- public methods of classes, interfaces and enums not marked `@internal`;
+- protected members marked `@api`. A class-level `@api` marks a class as meant to be extended; its protected members
+  without `@api` are not covered;
+- the `@api` interfaces custom definitions implement (`FilterInterface`, `SortInterface`, `IncludeInterface` and the
+  include contracts), which gain no required methods in minor releases.
+
+Anything marked `@internal` may change in any release, and so may protected members without `@api`. The `Concerns`
+traits are `@internal`: the wizard methods they provide are covered, using a trait in another class is not.
 
 ### Laravel Octane
 

@@ -9,6 +9,9 @@ use Jackardios\QueryWizard\Contracts\IncludeInterface;
 
 /**
  * Shared validation logic for relation attributes (appends, fields).
+ *
+ * @internal Wiring for the wizards: the public methods and `@api` members it gives them are supported through the
+ *           wizards; using the trait in another class is not.
  */
 trait HandlesRelationAttributeValidation
 {

@@ -12,6 +12,9 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
  * Declares abstract methods for accessing wizard context.
  *
  * Used by Handles* traits to avoid repeating the same abstract declarations.
+ *
+ * @internal Wiring for the wizards: the public methods and `@api` members it gives them are supported through the
+ *           wizards; using the trait in another class is not.
  */
 trait RequiresWizardContext
 {
