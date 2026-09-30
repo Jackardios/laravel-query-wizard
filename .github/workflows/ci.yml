@@ -18,6 +18,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
+env:
+  # Laravel 10 and 11 have open security advisories and no fixed release. This line
+  # keeps supporting them, so Composer must not refuse to install them.
+  COMPOSER_POLICY_ADVISORIES_BLOCK: '0'
+
 jobs:
   tests:
     name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}
@@ -167,7 +172,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: jackardios/elastic-query-wizard
-          ref: master
+          ref: legacy-l10
           path: elastic-query-wizard
 
       - name: Setup PHP
@@ -185,14 +190,14 @@ jobs:
           key: ${{ runner.os }}-downstream-composer-${{ hashFiles('elastic-query-wizard/composer.json') }}
           restore-keys: ${{ runner.os }}-downstream-composer-
 
-      # elastic-query-wizard requires jackardios/laravel-query-wizard:dev-master.
+      # elastic-query-wizard's legacy-l10 requires jackardios/laravel-query-wizard:dev-legacy-l10.
       # Resolve that constraint against this checkout instead of Packagist, so the
       # commit under test is the one the downstream package is compiled against.
       - name: Resolve the dependency against this checkout
         working-directory: elastic-query-wizard
         run: |
           composer config repositories.laravel-query-wizard \
-            '{"type":"path","url":"../laravel-query-wizard","options":{"symlink":false,"versions":{"jackardios/laravel-query-wizard":"dev-master"}}}'
+            '{"type":"path","url":"../laravel-query-wizard","options":{"symlink":false,"versions":{"jackardios/laravel-query-wizard":"dev-legacy-l10"}}}'
 
       - name: Install dependencies
         working-directory: elastic-query-wizard
