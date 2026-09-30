@@ -25,6 +25,38 @@ abstract class AbstractSort implements SortInterface
         if (trim($property) === '') {
             throw new \InvalidArgumentException('Sort property name cannot be empty.');
         }
+
+        self::assertNotDescending($property, 'property');
+
+        if ($alias !== null) {
+            self::assertValidAlias($alias);
+        }
+    }
+
+    /**
+     * @throws \InvalidArgumentException When the alias is blank or starts with `-`
+     */
+    private static function assertValidAlias(string $alias): void
+    {
+        if (trim($alias) === '') {
+            throw new \InvalidArgumentException('Sort alias cannot be empty.');
+        }
+
+        self::assertNotDescending($alias, 'alias');
+    }
+
+    /**
+     * A leading `-` marks a descending sort in the request, so no sort name can start with one.
+     *
+     * @throws \InvalidArgumentException When the name starts with `-`
+     */
+    private static function assertNotDescending(string $name, string $what): void
+    {
+        if (str_starts_with($name, '-')) {
+            throw new \InvalidArgumentException(
+                "Sort {$what} `{$name}` cannot start with `-`, which requests a descending sort. Use defaultSorts('{$name}') for a descending default."
+            );
+        }
     }
 
     /**
@@ -32,6 +64,7 @@ abstract class AbstractSort implements SortInterface
      */
     public function alias(string $alias): static
     {
+        self::assertValidAlias($alias);
         $this->alias = $alias;
 
         return $this;

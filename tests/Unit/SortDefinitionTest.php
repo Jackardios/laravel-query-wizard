@@ -6,6 +6,8 @@ namespace Jackardios\QueryWizard\Tests\Unit;
 
 use Closure;
 use Jackardios\QueryWizard\Contracts\SortInterface;
+use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\EloquentSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\FieldSort;
 use Jackardios\QueryWizard\Eloquent\Sorts\RelationSort;
@@ -127,12 +129,43 @@ class SortDefinitionTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_descending_sort_alias(): void
+    public function sort_names_cannot_start_with_a_minus(): void
     {
-        $sort = EloquentSort::field('created_at', '-created_at');
+        $attempts = [
+            'alias argument' => fn () => EloquentSort::field('created_at', '-created_at'),
+            'alias()' => fn () => EloquentSort::field('created_at')->alias('-newest'),
+            'property' => fn () => EloquentSort::field('-created_at'),
+            'count' => fn () => EloquentSort::count('posts')->alias('-popular'),
+        ];
 
-        $this->assertEquals('created_at', $sort->getProperty());
-        $this->assertEquals('-created_at', $sort->getName());
+        foreach ($attempts as $label => $attempt) {
+            try {
+                $attempt();
+                $this->fail("{$label} accepted a leading minus");
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString('cannot start with `-`', $e->getMessage(), $label);
+            }
+        }
+    }
+
+    #[Test]
+    public function aliases_cannot_be_empty(): void
+    {
+        $attempts = [
+            'sort' => fn () => EloquentSort::field('name')->alias(''),
+            'filter' => fn () => EloquentFilter::exact('name')->alias(' '),
+            'filter factory' => fn () => EloquentFilter::exact('name', ''),
+            'include' => fn () => EloquentInclude::relationship('posts')->alias(''),
+        ];
+
+        foreach ($attempts as $label => $attempt) {
+            try {
+                $attempt();
+                $this->fail("{$label} accepted an empty alias");
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString('alias cannot be empty', $e->getMessage(), $label);
+            }
+        }
     }
 
     #[Test]

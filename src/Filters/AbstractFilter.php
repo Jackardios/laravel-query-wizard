@@ -43,6 +43,20 @@ abstract class AbstractFilter implements FilterInterface
         if (trim($property) === '') {
             throw new \InvalidArgumentException('Filter property name cannot be empty.');
         }
+
+        if ($alias !== null) {
+            self::assertValidAlias($alias);
+        }
+    }
+
+    /**
+     * @throws \InvalidArgumentException When the alias is blank
+     */
+    private static function assertValidAlias(string $alias): void
+    {
+        if (trim($alias) === '') {
+            throw new \InvalidArgumentException('Filter alias cannot be empty.');
+        }
     }
 
     /**
@@ -50,6 +64,7 @@ abstract class AbstractFilter implements FilterInterface
      */
     public function alias(string $alias): static
     {
+        self::assertValidAlias($alias);
         $this->alias = $alias;
 
         return $this;

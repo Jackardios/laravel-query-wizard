@@ -138,6 +138,9 @@ a later TypeError).
 - `EloquentSort::count('posts.comments')` and `EloquentSort::relation()` with a dotted relation throw
   `InvalidArgumentException` when defined (before: 500 at request time). Use a callback sort.
 - Duplicate sorts are removed by exact name (`1` and `01` are no longer merged).
+- A sort property or alias starting with `-` throws `InvalidArgumentException` (`field('-created_at')` ordered by a
+  column named `-created_at`; an alias `-x` answered `?sort=x`). Put the direction in `defaultSorts('-created_at')`.
+- An empty alias on any definition throws `InvalidArgumentException`.
 
 ### Includes
 

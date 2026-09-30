@@ -61,6 +61,8 @@ Changed:
   (an alias, a count sort) uses it, and one that `disallowed*()` removes throws `InvalidArgumentException`. Each kind
   followed its own rule: defaults outside the allow-list were dropped silently, except sorts, whose defaults any
   `allowedSorts()` or unrelated `disallowedSorts()` call turned off.
+- An empty alias, and a sort property or alias starting with `-`, throw `InvalidArgumentException` when the definition
+  is made (an empty alias gave the definition an empty name; `field('-name')` ordered by a column named `-name`).
 - `asBoolean()` throws `LogicException` on partial, range, date range, JSON contains and trashed filters and on operator
   filters other than `EQUAL`/`NOT_EQUAL`, which turned every request into a 400. `@api` hook:
   `AbstractFilter::supportsBooleanValues()`.

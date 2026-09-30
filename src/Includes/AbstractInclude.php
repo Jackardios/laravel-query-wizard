@@ -25,6 +25,20 @@ abstract class AbstractInclude implements IncludeInterface
         if (trim($relation) === '') {
             throw new \InvalidArgumentException('Include relation name cannot be empty.');
         }
+
+        if ($alias !== null) {
+            self::assertValidAlias($alias);
+        }
+    }
+
+    /**
+     * @throws \InvalidArgumentException When the alias is blank
+     */
+    private static function assertValidAlias(string $alias): void
+    {
+        if (trim($alias) === '') {
+            throw new \InvalidArgumentException('Include alias cannot be empty.');
+        }
     }
 
     /**
@@ -32,6 +46,7 @@ abstract class AbstractInclude implements IncludeInterface
      */
     public function alias(string $alias): static
     {
+        self::assertValidAlias($alias);
         $this->alias = $alias;
 
         return $this;
