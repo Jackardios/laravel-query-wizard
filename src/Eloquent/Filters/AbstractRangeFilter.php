@@ -16,7 +16,8 @@ use Jackardios\QueryWizard\Filters\AbstractFilter;
  *
  * Supports dot notation for relation filtering (e.g., 'posts.created_at').
  *
- * Expects: ?filter[property][minKey]=X&filter[property][maxKey]=Y
+ * Expects: ?filter[property][min]=X&filter[property][max]=Y, the keys named by
+ * `$minKey` and `$maxKey`.
  *
  * @template TConstraint of array<mixed>
  *
@@ -32,30 +33,6 @@ abstract class AbstractRangeFilter extends AbstractFilter
     protected string $minKey = 'min';
 
     protected string $maxKey = 'max';
-
-    /**
-     * Set the key used for minimum value in the request.
-     *
-     * Note: This method mutates the current instance.
-     */
-    public function minKey(string $key): static
-    {
-        $this->minKey = $key;
-
-        return $this;
-    }
-
-    /**
-     * Set the key used for maximum value in the request.
-     *
-     * Note: This method mutates the current instance.
-     */
-    public function maxKey(string $key): static
-    {
-        $this->maxKey = $key;
-
-        return $this;
-    }
 
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject

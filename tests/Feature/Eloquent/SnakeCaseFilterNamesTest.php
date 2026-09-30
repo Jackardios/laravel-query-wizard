@@ -40,7 +40,7 @@ class SnakeCaseFilterNamesTest extends EloquentFilterTestCase
             ->createEloquentWizardWithFilters(['createdAt' => ['fromDate' => '2024-01-01', 'nested' => ['toDate' => '2024-02-01']]])
             ->allowedFilters(EloquentFilter::callback('created_at', function ($query, $value) use (&$received) {
                 $received = $value;
-            })->allowStructuredInput())
+            })->withStructuredInput())
             ->toQuery();
 
         $this->assertSame(['fromDate' => '2024-01-01', 'nested' => ['toDate' => '2024-02-01']], $received);
@@ -51,7 +51,7 @@ class SnakeCaseFilterNamesTest extends EloquentFilterTestCase
     {
         $passthrough = $this
             ->createEloquentWizardWithFilters(['searchQuery' => ['textValue' => 'a']])
-            ->allowedFilters(EloquentFilter::passthrough('search_query')->allowStructuredInput())
+            ->allowedFilters(EloquentFilter::passthrough('search_query')->withStructuredInput())
             ->getPassthroughFilters();
 
         $this->assertSame(['search_query' => ['textValue' => 'a']], $passthrough->all());
@@ -92,7 +92,7 @@ class SnakeCaseFilterNamesTest extends EloquentFilterTestCase
             ->allowedFilters(
                 EloquentFilter::callback('meta', function ($query, $value) use (&$received) {
                     $received = $value;
-                })->allowStructuredInput(),
+                })->withStructuredInput(),
                 EloquentFilter::exact('is_visible')->alias('meta.isVisible'),
             )
             ->toQuery();

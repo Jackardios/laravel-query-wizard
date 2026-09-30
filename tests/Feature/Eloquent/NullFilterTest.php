@@ -77,19 +77,23 @@ class NullFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function null_filter_with_inverted_logic_sql(): void
+    public function not_null_filter_matches_not_null_for_true_and_null_for_false(): void
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['has_name' => true])
-            ->allowedFilters(
-                EloquentFilter::null('name')->alias('has_name')
-                    ->withInvertedLogic()
-            )
+            ->allowedFilters(EloquentFilter::notNull('name', 'has_name'))
             ->toQuery()
             ->toSql();
 
-        // withInvertedLogic: "true" checks for NOT NULL
-        $this->assertStringContainsString('is not null', strtolower($sql));
+        $this->assertStringEndsWith('where "test_models"."name" is not null', $sql);
+
+        $sql = $this
+            ->createEloquentWizardWithFilters(['has_name' => 'false'])
+            ->allowedFilters(EloquentFilter::notNull('name', 'has_name'))
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringEndsWith('where "test_models"."name" is null', $sql);
     }
 
     #[Test]

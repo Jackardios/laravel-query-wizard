@@ -54,6 +54,8 @@ Added:
   relation fieldsets, relation field and append validation and the disallowed-path check;
   `Contracts\AppliesToModel` (`applyToModel(Model $model): void`, implemented by callback includes) lets
   `ModelQueryWizard` apply it to a loaded model.
+- `EloquentFilter::notNull()` (`NullFilter::notNull()`): `true` matches NOT NULL, `false` NULL.
+- `withoutStructuredInput()`, the counterpart of `withStructuredInput()`.
 
 Changed:
 
@@ -147,6 +149,11 @@ Removed:
   `relation()` took the aggregate as a case-sensitive string (`'MAX'` was an error) and also accepted `count`, which
   counted the column's non-null values under another name than `EloquentSort::count()`, and `exists`.
   An aggregate sort reuses an aggregate the query already selects (`withSum('orders', 'total')`), as count sorts do.
+- `NullFilter::withInvertedLogic()` and `withoutInvertedLogic()`: use `EloquentFilter::notNull()` and
+  `EloquentFilter::null()`.
+- `minKey()` and `maxKey()` on `DateRangeFilter`, which duplicated `fromKey()` and `toKey()`; they moved from
+  `AbstractRangeFilter` to `RangeFilter`.
+- `allowStructuredInput()`, renamed `withStructuredInput()` like the other `with*()`/`without*()` modifiers.
 - `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` from `IncludeInterface` and
   `AbstractInclude`: the wizard names count and exists includes without an alias after the `includes.count_suffix`
   and `includes.exists_suffix` settings itself, without changing the definition. `QueryWizardConfig::getIncludeAliasSuffix()` is

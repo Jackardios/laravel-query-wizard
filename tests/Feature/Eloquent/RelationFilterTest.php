@@ -236,14 +236,11 @@ class RelationFilterTest extends EloquentFilterTestCase
     }
 
     #[Test]
-    public function it_can_filter_by_relation_property_with_null_filter_inverted(): void
+    public function it_can_filter_by_relation_property_with_not_null_filter(): void
     {
         $sql = $this
             ->createEloquentWizardWithFilters(['relatedModels.name' => true])
-            ->allowedFilters(
-                EloquentFilter::null('relatedModels.name')
-                    ->withInvertedLogic()
-            )
+            ->allowedFilters(EloquentFilter::notNull('relatedModels.name'))
             ->toQuery()
             ->toSql();
 

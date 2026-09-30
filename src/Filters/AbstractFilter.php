@@ -175,13 +175,23 @@ abstract class AbstractFilter implements FilterInterface
     }
 
     /**
-     * Allow structured raw input that will be normalized by prepareValueWith().
+     * Accept structured raw input that prepareValueWith() normalizes.
      *
-     * Built-in filters still validate the prepared value shape before apply().
+     * The raw value is not validated; the prepared one still is, before apply().
      */
-    public function allowStructuredInput(): static
+    public function withStructuredInput(): static
     {
         $this->structuredInputAllowed = true;
+
+        return $this;
+    }
+
+    /**
+     * Validate the raw value's shape before preparing it (default).
+     */
+    public function withoutStructuredInput(): static
+    {
+        $this->structuredInputAllowed = false;
 
         return $this;
     }

@@ -83,7 +83,7 @@ class AuditRegressionTest extends TestCase
             ->createEloquentWizardWithFilters(['name' => ['value' => $targetModel->name]])
             ->allowedFilters(
                 EloquentFilter::exact('name')
-                    ->allowStructuredInput()
+                    ->withStructuredInput()
                     ->prepareValueWith(static fn (array $value) => $value['value'] ?? null)
             )
             ->get();
@@ -102,7 +102,7 @@ class AuditRegressionTest extends TestCase
             ->createEloquentWizardWithFilters(['name' => ['value' => 'Alpha']])
             ->allowedFilters(
                 EloquentFilter::exact('name')
-                    ->allowStructuredInput()
+                    ->withStructuredInput()
                     ->prepareValueWith(static fn (array $value) => ['invalid' => $value])
             )
             ->get();
@@ -144,9 +144,14 @@ class AuditRegressionTest extends TestCase
         $this->assertSame(['Alpha', 'alpha'], $filter->validated);
 
         $filter->validated = [];
-        $filter->allowStructuredInput();
+        $filter->withStructuredInput();
         $build();
         $this->assertSame(['alpha'], $filter->validated);
+
+        $filter->validated = [];
+        $filter->withoutStructuredInput();
+        $build();
+        $this->assertSame(['Alpha', 'alpha'], $filter->validated);
     }
 
     #[Test]

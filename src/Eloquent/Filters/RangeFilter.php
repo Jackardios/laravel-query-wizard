@@ -32,6 +32,30 @@ final class RangeFilter extends AbstractRangeFilter
     }
 
     /**
+     * Set the key used for the minimum in the request.
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function minKey(string $key): static
+    {
+        $this->minKey = $key;
+
+        return $this;
+    }
+
+    /**
+     * Set the key used for the maximum in the request.
+     *
+     * Note: This method mutates the current instance.
+     */
+    public function maxKey(string $key): static
+    {
+        $this->maxKey = $key;
+
+        return $this;
+    }
+
+    /**
      * Read a bound as a decimal number.
      */
     protected function normalizeRangeValue(mixed $value, ?string $key = null): mixed

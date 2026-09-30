@@ -133,7 +133,7 @@ class ScopeFilterTest extends EloquentFilterTestCase
             ->createEloquentWizardWithFilters(['created_between' => ['from' => $from, 'to' => $to]])
             ->allowedFilters(
                 EloquentFilter::scope('createdBetween')->alias('created_between')
-                    ->allowStructuredInput()
+                    ->withStructuredInput()
                     ->prepareValueWith(static fn (array $value): array => [$value['from'] ?? null, $value['to'] ?? null])
             )
             ->get();

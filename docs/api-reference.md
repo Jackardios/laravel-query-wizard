@@ -119,7 +119,8 @@ All configuration methods must be called before `process()`. After processing, c
 | `partial($property, $alias)` | LIKE search filter |
 | `scope($scope, $alias)` | Model scope filter |
 | `trashed($alias)` | Soft delete filter |
-| `null($property, $alias)` | NULL check filter |
+| `null($property, $alias)` | NULL check filter (`true` → IS NULL) |
+| `notNull($property, $alias)` | NOT NULL check filter (`true` → IS NOT NULL) |
 | `range($property, $alias)` | Numeric range filter |
 | `dateRange($property, $alias)` | Date range filter |
 | `jsonContains($property, $alias)` | JSON contains filter |
@@ -137,7 +138,7 @@ All configuration methods must be called before `process()`. After processing, c
 | `default($value)` | Default value when absent |
 | `prepareValueWith($callback)` | Add a step that transforms the value before applying; steps run in call order, a `null` result skips the filter |
 | `when($callback)` | Conditionally skip filter |
-| `allowStructuredInput()` | Skip raw shape validation and validate only the prepared value shape |
+| `withStructuredInput()` / `withoutStructuredInput()` | Skip raw shape validation and validate only the prepared value shape, or validate both (default) |
 | `withValueSplitting()` / `withoutValueSplitting()` | Split string values by the filters separator, or keep them whole (default: split; `partial` keeps them whole) |
 | `asBoolean()` | Add a step reading `true`/`false`/`1`/`0`/`yes`/`no`/`on`/`off` (any case) as booleans, item by item for lists; anything else throws `InvalidFilterValue`. Throws `LogicException` on filters that can't take booleans |
 
@@ -154,7 +155,7 @@ non-boolean for `asBoolean()`/`null`, a non-number for `range`, a non-ISO date f
 `InvalidFilterValue`. Blank values (whitespace, `,`, lists of blanks) are treated as absent.
 `ignore_unknown.filters` suppresses neither; it only affects unknown filter names.
 
-Use `allowStructuredInput()` when a built-in filter should intentionally accept structured raw input that will be normalized inside `prepareValueWith()`. The prepared value is still validated against the built-in filter's contract before `apply()` runs.
+Use `withStructuredInput()` when a built-in filter should intentionally accept structured raw input that will be normalized inside `prepareValueWith()`. The prepared value is still validated against the built-in filter's contract before `apply()` runs.
 
 ### Filter-Specific Modifiers
 
@@ -162,7 +163,6 @@ Use `allowStructuredInput()` when a built-in filter should intentionally accept 
 |--------|--------|-------------|
 | Exact, Partial, Null, Operator, Range, DateRange | `withoutRelationConstraint()` | Disable `whereHas` for dot notation |
 | Scope | `withModelBinding()` | Load model by ID |
-| Null | `withInvertedLogic()` | Use IS NOT NULL |
 | JsonContains | `matchAny()` | Match any value (default: `matchAll()`) |
 | Range | `minKey($key)`, `maxKey($key)` | Custom range keys |
 | DateRange | `fromKey($key)`, `toKey($key)` | Custom date keys |

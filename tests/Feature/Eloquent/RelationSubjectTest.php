@@ -87,7 +87,7 @@ class RelationSubjectTest extends TestCase
     public function null_filter_applies_within_the_relation(): void
     {
         $models = $this->wizard($this->parent->relatedModels(), ['filter' => ['name' => 'true'], 'sort' => 'name'])
-            ->allowedFilters(EloquentFilter::null('name')->withInvertedLogic())
+            ->allowedFilters(EloquentFilter::notNull('name'))
             ->allowedSorts('name')
             ->get();
 

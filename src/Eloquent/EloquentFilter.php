@@ -69,7 +69,7 @@ final class EloquentFilter
     }
 
     /**
-     * Create a null/not null filter.
+     * Create an "is null" filter: `true` matches NULL, `false` NOT NULL.
      *
      * @param  string  $property  The column name to check for NULL
      * @param  string|null  $alias  Optional alias for URL parameter name
@@ -77,6 +77,19 @@ final class EloquentFilter
     public static function null(string $property, ?string $alias = null): NullFilter
     {
         return NullFilter::make($property, $alias);
+    }
+
+    /**
+     * Create an "is not null" filter: `true` matches NOT NULL, `false` NULL.
+     *
+     * Example: EloquentFilter::notNull('avatar', 'has_avatar') for ?filter[has_avatar]=true
+     *
+     * @param  string  $property  The column name to check for NULL
+     * @param  string|null  $alias  Optional alias for URL parameter name
+     */
+    public static function notNull(string $property, ?string $alias = null): NullFilter
+    {
+        return NullFilter::notNull($property, $alias);
     }
 
     /**

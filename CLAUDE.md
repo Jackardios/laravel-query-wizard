@@ -81,6 +81,7 @@ $wizard->getSubject();                  // Get underlying builder without buildi
 | Scope | `EloquentFilter::scope('name')` | `?filter[name]=arg` |
 | Trashed | `EloquentFilter::trashed()` | `?filter[trashed]=with\|only\|without` |
 | Null | `EloquentFilter::null('col')` | `?filter[col]=true` (IS NULL) |
+| NotNull | `EloquentFilter::notNull('col')` | `?filter[col]=true` (IS NOT NULL) |
 | Range | `EloquentFilter::range('col')` | `?filter[col][min]=1&filter[col][max]=10` |
 | DateRange | `EloquentFilter::dateRange('col')` | `?filter[col][from]=2024-01-01&filter[col][to]=2024-01-31` (ISO 8601, app timezone, date `to` = whole day) |
 | JsonContains | `EloquentFilter::jsonContains('col')` | `?filter[col]=a,b` |
@@ -119,11 +120,11 @@ EloquentFilter::exact('status')
     ->when(fn($value) => $value !== 'all') // Skip if returns false
     ->asBoolean()                         // true/false/1/0/yes/no/on/off → bool, anything else → 400
     ->withoutValueSplitting()             // Keep 'a,b' whole (default for PartialFilter; withValueSplitting() reverts)
+    ->withStructuredInput()               // Validate only the prepared value's shape (withoutStructuredInput() reverts)
 
 // Filter-specific
 ->withoutRelationConstraint()             // Exact, Partial, Null, Operator, Range, DateRange
 ->withModelBinding()                      // ScopeFilter
-->withInvertedLogic()                     // NullFilter
 ->matchAny()                              // JsonContainsFilter (default: matchAll)
 ->minKey('from')->maxKey('to')            // RangeFilter
 ->fromKey('start')->toKey('end')          // DateRangeFilter

@@ -174,6 +174,7 @@ EloquentQueryWizard::for(User::class)
 | Scope | `EloquentFilter::scope('popular')` | `?filter[popular]=5000` |
 | Trashed | `EloquentFilter::trashed()` | `?filter[trashed]=with\|only\|without` |
 | Null | `EloquentFilter::null('deleted_at')` | `?filter[deleted_at]=true` (IS NULL) |
+| Not null | `EloquentFilter::notNull('avatar', 'has_avatar')` | `?filter[has_avatar]=true` (IS NOT NULL) |
 | Range | `EloquentFilter::range('price')` | `?filter[price][min]=10&filter[price][max]=100` |
 | Date Range | `EloquentFilter::dateRange('created_at')` | `?filter[created_at][from]=2024-01-01&filter[created_at][to]=2024-12-31` (ISO 8601; `to` includes the whole day) |
 | JSON Contains | `EloquentFilter::jsonContains('tags')` | `?filter[tags]=laravel,php` |
@@ -192,7 +193,7 @@ EloquentFilter::exact('status')
     ->default('active')                        // Default value when not in request
     ->prepareValueWith(fn($v) => strtolower($v))  // Transform before applying (repeated calls chain in order)
     ->when(fn($v) => $v !== 'all')             // Skip filter if returns false
-    ->allowStructuredInput()                   // Accept structured raw input, still validate prepared value
+    ->withStructuredInput()                    // Accept structured raw input, still validate prepared value
     ->withoutValueSplitting()                  // Keep 'a,b' as one string instead of ['a', 'b']
     ->asBoolean()                              // Read true/false/1/0/yes/no/on/off as bool; anything else is a 400
 ```
@@ -223,9 +224,6 @@ EloquentFilter::dateRange('created_ts')->asUnixTimestamp()  // Integer column of
 // JSON contains filter
 EloquentFilter::jsonContains('tags')->matchAny()  // Default: matchAll()
 
-// Null filter
-EloquentFilter::null('deleted_at')->withInvertedLogic()  // IS NOT NULL
-
 // Scope filter
 EloquentFilter::scope('byAuthor')->withModelBinding()  // Load model by ID
 ```
@@ -243,7 +241,7 @@ Built-in filters validate the shape of their input before `prepareValueWith()` a
 
 Malformed payloads such as `?filter[name][foo][bar]=Alpha` raise `InvalidFilterQuery::invalidFormat(...)` instead of reaching SQL generation or PHP warnings.
 
-If you intentionally accept structured raw payloads and normalize them in `prepareValueWith()`, opt in with `allowStructuredInput()`. The built-in filter still validates the prepared value shape before applying it to the query.
+If you intentionally accept structured raw payloads and normalize them in `prepareValueWith()`, opt in with `withStructuredInput()`. The built-in filter still validates the prepared value shape before applying it to the query.
 
 A blank value is absent: `?filter=` applies no filters, and `?filter[name]=`, a value of spaces, `?filter[name]=,` and a
 list of empty items apply no condition (with `filters.apply_default_on_null` enabled, the filter's `default()` applies instead). A value that a

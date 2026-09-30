@@ -16,22 +16,22 @@ use Jackardios\QueryWizard\Support\FilterValueParser;
  *
  * Supports dot notation for relation filtering (e.g., 'posts.deleted_at').
  *
- * By default:
- * - Truthy value → WHERE column IS NULL
- * - Falsy value → WHERE column IS NOT NULL
+ * make() ("is null"):
+ * - true → WHERE column IS NULL
+ * - false → WHERE column IS NOT NULL
  *
- * When invertLogic is true, the behavior is reversed. A value that is not a
- * boolean (true/false, 1/0, yes/no, on/off) is rejected with a 400.
+ * notNull() ("is not null") reverses both. A value that is not a boolean
+ * (true/false, 1/0, yes/no, on/off) is rejected with a 400.
  */
 final class NullFilter extends AbstractFilter
 {
     /** @use HandlesRelationFiltering<bool> */
     use HandlesRelationFiltering;
 
-    protected bool $invertLogic = false;
+    private bool $matchesNotNull = false;
 
     /**
-     * Create a new null filter.
+     * Create a filter where true matches NULL and false matches NOT NULL.
      *
      * @param  string  $property  The column name to check for NULL
      * @param  string|null  $alias  Optional alias for URL parameter name
@@ -42,29 +42,17 @@ final class NullFilter extends AbstractFilter
     }
 
     /**
-     * Invert the filter logic.
-     * When inverted: truthy → NOT NULL, falsy → NULL
+     * Create a filter where true matches NOT NULL and false matches NULL.
      *
-     * Note: This method mutates the current instance.
+     * @param  string  $property  The column name to check for NULL
+     * @param  string|null  $alias  Optional alias for URL parameter name
      */
-    public function withInvertedLogic(): static
+    public static function notNull(string $property, ?string $alias = null): static
     {
-        $this->invertLogic = true;
+        $filter = new self($property, $alias);
+        $filter->matchesNotNull = true;
 
-        return $this;
-    }
-
-    /**
-     * Use normal filter logic (default).
-     * Normal: truthy → NULL, falsy → NOT NULL
-     *
-     * Note: This method mutates the current instance.
-     */
-    public function withoutInvertedLogic(): static
-    {
-        $this->invertLogic = false;
-
-        return $this;
+        return $filter;
     }
 
     public function validateValueShape(mixed $value): ?string
@@ -94,7 +82,7 @@ final class NullFilter extends AbstractFilter
     protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder
     {
         $qualifiedColumn = $builder->qualifyColumn($column);
-        $shouldBeNull = $this->invertLogic ? ! $value : $value;
+        $shouldBeNull = $this->matchesNotNull ? ! $value : $value;
 
         if ($shouldBeNull) {
             $builder->whereNull($qualifiedColumn);

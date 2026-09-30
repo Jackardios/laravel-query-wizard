@@ -367,6 +367,17 @@ a later TypeError).
   `applyOnQuery()` receives what it returns. `ExactFilter` returns the value unchanged.
 - Filters override `validateValueShape()` only: `validateIncomingValueShape()`, `validatePreparedValueShape()` and
   `disallowStructuredInput()` are removed.
+- One name per concept on filters:
+
+  | Before | Now |
+  |--------|-----|
+  | `EloquentFilter::null($col)->withInvertedLogic()` | `EloquentFilter::notNull($col)` |
+  | `->withoutInvertedLogic()` | `EloquentFilter::null($col)` |
+  | `->allowStructuredInput()` | `->withStructuredInput()` (`withoutStructuredInput()` reverts it) |
+  | `EloquentFilter::dateRange($col)->minKey()`/`maxKey()` | `->fromKey()`/`toKey()` |
+
+  `minKey()` and `maxKey()` moved from `AbstractRangeFilter` to `RangeFilter`; a custom range filter sets the
+  `$minKey`/`$maxKey` properties.
 - Also removed: `Contracts\WizardContextInterface`, `create()` on the `Max*Exceeded` exceptions (use `new`),
   `AbstractRangeFilter::applyOnQuery()` and `formatValue()`,
   `BaseQueryWizard::apply{Filters,Sorts,Includes,Fields}ToSubject()`, `QueryWizardConfig::getRelationSelectMode()` and
@@ -485,7 +496,6 @@ $copy = (clone $original)->withoutRelationConstraint();  // $original unchanged
 - `ExactFilter::withRelationConstraint()` / `withoutRelationConstraint()`
 - `PartialFilter::withRelationConstraint()` / `withoutRelationConstraint()` (inherits from ExactFilter)
 - `ScopeFilter::withModelBinding()` / `withoutModelBinding()`
-- `NullFilter::withInvertedLogic()` / `withoutInvertedLogic()`
 - `RangeFilter::minKey()`, `maxKey()`
 - `DateRangeFilter::fromKey()`, `toKey()`, `dateFormat()`
 - `JsonContainsFilter::matchAll()`, `matchAny()`
@@ -524,8 +534,8 @@ EloquentFilter::scope('byAuthor')->withModelBinding()
 |------------|-------------|
 | `withRelationConstraint(false)` | `withoutRelationConstraint()` |
 | `withRelationConstraint(true)` | `withRelationConstraint()` |
-| `invertLogic(true)` | `withInvertedLogic()` |
-| `invertLogic(false)` | `withoutInvertedLogic()` |
+| `null($col)->invertLogic(true)` | `notNull($col)` |
+| `null($col)->invertLogic(false)` | `null($col)` |
 | `matchAll(false)` | `matchAny()` |
 | `matchAll(true)` | `matchAll()` (no parameter) |
 
@@ -539,7 +549,7 @@ EloquentFilter::jsonContains('tags')->matchAll(false)
 **After:**
 ```php
 EloquentFilter::exact('posts.status')->withoutRelationConstraint()
-EloquentFilter::null('verified_at')->withInvertedLogic()
+EloquentFilter::notNull('verified_at')
 EloquentFilter::jsonContains('tags')->matchAny()
 ```
 
