@@ -14,7 +14,10 @@ class InvalidFilterValue extends InvalidQuery
 {
     private const MAX_ECHOED_VALUE_LENGTH = 100;
 
-    public readonly string $filterName;
+    /**
+     * The filter's public name, or null when the value was read without a filter.
+     */
+    public readonly ?string $filterName;
 
     public readonly mixed $filterValue;
 
@@ -28,7 +31,7 @@ class InvalidFilterValue extends InvalidQuery
      */
     public function __construct(
         string $message,
-        string $filterName = '',
+        ?string $filterName = null,
         mixed $filterValue = null,
         ?string $reason = null
     ) {
@@ -42,17 +45,18 @@ class InvalidFilterValue extends InvalidQuery
      * The 400 a filter throws for a value it cannot read. Called on a subclass,
      * it returns an instance of that subclass.
      *
-     * @param  string|FilterInterface  $filter  The filter or its public name
+     * @param  string|FilterInterface|null  $filter  The filter or its public name
      * @param  string|null  $reason  What was expected instead; appended to the message
      *
      * @api
      */
-    public static function make(mixed $value, string|FilterInterface $filter = '', ?string $reason = null): static
+    public static function make(mixed $value, string|FilterInterface|null $filter = null, ?string $reason = null): static
     {
         $filterName = $filter instanceof FilterInterface ? $filter->getName() : $filter;
+        $filterName = $filterName === '' ? null : $filterName;
         $valueString = self::shorten(self::formatValue($value));
 
-        $message = $filterName !== ''
+        $message = $filterName !== null
             ? "Filter value `{$valueString}` is invalid for filter `{$filterName}`."
             : "Filter value `{$valueString}` is invalid.";
 

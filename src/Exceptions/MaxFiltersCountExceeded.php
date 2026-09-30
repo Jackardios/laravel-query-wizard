@@ -6,6 +6,10 @@ namespace Jackardios\QueryWizard\Exceptions;
 
 class MaxFiltersCountExceeded extends QueryLimitExceeded
 {
+    /**
+     * How many filters the request names. Like `$count` on the other limit
+     * exceptions it is at least one more than the limit; here it is also the total.
+     */
     public readonly int $count;
 
     public readonly int $maxCount;

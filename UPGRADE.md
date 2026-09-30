@@ -260,6 +260,10 @@ a later TypeError).
   `InvalidFilterValue::make()`, `InvalidRequestBody::malformedJson()`. The constructors of those classes are
   `@internal`; `InvalidQuery::__construct()` (for custom subclasses) and the `Max*Exceeded` constructors are the API.
 - `new InvalidFilterValue(...)` no longer takes a status code first: it is always 400. Use `InvalidFilterValue::make()`.
+- `InvalidFilterValue::$filterName` is `?string`: `null`, not `''`, when the value was read without a filter.
+- `$count` on `MaxSortsCountExceeded`, `MaxIncludesCountExceeded`, `MaxFieldsCountExceeded`, `MaxAppendsCountExceeded`
+  and `MaxFilterValuesCountExceeded` is one more than the limit, since counting stops there; only
+  `MaxFiltersCountExceeded::$count` is the total. Render "more than `$maxCount`", not `$count`.
 - `InvalidFilterQuery::invalidFormat()` takes `?string $details = null`, like the other `invalidFormat()`, and its
   message reads "The `filter` parameter has an invalid format." (before: "Invalid `filter` parameter format.").
 - Configuration mistakes throw `InvalidArgumentException` (see above), not `InvalidQuery`.

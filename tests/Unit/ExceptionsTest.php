@@ -146,11 +146,12 @@ class ExceptionsTest extends TestCase
     }
 
     #[Test]
-    public function invalid_filter_value_has_empty_filter_name_by_default(): void
+    public function invalid_filter_value_has_no_filter_name_by_default(): void
     {
         $exception = InvalidFilterValue::make('test');
 
-        $this->assertEquals('', $exception->filterName);
+        $this->assertNull($exception->filterName);
+        $this->assertNull(InvalidFilterValue::make('test', '')->filterName);
         $this->assertEquals('test', $exception->filterValue);
     }
 

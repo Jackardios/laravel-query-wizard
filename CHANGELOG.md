@@ -138,6 +138,8 @@ Changed:
   class with `getDirection(): SortDirection` and `isDescending()`, and its constructor throws
   `InvalidArgumentException` for a field with two leading `-` or with a leading `-` and a direction. `?sort=--name`
   is a 400 (`invalid_sort_format`); it ordered by a column named `-name`.
+- `InvalidFilterValue::$filterName` is `?string`, `null` instead of `''` when the value was read without a filter;
+  `InvalidFilterValue::make()` takes `null` for no filter.
 
 Removed:
 
