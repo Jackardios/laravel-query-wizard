@@ -24,6 +24,11 @@ Changed:
 - The `@api` `BaseQueryWizard` constructor rejects a schema of another model than `resourceModel()`, so wizard
   subclasses get the check without calling a protected helper.
 
+Fixed:
+
+- `build()`, `get()` and the other methods that build throw a `LogicException` when a `tap()` callback or a schema method
+  calls them while the wizard builds, instead of recursing until PHP runs out of memory.
+
 ### Since v3.0.0-rc.3
 
 Changed:

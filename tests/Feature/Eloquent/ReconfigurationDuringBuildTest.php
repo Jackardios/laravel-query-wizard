@@ -57,6 +57,20 @@ class ReconfigurationDuringBuildTest extends TestCase
     }
 
     #[Test]
+    public function a_tap_callback_cannot_run_the_wizard_while_it_builds(): void
+    {
+        $wizard = $this->createEloquentWizardFromQuery();
+        $wizard->tap(function () use ($wizard): void {
+            $wizard->get();
+        });
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('The wizard cannot be built while it builds.');
+
+        $wizard->get();
+    }
+
+    #[Test]
     public function the_schema_can_be_set_and_read_through_the_interface(): void
     {
         $configure = static fn (QueryWizardInterface $wizard): QueryWizardInterface => $wizard->schema(TestModelSchema::class);

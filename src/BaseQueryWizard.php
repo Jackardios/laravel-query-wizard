@@ -424,6 +424,10 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      */
     public function build(): mixed
     {
+        if ($this->building) {
+            throw new \LogicException('The wizard cannot be built while it builds.');
+        }
+
         $currentScopeSignature = $this->resolveBuildScopeSignature();
 
         if ($this->built) {
