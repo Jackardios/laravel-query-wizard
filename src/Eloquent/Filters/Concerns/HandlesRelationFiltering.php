@@ -43,8 +43,9 @@ trait HandlesRelationFiltering
      * Disable relation constraint for dot notation filtering.
      *
      * When disabled, filters like 'posts.title' are applied directly
-     * without using whereHas(), which may be useful for JSON columns
-     * or when joining tables manually.
+     * without using whereHas(), as a `table.column` reference to a table
+     * joined into the query. The name is not read as a JSON path; filter a
+     * JSON column with jsonContains() or a callback filter.
      *
      * Note: This method mutates the current instance.
      */

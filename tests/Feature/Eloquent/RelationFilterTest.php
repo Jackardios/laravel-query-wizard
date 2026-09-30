@@ -76,6 +76,7 @@ class RelationFilterTest extends EloquentFilterTestCase
 
         // Without relation constraint, it should NOT use whereHas
         $this->assertStringNotContainsString('exists', strtolower($sql));
+        $this->assertStringEndsWith('where "relatedModels"."name" = ?', $sql);
     }
 
     #[Test]

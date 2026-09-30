@@ -294,6 +294,9 @@ EloquentFilter::exact('posts.status')  // Filters users by their posts' status
 EloquentFilter::exact('posts.status')->withoutRelationConstraint()
 ```
 
+Without the relation constraint the name is a `table.column` reference (`where "posts"."status" = ?`) to a table you
+join into the query; it is not a JSON path. Filter JSON columns with `jsonContains()` or a callback filter.
+
 ## Sorting
 
 Allow API consumers to sort results.
