@@ -17,6 +17,12 @@ Changed:
 
 - Laravel 12.69.0+ or 13.30.0+ (was 12.61.1+ or 13.12.0+): CVE-2026-102279, an XSS in the debug error page, affects the
   earlier releases, and the floors stay the first releases without open security advisories.
+- Schema `defaultFilters()` keys are checked against the names `resolveAllowedFilterNames()` accepts, so a key naming
+  a leaf of a composite filter (an elastic-query-wizard group) applies instead of throwing on every build, and a key
+  naming the container throws instead of doing nothing. With `convert_parameters_to_snake_case`, a key is matched in
+  snake case like a request key.
+- `disallowedFilters()` also removes the names `resolveAllowedFilterNames()` returns, and a disallowed filter resolves
+  to no value, so it covers the leaves of composite filters without their wizard reading the disallowed list.
 
 ### Since v3.0.0-rc.2
 

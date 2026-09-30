@@ -555,7 +555,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $requestedFilterNames = $this->extractRequestedFilterNames();
 
         $this->validateFiltersLimit(count($requestedFilterNames));
-        $this->validateRequestedFilterNames($requestedFilterNames, $this->resolveAllowedFilterNames($filters));
+        $this->validateRequestedFilterNames($requestedFilterNames, $this->resolveRequestableFilterNames($filters));
 
         $shadowedFilterNames = $this->resolveShadowedFilterNames($filters);
         $resolvedFilters = [];
@@ -632,11 +632,17 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      * Priority: request value > filter->getDefault() > schema->defaultFilters()
      *
      * A blank value (see FilterValueParser::isBlank()) is absent: null is returned,
-     * or the default when `filters.apply_default_on_null` is enabled.
+     * or the default when `filters.apply_default_on_null` is enabled. A filter that
+     * disallowedFilters() removes, such as the leaf of a composite filter, has no value.
      */
     protected function resolveFilterValue(FilterInterface $filter): mixed
     {
         $name = $this->normalizePublicPath($filter->getName());
+
+        if ($this->isFilterNameDisallowed($name)) {
+            return null;
+        }
+
         $splitValues = $filter->shouldSplitValues();
         [$inRequest, $value] = $this->getOwnFilterValueFromRequest($name, $splitValues);
 
@@ -693,6 +699,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     }
 
     /**
+     * Schema defaults are keyed like request filters: by a name resolveAllowedFilterNames()
+     * accepts, before disallowedFilters() applies.
+     *
      * @throws \InvalidArgumentException When a schema default names no allowed filter
      */
     private function assertSchemaDefaultFiltersAreKnown(): void
@@ -703,12 +712,17 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return;
         }
 
-        $known = [];
+        $configured = [];
         foreach ($this->getConfiguredFilters() as $filter) {
-            $known[is_string($filter) ? $filter : $filter->getName()] = true;
+            $filter = is_string($filter) ? $this->normalizeStringToFilter($filter) : $filter;
+            $configured[$this->normalizePublicPath($filter->getName())] = $filter;
         }
 
-        $unknown = array_diff(array_map(strval(...), array_keys($defaults)), array_keys($known));
+        $known = array_flip($this->resolveAllowedFilterNames($configured));
+        $unknown = array_values(array_filter(
+            array_map(strval(...), array_keys($defaults)),
+            fn (string $key): bool => ! isset($known[$this->normalizePublicPath($key)])
+        ));
 
         if ($unknown !== []) {
             throw new \InvalidArgumentException(
@@ -729,8 +743,25 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         }
 
         $schemaDefaults = $this->getSchemaDefaultFilters();
+        $name = $filter->getName();
 
-        return $schemaDefaults[$filter->getName()] ?? null;
+        if (isset($schemaDefaults[$name])) {
+            return $schemaDefaults[$name];
+        }
+
+        if (! $this->shouldNormalizePublicInput()) {
+            return null;
+        }
+
+        $normalizedName = $this->normalizePublicPath($name);
+
+        foreach ($schemaDefaults as $key => $value) {
+            if ($this->normalizePublicPath((string) $key) === $normalizedName) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**

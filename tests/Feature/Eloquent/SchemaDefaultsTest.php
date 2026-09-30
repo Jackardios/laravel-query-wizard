@@ -268,6 +268,24 @@ class SchemaDefaultsTest extends TestCase
     }
 
     #[Test]
+    public function a_schema_default_key_is_normalized_like_a_request_key(): void
+    {
+        config()->set('query-wizard.naming.convert_parameters_to_snake_case', true);
+        $target = $this->models->first();
+
+        foreach (['fullName', 'full_name'] as $key) {
+            $schema = $this->createTestModelSchema([
+                'filters' => [EloquentFilter::exact('name')->alias('fullName')],
+                'defaultFilters' => [$key => $target->name],
+            ]);
+
+            $models = $this->createEloquentWizardFromQuery()->schema($schema)->get();
+
+            $this->assertSame([$target->id], $models->pluck('id')->all(), $key);
+        }
+    }
+
+    #[Test]
     public function a_schema_of_another_model_throws(): void
     {
         $schema = $this->createTestModelSchema();

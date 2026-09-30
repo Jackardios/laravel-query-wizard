@@ -104,10 +104,11 @@ trait HandlesFilters
     }
 
     /**
-     * Names accepted as filter keys in the request.
+     * Names accepted as filter keys in the request, and as schema defaultFilters() keys.
      *
      * Override when a filter is composite: a container contributes the names of
-     * its leaves instead of its own name.
+     * its leaves instead of its own name. Return every leaf: disallowedFilters()
+     * is applied to the names returned, and a disallowed leaf resolves to no value.
      *
      * @param  array<string, FilterInterface>  $filters
      * @return array<int, string>
@@ -117,6 +118,34 @@ trait HandlesFilters
     protected function resolveAllowedFilterNames(array $filters): array
     {
         return array_keys($filters);
+    }
+
+    /**
+     * The names from resolveAllowedFilterNames() that disallowedFilters() leaves.
+     *
+     * @param  array<string, FilterInterface>  $filters
+     * @return array<int, string>
+     */
+    private function resolveRequestableFilterNames(array $filters): array
+    {
+        $names = $this->resolveAllowedFilterNames($filters);
+
+        if ($this->disallowedFilters === []) {
+            return $names;
+        }
+
+        return array_values(array_filter(
+            $names,
+            fn (string $name): bool => ! $this->isNameDisallowed($name, $this->disallowedFilters)
+        ));
+    }
+
+    /**
+     * Whether disallowedFilters() removes the filter with this public name.
+     */
+    private function isFilterNameDisallowed(string $name): bool
+    {
+        return $this->disallowedFilters !== [] && $this->isNameDisallowed($name, $this->disallowedFilters);
     }
 
     /**
@@ -145,7 +174,7 @@ trait HandlesFilters
             return $this->cachedNestedFilterNames;
         }
 
-        $names = $this->resolveAllowedFilterNames($this->getEffectiveFilters());
+        $names = $this->resolveRequestableFilterNames($this->getEffectiveFilters());
         $namesIndex = array_flip($names);
         $nested = [];
 
@@ -175,7 +204,7 @@ trait HandlesFilters
     protected function extractRequestedFilterNames(): array
     {
         $filters = $this->getEffectiveFilters();
-        $allowedFilterNamesIndex = array_flip($this->resolveAllowedFilterNames($filters));
+        $allowedFilterNamesIndex = array_flip($this->resolveRequestableFilterNames($filters));
         /** @var array<string, true> $requestedFilterNamesSet */
         $requestedFilterNamesSet = [];
 
