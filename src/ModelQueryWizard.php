@@ -72,7 +72,17 @@ class ModelQueryWizard implements QueryWizardInterface
         $this->resolveParametersFromContainer = $parameters === null;
         $this->parameters = $parameters ?? app(QueryParametersManager::class);
         $this->config = $config ?? app(QueryWizardConfig::class);
+
+        if ($schema !== null) {
+            $this->assertSchemaDescribesResourceModel($schema);
+        }
+
         $this->schema = $schema;
+    }
+
+    protected function resourceModel(): Model
+    {
+        return $this->model;
     }
 
     /**

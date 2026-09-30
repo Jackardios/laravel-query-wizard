@@ -116,6 +116,8 @@ a later TypeError).
   allow-list were dropped silently). A default naming an allowed definition uses it. A default that `disallowed*()`
   removes throws `InvalidArgumentException`, and a misspelled default now fails (unknown column, relation or accessor)
   instead of being skipped. To turn a schema default off, call `defaultSorts()` (etc.) without arguments.
+- `schema()`, and the wizards' constructors, throw `InvalidArgumentException` for a schema whose `model()` is not the
+  wizard's model or a parent of it (before: accepted, so another model's filters and fieldset key applied).
 - A schema `defaultFilters()` key that names no allowed filter throws `InvalidArgumentException` when the wizard
   builds (before: ignored, so a typo or a key by column instead of alias dropped the condition). Keys are the filters'
   public names; a filter removed by `disallowedFilters()` still loses its default without an error.

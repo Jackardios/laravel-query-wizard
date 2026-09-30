@@ -268,6 +268,28 @@ class SchemaDefaultsTest extends TestCase
     }
 
     #[Test]
+    public function a_schema_of_another_model_throws(): void
+    {
+        $schema = $this->createTestModelSchema();
+        $message = 'describes '.TestModel::class.', but the wizard queries '.RelatedModel::class.'.';
+        $attempts = [
+            'schema()' => fn () => EloquentQueryWizard::for(RelatedModel::class)->schema($schema),
+            'constructor' => fn () => new EloquentQueryWizard(RelatedModel::query(), null, null, $schema),
+            'model wizard' => fn () => ModelQueryWizard::for(RelatedModel::factory()->create())->schema($schema),
+            'model wizard constructor' => fn () => new ModelQueryWizard(RelatedModel::factory()->create(), null, null, $schema),
+        ];
+
+        foreach ($attempts as $label => $attempt) {
+            try {
+                $attempt();
+                $this->fail("{$label} accepted a schema of another model");
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString($message, $e->getMessage(), $label);
+            }
+        }
+    }
+
+    #[Test]
     public function disallowing_a_filter_also_drops_its_schema_default(): void
     {
         $schema = $this->createTestModelSchema([

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
@@ -20,6 +21,14 @@ trait HandlesConfiguration
 {
     use RequiresWizardContext;
 
+    /**
+     * The resource's model, when the wizard knows it without running a query; null skips the schema model check.
+     */
+    protected function resourceModel(): ?Model
+    {
+        return null;
+    }
+
     private ?bool $normalizePublicInputMemo = null;
 
     private ?QueryWizardConfig $configSnapshot = null;
@@ -34,14 +43,35 @@ trait HandlesConfiguration
      * Explicit calls to allowed*() methods override schema definitions.
      *
      * @param  class-string<ResourceSchemaInterface>|ResourceSchemaInterface  $schema
+     *
+     * @throws \InvalidArgumentException When the schema describes another model
      */
     public function schema(string|ResourceSchemaInterface $schema): static
     {
         $schema = is_string($schema) ? app($schema) : $schema;
+        $this->assertSchemaDescribesResourceModel($schema);
         $this->invalidateBuild();
         $this->schema = $schema;
 
         return $this;
+    }
+
+    /**
+     * @throws \InvalidArgumentException When the schema describes another model
+     */
+    protected function assertSchemaDescribesResourceModel(ResourceSchemaInterface $schema): void
+    {
+        $model = $this->resourceModel();
+        $schemaModel = $schema->model();
+
+        if ($model !== null && ! $model instanceof $schemaModel) {
+            throw new \InvalidArgumentException(sprintf(
+                'Schema %s describes %s, but the wizard queries %s.',
+                $schema::class,
+                $schemaModel,
+                $model::class
+            ));
+        }
     }
 
     /**
