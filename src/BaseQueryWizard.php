@@ -639,7 +639,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface, WizardContextInt
 
         $usingDefaults = ! $sortRequested;
         $effectiveSorts = $usingDefaults
-            ? collect($defaultSorts)->map(fn ($s) => new Sort($s))
+            ? collect(array_values($defaultSorts))->map(fn ($s) => new Sort($s))
             : $requestedSorts;
 
         if (empty($sorts) && $effectiveSorts->isNotEmpty()) {
