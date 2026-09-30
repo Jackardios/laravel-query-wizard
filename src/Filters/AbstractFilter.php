@@ -360,11 +360,6 @@ abstract class AbstractFilter implements FilterInterface
     }
 
     /**
-     * Get the filter type identifier.
-     */
-    abstract public function getType(): string;
-
-    /**
      * Apply the filter to the subject.
      *
      * @param  mixed  $subject  The query builder or similar

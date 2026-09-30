@@ -34,21 +34,6 @@ final class ExistsInclude extends AbstractInclude
         return new self($relation, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'exists';
-    }
-
-    public function getDefaultAliasSuffix(): string
-    {
-        return 'Exists';
-    }
-
-    public function getSuffixConfigKey(): string
-    {
-        return 'exists_suffix';
-    }
-
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
      * @return Builder<Model>|Relation<Model, Model, mixed>

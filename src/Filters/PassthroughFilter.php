@@ -23,11 +23,6 @@ final class PassthroughFilter extends AbstractFilter
         return new self($name, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'passthrough';
-    }
-
     public function apply(mixed $subject, mixed $value): mixed
     {
         return $subject;

@@ -96,11 +96,6 @@ abstract class AbstractSort implements SortInterface
     }
 
     /**
-     * Get the sort type identifier.
-     */
-    abstract public function getType(): string;
-
-    /**
      * Apply the sort to the subject.
      *
      * @param  mixed  $subject  The query builder or similar

@@ -23,7 +23,7 @@ class IncludeDefinitionTest extends TestCase
     {
         $include = RelationshipInclude::make('posts');
 
-        $this->assertEquals('relationship', $include->getType());
+        $this->assertInstanceOf(RelationshipInclude::class, $include);
         $this->assertEquals('posts', $include->getRelation());
         $this->assertEquals('posts', $include->getName()); // name = alias ?? relation
         $this->assertNull($include->getAlias());
@@ -56,7 +56,7 @@ class IncludeDefinitionTest extends TestCase
         $include = CallbackInclude::make('custom', $cb);
 
         $this->assertEquals('custom', $include->getRelation());
-        $this->assertEquals('callback', $include->getType());
+        $this->assertInstanceOf(CallbackInclude::class, $include);
     }
 
     // ========== Factory Method Tests (EloquentInclude) ==========
@@ -70,7 +70,6 @@ class IncludeDefinitionTest extends TestCase
         $this->assertInstanceOf(IncludeInterface::class, $include);
         $this->assertEquals('posts', $include->getRelation());
         $this->assertEquals('posts', $include->getName());
-        $this->assertEquals('relationship', $include->getType());
         $this->assertNull($include->getAlias());
     }
 
@@ -103,7 +102,6 @@ class IncludeDefinitionTest extends TestCase
         $this->assertEquals('posts', $include->getRelation());
         // Without alias, getName() returns the relation name
         $this->assertEquals('posts', $include->getName());
-        $this->assertEquals('count', $include->getType());
         $this->assertNull($include->getAlias());
     }
 
@@ -125,7 +123,6 @@ class IncludeDefinitionTest extends TestCase
         $this->assertInstanceOf(CallbackInclude::class, $include);
         $this->assertInstanceOf(IncludeInterface::class, $include);
         $this->assertEquals('custom', $include->getRelation());
-        $this->assertEquals('callback', $include->getType());
     }
 
     #[Test]

@@ -152,20 +152,14 @@ final class QueryWizardConfig
         return $this->getIncludeAliasSuffix('exists_suffix', 'Exists');
     }
 
-    /**
-     * Resolve the alias suffix an include type appends by default.
-     *
-     * The config key is provided by the include itself (e.g. `count_suffix`), so
-     * this stays generic instead of hard-coding one accessor per include type.
-     */
-    public function getIncludeAliasSuffix(string $configKey, ?string $default = null): string
+    private function getIncludeAliasSuffix(string $configKey, string $default): string
     {
         [$found, $value] = $this->find($configKey);
 
         // An app that sets the suffix to null is blanking it on purpose, and
         // must keep getting '' rather than silently having the default restored.
         if (! $found) {
-            return (string) $default;
+            return $default;
         }
 
         if ($value !== null && ! is_scalar($value)) {

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Expression;
 use InvalidArgumentException;
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 
@@ -36,7 +37,7 @@ final class EloquentShapeSteps
     public static function applyIncludes(Builder|Relation $subject, array $includes, array $relationFieldsByPath): Builder|Relation
     {
         foreach ($includes as $include) {
-            $fields = $include->getType() === 'relationship'
+            $fields = $include instanceof EagerLoadsRelation
                 ? ($relationFieldsByPath[$include->getRelation()] ?? null)
                 : null;
             $select = $fields === null ? null : static function ($query) use ($fields): void {

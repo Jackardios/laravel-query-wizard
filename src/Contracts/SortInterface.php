@@ -33,11 +33,6 @@ interface SortInterface
     public function alias(string $alias): static;
 
     /**
-     * Get the sort type identifier.
-     */
-    public function getType(): string;
-
-    /**
      * Apply the sort to the subject.
      *
      * @param  mixed  $subject  The query builder or similar

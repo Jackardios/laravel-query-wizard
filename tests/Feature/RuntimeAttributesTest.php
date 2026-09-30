@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Tests\Feature;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Jackardios\QueryWizard\Contracts\AppliesToModel;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\ProvidesRuntimeAttributes;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
@@ -148,16 +149,11 @@ class RuntimeAttributesTest extends TestCase
 
     private function nestedCountInclude(): IncludeInterface
     {
-        return new class('relatedModels.nestedRelatedModels', 'nestedCount') extends AbstractInclude implements ProvidesRuntimeAttributes
+        return new class('relatedModels.nestedRelatedModels', 'nestedCount') extends AbstractInclude implements AppliesToModel, ProvidesRuntimeAttributes
         {
             public function __construct(string $relation, string $alias)
             {
                 parent::__construct($relation, $alias);
-            }
-
-            public function getType(): string
-            {
-                return 'callback';
             }
 
             public function runtimeAttributes(): array
@@ -165,15 +161,14 @@ class RuntimeAttributesTest extends TestCase
                 return ['nested_related_models_count'];
             }
 
+            public function applyToModel(Model $model): void
+            {
+                $model->loadMissing('relatedModels');
+                $model->getRelation('relatedModels')->loadCount('nestedRelatedModels');
+            }
+
             public function apply(mixed $subject): mixed
             {
-                if ($subject instanceof Model) {
-                    $subject->loadMissing('relatedModels');
-                    $subject->getRelation('relatedModels')->loadCount('nestedRelatedModels');
-
-                    return $subject;
-                }
-
                 /** @var Builder<Model> $subject */
                 return $subject->with(['relatedModels' => fn ($query) => $query->withCount('nestedRelatedModels')]);
             }

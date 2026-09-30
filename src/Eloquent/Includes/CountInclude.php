@@ -32,21 +32,6 @@ final class CountInclude extends AbstractInclude
         return new self($relation, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'count';
-    }
-
-    public function getDefaultAliasSuffix(): string
-    {
-        return 'Count';
-    }
-
-    public function getSuffixConfigKey(): string
-    {
-        return 'count_suffix';
-    }
-
     /**
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
      * @return Builder<Model>|Relation<Model, Model, mixed>

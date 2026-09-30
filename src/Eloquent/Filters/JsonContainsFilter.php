@@ -58,11 +58,6 @@ final class JsonContainsFilter extends AbstractFilter
         return $this;
     }
 
-    public function getType(): string
-    {
-        return 'json_contains';
-    }
-
     public function validateValueShape(mixed $value): ?string
     {
         return $this->validateScalarOrFlatListValueShape($value);

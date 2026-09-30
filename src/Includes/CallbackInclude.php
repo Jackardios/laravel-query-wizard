@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Includes;
 
 use Closure;
+use Illuminate\Database\Eloquent\Model;
+use Jackardios\QueryWizard\Contracts\AppliesToModel;
 use Jackardios\QueryWizard\Contracts\ProvidesRuntimeAttributes;
 
 /**
@@ -17,7 +19,7 @@ use Jackardios\QueryWizard\Contracts\ProvidesRuntimeAttributes;
  *
  * @phpstan-consistent-constructor
  */
-class CallbackInclude extends AbstractInclude implements ProvidesRuntimeAttributes
+class CallbackInclude extends AbstractInclude implements AppliesToModel, ProvidesRuntimeAttributes
 {
     /** @var Closure(mixed, string): mixed */
     protected Closure $callback;
@@ -49,11 +51,6 @@ class CallbackInclude extends AbstractInclude implements ProvidesRuntimeAttribut
         return new static($relation, $callback(...), $alias);
     }
 
-    public function getType(): string
-    {
-        return 'callback';
-    }
-
     /**
      * Declare attributes the callback adds to the models, such as a
      * `withCount()` alias, so sparse fieldsets keep them visible.
@@ -75,5 +72,13 @@ class CallbackInclude extends AbstractInclude implements ProvidesRuntimeAttribut
         $result = ($this->callback)($subject, $this->relation);
 
         return is_object($subject) && $result instanceof $subject ? $result : $subject;
+    }
+
+    /**
+     * The callback receives the model and the relation name.
+     */
+    public function applyToModel(Model $model): void
+    {
+        ($this->callback)($model, $this->relation);
     }
 }

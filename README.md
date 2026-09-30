@@ -595,7 +595,7 @@ $processed = ModelQueryWizard::for($user)
 |---------|----------|
 | Includes | Loads missing with `loadMissing()`, counts with `loadCount()`, existence with `loadExists()` |
 | Callback includes | The callback receives the loaded model, not a query: `fn ($model) => $model->loadCount('posts')` |
-| Other include classes | `LogicException` before the model is changed |
+| Custom includes | Run through `AppliesToModel::applyToModel()`; without it, `LogicException` before the model is changed |
 | Fields | Hides non-requested with `makeHidden()` |
 | Appends | Adds with `append()` |
 | Relations not requested | Unset from the model (loaded relations not in `?include` are removed) |
@@ -812,6 +812,8 @@ the supported API:
 | `AbstractFilter::supportsBooleanLists()` | Return `false` when `asBoolean()` must reject lists |
 | `resolveConstraint(mixed $value): mixed` | For filters using `HandlesRelationFiltering`: read the value once into what `applyOnQuery()` receives; `null` adds no condition, so no `whereHas` is added |
 | `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |
+| `Contracts\EagerLoadsRelation` | Includes whose `apply()` eager loads `getRelation()`: `fields[relation]` narrows the eager load after `apply()`, relation fields and appends are validated, and disallowing the relation path denies the include under any alias |
+| `Contracts\AppliesToModel` | Includes `ModelQueryWizard` can run on a loaded model (`applyToModel(Model $model): void`); other custom includes throw `LogicException` there |
 | `BaseQueryWizard::__construct($subject, $parameters, $config, $schema)` | Wizard subclasses call it from their own constructor; `null` parameters and config resolve from the container |
 | `$subject`, `isBuilt(): bool` | The subject the build shapes, and whether it is built for the current configuration and request |
 | `rollbackFailedBuild(): void` | Wizard subclasses reset their own state after a build throws (call the parent) |

@@ -121,11 +121,6 @@ class AuditRegressionTest extends TestCase
                 parent::__construct($property);
             }
 
-            public function getType(): string
-            {
-                return 'counting';
-            }
-
             public function validateValueShape(mixed $value): ?string
             {
                 $this->validated[] = $value;

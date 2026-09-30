@@ -185,7 +185,7 @@ the parameters manager reads one from its first read until `reset()` (once per r
 ### Adding a New Filter
 
 1. Create class in `src/Eloquent/Filters/` extending `AbstractFilter`
-2. Implement `getType(): string` and `apply($query, $value)`; read values with `Support\FilterValueParser` (blank → null, unreadable → `InvalidFilterValue`)
+2. Implement `apply($query, $value)`; read values with `Support\FilterValueParser` (blank → null, unreadable → `InvalidFilterValue`)
 3. Add factory method to `src/Eloquent/EloquentFilter.php`
 4. Add tests in `tests/Feature/Eloquent/`
 

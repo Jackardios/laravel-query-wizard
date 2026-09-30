@@ -31,11 +31,6 @@ final class RangeFilter extends AbstractRangeFilter
         return new self($property, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'range';
-    }
-
     /**
      * Read a bound as a decimal number.
      */

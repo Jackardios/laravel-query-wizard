@@ -92,11 +92,6 @@ final class ScopeFilter extends AbstractFilter
         return $this;
     }
 
-    public function getType(): string
-    {
-        return 'scope';
-    }
-
     public function validateValueShape(mixed $value): ?string
     {
         return $this->validateNonArrayOrFlatListOfNonArraysValueShape($value);

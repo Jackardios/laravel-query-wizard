@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Support\Str;
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\ProvidesRuntimeAttributes;
+use Jackardios\QueryWizard\Eloquent\Includes\CountInclude;
+use Jackardios\QueryWizard\Eloquent\Includes\ExistsInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
 use Jackardios\QueryWizard\Exceptions\MaxIncludeDepthExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxIncludesCountExceeded;
@@ -138,11 +141,7 @@ trait HandlesIncludes
                 $include = $this->normalizeStringToInclude($include);
             }
 
-            $configKey = $include->getSuffixConfigKey();
-            $suffix = $configKey !== null
-                ? $this->getConfig()->getIncludeAliasSuffix($configKey, $include->getDefaultAliasSuffix())
-                : null;
-            $include = $include->withDefaultAlias($suffix);
+            $include = $this->withDefaultAggregateAlias($include);
 
             $name = $include->getName();
 
@@ -214,7 +213,7 @@ trait HandlesIncludes
             return true;
         }
 
-        return $include->getType() === 'relationship'
+        return $include instanceof EagerLoadsRelation
             && $include->getRelation() !== $name
             && $this->isNameDisallowed($include->getRelation(), $disallowed);
     }
@@ -395,7 +394,7 @@ trait HandlesIncludes
                 foreach ($include->runtimeAttributes() as $attribute) {
                     $attributesByOwner[$owner][$this->normalizePublicPath($attribute)] = $attribute;
                 }
-            } elseif ($include !== null && in_array($include->getType(), ['count', 'exists'], true)) {
+            } elseif ($include instanceof CountInclude || $include instanceof ExistsInclude) {
                 $attribute = $this->resolveRuntimeAttributeNameForInclude($include);
 
                 $attributesByOwner[''][$this->normalizePublicPath($includeName)] = $attribute;
@@ -406,11 +405,30 @@ trait HandlesIncludes
         return $attributesByOwner;
     }
 
-    protected function resolveRuntimeAttributeNameForInclude(IncludeInterface $include): string
+    protected function resolveRuntimeAttributeNameForInclude(CountInclude|ExistsInclude $include): string
     {
         $relation = str_replace('.', '_', Str::snake($include->getRelation()));
 
-        return "{$relation}_{$include->getType()}";
+        return $relation.($include instanceof CountInclude ? '_count' : '_exists');
+    }
+
+    /**
+     * Name a count or exists include without an alias after its relation and
+     * the configured suffix (`postsCount`), leaving the definition itself unchanged.
+     */
+    private function withDefaultAggregateAlias(IncludeInterface $include): IncludeInterface
+    {
+        if ($include->getAlias() !== null) {
+            return $include;
+        }
+
+        $suffix = match (true) {
+            $include instanceof CountInclude => $this->getConfig()->getCountSuffix(),
+            $include instanceof ExistsInclude => $this->getConfig()->getExistsSuffix(),
+            default => null,
+        };
+
+        return $suffix === null ? $include : (clone $include)->alias($include->getRelation().$suffix);
     }
 
     protected function invalidateIncludeCache(): void

@@ -78,56 +78,10 @@ abstract class AbstractInclude implements IncludeInterface
     }
 
     /**
-     * Get the include type identifier.
-     */
-    abstract public function getType(): string;
-
-    /**
      * Apply the include to the subject.
      *
      * @param  mixed  $subject  The query builder or other subject
      * @return mixed The modified subject
      */
     abstract public function apply(mixed $subject): mixed;
-
-    /**
-     * Get the default alias suffix for this include type.
-     *
-     * Override in subclasses to provide type-specific suffix (e.g., 'Count', 'Exists').
-     * Returns null if no default suffix should be applied.
-     */
-    public function getDefaultAliasSuffix(): ?string
-    {
-        return null;
-    }
-
-    /**
-     * Get the config key for this include type's suffix.
-     *
-     * Override in subclasses to enable configurable suffixes.
-     * Example: 'count_suffix' for CountInclude.
-     */
-    public function getSuffixConfigKey(): ?string
-    {
-        return null;
-    }
-
-    /**
-     * Apply default alias if not already set.
-     *
-     * @param  string|null  $suffix  Custom suffix to use (overrides getDefaultAliasSuffix())
-     */
-    public function withDefaultAlias(?string $suffix = null): static
-    {
-        if ($this->alias !== null) {
-            return $this;
-        }
-
-        $suffix ??= $this->getDefaultAliasSuffix();
-        if ($suffix === null) {
-            return $this;
-        }
-
-        return (clone $this)->alias($this->relation.$suffix);
-    }
 }

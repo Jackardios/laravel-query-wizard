@@ -24,11 +24,6 @@ final class FieldSort extends AbstractSort
         return new self($property, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'field';
-    }
-
     /**
      * @param  Builder<Model>  $subject
      * @param  'asc'|'desc'  $direction

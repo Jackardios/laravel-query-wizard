@@ -25,7 +25,7 @@ class SortDefinitionTest extends TestCase
     {
         $sort = FieldSort::make('name');
 
-        $this->assertEquals('field', $sort->getType());
+        $this->assertInstanceOf(FieldSort::class, $sort);
         $this->assertEquals('name', $sort->getProperty());
         $this->assertEquals('name', $sort->getName()); // name = alias ?? property
         $this->assertNull($sort->getAlias());
@@ -57,7 +57,7 @@ class SortDefinitionTest extends TestCase
         $cb = fn ($query, $direction, $property) => $query->orderBy('name', $direction);
         $sort = CallbackSort::make('name', $cb);
 
-        $this->assertEquals('callback', $sort->getType());
+        $this->assertInstanceOf(CallbackSort::class, $sort);
         $this->assertEquals('name', $sort->getProperty());
         $this->assertEquals('name', $sort->getName());
     }
@@ -73,7 +73,6 @@ class SortDefinitionTest extends TestCase
         $this->assertInstanceOf(SortInterface::class, $sort);
         $this->assertEquals('name', $sort->getProperty());
         $this->assertEquals('name', $sort->getName());
-        $this->assertEquals('field', $sort->getType());
         $this->assertNull($sort->getAlias());
     }
 
@@ -96,7 +95,6 @@ class SortDefinitionTest extends TestCase
         $this->assertInstanceOf(CallbackSort::class, $sort);
         $this->assertInstanceOf(SortInterface::class, $sort);
         $this->assertEquals('name', $sort->getProperty());
-        $this->assertEquals('callback', $sort->getType());
     }
 
     #[Test]

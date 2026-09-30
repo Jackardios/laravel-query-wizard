@@ -45,11 +45,6 @@ class CallbackFilter extends AbstractFilter
         return new static($property, $callback(...), $alias);
     }
 
-    public function getType(): string
-    {
-        return 'callback';
-    }
-
     protected function supportsBooleanLists(): bool
     {
         return false;

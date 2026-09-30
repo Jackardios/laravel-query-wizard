@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Concerns;
 
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 
 /**
@@ -29,7 +30,7 @@ trait HandlesRelationAttributeValidation
     {
         $map = [];
         foreach ($effectiveIncludes as $include) {
-            if ($include->getType() !== 'relationship') {
+            if (! $include instanceof EagerLoadsRelation) {
                 continue;
             }
 

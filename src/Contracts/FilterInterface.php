@@ -33,11 +33,6 @@ interface FilterInterface
     public function alias(string $alias): static;
 
     /**
-     * Get the filter type identifier.
-     */
-    public function getType(): string;
-
-    /**
      * Get the default value when filter is not in request.
      */
     public function getDefault(): mixed;

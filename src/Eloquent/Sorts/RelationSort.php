@@ -66,11 +66,6 @@ final class RelationSort extends AbstractSort
         return new self($relation, $column, $aggregate, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'relation';
-    }
-
     /**
      * Get the column name being aggregated.
      */

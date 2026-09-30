@@ -16,6 +16,7 @@ use Jackardios\QueryWizard\Concerns\HandlesRelationPostProcessing;
 use Jackardios\QueryWizard\Concerns\HandlesSafeRelationSelect;
 use Jackardios\QueryWizard\Concerns\HandlesSorts;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
@@ -28,6 +29,7 @@ use Jackardios\QueryWizard\Exceptions\InvalidSortQuery;
 use Jackardios\QueryWizard\Exceptions\MaxFilterValuesCountExceeded;
 use Jackardios\QueryWizard\Exceptions\MaxSortsCountExceeded;
 use Jackardios\QueryWizard\Filters\AbstractFilter;
+use Jackardios\QueryWizard\Filters\PassthroughFilter;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\FilterValueParser;
 use Jackardios\QueryWizard\Values\Sort;
@@ -173,7 +175,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $relationshipPaths = [];
 
         foreach ($includes as $include) {
-            if ($include->getType() === 'relationship') {
+            if ($include instanceof EagerLoadsRelation) {
                 $relationshipPaths[] = $include->getRelation();
             }
         }
@@ -428,7 +430,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             $passthroughFilters = [];
 
             foreach ($filters as $name => ['filter' => $filter, 'value' => $value]) {
-                if ($filter->getType() === 'passthrough') {
+                if ($filter instanceof PassthroughFilter) {
                     $passthroughFilters[$name] = $value;
                 } else {
                     $this->applyFilter($filter, $value);
@@ -517,7 +519,7 @@ abstract class BaseQueryWizard implements QueryWizardInterface
         $result = collect();
 
         foreach ($this->resolvePreparedFilters() as $name => $resolvedFilter) {
-            if ($resolvedFilter['filter']->getType() === 'passthrough') {
+            if ($resolvedFilter['filter'] instanceof PassthroughFilter) {
                 $result[$name] = $resolvedFilter['value'];
             }
         }

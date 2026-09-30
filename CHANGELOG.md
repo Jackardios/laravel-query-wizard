@@ -42,6 +42,10 @@ Added:
 - `addAllowedFilters()`, `addAllowedSorts()`, `addAllowedIncludes()`, `addAllowedFields()` and `addAllowedAppends()`
   add to the list set with `allowed*()` or, when none was set, to the schema's (`QueryWizardInterface` gains the
   include, field and append ones). `getConfiguredFilters()` returns the allowed filters before `disallowedFilters()`.
+- `@api` include contracts: `Contracts\EagerLoadsRelation` (implemented by relationship includes) gives a custom include
+  relation fieldsets, relation field and append validation and the disallowed-path check;
+  `Contracts\AppliesToModel` (`applyToModel(Model $model): void`, implemented by callback includes) lets
+  `ModelQueryWizard` apply it to a loaded model.
 
 Changed:
 
@@ -75,8 +79,13 @@ Changed:
 - `asBoolean()` throws `LogicException` on partial, range, date range, JSON contains and trashed filters and on operator
   filters other than `EQUAL`/`NOT_EQUAL`, which turned every request into a 400. `@api` hook:
   `AbstractFilter::supportsBooleanValues()`.
-- `ModelQueryWizard::process()` throws `LogicException` for a requested include that is not a relationship, count,
-  exists or callback include, before changing the model; such an include was accepted and did nothing.
+- `ModelQueryWizard::process()` throws `LogicException` for a requested include that is not a relationship, count or
+  exists include and does not implement `AppliesToModel`, before changing the model; such an include was accepted and
+  did nothing, and one whose `getType()` returned `'relationship'` was loaded without its constraint.
+- The wizards dispatch on types instead of `getType()` strings: passthrough filters are `PassthroughFilter`, count and
+  exists includes `CountInclude` and `ExistsInclude`, and relationship semantics come from `EagerLoadsRelation`. A
+  custom filter whose `getType()` returned `'passthrough'` was never applied, and a custom include returning
+  `'relationship'` got fieldsets but no way to apply them to a loaded model.
 - A schema whose `model()` is not the wizard's model (or a parent class of it) throws `InvalidArgumentException` in
   `schema()` and the `EloquentQueryWizard` and `ModelQueryWizard` constructors.
 - A schema `defaultFilters()` key that names no allowed filter (a typo, a column behind an alias) throws
@@ -90,6 +99,12 @@ Changed:
 
 Removed:
 
+- `getType()` from `FilterInterface`, `SortInterface`, `IncludeInterface`, the abstract bases and the built-in
+  definitions.
+- `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` from `IncludeInterface` and
+  `AbstractInclude`: the wizard names count and exists includes without an alias after the `count_suffix` and
+  `exists_suffix` settings itself, without changing the definition. `QueryWizardConfig::getIncludeAliasSuffix()` is
+  private; use `getCountSuffix()` and `getExistsSuffix()`.
 - The up-front relation-select plan: `prepareSafeRelationSelectPlan()`, `getSafeRelationSelectColumns()`,
   `applySafeRootFieldRequirements()`, `resetSafeRelationSelectState()` and their helpers, which only an external wizard
   used; `resolveEloquentShape()` replaces them. `EloquentQueryWizard::qualifyColumns()` and

@@ -27,11 +27,6 @@ final class TrashedFilter extends AbstractFilter
         return new self('trashed', $alias);
     }
 
-    public function getType(): string
-    {
-        return 'trashed';
-    }
-
     public function validateValueShape(mixed $value): ?string
     {
         return $this->validateScalarOnlyValueShape($value);

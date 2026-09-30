@@ -242,6 +242,21 @@ a later TypeError).
   (it took the alias second, so `make('price', FilterOperator::GREATER_THAN)` was a `TypeError`). Its constructor is
   protected, like the other filters', with the same order.
 - `ParsesRangeValues::normalizeRangeValue()` takes the bound's key as a second argument.
+- `getType()` is gone from the contracts and built-in definitions; the wizards no longer read it. A leftover
+  `getType()` in a custom class is harmless, but what its string meant now comes from a type:
+
+  | `getType()` returned | Now |
+  |----------------------|-----|
+  | `'relationship'` | implement `Contracts\EagerLoadsRelation` (fieldsets, relation field validation, disallowed-path check) |
+  | `'callback'` (to run on `ModelQueryWizard`) | implement `Contracts\AppliesToModel::applyToModel(Model $model): void` |
+  | `'count'`/`'exists'` | use `EloquentInclude::count()`/`exists()`, or give the include its alias and implement `ProvidesRuntimeAttributes` |
+  | `'passthrough'` | use `EloquentFilter::passthrough()` |
+
+  An include with a constraint that implements `EagerLoadsRelation` but not `AppliesToModel` throws `LogicException`
+  on `ModelQueryWizard`, since loading the bare relation would drop the constraint.
+- `getDefaultAliasSuffix()`, `getSuffixConfigKey()` and `withDefaultAlias()` are removed from includes. Only
+  `CountInclude` and `ExistsInclude` get the `count_suffix`/`exists_suffix` name; a custom include that relied on them
+  sets its alias itself (`$alias ?? $relation.'Count'`).
 - `asBoolean()` throws `LogicException` on filters that can't take booleans (partial, range, date range, JSON contains,
   trashed, operator other than `EQUAL`/`NOT_EQUAL`); such a filter answered every request with a 400. A custom filter
   opts out by overriding `supportsBooleanValues()`.

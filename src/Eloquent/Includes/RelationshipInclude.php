@@ -6,6 +6,7 @@ namespace Jackardios\QueryWizard\Eloquent\Includes;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Includes\AbstractInclude;
 use Jackardios\QueryWizard\Support\EagerLoads;
@@ -13,7 +14,7 @@ use Jackardios\QueryWizard\Support\EagerLoads;
 /**
  * Include for eager loading relationships via with().
  */
-final class RelationshipInclude extends AbstractInclude
+final class RelationshipInclude extends AbstractInclude implements EagerLoadsRelation
 {
     /**
      * Create a new relationship include.
@@ -48,11 +49,6 @@ final class RelationshipInclude extends AbstractInclude
         }
 
         return static::make($name);
-    }
-
-    public function getType(): string
-    {
-        return 'relationship';
     }
 
     /**

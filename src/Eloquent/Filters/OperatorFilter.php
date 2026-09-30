@@ -55,11 +55,6 @@ class OperatorFilter extends AbstractFilter
         return new static($property, $operator, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'operator';
-    }
-
     public function validateValueShape(mixed $value): ?string
     {
         if ($value instanceof DateTimeInterface) {

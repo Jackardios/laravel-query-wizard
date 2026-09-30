@@ -17,6 +17,7 @@ use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Str;
 use Jackardios\QueryWizard\BaseQueryWizard;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Contracts\FilterInterface;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\SortInterface;
@@ -634,7 +635,7 @@ class EloquentQueryWizard extends BaseQueryWizard
         foreach ($validRequestedIncludes as $includeName) {
             $include = $includes[] = $includesIndex[$includeName];
 
-            if ($include->getType() === 'relationship') {
+            if ($include instanceof EagerLoadsRelation) {
                 $relationshipPaths[] = $include->getRelation();
             }
         }

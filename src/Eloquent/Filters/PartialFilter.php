@@ -38,11 +38,6 @@ final class PartialFilter extends ExactFilter
         return new self($property, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'partial';
-    }
-
     /**
      * @return non-empty-array<string|int|float>|string|int|float|null
      */

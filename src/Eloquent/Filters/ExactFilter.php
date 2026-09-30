@@ -33,11 +33,6 @@ class ExactFilter extends AbstractFilter
         return new static($property, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'exact';
-    }
-
     public function validateValueShape(mixed $value): ?string
     {
         return $this->validateScalarOrFlatListValueShape($value);

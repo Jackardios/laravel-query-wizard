@@ -532,7 +532,7 @@ class OperatorFilterTest extends EloquentFilterTestCase
     {
         $filter = EloquentFilter::operator('name', FilterOperator::EQUAL);
 
-        $this->assertEquals('operator', $filter->getType());
+        $this->assertInstanceOf(OperatorFilter::class, $filter);
     }
 
     #[Test]

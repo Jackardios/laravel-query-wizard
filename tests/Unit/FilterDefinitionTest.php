@@ -30,7 +30,7 @@ class FilterDefinitionTest extends TestCase
     {
         $filter = ExactFilter::make('name');
 
-        $this->assertEquals('exact', $filter->getType());
+        $this->assertInstanceOf(ExactFilter::class, $filter);
         $this->assertEquals('name', $filter->getProperty());
         $this->assertEquals('name', $filter->getName()); // name = alias ?? property
         $this->assertNull($filter->getDefault());
@@ -141,7 +141,6 @@ class FilterDefinitionTest extends TestCase
         $this->assertInstanceOf(FilterInterface::class, $filter);
         $this->assertEquals('name', $filter->getProperty());
         $this->assertEquals('name', $filter->getName());
-        $this->assertEquals('exact', $filter->getType());
     }
 
     #[Test]
@@ -160,7 +159,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(PartialFilter::class, $filter);
         $this->assertEquals('search', $filter->getProperty());
-        $this->assertEquals('partial', $filter->getType());
     }
 
     #[Test]
@@ -170,7 +168,7 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertEquals('name', $filter->getProperty());
         $this->assertEquals('q', $filter->getName());
-        $this->assertEquals('partial', $filter->getType());
+        $this->assertInstanceOf(PartialFilter::class, $filter);
     }
 
     #[Test]
@@ -180,7 +178,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(ScopeFilter::class, $filter);
         $this->assertEquals('active', $filter->getProperty());
-        $this->assertEquals('scope', $filter->getType());
     }
 
     #[Test]
@@ -199,7 +196,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(TrashedFilter::class, $filter);
         $this->assertEquals('trashed', $filter->getProperty());
-        $this->assertEquals('trashed', $filter->getType());
         $this->assertEquals('trashed', $filter->getName());
     }
 
@@ -220,7 +216,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(CallbackFilter::class, $filter);
         $this->assertEquals('name', $filter->getProperty());
-        $this->assertEquals('callback', $filter->getType());
     }
 
     #[Test]
@@ -240,7 +235,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(RangeFilter::class, $filter);
         $this->assertEquals('price', $filter->getProperty());
-        $this->assertEquals('range', $filter->getType());
     }
 
     #[Test]
@@ -250,7 +244,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(DateRangeFilter::class, $filter);
         $this->assertEquals('created_at', $filter->getProperty());
-        $this->assertEquals('date_range', $filter->getType());
     }
 
     #[Test]
@@ -260,7 +253,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(NullFilter::class, $filter);
         $this->assertEquals('deleted_at', $filter->getProperty());
-        $this->assertEquals('null', $filter->getType());
     }
 
     #[Test]
@@ -270,7 +262,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(JsonContainsFilter::class, $filter);
         $this->assertEquals('meta.roles', $filter->getProperty());
-        $this->assertEquals('json_contains', $filter->getType());
     }
 
     #[Test]
@@ -280,7 +271,6 @@ class FilterDefinitionTest extends TestCase
 
         $this->assertInstanceOf(PassthroughFilter::class, $filter);
         $this->assertEquals('custom', $filter->getProperty());
-        $this->assertEquals('passthrough', $filter->getType());
     }
 
     // ========== Filter-specific Options Tests ==========

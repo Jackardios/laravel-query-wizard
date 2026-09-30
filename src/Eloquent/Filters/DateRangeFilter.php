@@ -109,11 +109,6 @@ final class DateRangeFilter extends AbstractRangeFilter
         return $this;
     }
 
-    public function getType(): string
-    {
-        return 'date_range';
-    }
-
     /**
      * @return non-empty-list<array{0: string, 1: mixed}>|null
      */

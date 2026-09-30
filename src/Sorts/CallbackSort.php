@@ -45,11 +45,6 @@ class CallbackSort extends AbstractSort
         return new static($property, $callback(...), $alias);
     }
 
-    public function getType(): string
-    {
-        return 'callback';
-    }
-
     public function apply(mixed $subject, string $direction): mixed
     {
         $result = ($this->callback)($subject, $direction, $this->property);

@@ -13,8 +13,12 @@ use Jackardios\QueryWizard\Concerns\HandlesParameterScope;
 use Jackardios\QueryWizard\Concerns\HandlesRelationPostProcessing;
 use Jackardios\QueryWizard\Concerns\HandlesSafeRelationSelect;
 use Jackardios\QueryWizard\Config\QueryWizardConfig;
+use Jackardios\QueryWizard\Contracts\AppliesToModel;
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
+use Jackardios\QueryWizard\Eloquent\Includes\CountInclude;
+use Jackardios\QueryWizard\Eloquent\Includes\ExistsInclude;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\RelationResolver;
@@ -230,7 +234,7 @@ class ModelQueryWizard implements QueryWizardInterface
         $paths = [];
 
         foreach ($includes as $include) {
-            if ($include->getType() !== 'relationship') {
+            if (! $include instanceof EagerLoadsRelation) {
                 continue;
             }
 
@@ -318,8 +322,9 @@ class ModelQueryWizard implements QueryWizardInterface
     }
 
     /**
-     * A loaded model takes relationship, count, exists and callback includes;
-     * any other kind is an error rather than an include that does nothing.
+     * A loaded model takes relationship, count and exists includes and includes
+     * implementing AppliesToModel, such as callback includes; any other kind is
+     * an error rather than an include that does nothing.
      *
      * @param  array<IncludeInterface>  $includes
      * @param  array<string>  $requestedIncludeNames
@@ -333,15 +338,24 @@ class ModelQueryWizard implements QueryWizardInterface
         foreach ($requestedIncludeNames as $name) {
             $include = $index[$name] ?? null;
 
-            if ($include !== null && ! in_array($include->getType(), ['relationship', 'count', 'exists', 'callback'], true)) {
+            if ($include !== null && ! self::appliesToModel($include)) {
                 throw new \LogicException(sprintf(
-                    'ModelQueryWizard cannot apply include `%s` (%s) to a loaded model; it takes relationship, count, '
-                    .'exists and callback includes.',
+                    'ModelQueryWizard cannot apply include `%s` (%s) to a loaded model; it takes relationship, count '
+                    .'and exists includes and includes implementing %s.',
                     $name,
-                    $include::class
+                    $include::class,
+                    AppliesToModel::class
                 ));
             }
         }
+    }
+
+    private static function appliesToModel(IncludeInterface $include): bool
+    {
+        return $include instanceof RelationshipInclude
+            || $include instanceof CountInclude
+            || $include instanceof ExistsInclude
+            || $include instanceof AppliesToModel;
     }
 
     /**
@@ -360,7 +374,7 @@ class ModelQueryWizard implements QueryWizardInterface
         $relationshipRequests = [];
         $countsToLoad = [];
         $existsToLoad = [];
-        $callbackIncludes = [];
+        $modelIncludes = [];
 
         foreach ($requested as $includeName) {
             if (in_array($includeName, $loaded)) {
@@ -372,14 +386,14 @@ class ModelQueryWizard implements QueryWizardInterface
                 continue;
             }
 
-            if ($include->getType() === 'count') {
-                $countsToLoad[] = $include->getRelation();
-            } elseif ($include->getType() === 'exists') {
-                $existsToLoad[] = $include->getRelation();
-            } elseif ($include->getType() === 'callback') {
-                $callbackIncludes[] = $include;
-            } elseif ($include->getType() === 'relationship') {
+            if ($include instanceof RelationshipInclude) {
                 $relationshipRequests[] = $include->getRelation();
+            } elseif ($include instanceof CountInclude) {
+                $countsToLoad[] = $include->getRelation();
+            } elseif ($include instanceof ExistsInclude) {
+                $existsToLoad[] = $include->getRelation();
+            } elseif ($include instanceof AppliesToModel) {
+                $modelIncludes[] = $include;
             }
         }
 
@@ -400,8 +414,8 @@ class ModelQueryWizard implements QueryWizardInterface
             };
         }
 
-        foreach ($callbackIncludes as $include) {
-            $include->apply($this->model);
+        foreach ($modelIncludes as $include) {
+            $include->applyToModel($this->model);
         }
         if (! empty($relationsToLoad)) {
             $this->model->loadMissing($relationsToLoad);

@@ -37,11 +37,6 @@ final class CountSort extends AbstractSort
         return new self($relation, $alias);
     }
 
-    public function getType(): string
-    {
-        return 'count';
-    }
-
     /**
      * @param  Builder<Model>  $subject
      * @param  'asc'|'desc'  $direction

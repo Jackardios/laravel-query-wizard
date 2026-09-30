@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Eloquent\Includes\RelationshipInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidIncludeQuery;
@@ -891,16 +892,11 @@ class IncludeTest extends TestCase
     public function custom_relationship_include_keeps_its_constraint_under_sparse_fields(): void
     {
         $kept = RelatedModel::query()->where('test_model_id', $this->models->first()->id)->firstOrFail();
-        $include = new class('relatedModels', null, $kept->id) extends AbstractInclude
+        $include = new class('relatedModels', null, $kept->id) extends AbstractInclude implements EagerLoadsRelation
         {
             public function __construct(string $relation, ?string $alias, private readonly int $keptId)
             {
                 parent::__construct($relation, $alias);
-            }
-
-            public function getType(): string
-            {
-                return 'relationship';
             }
 
             public function apply(mixed $subject): mixed
@@ -921,5 +917,30 @@ class IncludeTest extends TestCase
 
         $this->assertSame([1, 0, 0], $models->map(fn ($model) => $model->relatedModels->count())->all());
         $this->assertStringNotContainsString('select *', $relatedQuery);
+    }
+
+    #[Test]
+    public function disallowing_a_relation_denies_a_custom_eager_loading_include_under_its_alias(): void
+    {
+        $include = new class('relatedModels', 'related') extends AbstractInclude implements EagerLoadsRelation
+        {
+            public function __construct(string $relation, string $alias)
+            {
+                parent::__construct($relation, $alias);
+            }
+
+            public function apply(mixed $subject): mixed
+            {
+                return $subject->with($this->relation);
+            }
+        };
+
+        $this->expectException(InvalidIncludeQuery::class);
+
+        $this
+            ->createEloquentWizardFromQuery(['include' => 'related'])
+            ->allowedIncludes($include)
+            ->disallowedIncludes('relatedModels')
+            ->get();
     }
 }

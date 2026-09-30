@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Jackardios\QueryWizard\Tests\Feature;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\RelationNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Jackardios\QueryWizard\Contracts\AppliesToModel;
+use Jackardios\QueryWizard\Contracts\EagerLoadsRelation;
 use Jackardios\QueryWizard\Contracts\QueryWizardInterface;
 use Jackardios\QueryWizard\Eloquent\EloquentInclude;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
@@ -599,11 +602,6 @@ class ModelQueryWizardTest extends TestCase
                 parent::__construct($relation);
             }
 
-            public function getType(): string
-            {
-                return 'latest';
-            }
-
             public function apply(mixed $subject): mixed
             {
                 return $subject;
@@ -620,6 +618,57 @@ class ModelQueryWizardTest extends TestCase
         }
 
         $this->assertTrue($this->model->relationLoaded('otherRelatedModels'));
+    }
+
+    #[Test]
+    public function a_custom_eager_loading_include_needs_applies_to_model_rather_than_losing_its_constraint(): void
+    {
+        $include = new class('relatedModels') extends AbstractInclude implements EagerLoadsRelation
+        {
+            public function __construct(string $relation)
+            {
+                parent::__construct($relation);
+            }
+
+            public function apply(mixed $subject): mixed
+            {
+                return $subject->with([$this->relation => fn ($query) => $query->whereRaw('1 = 0')]);
+            }
+        };
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage(AppliesToModel::class);
+
+        $this->createModelWizardFromQuery(['include' => 'relatedModels'], $this->model)->allowedIncludes($include)->process();
+    }
+
+    #[Test]
+    public function an_include_applying_to_models_loads_its_own_constraint(): void
+    {
+        $include = new class('relatedModels') extends AbstractInclude implements AppliesToModel, EagerLoadsRelation
+        {
+            public function __construct(string $relation)
+            {
+                parent::__construct($relation);
+            }
+
+            public function apply(mixed $subject): mixed
+            {
+                return $subject;
+            }
+
+            public function applyToModel(Model $model): void
+            {
+                $model->loadMissing([$this->relation => fn ($query) => $query->whereRaw('1 = 0')]);
+            }
+        };
+
+        $result = $this->createModelWizardFromQuery(['include' => 'relatedModels'], $this->model)
+            ->allowedIncludes($include)
+            ->process();
+
+        $this->assertTrue($result->relationLoaded('relatedModels'));
+        $this->assertCount(0, $result->relatedModels);
     }
 
     #[Test]
