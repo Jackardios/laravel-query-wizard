@@ -116,6 +116,25 @@ trait HandlesIncludes
     }
 
     /**
+     * The includes a request may use, by public name: those set with allowedIncludes()
+     * and addAllowedIncludes(), or the schema's, without the ones disallowedIncludes() removes.
+     *
+     * The definitions are copies: changing one does not change the wizard. A composite
+     * definition's children are not copied.
+     *
+     * @return array<array-key, IncludeInterface>
+     *
+     * @throws \LogicException When called from the schema method that describes this list
+     */
+    public function getAllowedIncludes(): array
+    {
+        return $this->readConfiguration(__FUNCTION__, fn (): array => array_map(
+            static fn (IncludeInterface $include): IncludeInterface => clone $include,
+            $this->buildIncludesIndex($this->getEffectiveIncludes())
+        ));
+    }
+
+    /**
      * Get effective includes.
      *
      * If allowedIncludes() was called explicitly, use those (even if empty).

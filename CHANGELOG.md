@@ -8,8 +8,68 @@ All notable changes to this project are documented in this file. The format foll
 Version 3 is a rewrite: fluent `allowed*()` configuration, `EloquentFilter`/`EloquentSort`/`EloquentInclude` factories,
 resource schemas, `ModelQueryWizard::process()`, request limits. See [UPGRADE.md](UPGRADE.md) for migrating from v2.x
 and from `dev-master` snapshots. The entries below cover the changes made before the release; pre-releases v3.0.0-rc.1
-and v3.0.0-rc.2 were tagged on 2026-09-25 and v3.0.0-rc.3 and v3.0.0-rc.4 on 2026-09-30, and the changes since each of
-them are listed first.
+and v3.0.0-rc.2 were tagged on 2026-09-25 and v3.0.0-rc.3, v3.0.0-rc.4 and v3.0.0-rc.5 on 2026-09-30, and the changes
+since each of them are listed first (v3.0.0-rc.5 holds the changes listed since v3.0.0-rc.4).
+
+### Since v3.0.0-rc.5
+
+Added:
+
+- `getAllowedFilters()`, `getAllowedSorts()`, `getAllowedIncludes()`, `getAllowedFields()` and `getAllowedAppends()`
+  return what a request is checked against: the definitions by public name, or the list of names, without the ones
+  `disallowed*()` removes. `getRequestedFilterNames()` returns the filter names the build resolves the request to.
+  `ModelQueryWizard` has the include, field and append ones. They read the configuration without building and return
+  copies of the definitions. A schema method that reads the list it describes gets a `LogicException`. They replace
+  reaching for the protected `getEffective*()` and `extractRequestedFilterNames()`, which stay outside the
+  compatibility promise.
+- `QueryParametersManager::getUnsplitFilters()` is public API again (it was `@internal`): the request's filter values
+  without separator splitting, the form `setFiltersParameter()` takes.
+- `isFilterNameDisallowed($name)`, a protected `@api` member of the wizards: whether `disallowedFilters()` removes a
+  filter name. For subclasses with composite filters, which had to read `$disallowedFilters` themselves.
+- `@api` on the members the README documents as extension points: `applyToSubject()`, `resolveConstraint()`,
+  `applyRelationFilter()` and `applyOnQuery()` of `HandlesRelationFiltering`, `$minKey`, `$maxKey` and
+  `resolveConstraint()` of `AbstractRangeFilter`, and `ParsesRangeValues::parseRangeValue()`.
+
+Changed:
+
+- `EloquentQueryWizard::for()` and `ModelQueryWizard::for()` throw `InvalidArgumentException` for more than one
+  argument. A second argument was ignored, so `for($subject, $parameters)`, the v2 form, read the request-scoped
+  manager and applied none of `$parameters`' filters. Pass a manager to the constructor.
+- A fieldset keyed by a name that is not an allowed include says so: "Requested field(s) `posts.id` are not allowed.
+  `posts` is not an allowed include." It used to list the allowed fields, which could read "`posts.id` are not allowed.
+  Allowed field(s) are `posts.id`."
+
+Fixed:
+
+- `defaultSorts()` flattens nested arrays at any depth and skips `null` items, like the other `default*()` methods;
+  `defaultSorts([['name']])` and `defaultSorts(['name', null])` were a `TypeError`. An empty name is still refused
+  with `InvalidArgumentException` when the default applies.
+- A filter whose public name is a number (`->alias('5')`, `allowedFilters('2024')`) no longer fails every build with a
+  `TypeError` from `strrpos()`.
+- An eager load added through the wizard after a root fieldset narrowed the select
+  (`->allowedFields('name')->with('posts')` with `?fields=name`) loads its models: the columns it matches by are added
+  to the select and stay hidden. The relation came back empty, without an error. When the key columns of the eager
+  load are unknown, all root columns are selected again.
+- A relation fieldset on a relation whose definition joins another table no longer fails with "ambiguous column
+  name": such a relation keeps the select of its definition, and the fields outside the fieldset are hidden after
+  loading. A fieldset naming a column of the joined table keeps working. Two consequences: results read from the
+  builder of `toQuery()` or `build()` without `applyPostProcessingTo()` now hold every column of both tables (the select
+  was narrowed to the fieldset before), and where both tables have a column of the same name the joined table's value
+  is returned, `id` included, as for the same relation without a fieldset.
+- A wizard cloned inside a build callback (a tap, a callback filter, a schema method) can be built and reconfigured:
+  its unfinished build is rolled back, as a failed one is. It answered "The wizard cannot be built while it builds"
+  for good.
+- `getPassthroughFilters()` called from the schema's `filters()` or from a callback it runs, and
+  `ModelQueryWizard::process()` called from a schema method, throw `LogicException` instead of recursing until the
+  stack overflows.
+
+Security:
+
+- Under a wildcard (`allowedAppends('*')`, `'relation.*'`), an append that names a `$hidden` attribute's accessor or
+  a disallowed append in another spelling is rejected (400 `append_not_allowed`). Eloquent resolves `secretToken`,
+  `SECRET_TOKEN`, `secret-token` and `secret token` to the accessor of `secret_token` and serializes the value under
+  the name as written, so those requests returned a hidden attribute, or an append that `disallowedAppends()` named.
+  A name allowed explicitly is not affected, and a hidden attribute requested by its exact name stays hidden.
 
 ### Since v3.0.0-rc.4
 
@@ -72,10 +132,6 @@ Added:
 - `invalidFormat()` on the `Invalid*Query` exceptions and `InvalidRequestBody::malformedJson()` take `?Throwable
   $previous`; the format errors read from the request keep the parser's `InvalidArgumentException`, and a malformed
   body its `JsonException`, as the previous exception.
-- `QueryParametersManager` is `final`; `getConfig()`, `getStateVersion()`, `getUnsplitFilters()` and
-  `hasSimpleParameter()` are `@internal`. `QueryWizardConfig::getSeparator()` is private (use the per-type getters).
-- Exceptions: `InvalidQuery::__construct()` is `@api`; the constructors of the `Invalid*Query` exceptions,
-  `InvalidFilterValue` and `InvalidRequestBody` are `@internal` in favor of their named constructors.
 - `@api` include contracts: `Contracts\EagerLoadsRelation` (implemented by relationship includes) gives a custom include
   relation fieldsets, relation field and append validation and the disallowed-path check;
   `Contracts\AppliesToModel` (`applyToModel(Model $model): void`, implemented by callback includes) lets
@@ -90,6 +146,10 @@ Added:
 
 Changed:
 
+- `QueryParametersManager` is `final`; `getConfig()`, `getStateVersion()`, `getUnsplitFilters()` and
+  `hasSimpleParameter()` are `@internal`. `QueryWizardConfig::getSeparator()` is private (use the per-type getters).
+- Exceptions: `InvalidQuery::__construct()` is `@api`; the constructors of the `Invalid*Query` exceptions,
+  `InvalidFilterValue` and `InvalidRequestBody` are `@internal` in favor of their named constructors.
 - `FilterOperator` cases are PascalCase, like `SortDirection`'s: `Equal`, `NotEqual`, `GreaterThan`,
   `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Like`, `NotLike`, `Dynamic` (were `EQUAL`, … `DYNAMIC`). The
   values are unchanged, so `FilterOperator::from('>=')` still works. `supportsArrayValues()` and `getSqlOperator()` are
@@ -122,8 +182,9 @@ Changed:
   `allowedSorts()` or unrelated `disallowedSorts()` call turned off.
 - `QueryWizardConfig::snapshot()`, taken once per build, validates every setting, so a broken value fails every request
   instead of the ones that read it (`ignore_unknown.filters => 'maybe'` was a 500 only for requests with
-  an unknown filter). An unknown key inside `parameters`, `naming`, `separators`, `fields` or `limits` throws
-  `InvalidArgumentException`; a typo such as `limits.max_filter_count` used to keep the default silently.
+  an unknown filter). An unknown key inside `parameters`, `naming`, `separators`, `ignore_unknown`, `includes`,
+  `filters`, `fields` or `limits` throws `InvalidArgumentException`; a typo such as `limits.max_filter_count` used to
+  keep the default silently.
 - Nested or keyed lists in `include`, `sort`, a fieldset or `append` are a 400 (`invalid_include_format`,
   `invalid_sort_format`, `invalid_field_format`, `invalid_append_format`): `?include[a][b]=x` was ignored with a 200,
   `?sort[a][b]=x` got a message about an empty sort, and `?fields[a][b]=x` dropped the key `b`.
@@ -181,7 +242,8 @@ Removed:
 
 - `getType()` from `FilterInterface`, `SortInterface`, `IncludeInterface`, the abstract bases and the built-in
   definitions.
-- `Values\Sort::getSortDirection()` (use `getDirection()->value`) and `Values\Sort::parseSortDirection()`.
+- `Values\Sort::getSortDirection()` (`getDirection()` returns that `SortDirection` now, and `getDirection()->value`
+  the string it used to return) and `Values\Sort::parseSortDirection()`.
 - `EloquentSort::relation()` and `RelationSort`: `EloquentSort::max()`, `min()`, `sum()` and `avg()` replace them,
   named like Laravel's `withMax()`/`withSum()`, and return an `AggregateSort` (`getFunction()`, `getColumn()`).
   `relation()` took the aggregate as a case-sensitive string (`'MAX'` was an error) and also accepted `count`, which
@@ -330,6 +392,8 @@ Removed:
   finders called through the wizard (`find()`, `sole()`, `firstWhere()`, ...) post-process their results.
 - Extension points marked `@api`, including `rollbackFailedBuild()`, `resolveConstraint()`,
   `resolveAppendAccessorModel()` and `QueryWizardConfig::snapshot()`.
+- `getAllowedFilters()`, `getAllowedSorts()`, `getAllowedIncludes()`, `getAllowedFields()`, `getAllowedAppends()` and
+  `getRequestedFilterNames()` report the configuration a request is checked against.
 
 ### Changed
 
@@ -382,6 +446,8 @@ Removed:
 - Under `allowedFields('*')`, a field name that differs from a disallowed field or a `$hidden` model attribute only in
   letter case is rejected. On MySQL, which matches column names without regard to case, `fields=NAME` returned the value
   of a hidden or disallowed `name` column.
+- Under `allowedAppends('*')`, an append that names the accessor of a `$hidden` attribute or a disallowed append in
+  another spelling (`secretToken` for `secret_token`) is rejected; Eloquent resolved it to the same accessor.
 
 ### Removed
 
@@ -392,5 +458,5 @@ Removed:
 
 See the [GitHub releases](https://github.com/jackardios/laravel-query-wizard/releases).
 
-[3.0.0]: https://github.com/Jackardios/laravel-query-wizard/compare/v2.1.3...HEAD
+[3.0.0]: https://github.com/Jackardios/laravel-query-wizard/compare/v2.1.3...v3.0.0
 [2.1.3]: https://github.com/Jackardios/laravel-query-wizard/releases/tag/v2.1.3

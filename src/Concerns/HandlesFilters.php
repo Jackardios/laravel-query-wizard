@@ -63,6 +63,43 @@ trait HandlesFilters
     }
 
     /**
+     * The filters a request may use, by public name: those set with allowedFilters()
+     * and addAllowedFilters(), or the schema's, without the ones disallowedFilters() removes.
+     *
+     * A composite filter is listed under its own name, not under the names of its leaves.
+     * The definitions are copies: changing one does not change the wizard. A composite
+     * definition's children are not copied.
+     *
+     * @return array<array-key, FilterInterface>
+     *
+     * @throws \LogicException When called from the schema method that describes this list
+     */
+    public function getAllowedFilters(): array
+    {
+        return $this->readConfiguration(__FUNCTION__, fn (): array => array_map(
+            static fn (FilterInterface $filter): FilterInterface => clone $filter,
+            $this->getEffectiveFilters()
+        ));
+    }
+
+    /**
+     * The filter names the request carries, as the build reads them: each request
+     * key under the deepest allowed filter name it falls under, and a key no
+     * allowed filter owns under its own dot path.
+     *
+     * Names that are not allowed are included; the build rejects them unless
+     * `ignore_unknown.filters` is on.
+     *
+     * @return list<string>
+     *
+     * @throws \LogicException When called from the schema method that describes the filters
+     */
+    public function getRequestedFilterNames(): array
+    {
+        return $this->readConfiguration(__FUNCTION__, fn (): array => $this->extractRequestedFilterNames());
+    }
+
+    /**
      * Get effective filters.
      *
      * If allowedFilters() was called explicitly, use those (even if empty).
@@ -110,8 +147,9 @@ trait HandlesFilters
      * its leaves instead of its own name. Return every leaf: disallowedFilters()
      * is applied to the names returned, and a disallowed leaf resolves to no value.
      *
-     * @param  array<string, FilterInterface>  $filters
-     * @return array<int, string>
+     * @param  array<string, FilterInterface>  $filters  The allowed filters that disallowedFilters() leaves,
+     *                                                   keyed by public name in the form normalizePublicPath() gives
+     * @return array<int, string> Names in that same form
      *
      * @api
      */
@@ -128,7 +166,7 @@ trait HandlesFilters
      */
     private function resolveRequestableFilterNames(array $filters): array
     {
-        $names = $this->resolveAllowedFilterNames($filters);
+        $names = array_map(strval(...), $this->resolveAllowedFilterNames($filters));
 
         if ($this->disallowedFilters === []) {
             return $names;
@@ -141,9 +179,14 @@ trait HandlesFilters
     }
 
     /**
-     * Whether disallowedFilters() removes the filter with this public name.
+     * Whether disallowedFilters() removes a filter name. A composite filter asks
+     * this about the names of its leaves.
+     *
+     * @param  string  $name  A public filter name; normalizePublicPath() is applied to it
+     *
+     * @api
      */
-    private function isFilterNameDisallowed(string $name): bool
+    protected function isFilterNameDisallowed(string $name): bool
     {
         return $this->disallowedFilters !== [] && $this->isNameDisallowed($name, $this->disallowedFilters);
     }
@@ -152,8 +195,8 @@ trait HandlesFilters
      * Effective filters whose request key is consumed by another filter and which
      * therefore must not be applied on their own.
      *
-     * @param  array<string, FilterInterface>  $filters
-     * @return array<string, true>
+     * @param  array<string, FilterInterface>  $filters  Keyed like those resolveAllowedFilterNames() receives
+     * @return array<string, true> Keys of `$filters`
      *
      * @api
      */
@@ -199,7 +242,7 @@ trait HandlesFilters
      * Each request key belongs to the deepest allowed filter name it falls under.
      * Uses set-based counting to prevent duplicate filter names from being counted multiple times.
      *
-     * @return array<string>
+     * @return list<string>
      */
     protected function extractRequestedFilterNames(): array
     {
@@ -216,7 +259,7 @@ trait HandlesFilters
             $this->getNestedFilterNames(),
         );
 
-        return array_keys($requestedFilterNamesSet);
+        return array_map(strval(...), array_keys($requestedFilterNamesSet));
     }
 
     /**

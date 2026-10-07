@@ -378,21 +378,28 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      * Replaces the schema defaults; call it without arguments for no defaults.
      *
      * @param  string|Sort|array<string|Sort>  ...$sorts
+     *
+     * @throws \InvalidArgumentException When an item is neither a name nor a Sort
      */
     public function defaultSorts(string|Sort|array ...$sorts): static
     {
         $this->invalidateBuild();
-        $flatSorts = [];
-        foreach ($sorts as $sort) {
-            if (is_array($sort)) {
-                foreach ($sort as $s) {
-                    $flatSorts[] = $this->extractSortName($s);
-                }
-            } else {
-                $flatSorts[] = $this->extractSortName($sort);
+        $names = [];
+
+        // An empty name is kept, unlike in flattenDefinitions(): the build refuses it when the default applies.
+        array_walk_recursive($sorts, function (mixed $sort) use (&$names): void {
+            if ($sort === null) {
+                return;
             }
-        }
-        $this->defaultSorts = $flatSorts;
+
+            if (! is_string($sort) && ! $sort instanceof Sort) {
+                throw new \InvalidArgumentException('Expected a name or '.Sort::class.', got '.get_debug_type($sort).'.');
+            }
+
+            $names[] = $this->extractSortName($sort);
+        });
+
+        $this->defaultSorts = $names;
         $this->defaultSortsExplicitlySet = true;
 
         return $this;
@@ -491,8 +498,9 @@ abstract class BaseQueryWizard implements QueryWizardInterface
     /**
      * Undo a build that threw, so the next build starts from the original subject.
      *
-     * Called with the exception still pending, before it is rethrown. Subclasses
-     * that keep state derived from the build reset it here and call the parent.
+     * Called with the exception still pending, before it is rethrown, and on a
+     * clone made while the wizard builds. Subclasses that keep state derived from
+     * the build reset it here and call the parent.
      *
      * @api
      */
@@ -532,6 +540,8 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      * Reuses the values of a current build, so the filters are not prepared again.
      *
      * @return Collection<string, mixed>
+     *
+     * @throws \LogicException When called from a schema method or filter callback it runs to prepare the values
      */
     public function getPassthroughFilters(): Collection
     {
@@ -539,13 +549,16 @@ abstract class BaseQueryWizard implements QueryWizardInterface
             return collect($this->builtPassthroughFilters);
         }
 
+        /** @var Collection<string, mixed> $result */
         $result = collect();
 
-        foreach ($this->resolvePreparedFilters() as $name => $resolvedFilter) {
-            if ($resolvedFilter['filter'] instanceof PassthroughFilter) {
-                $result[$name] = $resolvedFilter['value'];
+        $this->readConfiguration(__FUNCTION__, function () use ($result): void {
+            foreach ($this->resolvePreparedFilters() as $name => $resolvedFilter) {
+                if ($resolvedFilter['filter'] instanceof PassthroughFilter) {
+                    $result[$name] = $resolvedFilter['value'];
+                }
             }
-        }
+        });
 
         return $result;
     }
@@ -967,15 +980,25 @@ abstract class BaseQueryWizard implements QueryWizardInterface
      * Derived post-processing state describes this same subject, so subclasses
      * carry it over rather than clearing it - clearing state that only build()
      * can regenerate is what leaves a cloned wizard permanently incomplete.
+     *
+     * A clone made while the wizard builds (inside a tap, filter or schema
+     * callback) is not being built itself: its unfinished build is rolled back.
      */
     public function __clone(): void
     {
+        $this->forgetReadsInProgress();
+
         if (is_object($this->subject)) {
             $this->subject = clone $this->subject;
         }
 
         if (isset($this->originalSubject) && is_object($this->originalSubject)) {
             $this->originalSubject = clone $this->originalSubject;
+        }
+
+        if ($this->building) {
+            $this->building = false;
+            $this->rollbackFailedBuild();
         }
     }
 }

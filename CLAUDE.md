@@ -68,6 +68,8 @@ ModelQueryWizard::for($user)
 // Useful methods
 $wizard->schema(UserSchema::class);     // Set schema after instantiation
 $wizard->getPassthroughFilters();       // Get Collection of passthrough filter values
+$wizard->getAllowedFilters();           // Allowed definitions by public name (also Sorts/Includes; Fields/Appends: names)
+$wizard->getRequestedFilterNames();     // Filter names the request carries, as the build resolves them
 $wizard->toQuery();                     // Get underlying builder after building
 $wizard->getSubject();                  // Get underlying builder without building
 ```
@@ -116,9 +118,9 @@ All modifiers **mutate** the original object:
 EloquentFilter::exact('status')
     ->alias('state')                      // URL name: ?filter[state]=...
     ->default('active')                   // Default when not in request
-    ->prepareValueWith(fn($v) => strtolower($v)) // Chains: preparers run in call order, null skips the filter
-    ->when(fn($value) => $value !== 'all') // Skip if returns false
-    ->asBoolean()                         // true/false/1/0/yes/no/on/off → bool, anything else → 400
+    ->prepareValueWith(fn($v) => is_string($v) ? strtolower($v) : $v) // Chains: preparers run in call order, null skips the filter
+    ->when(fn($value) => $value !== 'all') // Skip if returns false; reads the value as sent
+    ->asBoolean()                         // true/false/1/0/yes/no/on/off → bool, anything else → 400 (the default too)
     ->withoutValueSplitting()             // Keep 'a,b' whole (default for PartialFilter; withValueSplitting() reverts)
     ->withStructuredInput()               // Validate only the prepared value's shape (withoutStructuredInput() reverts)
 
@@ -229,7 +231,7 @@ EloquentInclude::relationship('a.b.c.d')->alias('simple')  // Still fails (depth
 
 ### 4. ScopeFilter model binding disabled by default
 ```php
-EloquentFilter::scope('byAuthor')                    // Safe: values passed as-is
+EloquentFilter::scope('byAuthor')                    // Safe: no model is loaded; a model-typed parameter is a 400
 EloquentFilter::scope('byAuthor')->withModelBinding() // Loads models WITHOUT auth check
 ```
 

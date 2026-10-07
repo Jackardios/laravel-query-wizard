@@ -79,6 +79,92 @@ class EagerLoadKeysTest extends TestCase
     }
 
     #[Test]
+    public function root_fieldset_keeps_the_keys_of_eager_loads_added_through_the_wizard(): void
+    {
+        $models = $this->wizard(TestModel::query(), ['fields' => ['testModel' => 'name']])
+            ->allowedFields('name')
+            ->with('relatedModels')
+            ->get();
+
+        $this->assertSame([2, 2], $models->map(fn ($model) => $model->relatedModels->count())->all());
+        $this->assertSame(['name', 'related_models'], array_keys($models->first()->toArray()));
+        $this->assertSame('select "test_models"."name", "test_models"."id" from "test_models"', $this->rootQuery());
+    }
+
+    #[Test]
+    public function root_fieldset_keeps_the_keys_of_eager_loads_added_through_the_wizard_for_every_way_to_run_it(): void
+    {
+        $wizard = fn (): EloquentQueryWizard => $this->wizard(TestModel::query(), ['fields' => ['testModel' => 'name']])
+            ->allowedFields('name')
+            ->where('id', '>', 0)
+            ->with(['relatedModels'])
+            ->orderBy('id');
+
+        $counts = [];
+        $wizard()->chunk(10, function ($models) use (&$counts): void {
+            $counts['chunk'] = $models->map(fn ($model) => $model->relatedModels->count())->all();
+        });
+        $counts['lazy'] = $wizard()->lazy()->map(fn ($model) => $model->relatedModels->count())->all();
+        $counts['cursor'] = $wizard()->cursor()->map(fn ($model) => $model->relatedModels->count())->all();
+        $counts['paginate'] = collect($wizard()->paginate()->items())->map(fn ($model) => $model->relatedModels->count())->all();
+        $counts['find'] = [$wizard()->find(1)->relatedModels->count(), $wizard()->find(2)->relatedModels->count()];
+
+        $this->assertSame(array_fill_keys(['chunk', 'lazy', 'cursor', 'paginate', 'find'], [2, 2]), $counts);
+        $this->assertSame(['name', 'related_models'], array_keys($wizard()->first()->toArray()));
+    }
+
+    #[Test]
+    public function root_fieldset_keeps_the_full_select_for_an_unknown_eager_load_added_through_the_wizard(): void
+    {
+        $models = $this->wizard(TestModel::query(), ['fields' => ['testModel' => 'name']])
+            ->allowedFields('name')
+            ->with('missingRelation')
+            ->toQuery();
+
+        $this->assertSame('select "test_models"."name", "test_models".* from "test_models"', $models->toSql());
+    }
+
+    #[Test]
+    public function a_developer_select_is_left_alone_without_a_root_fieldset(): void
+    {
+        $query = $this->wizard(TestModel::query()->select('name'), [])
+            ->allowedFields('name')
+            ->with('relatedModels')
+            ->toQuery();
+
+        $this->assertSame('select "name" from "test_models"', $query->toSql());
+    }
+
+    #[Test]
+    public function a_developer_select_gets_the_keys_of_eager_loads_added_through_the_wizard_under_a_root_fieldset(): void
+    {
+        $models = $this->wizard(TestModel::query(), ['fields' => ['testModel' => 'name']])
+            ->allowedFields('name')
+            ->select('name')
+            ->with('relatedModels')
+            ->get();
+
+        $this->assertSame([2, 2], $models->map(fn ($model) => $model->relatedModels->count())->all());
+        $this->assertSame(['name', 'related_models'], array_keys($models->first()->toArray()));
+        $this->assertSame('select "name", "test_models"."id" from "test_models"', $this->rootQuery());
+    }
+
+    #[Test]
+    public function relation_fieldset_keeps_the_keys_of_nested_eager_loads_added_through_the_wizard(): void
+    {
+        $models = $this->wizard(TestModel::query(), ['include' => 'relatedModels', 'fields' => ['relatedModels' => 'name']])
+            ->allowedIncludes('relatedModels')
+            ->allowedFields('relatedModels.name')
+            ->with('relatedModels.nestedRelatedModels')
+            ->get();
+
+        $related = $models->first()->relatedModels->first();
+
+        $this->assertCount(1, $related->nestedRelatedModels);
+        $this->assertSame(['name', 'nested_related_models'], array_keys($related->toArray()));
+    }
+
+    #[Test]
     public function root_fieldset_keeps_the_keys_of_callback_include_eager_loads(): void
     {
         $models = $this->wizard(TestModel::query(), ['include' => 'related', 'fields' => ['testModel' => 'name']])
@@ -264,6 +350,45 @@ class EagerLoadKeysTest extends TestCase
             ->get();
 
         $this->assertSame(['marker' => 'dev'], $models->first()->relatedModels->first()->toArray());
+    }
+
+    #[Test]
+    public function relation_fieldset_does_not_narrow_a_relation_that_joins_a_table(): void
+    {
+        TestModel::resolveRelationUsing('joinedRelated', fn (TestModel $model) => $model
+            ->hasMany(RelatedModel::class, 'test_model_id')
+            ->join('test_models as owners', 'owners.id', '=', 'related_models.test_model_id'));
+
+        $models = $this->wizard(TestModel::query(), ['include' => 'joinedRelated', 'fields' => ['joinedRelated' => 'name']])
+            ->allowedIncludes('joinedRelated')
+            ->allowedFields('joinedRelated.name')
+            ->get();
+
+        $this->assertSame([2, 2], $models->map(fn ($model) => $model->joinedRelated->count())->all());
+        $models->each(fn ($model) => $model->joinedRelated->each(
+            fn ($related) => $this->assertSame(['name'], array_keys($related->toArray()))
+        ));
+        $this->assertStringStartsWith('select * from "related_models" inner join', $this->queryFrom('related_models'));
+    }
+
+    #[Test]
+    public function relation_fieldset_may_name_a_column_of_the_table_the_relation_joins(): void
+    {
+        TestModel::resolveRelationUsing('joinedNested', fn (TestModel $model) => $model
+            ->hasMany(RelatedModel::class, 'test_model_id')
+            ->join('nested_related_models', 'nested_related_models.related_model_id', '=', 'related_models.id'));
+
+        $models = $this->wizard(TestModel::query(), ['include' => 'joinedNested', 'fields' => ['joinedNested' => 'related_model_id']])
+            ->allowedIncludes('joinedNested')
+            ->allowedFields('joinedNested.related_model_id')
+            ->get();
+
+        foreach ($models as $model) {
+            $this->assertEqualsCanonicalizing(
+                RelatedModel::query()->where('test_model_id', $model->id)->pluck('id')->map(fn ($id) => ['related_model_id' => $id])->all(),
+                $model->joinedNested->map(fn ($related) => $related->toArray())->all()
+            );
+        }
     }
 
     #[Test]

@@ -29,6 +29,7 @@ use Jackardios\QueryWizard\Tests\App\Models\AppendModelWithBuiltInAppends;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
+use Jackardios\QueryWizard\Values\Sort;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -83,6 +84,19 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function for_refuses_a_second_argument_instead_of_ignoring_it(): void
+    {
+        $parameters = new QueryParametersManager(new Request(['filter' => ['name' => 'a']]));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            EloquentQueryWizard::class.'::for() takes the subject only; pass a QueryParametersManager to the constructor'
+        );
+
+        EloquentQueryWizard::for(TestModel::class, $parameters);
+    }
+
+    #[Test]
     public function definitions_and_names_are_flattened_at_any_depth(): void
     {
         $model = TestModel::factory()->create();
@@ -93,6 +107,29 @@ class QueryWizardTest extends TestCase
             ->get();
 
         $this->assertSame([['id' => $model->id]], $result->toArray());
+    }
+
+    #[Test]
+    public function default_sorts_are_flattened_at_any_depth(): void
+    {
+        $sql = $this->createEloquentWizardFromQuery()
+            ->defaultSorts([['name', null], [[new Sort('-id')]]], 'created_at')
+            ->toQuery()
+            ->toSql();
+
+        $this->assertStringEndsWith(
+            'order by "test_models"."name" asc, "test_models"."id" desc, "test_models"."created_at" asc',
+            $sql
+        );
+    }
+
+    #[Test]
+    public function a_default_sort_that_is_neither_a_name_nor_a_sort_throws(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected a name or '.Sort::class.', got int.');
+
+        EloquentQueryWizard::for(TestModel::class)->defaultSorts(['name', 5]);
     }
 
     #[Test]
@@ -675,6 +712,99 @@ class QueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function a_clone_made_inside_a_build_callback_builds_on_its_own(): void
+    {
+        $clones = [];
+        $wizard = $this->createEloquentWizardWithFilters(['name' => 'Ann', 'later' => '1'])
+            ->allowedFilters('name', EloquentFilter::callback('later', function ($query) use (&$wizard, &$clones): void {
+                $clones['filter'] ??= clone $wizard;
+                $query->where('id', '>', 0);
+            }));
+        $wizard->tap(function () use (&$wizard, &$clones): void {
+            $clones['tap'] ??= clone $wizard;
+        });
+
+        $sql = 'select * from "test_models" where "test_models"."name" = ? and "id" > ?';
+
+        $this->assertSame($sql, $wizard->toQuery()->toSql());
+        $this->assertSame(['tap', 'filter'], array_keys($clones));
+
+        foreach ([...array_values($clones), clone $clones['tap']] as $clone) {
+            $this->assertSame($sql, $clone->toQuery()->toSql());
+            $this->assertSame(['Ann', 0], $clone->toQuery()->getBindings());
+        }
+
+        $this->assertSame($sql, $wizard->toQuery()->toSql());
+    }
+
+    #[Test]
+    public function a_clone_made_inside_a_build_callback_can_be_reconfigured(): void
+    {
+        $clone = null;
+        $wizard = $this->createEloquentWizardFromQuery()->allowedSorts('id');
+        $wizard->tap(function ($query) use (&$wizard, &$clone): void {
+            $query->where('id', '>', 0);
+            $clone ??= clone $wizard;
+        });
+        $wizard->toQuery();
+
+        $this->assertSame(
+            'select * from "test_models" where "id" > ? order by "test_models"."name" asc',
+            $clone->allowedSorts('name')->defaultSorts('name')->toQuery()->toSql()
+        );
+    }
+
+    #[Test]
+    public function a_clone_made_inside_a_schema_method_is_not_inside_it(): void
+    {
+        $schema = new class extends ResourceSchema
+        {
+            public ?EloquentQueryWizard $clone = null;
+
+            public function model(): string
+            {
+                return TestModel::class;
+            }
+
+            public function filters(QueryWizardInterface $wizard): array
+            {
+                if ($wizard instanceof EloquentQueryWizard) {
+                    $this->clone ??= clone $wizard;
+                }
+
+                return ['name'];
+            }
+        };
+
+        EloquentQueryWizard::forSchema($schema)->toQuery();
+
+        $this->assertInstanceOf(EloquentQueryWizard::class, $schema->clone);
+        $this->assertSame(['id'], array_keys($schema->clone->allowedFilters('id')->getAllowedFilters()));
+        $this->assertSame('select * from "test_models"', $schema->clone->toQuery()->toSql());
+    }
+
+    #[Test]
+    public function a_clone_made_while_an_escaped_builder_is_built_refuses_to_build(): void
+    {
+        $clone = null;
+        $wizard = $this->createEloquentWizardFromQuery();
+        $wizard->tap(function () use (&$wizard, &$clone): void {
+            $clone ??= clone $wizard;
+        });
+        $wizard->getSubject()->where('id', '>', 0);
+        $wizard->toQuery();
+
+        foreach ([$clone, clone $clone] as $unfinished) {
+            try {
+                $unfinished->toQuery();
+                $this->fail('A clone holding part of a build was built.');
+            } catch (\LogicException $exception) {
+                $this->assertStringContainsString('A build did not finish after the underlying builder was handed out', $exception->getMessage());
+            }
+        }
+    }
+
+    #[Test]
     public function a_clone_of_an_escaped_wizard_refuses_reconfiguration(): void
     {
         $wizard = EloquentQueryWizard::for(TestModel::class)->allowedFilters('name');
@@ -1231,7 +1361,7 @@ class QueryWizardTest extends TestCase
         $this->assertSame($subject, $wizard->getSubject());
 
         $this->expectException(\LogicException::class);
-        $this->expectExceptionMessage('A build failed after the underlying builder was handed out');
+        $this->expectExceptionMessage('A build did not finish after the underlying builder was handed out');
 
         $wizard->get();
     }
@@ -1688,5 +1818,18 @@ class QueryWizardTest extends TestCase
             ->schema($schema)
             ->allowedFilters('name') // Override schema - only 'name' allowed
             ->get();
+    }
+
+    #[Test]
+    public function default_sorts_refuse_an_empty_name(): void
+    {
+        foreach ([[''], [['name', '']], [[['']]]] as $sorts) {
+            try {
+                $this->createEloquentWizardFromQuery()->allowedSorts('name')->defaultSorts(...$sorts)->toQuery();
+                $this->fail('An empty default sort was accepted.');
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertSame('Sort property name cannot be empty.', $exception->getMessage());
+            }
+        }
     }
 }

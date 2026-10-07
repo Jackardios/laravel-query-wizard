@@ -35,6 +35,9 @@ trait HandlesConfiguration
 
     private int $schemaReads = 0;
 
+    /** @var array<string, true> Public configuration getters that are running */
+    private array $configurationReads = [];
+
     private ?bool $normalizePublicInputMemo = null;
 
     private ?QueryWizardConfig $configSnapshot = null;
@@ -100,6 +103,48 @@ trait HandlesConfiguration
                 'A schema method cannot reconfigure the wizard it receives: return the definitions instead, '
                 .'or configure the wizard where it is created.'
             );
+        }
+    }
+
+    /**
+     * A clone made inside a schema method or a getter is not inside it.
+     */
+    private function forgetReadsInProgress(): void
+    {
+        $this->schemaReads = 0;
+        $this->configurationReads = [];
+    }
+
+    /**
+     * Run a public configuration getter, refusing to enter it while it is already running.
+     *
+     * A getter that resolves its result from the schema calls schema methods (and, for
+     * filter values, the filters' own callbacks); if one of those calls the same getter,
+     * directly or through another schema method, the two would call each other without
+     * end. Reading any other list from a schema method is fine.
+     *
+     * @template TResult
+     *
+     * @param  Closure(): TResult  $read
+     * @return TResult
+     *
+     * @throws \LogicException When the getter is called from a schema method or callback it runs
+     */
+    private function readConfiguration(string $method, Closure $read): mixed
+    {
+        if (isset($this->configurationReads[$method])) {
+            throw new \LogicException(
+                "{$method}() was called from a schema method or callback that {$method}() itself runs: "
+                .'they would call each other without end.'
+            );
+        }
+
+        $this->configurationReads[$method] = true;
+
+        try {
+            return $read();
+        } finally {
+            unset($this->configurationReads[$method]);
         }
     }
 

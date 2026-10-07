@@ -7,6 +7,7 @@ namespace Jackardios\QueryWizard\Tests\Feature\Eloquent;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Jackardios\QueryWizard\Eloquent\EloquentFilter;
+use Jackardios\QueryWizard\Exceptions\InvalidFilterQuery;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -257,5 +258,51 @@ class FilterEdgeCasesTest extends TestCase
 
         $this->assertCount(1, $models);
         $this->assertEquals($targetModel->name, $models->first()->name);
+    }
+
+    #[Test]
+    public function a_filter_with_a_numeric_public_name_builds_when_it_is_not_requested(): void
+    {
+        $sql = $this->createEloquentWizardFromQuery()
+            ->allowedFilters(EloquentFilter::exact('name')->alias('5'), '2024')
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models"', $sql);
+    }
+
+    #[Test]
+    public function a_filter_with_a_numeric_public_name_applies(): void
+    {
+        $sql = $this->createEloquentWizardWithFilters(['5' => 'a'])
+            ->allowedFilters(EloquentFilter::exact('name')->alias('5'), 'id')
+            ->disallowedFilters('id')
+            ->toQuery()
+            ->toSql();
+
+        $this->assertSame('select * from "test_models" where "test_models"."name" = ?', $sql);
+    }
+
+    #[Test]
+    public function an_unknown_numeric_filter_name_is_rejected_next_to_a_numeric_allowed_one(): void
+    {
+        try {
+            $this->createEloquentWizardWithFilters(['7' => 'a'])
+                ->allowedFilters(EloquentFilter::exact('name')->alias('5'))
+                ->toQuery();
+            $this->fail('Expected InvalidFilterQuery');
+        } catch (InvalidFilterQuery $exception) {
+            $this->assertSame(['7'], $exception->unknownFilters->all());
+            $this->assertSame(['5'], $exception->allowedFilters->all());
+        }
+    }
+
+    #[Test]
+    public function a_passthrough_filter_with_a_numeric_public_name_is_captured(): void
+    {
+        $wizard = $this->createEloquentWizardWithFilters(['5' => 'a'])
+            ->allowedFilters(EloquentFilter::passthrough('5'));
+
+        $this->assertSame(['5' => 'a'], $wizard->getPassthroughFilters()->all());
     }
 }

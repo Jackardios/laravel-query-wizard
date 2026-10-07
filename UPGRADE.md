@@ -3,7 +3,8 @@
 This document describes how to upgrade Laravel Query Wizard between versions.
 
 Coming from v2.x, read [v2.x to v3.0](#upgrade-guide-v2x-to-v30) first, then the sections below. Coming from a
-`dev-master` snapshot of v3, the sections below list everything that changed before the 3.0.0 release.
+`dev-master` snapshot of v3, the sections below list everything that changed before the 3.0.0 release. All three
+sections describe 3.0.0: there was no 3.0.x release before it.
 
 ---
 
@@ -71,7 +72,8 @@ value once, returns what `applyOnQuery()` receives, or `null` for no condition.
 
 **Dynamic operators** (`FilterOperator::Dynamic`): a date operand names the whole day (`>2024-01-31` →
 `>= 2024-02-01`, `<=2024-01-31` → `< 2024-02-01`). An operator inside a list (`>=1,3`) → 400 (before: `whereIn` with
-the literal `>=1`). `=`, `!=`, `<>` and plain values are still compared as sent.
+the literal `>=1`). The operand of `!=` and `<>` and a value without an operator are still compared as sent. `=` is
+not an operator: `=5` is compared with the text `=5`.
 
 **LIKE is literal.** `partial` filters and the `Like`/`NotLike` operators escape `%`, `_` and `!` (`ESCAPE '!'`) on
 every database. Clients that used `%` or `_` as wildcards now match them literally. `Like`/`NotLike` values are no
@@ -170,6 +172,16 @@ a later TypeError).
 - `disallowedFields()` and `disallowedAppends()` apply to names allowed by a wildcard: a client requesting one gets 400
   (before: 200). Under a wildcard, a field name that matches a disallowed field or a `$hidden` attribute of the model in
   another letter case is rejected as well (before: on MySQL, `fields=NAME` returned the hidden `name` column as `NAME`).
+- Under a wildcard, an append that names the accessor of a `$hidden` attribute or a disallowed append in another
+  spelling is rejected too: Eloquent resolves `secretToken`, `SECRET_TOKEN` and `secret-token` to the accessor of
+  `secret_token` and serializes it under the name as written (before: the hidden value was returned). Allow such a
+  spelling by name (`allowedAppends('*', 'secretToken')`) if clients rely on it.
+- A fieldset keyed by a name that is not an allowed include is rejected with "`posts` is not an allowed include."
+  (before: a message listing the allowed fields, the requested ones possibly among them).
+- A relation whose definition has a `join()` is not narrowed by its fieldset: the select stays as defined and the
+  fields outside the fieldset are hidden after loading (before: the select was rewritten, and failed with "ambiguous
+  column name" when both tables had the column). Results you read from `toQuery()` or `build()` yourself hold every
+  column of both tables until they pass through `applyPostProcessingTo()`.
 - Root default fields apply whenever the request has no root fieldset, even when relation fieldsets are present
   (before: `fields[posts]=id` disabled the root defaults and returned all columns). A dotted default field throws
   `InvalidArgumentException`.
@@ -187,14 +199,22 @@ a later TypeError).
 - Builder calls through the wizard return the wizard only when the builder returns itself; a different builder or
   relation (`getRelation()`, `clone()`, a scope returning a new builder) is returned as is (before: it silently replaced
   the wizard's subject and dropped the filters).
-- `EloquentQueryWizard::for()` no longer accepts a model instance (`TypeError`). `for($user)` queried the whole table,
-  not that user; pass `User::class` or a query, or use `ModelQueryWizard::for($user)` to process a loaded model.
+- `EloquentQueryWizard::for()` no longer accepts a model instance. `for($user)` queried the whole table, not that
+  user; pass `User::class` or a query, or use `ModelQueryWizard::for($user)` to process a loaded model. A caller with
+  `declare(strict_types=1)` gets a `TypeError`; without it PHP casts the model to its JSON string first, so the error
+  is `Class "{...}" not found`.
+- `for()` takes one argument on both wizards and throws `InvalidArgumentException` for more: a second one was ignored,
+  so `for($subject, $parameters)` read the request-scoped manager instead of `$parameters`. Pass a parameters manager
+  to the constructor: `new EloquentQueryWizard($query, $parameters)`.
+- An eager load added through the wizard after the build (`->allowedFields(...)->with('posts')`) keeps the columns it
+  matches by in a narrowed root select (before: the relation came back empty when `?fields` left its key out).
 - A method that neither the wizard nor its builder has throws `BadMethodCallException` naming the wizard before the
   request is read (before: the build ran first, so a typo such as `allowedFilter()` could surface as a 400 blaming the
   request, or as a `BadMethodCallException` naming the Eloquent builder).
 - A schema method that reconfigures the wizard it receives, or a `tap()` callback that reconfigures the wizard during
   its build, throws `LogicException`. Return the definitions from the schema, or configure the wizard where it is
-  created. A class implementing `QueryWizardInterface` itself adds `schema()` and `getSchema()`.
+  created. A class implementing `QueryWizardInterface` itself adds `schema()`, `getSchema()`, `addAllowedIncludes()`,
+  `addAllowedFields()` and `addAllowedAppends()`.
 - Cloning a wizard that received builder calls or exposed its builder keeps that state: reconfiguring the clone throws
   `LogicException`. Create a new wizard instead.
 - A build that throws is rolled back, so a retry does not apply taps, filters or sorts twice. A builder already handed
@@ -254,8 +274,8 @@ a later TypeError).
   appended to the message.
 - New `InvalidRequestBody` (`invalid_request_body`).
 - `QueryParametersManager` is `final`: wrap it instead of extending it. Its constructor, the getters of parsed
-  parameters, `getFilterValue()`, `hasFilter()`, `getRequest()`, the `set*Parameter()` setters, `setRequest()` and
-  `reset()` are the API.
+  parameters (`getUnsplitFilters()` among them), `getFilterValue()`, `hasFilter()`, `getRequest()`, the
+  `set*Parameter()` setters, `setRequest()` and `reset()` are the API.
 - Create exceptions with their named constructors: `filtersNotAllowed()`, `invalidFormat()` and the like,
   `InvalidFilterValue::make()`, `InvalidRequestBody::malformedJson()`. The constructors of those classes are
   `@internal`; `InvalidQuery::__construct()` (for custom subclasses) and the `Max*Exceeded` constructors are the API.
@@ -297,8 +317,10 @@ a later TypeError).
   }
   ```
 
-  Callback sorts still receive `'asc'` or `'desc'`. `Values\Sort::getSortDirection()` is `getDirection()->value`,
-  `parseSortDirection()` is gone, and `new Sort('-name', SortDirection::Ascending)` throws `InvalidArgumentException`.
+  Callback sorts still receive `'asc'` or `'desc'`. On `Values\Sort`, `getDirection()` returns the `SortDirection`
+  that `getSortDirection()` returned, and `getSortDirection()` is gone; code that read the string from
+  `getDirection()` reads `getDirection()->value`. `parseSortDirection()` is gone too, and
+  `new Sort('-name', SortDirection::Ascending)` throws `InvalidArgumentException`.
 - `getType()` is gone from the contracts and built-in definitions; the wizards no longer read it. A leftover
   `getType()` in a custom class is harmless, but what its string meant now comes from a type:
 
@@ -308,6 +330,10 @@ a later TypeError).
   | `'callback'` (to run on `ModelQueryWizard`) | implement `Contracts\AppliesToModel::applyToModel(Model $model): void` |
   | `'count'`/`'exists'` | use `EloquentInclude::count()`/`exists()`, or give the include its alias and implement `ProvidesRuntimeAttributes` |
   | `'passthrough'` | use `EloquentFilter::passthrough()` |
+
+  Code that told definitions apart by `getType()` checks the class instead (`$filter instanceof ExactFilter`,
+  `$include instanceof CountInclude`); the built-in definitions are `final` or have no subclasses in the package, so
+  the class names one kind. For your own definitions, check your own class or interface.
 
   An include with a constraint that implements `EagerLoadsRelation` but not `AppliesToModel` throws `LogicException`
   on `ModelQueryWizard`, since loading the bare relation would drop the constraint.
@@ -394,6 +420,11 @@ a later TypeError).
   fieldsets and appends from `resolveEloquentShape()` instead of the relation-select plan: `prepareSafeRelationSelectPlan()`,
   `getSafeRelationSelectColumns()`, `applySafeRootFieldRequirements()` and `resetSafeRelationSelectState()` are removed,
   and the `HandlesSafeRelationSelect` and `HandlesRelationPostProcessing` traits are `@internal`.
+- Code that read the wizard's protected `getEffectiveFilters()`, `getEffectiveSorts()`, `getEffectiveIncludes()`,
+  `getEffectiveFields()`, `getEffectiveAppends()` or `extractRequestedFilterNames()` calls the public
+  `getAllowedFilters()`, `getAllowedSorts()`, `getAllowedIncludes()`, `getAllowedFields()`, `getAllowedAppends()` and
+  `getRequestedFilterNames()` instead (see [Reading the Configuration](README.md#reading-the-configuration)). The
+  protected ones are not `@api` and may change.
 - New extension points are listed under [Extending](README.md#extending) in the README, and what 3.x keeps stable
   under [Backward Compatibility](README.md#backward-compatibility). Classes marked `@internal` may change in any
   release, among them the `Concerns` traits, `Support\ParameterParser`, `FilterValueTransformer`, `NameConverter`,
@@ -410,14 +441,15 @@ a later TypeError).
 - [ ] Raise or disable `limits.max_filter_values_count` if clients send more than 1000 values to one filter
 - [ ] Raise or disable `limits.max_fields_count` if clients request more than 100 fields in all fieldsets together
 - [ ] Replace nested count/aggregate sorts and includes with callbacks
+- [ ] Check clients that request appends under `allowedAppends('*')` in a spelling other than the attribute's
 - [ ] Handle `errorCode` in your exception renderer if you map errors
 - [ ] Flush response caches
 
 ---
 
-## v3.0.x Internal Refactoring
+## Earlier v3 Changes
 
-This section covers internal refactoring changes that may affect advanced usage.
+These changes were made early in the v3 line and are part of 3.0.0 as well. They concern everyone coming from v2.x.
 
 ### Configuration After Builder Methods Now Throws LogicException
 
@@ -499,7 +531,7 @@ $copy = (clone $original)->withoutRelationConstraint();  // $original unchanged
 
 **Affected methods:**
 - `ExactFilter::withRelationConstraint()` / `withoutRelationConstraint()`
-- `PartialFilter::withRelationConstraint()` / `withoutRelationConstraint()` (inherits from ExactFilter)
+- `PartialFilter::withRelationConstraint()` / `withoutRelationConstraint()`
 - `ScopeFilter::withModelBinding()` / `withoutModelBinding()`
 - `RangeFilter::minKey()`, `maxKey()`
 - `DateRangeFilter::fromKey()`, `toKey()`, `dateFormat()`
@@ -523,7 +555,7 @@ EloquentFilter::scope('byAuthor')->resolveModelBindings(false)
 **After:**
 ```php
 // Model binding is now disabled by default
-EloquentFilter::scope('byAuthor')  // Value passed as-is (string/int)
+EloquentFilter::scope('byAuthor')  // The value is not looked up: a scope parameter typed as a model answers 400
 
 // To enable model binding (if needed):
 EloquentFilter::scope('byAuthor')->withModelBinding()
@@ -622,6 +654,7 @@ $users = EloquentQueryWizard::for(User::class)
     ->setAllowedSorts(['created_at'])
     ->setAllowedIncludes(['posts'])
     ->setDefaultSorts(['-created_at'])
+    ->build()
     ->get();
 ```
 
@@ -638,6 +671,12 @@ $users = EloquentQueryWizard::for(User::class)
 ```
 
 **Note:** v3.0 methods accept variadic arguments, so you can pass items directly instead of wrapping in an array.
+
+**Remove `->build()`.** In v2.x nothing was applied until `build()`, which returned the wizard. In v3.0 `get()`,
+`paginate()`, `first()` and the other executing methods build the query themselves, and `build()` returns the Eloquent
+builder, like `toQuery()`. A leftover `->build()->get()` still runs the filtered query, but on the builder: appends and
+relation fieldsets are not applied to the result, and the keys a sparse fieldset selected for eager loading stay
+visible. Call `->get()` on the wizard, or pass the results to `applyPostProcessingTo()`.
 
 ### 2. Update Filter Instantiation
 
@@ -701,8 +740,8 @@ Callback filter/sort/include signatures have changed - the wizard instance is no
 | Type | v2.x Signature | v3.0 Signature |
 |------|---------------|----------------|
 | Filter | `($wizard, $builder, $value, $property)` | `($query, $value, $property)` |
-| Include | `($wizard, $builder)` | `($query, $relation)` |
-| Sort | `($wizard, $builder, $direction)` | `($query, $direction, $property)` |
+| Include | `($wizard, $builder, $include)` | `($query, $relation)` |
+| Sort | `($wizard, $builder, $direction, $property)` | `($query, $direction, $property)` |
 
 **Before (v2.x):**
 ```php
@@ -852,7 +891,7 @@ class UserQueryWizard extends ModelQueryWizard
 }
 
 // Usage
-$users = UsersQueryWizard::for(User::class)->get();
+$users = UsersQueryWizard::for(User::class)->build()->get();
 $user = UserQueryWizard::for(User::find(1))->build();
 ```
 
@@ -944,7 +983,7 @@ class UserSchema extends ResourceSchema
         // Base includes shared by both wizards
         $includes = ['posts', 'profile', 'roles'];
 
-        // Count/exists includes only work with EloquentQueryWizard
+        // Offer the aggregates for lists only (ModelQueryWizard can load them too)
         if ($wizard instanceof EloquentQueryWizard) {
             $includes[] = EloquentInclude::count('posts');
             $includes[] = EloquentInclude::exists('subscription');
@@ -997,6 +1036,98 @@ class UserSchema extends ResourceSchema
 - **Separation of concerns**: Query configuration is separate from query execution
 - **Flexibility**: Override schema settings per-request using `disallowed*()` methods
 - **Testability**: Schemas are plain PHP classes, easy to unit test
+
+### 10. Other Breaking Changes
+
+**`for()` takes the subject only.** `EloquentQueryWizard::for($subject, $parameters)` and
+`ModelQueryWizard::for($model, $parameters)` throw `InvalidArgumentException`. Pass a parameters manager to the
+constructor:
+
+```php
+// Before (v2.x)
+EloquentQueryWizard::for(User::class, $parameters)
+
+// After (v3.0)
+new EloquentQueryWizard(User::query(), $parameters)
+```
+
+**The parameters manager is bound per request.** The container binding of `QueryParametersManager` is `scoped()`
+(v2.x: `bind()`), so `app(QueryParametersManager::class)` returns the same instance for the whole request, and a
+`set*Parameter()` call on it changes what every wizard of that request reads. Create a manager of your own
+(`new QueryParametersManager($request)`) for a wizard that must read something else.
+
+**Wizard getters.** The getters of v2.x returned collections of handlers and of prepared request values:
+
+| v2.x | v3.0 |
+|------|------|
+| `getAllowedFilters()`, `getAllowedSorts()`, `getAllowedIncludes()` | Same names, returning an array of definitions keyed by public name |
+| `getAllowedFields($key)`, `getAllowedAppends()` | `getAllowedFields()`, `getAllowedAppends()`: a list of names, relation ones as dot paths |
+| `getDefaultSorts()`, `getDefaultIncludes()`, `getDefaultAppends()` | Removed |
+| `getFilters()` (prepared values of every filter) | `getPassthroughFilters()` for passthrough filters only; `getRequestedFilterNames()` for the names; `QueryParametersManager::getFilters()` for the values as sent |
+| `getSorts()`, `getIncludes()`, `getFields()`, `getAppends()`, `getFieldsByKey()`, `getRootFields()` | Removed; the request as sent is on `QueryParametersManager` (`$wizard->getParametersManager()`) |
+| `getEloquentBuilder()` | `toQuery()` (built) or `getSubject()` (as it stands) |
+| `clone()` | `clone $wizard` |
+| `rootFieldsKey()`, `getRootFieldsKey()`, `setRootFieldsKey()` | `getResourceKey()`; set the key with the schema's `type()` |
+| `protected function allowedFilters(): array` and the like, overridden in a wizard subclass | A `ResourceSchema` (see step 9) |
+
+**Custom filters, sorts and includes.** The base classes moved from `Abstracts\*` and `Eloquent\Eloquent{Filter,Sort,Include}`
+to `Filters\AbstractFilter`, `Sorts\AbstractSort` and `Includes\AbstractInclude`, and their API changed:
+
+| v2.x | v3.0 |
+|------|------|
+| `handle($queryWizard, Builder $queryBuilder, $value): void` | `apply(mixed $subject, mixed $value): mixed`, returning the subject (sorts: `apply($subject, SortDirection $direction)`, includes: `apply($subject)`) |
+| `getPropertyName()` | `getProperty()` |
+| `getInclude()` | `getRelation()` |
+| `new MyFilter($property, $alias, $default)` | a protected constructor and a static `make()`; the default is set with `->default()` |
+| `createExtra()`, `makeFromOther()` | Removed |
+
+```php
+// Before (v2.x)
+class StartsWithFilter extends EloquentFilter
+{
+    public function handle($queryWizard, Builder $queryBuilder, $value): void
+    {
+        $queryBuilder->where($this->getPropertyName(), 'like', $value.'%');
+    }
+}
+
+// After (v3.0)
+final class StartsWithFilter extends AbstractFilter
+{
+    public static function make(string $property, ?string $alias = null): static
+    {
+        return new self($property, $alias);
+    }
+
+    public function apply(mixed $subject, mixed $value): mixed
+    {
+        return $subject->where($this->getProperty(), 'like', $value.'%');
+    }
+}
+```
+
+The wizard is no longer passed to a definition. See [Extending](README.md#extending) in the README.
+
+**A nested include no longer allows its parents.** `setAllowedIncludes(['posts.comments'])` also allowed
+`?include=posts`; `allowedIncludes('posts.comments')` allows that one name. List every include a client may request:
+`allowedIncludes('posts', 'posts.comments')`. (`fields[posts]` and appends for `posts` are still accepted, with or
+without the include in the request: `posts.comments` loads the relation.)
+
+**`SortDirection` is an enum.** `SortDirection::ASCENDING` and `DESCENDING` (string constants) are now the cases
+`SortDirection::Ascending` and `Descending`; the string is `->value`. `Values\Sort::getDirection()` returns the enum,
+and `Sort` is `final readonly`.
+
+**Exceptions.**
+
+| v2.x | v3.0 |
+|------|------|
+| `InvalidSubject` | Removed: the constructor and `for()` are typed, so a wrong subject is a `TypeError` |
+| `RootFieldsKeyIsNotDefined` | Removed: the key always resolves (schema `type()` or the model's name) |
+| `InvalidFilterHandler`, `InvalidSortHandler`, `InvalidIncludeHandler`, `InvalidQueryHandler` | Removed: a wrong definition throws `InvalidArgumentException` |
+| `InvalidFilterValue extends Exception` (a 500 unless handled) | Extends `InvalidQuery`, an `HttpException` with status 400; `make($value, $filter, $reason)` |
+
+**`getType()` is gone** from filters, sorts and includes. Tell definitions apart with `instanceof`; see
+[Subclasses and Custom Filters](#subclasses-and-custom-filters) for what each type string became.
 
 ## New Features in v3.0
 
@@ -1117,9 +1248,12 @@ EloquentQueryWizard::forSchema(UserSchema::class)
 EloquentFilter::exact('status')
     ->alias('state')                              // URL parameter name
     ->default('active')                           // Default value
-    ->prepareValueWith(fn($v) => strtolower($v))  // Transform value
-    ->asBoolean()                                 // Convert "true"/"1" → true, "false"/"0" → false
+    ->withoutValueSplitting()                     // Keep "a,b" as one string
+    ->prepareValueWith(fn($v) => is_string($v) ? strtolower($v) : $v)  // Transform value
     ->when(fn($value) => $value !== 'all')        // Skip filter conditionally
+
+EloquentFilter::exact('is_active')
+    ->asBoolean()                                 // true/false/1/0/yes/no/on/off → bool, anything else → 400
 ```
 
 ### tap() Method
@@ -1152,7 +1286,8 @@ $wizard->applyPostProcessingTo($user);  // Apply fields/appends manually
 - **Old base classes** (`EloquentFilter`, `EloquentSort`, `EloquentInclude`) - now factories
 - **Model handler classes** (`Model\Includes\*`, `Model\ModelInclude`)
 - **Helper functions** (`instance_of_one_of()`)
-- **Methods**: `makeDefault*Handler()`, `getAllowedFilters()`, `getFilters()` → `getPassthroughFilters()`, `handleModels()` → `applyPostProcessingTo()`
+- **Methods**: `makeDefault*Handler()`, `handleModels()` → `applyPostProcessingTo()`; see
+  [Other Breaking Changes](#10-other-breaking-changes) for the wizard's getters
 
 ## Configuration Changes
 
@@ -1200,7 +1335,11 @@ Other:
 - [ ] Rename `setAllowed*()` → `allowed*()`, `setDefault*()` → `default*()`
 - [ ] Replace filter/sort/include constructors with factory methods
 - [ ] Update callback signatures: remove `$wizard`, rename `$builder` → `$query`
+- [ ] Remove `->build()` before `->get()`/`->paginate()` on `EloquentQueryWizard`
 - [ ] Update `ModelQueryWizard`: new namespace, `build()` → `process()`
+- [ ] Replace `for($subject, $parameters)` with `new EloquentQueryWizard($subject, $parameters)`
+- [ ] Update custom filters, sorts and includes: `handle()` → `apply()`, `make()` factories, `getProperty()`/`getRelation()`
+- [ ] Replace the removed wizard getters and `SortDirection` constants (see Other Breaking Changes)
 - [ ] Remove array wrappers (methods are now variadic)
 - [ ] Add `->withModelBinding()` to ScopeFilters that need model binding
 - [ ] Explicitly allow count/exists includes (no longer auto-allowed)

@@ -65,6 +65,8 @@ trait HandlesRelationFiltering
      *
      * @param  Builder<Model>|Relation<Model, Model, mixed>  $subject
      * @return Builder<Model>|Relation<Model, Model, mixed>
+     *
+     * @api
      */
     protected function applyToSubject(Builder|Relation $subject, mixed $value): Builder|Relation
     {
@@ -91,6 +93,8 @@ trait HandlesRelationFiltering
      * the rows without related records.
      *
      * @return TConstraint|null
+     *
+     * @api
      */
     protected function resolveConstraint(mixed $value): mixed
     {
@@ -121,9 +125,14 @@ trait HandlesRelationFiltering
     }
 
     /**
+     * Constrain the relation a dot-notation property names: by default with
+     * whereHas() running applyOnQuery() on the related query.
+     *
      * @param  Builder<Model>  $builder
      * @param  TConstraint  $value
      * @return Builder<Model>
+     *
+     * @api
      */
     protected function applyRelationFilter(Builder $builder, string $property, mixed $value): Builder
     {
@@ -145,6 +154,8 @@ trait HandlesRelationFiltering
      * @param  TConstraint  $value  The constraint resolveConstraint() read from the filter value
      * @param  string  $column  The column name to filter on
      * @return Builder<Model>
+     *
+     * @api
      */
     abstract protected function applyOnQuery(Builder $builder, mixed $value, string $column): Builder;
 }

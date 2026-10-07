@@ -29,6 +29,7 @@ use Jackardios\QueryWizard\Schema\ResourceSchemaInterface;
 use Jackardios\QueryWizard\Support\EloquentShapeSteps;
 use Jackardios\QueryWizard\Support\EloquentSubject;
 use Jackardios\QueryWizard\Support\RelationResolver;
+use Jackardios\QueryWizard\Support\SafeRelationSelect;
 
 /**
  * Query wizard for Eloquent Builder queries.
@@ -98,10 +99,21 @@ class EloquentQueryWizard extends BaseQueryWizard
      * A model instance is not accepted: its query would select every row, not
      * the model. Use `ModelQueryWizard` to process a loaded model.
      *
+     * The request-scoped parameters manager is used; a wizard reading another
+     * one is created with the constructor.
+     *
      * @param  class-string<Model>|Builder<covariant Model>|Relation<covariant Model, covariant Model, *>  $subject
+     *
+     * @throws \InvalidArgumentException When more than the subject is passed
      */
     public static function for(string|Builder|Relation $subject): static
     {
+        if (func_num_args() > 1) {
+            throw new \InvalidArgumentException(
+                static::class.'::for() takes the subject only; pass a QueryParametersManager to the constructor.'
+            );
+        }
+
         if (is_string($subject)) {
             /** @var class-string<Model> $className */
             $className = $subject;
@@ -479,7 +491,7 @@ class EloquentQueryWizard extends BaseQueryWizard
     {
         if ($this->failedWithEscapedSubject) {
             throw new \LogicException(
-                'A build failed after the underlying builder was handed out, so that builder holds part of the failed build. '
+                'A build did not finish after the underlying builder was handed out, so that builder holds part of it. '
                 .'Create a new wizard instead of building this one again.'
             );
         }
@@ -768,6 +780,42 @@ class EloquentQueryWizard extends BaseQueryWizard
     }
 
     /**
+     * Select the root columns that eager loads added through the wizard match by.
+     *
+     * The build narrowed the root select to the fieldset knowing only the eager
+     * loads registered until then, so a later `->with()` would find no parent
+     * keys and load nothing. When the key columns of an eager load are unknown,
+     * every root column is selected again; the root fieldset still hides the
+     * rest. A developer's own select gets the same columns while a root fieldset
+     * applies; without one the select is not touched. Eager loads added to the
+     * builder that toQuery() or build() hands out do not pass through here.
+     */
+    private function ensureEagerLoadKeysSelected(): void
+    {
+        $selectedColumns = EloquentSubject::baseQuery($this->subject)->columns;
+
+        if ($this->state->rootVisibleFields === null || $selectedColumns === null || $this->selectsAllColumns($selectedColumns)) {
+            return;
+        }
+
+        $eagerLoadNames = SafeRelationSelect::topLevelEagerLoadNames(EloquentSubject::builder($this->subject)->getEagerLoads());
+        $columns = SafeRelationSelect::parentColumnsForEagerLoads(
+            $this->relationResolverFor($this->subject->getModel()),
+            $eagerLoadNames
+        );
+
+        if ($columns === null) {
+            $this->subject->addSelect($this->subject->qualifyColumn('*'));
+
+            return;
+        }
+
+        foreach ($columns as $column) {
+            $this->ensureColumnSelected($column);
+        }
+    }
+
+    /**
      * Select a root column the execution needs, hidden from the output.
      */
     private function ensureColumnSelected(string $columnName, ?string $alias = null): void
@@ -902,10 +950,15 @@ class EloquentQueryWizard extends BaseQueryWizard
             }
         }
 
+        $eagerLoadNames = array_keys(EloquentSubject::builder($this->subject)->getEagerLoads());
         $result = $this->subject->$name(...$arguments);
 
         if ($result === $this->subject) {
             $this->proxyModified = true;
+
+            if (array_keys(EloquentSubject::builder($this->subject)->getEagerLoads()) !== $eagerLoadNames) {
+                $this->ensureEagerLoadKeysSelected();
+            }
 
             return $this;
         }

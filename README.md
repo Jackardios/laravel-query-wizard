@@ -191,12 +191,18 @@ All filters support fluent modifiers:
 EloquentFilter::exact('status')
     ->alias('state')                           // URL parameter name: ?filter[state]=...
     ->default('active')                        // Default value when not in request
-    ->prepareValueWith(fn($v) => strtolower($v))  // Transform before applying (repeated calls chain in order)
-    ->when(fn($v) => $v !== 'all')             // Skip filter if returns false
+    ->prepareValueWith(fn($v) => is_string($v) ? strtolower($v) : $v)  // Transform before applying (repeated calls chain in order)
+    ->when(fn($v) => $v !== 'all')             // Skip filter if returns false; reads the value as sent
     ->withStructuredInput()                    // Accept structured raw input, still validate prepared value
     ->withoutValueSplitting()                  // Keep 'a,b' as one string instead of ['a', 'b']
+
+EloquentFilter::exact('is_active')
     ->asBoolean()                              // Read true/false/1/0/yes/no/on/off as bool; anything else is a 400
 ```
+
+A preparer receives whatever the request holds for the filter: a string, or a list for `?filter[state]=a,b` and
+`?filter[state][]=a`. `asBoolean()` is a preparer as well and applies to the default too, so a filter with
+`asBoolean()` takes a boolean default (`->default(true)`), not `->default('active')`.
 
 #### Reusing Definitions
 
@@ -397,11 +403,17 @@ resource key (the camelCase model name or the schema's `type()`) or by a relatio
 
 ```php
 EloquentQueryWizard::for(User::class)
+    ->allowedIncludes('posts')
     ->allowedFields('id', 'name', 'email', 'posts.id', 'posts.title')
     ->get();
 ```
 
-**Request:** `?fields[user]=id,name&fields[posts]=id,title` or `?fields=id,name`
+**Request:** `?include=posts&fields[user]=id,name&fields[posts]=id,title` or `?fields=id,name`
+
+A relation fieldset is keyed by an allowed include, or by a relation an allowed nested include passes through (`posts`
+when `posts.comments` is allowed). With neither, `fields[posts]` is a 400 (`field_not_allowed`), whatever
+`allowedFields()` lists. It is validated even when the request does not include the relation, and applies only when the
+relation is loaded.
 
 `?fields=` means an explicit empty root fieldset. `?fields[posts]=` means an explicit empty fieldset for `posts`.
 
@@ -435,6 +447,13 @@ Sparse fieldsets keep the key columns eager loading needs: the wizard adds them 
 `?fields[posts]=title` still matches posts to their users. BelongsTo, HasOne, HasMany, MorphOne, MorphMany and
 BelongsToThrough relations are narrowed to their fieldset; other relations, relations whose model has `$appends` and
 relations with requested appends select all columns and hide the fields outside the fieldset, so accessors keep working.
+A relation whose definition joins another table is not narrowed either: its fieldset may name a joined column. Where
+both tables have a column of the same name (`id`, `name`), the joined table's value wins, exactly as it does without a
+fieldset; give such a relation its own `select('posts.*', ...)`. Results read from the builder of `toQuery()` hold
+every column of both tables until they pass through `applyPostProcessingTo()`.
+Eager loads you add yourself are covered as well, on the subject (`for(User::with('team'))`) or through the wizard
+(`->with('team')`). One added to the builder that `toQuery()` or `build()` returns is not: select its key columns
+yourself, as with a `->select()` you call after `->with()`.
 
 ## Appending Attributes
 
@@ -475,6 +494,21 @@ and a typo in a default fails in the database or in Eloquent instead of being sk
 - `?fields=` means "show no root fields", except active `count` / `exists` include attributes remain visible
 - `?fields[relation]=` means "show no fields for that relation"
 - `?sort=` is invalid and throws `InvalidSortQuery`
+
+A few more behaviors worth knowing:
+
+- A scope filter whose scope takes no arguments applies for any value that is not blank, `false` included:
+  `?filter[popular]=false` still calls `popular()`. Add `->when(fn ($value) => $value !== 'false')`, or use a callback
+  filter, when the client should be able to turn it off.
+- `jsonContains` binds values as the strings the request carries, so `?filter[tags]=5` does not match the JSON number
+  `5`. Convert with `prepareValueWith()` when the column holds numbers.
+- `partial` lowercases both sides with SQL `LOWER()`. SQLite lowercases ASCII only, so a non-ASCII search is
+  case-sensitive there.
+- A builder call that reads columns (`pluck('name')`, `value('name')`) through the wizard reads the query as the
+  request shaped it: with `?fields=id` the `name` column is not selected, so `pluck('name')` fails and `value('name')`
+  returns `null`. Read such values from the models, or run the call on a query without sparse fieldsets.
+- `paginate()` passes its `$total` argument on to the subject. A `BelongsToMany` or has-through relation subject
+  ignores it, as Laravel's `paginate()` on those relations takes no total, and counts the rows itself.
 
 ## Resource Schemas
 
@@ -584,7 +618,7 @@ public function includes(QueryWizardInterface $wizard): array
 {
     $includes = ['posts', 'profile'];
 
-    // Count/exists only work with EloquentQueryWizard
+    // Offer the count for lists only (ModelQueryWizard can load counts too)
     if ($wizard instanceof EloquentQueryWizard) {
         $includes[] = EloquentInclude::count('posts');
     }
@@ -618,7 +652,7 @@ $processed = ModelQueryWizard::for($user)
 | Custom includes | Run through `AppliesToModel::applyToModel()`; without it, `LogicException` before the model is changed |
 | Fields | Hides non-requested with `makeHidden()` |
 | Appends | Adds with `append()` |
-| Relations not requested | Unset from the model (loaded relations not in `?include` are removed) |
+| Relations not requested | With allowed includes or a schema: loaded relations not in `?include` are unset from the model. With neither, loaded relations stay, except the ones `disallowedIncludes()` names |
 | Filters/Sorts | Ignored |
 
 ## Security
@@ -653,7 +687,8 @@ schema defaults) over a limit throw `InvalidArgumentException`, since only the d
 
 ### ScopeFilter Model Binding
 
-By default, `ScopeFilter` passes values as-is. Enable model binding with caution:
+By default, `ScopeFilter` does not look models up: values are checked against the scope's parameter types and passed
+on, and a parameter typed as a model answers 400 (`invalid_filter_value`). Enable model binding with caution:
 
 ```php
 EloquentFilter::scope('byAuthor')->withModelBinding()
@@ -731,8 +766,8 @@ The whole configuration is validated when a build reads it, whatever the request
 non-empty string of at most 10 characters), parameter name (a non-empty string, or `null` to turn the parameter off),
 `request_data_source` or boolean option (`true`/`false`, or a string such as `'false'` or `'off'`) throws
 `InvalidArgumentException` naming the key, and so does an unknown key inside `parameters`, `naming`, `separators`,
-`fields` or `limits` (a typo such as `limits.max_filter_count`). A key missing from the published file takes the
-package default; unknown top-level keys are ignored. Each build reads the configuration once, so a `config()->set()` at runtime applies from the next build;
+`ignore_unknown`, `includes`, `filters`, `fields` or `limits` (a typo such as `limits.max_filter_count`). A key missing
+from the published file takes the package default; unknown top-level keys are ignored. Each build reads the configuration once, so a `config()->set()` at runtime applies from the next build;
 parameter names and separators apply from the next request.
 
 With `convert_parameters_to_snake_case` enabled, only the names of filters, sorts, includes, fields and appends are
@@ -834,6 +869,37 @@ $users = $wizard->applyPostProcessingTo($wizard->toQuery()->lazy()); // use the 
 A lazy collection is not read: `applyPostProcessingTo()` returns a new one that post-processes each model as it is read.
 A generator is refused with `InvalidArgumentException`, since reading it would leave nothing to return.
 
+### Reading the Configuration
+
+The wizard reports what a request is checked against, for a response cache key, generated documentation or a
+permission check:
+
+```php
+$wizard->getAllowedFilters();        // ['state' => ExactFilter, ...] by public name, disallowed ones removed
+$wizard->getAllowedSorts();          // ['name' => FieldSort, ...]
+$wizard->getAllowedIncludes();       // ['posts' => RelationshipInclude, 'postsCount' => CountInclude, ...]
+$wizard->getAllowedFields();         // ['id', 'name', 'posts.title', ...]
+$wizard->getAllowedAppends();        // ['full_name', 'posts.reading_time', ...]
+$wizard->getRequestedFilterNames();  // ['state', 'price'] — the names the build resolves the request's filters to
+$wizard->getConfig();                // QueryWizardConfig as of the current build
+$wizard->getParametersManager();     // The QueryParametersManager the wizard reads the request from
+```
+
+They read the configuration as it stands (explicit lists, else the schema), run no query and leave the wizard
+configurable. Names are in the form the wizard compares them in (snake case with
+`naming.convert_parameters_to_snake_case`). `getRequestedFilterNames()` includes names that are not allowed; the build
+rejects those. `ModelQueryWizard` has the include, field and append getters.
+
+The definitions are copies, so changing one (`->default()`, `->alias()`) does not change the wizard; the children of a
+composite definition are not copied. A name that is a number (`->alias('5')`) is an integer key, as in any PHP array,
+while `getRequestedFilterNames()` returns strings: look a name up with `isset($filters[$name])`, not with a strict
+`in_array()` over the keys. A schema method may read the lists it does not describe (`fields()` reading
+`getAllowedIncludes()`); a call that would make the schema read itself throws `LogicException`.
+
+`QueryParametersManager::getUnsplitFilters()` returns the request's filter values without separator splitting, the
+form `setFiltersParameter()` takes: `$parameters->setFiltersParameter($parameters->getUnsplitFilters()->except('status')->all())`
+gives a manager for "every filter but one".
+
 ### Extending
 
 Custom filters, sorts and includes extend `AbstractFilter`, `AbstractSort` or `AbstractInclude`; filters on Eloquent
@@ -886,6 +952,7 @@ These hooks are part of the supported API:
 | `AbstractFilter::supportsBooleanValues()` | Return `false` when the filter can't take booleans, so `asBoolean()` throws `LogicException` |
 | `AbstractFilter::supportsBooleanLists()` | Return `false` when `asBoolean()` must reject lists |
 | `validateScalarOnlyValueShape()`, `validateScalarOrFlatListValueShape()` | Ready-made `validateValueShape()` bodies for filters taking a scalar, or a scalar or flat list |
+| `applyToSubject($subject, $value)`, `applyOnQuery($builder, $value, $column)` | For filters using `HandlesRelationFiltering`: call the first from `apply()` and implement the second, which adds the condition on the query or, for a dot-notation property, on the related query |
 | `resolveConstraint(mixed $value): mixed` | For filters using `HandlesRelationFiltering`: read the value once into what `applyOnQuery()` receives; `null` adds no condition, so no `whereHas` is added |
 | `applyRelationFilter($builder, $property, $value)` | For filters using `HandlesRelationFiltering`: how a dot-notation property constrains the relation (default: `whereHas()` running `applyOnQuery()`) |
 | `Contracts\ProvidesRuntimeAttributes` | Includes that add attributes (`runtimeAttributes(): list<string>`) keep them visible under sparse fieldsets |
@@ -899,7 +966,9 @@ These hooks are part of the supported API:
 | `resolveEloquentShape($includes, $rootFields, $requiredRootColumns)` | For a wizard that loads the models with an Eloquent query of its own: call it from `finalizeBuild()` with what `applyValidatedIncludes()` and `applyFields()` received. It validates relation fieldsets and appends and returns an `Eloquent\EloquentShape` |
 | `EloquentShape::applyTo($query)`, `postProcess($results)` | Apply the includes, relation fieldsets and root select to the loading query (last, after its other eager loads and selects), then the fieldsets and appends to the loaded models. The shape holds no reference to the wizard and reads no configuration |
 | `normalizePublicPath()`, `resolveDefaultResourceKey($model)` | A requested name in the form the wizard compares names in (snake case when configured); the default sparse-fieldset key for a model |
-| `resolveAllowedFilterNames($filters)`, `resolvePreparedFilterValue($filter)` | For composite filters: the names a container accepts in the request and as schema `defaultFilters()` keys (its leaves', not its own), and the value it resolves from its leaves. The wizard applies `disallowedFilters()` to the names, and a disallowed leaf resolves to `null` |
+| `AbstractRangeFilter::$minKey`, `$maxKey`, `resolveConstraint()`, `parseRangeValue()`, `normalizeRangeValue()` | For range filters: the request keys of the bounds, and reading the request value into the bounds `applyOnQuery()` receives |
+| `resolveAllowedFilterNames($filters)`, `resolvePreparedFilterValue($filter)` | For composite filters: the names a container accepts in the request and as schema `defaultFilters()` keys (its leaves', not its own), and the value it resolves from its leaves. `$filters` is keyed by public name in the form `normalizePublicPath()` gives. The wizard applies `disallowedFilters()` to the names, and a disallowed leaf resolves to `null` |
+| `isFilterNameDisallowed($name)` | Whether `disallowedFilters()` removes a filter name; for a composite filter that lists its leaves itself |
 | `QueryWizardConfig::snapshot()` | Configuration fixed at the time of the call |
 
 ### Backward Compatibility

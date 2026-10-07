@@ -295,6 +295,8 @@ final class QueryParametersManager
      * Filter values keyed by name. With snake_case conversion on, only the
      * top-level keys are converted; keys inside values are kept as sent.
      *
+     * The collection is the manager's own, not a copy: do not change it.
+     *
      * @return Collection<string, mixed>
      */
     public function getFilters(): Collection
@@ -306,11 +308,14 @@ final class QueryParametersManager
     }
 
     /**
-     * Filter values as sent, without separator splitting.
+     * Filter values keyed by name like getFilters(), as sent: strings are not
+     * split by the filters separator. This is the form setFiltersParameter() takes,
+     * so `setFiltersParameter(getUnsplitFilters()->except('status')->all())`
+     * drops one filter; getFilterValue($name, false) reads one value.
+     *
+     * The collection is the manager's own, not a copy: do not change it.
      *
      * @return Collection<string, mixed>
-     *
-     * @internal Use getFilterValue($name, false).
      */
     public function getUnsplitFilters(): Collection
     {

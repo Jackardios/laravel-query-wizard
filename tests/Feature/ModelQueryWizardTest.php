@@ -75,6 +75,17 @@ class ModelQueryWizardTest extends TestCase
     }
 
     #[Test]
+    public function for_refuses_a_second_argument_instead_of_ignoring_it(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            ModelQueryWizard::class.'::for() takes the model only; pass a QueryParametersManager to the constructor'
+        );
+
+        ModelQueryWizard::for($this->model, new QueryParametersManager(new Request));
+    }
+
+    #[Test]
     public function it_returns_same_model_on_repeated_process_without_changes(): void
     {
         $wizard = $this

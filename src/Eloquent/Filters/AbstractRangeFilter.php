@@ -30,8 +30,18 @@ abstract class AbstractRangeFilter extends AbstractFilter
 
     use ParsesRangeValues;
 
+    /**
+     * The request key of the lower bound; a subclass sets its own.
+     *
+     * @api
+     */
     protected string $minKey = 'min';
 
+    /**
+     * The request key of the upper bound; a subclass sets its own.
+     *
+     * @api
+     */
     protected string $maxKey = 'max';
 
     /**
@@ -77,7 +87,11 @@ abstract class AbstractRangeFilter extends AbstractFilter
     }
 
     /**
+     * Read the request value into the bounds applyOnQuery() receives; null when neither bound is set.
+     *
      * @return TConstraint|null
+     *
+     * @api
      */
     abstract protected function resolveConstraint(mixed $value): ?array;
 

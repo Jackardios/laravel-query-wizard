@@ -11,6 +11,7 @@ use Jackardios\QueryWizard\ModelQueryWizard;
 use Jackardios\QueryWizard\QueryParametersManager;
 use Jackardios\QueryWizard\Tests\App\Models\RelatedModel;
 use Jackardios\QueryWizard\Tests\App\Models\TestModel;
+use Jackardios\QueryWizard\Tests\App\Models\TestModelWithHiddenAccessor;
 use Jackardios\QueryWizard\Tests\App\Models\TestModelWithHiddenName;
 use Jackardios\QueryWizard\Tests\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -250,6 +251,158 @@ class DisallowedUnderWildcardTest extends TestCase
             $this->assertSame([$append], $exception->unknownAppends->all());
             $this->assertSame("Requested append(s) `{$append}` are not allowed.", $exception->getMessage());
         }
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function hiddenAccessorSpellings(): array
+    {
+        return [
+            'camel case' => ['secretToken'],
+            'studly case' => ['SecretToken'],
+            'upper case' => ['SECRET_TOKEN'],
+            'mixed case' => ['Secret_Token'],
+            'space separated' => ['secret token'],
+            'dash separated' => ['secret-token'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('hiddenAccessorSpellings')]
+    public function hidden_accessors_in_another_spelling_are_rejected_under_wildcards(string $append): void
+    {
+        try {
+            $this->createEloquentWizardFromQuery(['append' => $append], TestModelWithHiddenAccessor::query())
+                ->allowedAppends('*')
+                ->get();
+            $this->fail('Expected InvalidAppendQuery');
+        } catch (InvalidAppendQuery $exception) {
+            $this->assertSame('append_not_allowed', $exception->errorCode);
+            $this->assertSame([$append], $exception->unknownAppends->all());
+            $this->assertSame("Requested append(s) `{$append}` are not allowed.", $exception->getMessage());
+        }
+    }
+
+    #[Test]
+    public function model_wizard_rejects_hidden_accessors_in_another_spelling_under_wildcards(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this->createModelWizardFromQuery(['append' => 'secretToken'], TestModelWithHiddenAccessor::query()->firstOrFail())
+            ->allowedAppends('*')
+            ->process();
+    }
+
+    #[Test]
+    public function hidden_accessors_in_another_spelling_are_not_computed_when_exceptions_are_disabled(): void
+    {
+        config()->set('query-wizard.ignore_unknown.appends', true);
+
+        $model = $this->createEloquentWizardFromQuery(['append' => 'secretToken,fullname'], TestModelWithHiddenAccessor::query())
+            ->allowedAppends('*')
+            ->get()
+            ->first();
+
+        $this->assertArrayNotHasKey('secretToken', $model->toArray());
+        $this->assertSame('Full: a', $model->toArray()['fullname']);
+    }
+
+    #[Test]
+    public function hidden_accessors_named_exactly_stay_hidden_under_wildcards(): void
+    {
+        $model = $this->createEloquentWizardFromQuery(['append' => 'secret_token'], TestModelWithHiddenAccessor::query())
+            ->allowedAppends('*')
+            ->get()
+            ->first();
+
+        $this->assertArrayNotHasKey('secret_token', $model->toArray());
+    }
+
+    #[Test]
+    public function hidden_accessors_allowed_by_name_in_another_spelling_are_appended(): void
+    {
+        $model = $this->createEloquentWizardFromQuery(['append' => 'secretToken'], TestModelWithHiddenAccessor::query())
+            ->allowedAppends('*', 'secretToken')
+            ->get()
+            ->first();
+
+        $this->assertSame('SECRET-'.$model->id, $model->toArray()['secretToken']);
+    }
+
+    /**
+     * @return array<string, array{array<string, mixed>, array<int, string>, array<int, string>, string}>
+     */
+    public static function disallowedAppendSpellings(): array
+    {
+        $root = static fn (string $append): array => [['append' => $append], ['*'], ['fullname'], $append];
+        $relation = static fn (string $append): array => [
+            ['include' => 'relatedModels', 'append' => ['relatedModels' => $append]],
+            ['relatedModels.*'],
+            ['relatedModels.formattedName'],
+            "relatedModels.{$append}",
+        ];
+
+        return [
+            'root append, studly case' => $root('Fullname'),
+            'root append, upper case' => $root('FULLNAME'),
+            'root append, snake case' => $root('full_name'),
+            'root append, camel case' => $root('fullName'),
+            'relation append, snake case' => $relation('formatted_name'),
+            'relation append, studly case' => $relation('FormattedName'),
+            'relation append, upper case' => $relation('FORMATTED_NAME'),
+            'relation append, dash separated' => $relation('formatted-name'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $query
+     * @param  array<int, string>  $allowed
+     * @param  array<int, string>  $disallowed
+     */
+    #[Test]
+    #[DataProvider('disallowedAppendSpellings')]
+    public function disallowed_appends_in_another_spelling_are_rejected_under_wildcards(array $query, array $allowed, array $disallowed, string $append): void
+    {
+        try {
+            $this->createEloquentWizardFromQuery($query)
+                ->allowedIncludes('relatedModels')
+                ->allowedAppends(...$allowed)
+                ->disallowedAppends(...$disallowed)
+                ->get();
+            $this->fail('Expected InvalidAppendQuery');
+        } catch (InvalidAppendQuery $exception) {
+            $this->assertSame('append_not_allowed', $exception->errorCode);
+            $this->assertSame([$append], $exception->unknownAppends->all());
+            $this->assertSame("Requested append(s) `{$append}` are not allowed.", $exception->getMessage());
+        }
+    }
+
+    #[Test]
+    public function model_wizard_rejects_disallowed_appends_in_another_spelling_under_wildcards(): void
+    {
+        $this->expectException(InvalidAppendQuery::class);
+
+        $this->createModelWizardFromQuery(['append' => 'Fullname'])
+            ->allowedAppends('*')
+            ->disallowedAppends('fullname')
+            ->process();
+    }
+
+    #[Test]
+    public function other_appends_in_another_spelling_pass_under_wildcards(): void
+    {
+        $model = $this->createEloquentWizardFromQuery(['include' => 'relatedModels', 'append' => ['relatedModels' => 'upper_name,UpperName']])
+            ->allowedIncludes('relatedModels')
+            ->allowedAppends('relatedModels.*')
+            ->disallowedAppends('relatedModels.formattedName')
+            ->get()
+            ->first();
+
+        $related = $model->relatedModels->first()->toArray();
+
+        $this->assertArrayHasKey('upper_name', $related);
+        $this->assertArrayHasKey('UpperName', $related);
     }
 
     #[Test]

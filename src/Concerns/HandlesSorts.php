@@ -44,6 +44,25 @@ trait HandlesSorts
     abstract protected function normalizeStringToSort(string $name): SortInterface;
 
     /**
+     * The sorts a request may use, by public name: those set with allowedSorts()
+     * and addAllowedSorts(), or the schema's, without the ones disallowedSorts() removes.
+     *
+     * The definitions are copies: changing one does not change the wizard. A composite
+     * definition's children are not copied.
+     *
+     * @return array<array-key, SortInterface>
+     *
+     * @throws \LogicException When called from the schema method that describes this list
+     */
+    public function getAllowedSorts(): array
+    {
+        return $this->readConfiguration(__FUNCTION__, fn (): array => array_map(
+            static fn (SortInterface $sort): SortInterface => clone $sort,
+            $this->getEffectiveSorts()
+        ));
+    }
+
+    /**
      * Get effective sorts.
      *
      * If allowedSorts() was called explicitly, use those (even if empty).

@@ -91,10 +91,29 @@ class ModelQueryWizard implements QueryWizardInterface
 
     /**
      * Create a wizard for a model instance.
+     *
+     * The request-scoped parameters manager is used; a wizard reading another
+     * one is created with the constructor.
+     *
+     * @throws \InvalidArgumentException When more than the model is passed
      */
     public static function for(Model $model): static
     {
+        if (func_num_args() > 1) {
+            throw new \InvalidArgumentException(
+                static::class.'::for() takes the model only; pass a QueryParametersManager to the constructor.'
+            );
+        }
+
         return new static($model);
+    }
+
+    /**
+     * A clone made inside a schema method is not inside it. It shares the model with its source.
+     */
+    public function __clone(): void
+    {
+        $this->forgetReadsInProgress();
     }
 
     /**
@@ -103,6 +122,8 @@ class ModelQueryWizard implements QueryWizardInterface
      * The wizard is request-bound after processing because it mutates
      * an in-memory model graph; reusing the same instance across requests
      * is considered invalid and throws a LogicException.
+     *
+     * @throws \LogicException When called from a schema method or callback it runs
      */
     public function process(): Model
     {
@@ -120,16 +141,18 @@ class ModelQueryWizard implements QueryWizardInterface
             return $this->model;
         }
 
-        $this->forgetConfigurationMemo();
-        $this->validatedRequest = null;
-        $effectiveIncludes = $this->getIncludesInUse();
-        $requestedIncludeNames = $this->resolveIncludesToApply()[0] ?? [];
-        $this->assertIncludesApplyToModels($effectiveIncludes, $requestedIncludeNames);
-        $this->validatedRequest();
-        $this->cleanUnwantedRelations($effectiveIncludes, $requestedIncludeNames);
-        $this->loadMissingIncludes($effectiveIncludes, $requestedIncludeNames);
-        $this->hideDisallowedFields();
-        $this->applyRelationPostProcessing();
+        $this->readConfiguration(__FUNCTION__, function (): void {
+            $this->forgetConfigurationMemo();
+            $this->validatedRequest = null;
+            $effectiveIncludes = $this->getIncludesInUse();
+            $requestedIncludeNames = $this->resolveIncludesToApply()[0] ?? [];
+            $this->assertIncludesApplyToModels($effectiveIncludes, $requestedIncludeNames);
+            $this->validatedRequest();
+            $this->cleanUnwantedRelations($effectiveIncludes, $requestedIncludeNames);
+            $this->loadMissingIncludes($effectiveIncludes, $requestedIncludeNames);
+            $this->hideDisallowedFields();
+            $this->applyRelationPostProcessing();
+        });
 
         $this->processed = true;
         $this->processedScopeSignature = $currentScopeSignature;

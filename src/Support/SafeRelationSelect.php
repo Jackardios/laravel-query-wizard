@@ -31,7 +31,9 @@ final class SafeRelationSelect
      * model's `$with` and nested includes), so the columns those need are
      * selected too. A query that already selects columns (the related model's
      * `$withCount`, a select in the relation definition or in a developer
-     * constraint) is left as it is.
+     * constraint) is left as it is, and so is one that joins another table,
+     * unless the relation is a BelongsToThrough; the fields outside the fieldset
+     * are hidden after loading.
      *
      * @param  array<string>  $fields
      */
@@ -42,6 +44,12 @@ final class SafeRelationSelect
         }
 
         if ($query->getQuery()->getQuery()->columns !== null) {
+            return;
+        }
+
+        // A join in the relation definition makes the columns anyone's: a fieldset
+        // name may belong to the joined table, and a bare name may be ambiguous.
+        if (! self::isBelongsToThrough($query) && ! empty($query->getQuery()->getQuery()->joins)) {
             return;
         }
 

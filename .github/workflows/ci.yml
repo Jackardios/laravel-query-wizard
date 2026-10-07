@@ -2,9 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main, master, '*.x']
+    # 'v*-rc*': release-candidate branches (v3-rc3), which otherwise only build on a manual run.
+    branches: [main, master, '*.x', 'v*-rc*']
   pull_request:
-    branches: [main, master, '*.x']
+    branches: [main, master, '*.x', 'v*-rc*']
     types: [opened, synchronize, reopened, ready_for_review]
   # Dependants track this package by dev-master (aliased 3.x-dev), so a green
   # build here can go stale without a single commit on either side. Re-run weekly.

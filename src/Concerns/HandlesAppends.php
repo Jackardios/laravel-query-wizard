@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jackardios\QueryWizard\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Jackardios\QueryWizard\Contracts\IncludeInterface;
 use Jackardios\QueryWizard\Exceptions\InvalidAppendQuery;
 use Jackardios\QueryWizard\Exceptions\MaxAppendDepthExceeded;
@@ -272,6 +273,7 @@ trait HandlesAppends
         $invalid = [];
         $disallowedFound = false;
         $model = false;
+        $protectedAccessors = null;
 
         foreach ($attributes as $attr) {
             $name = $path !== '' ? "{$path}.{$attr}" : $attr;
@@ -290,6 +292,18 @@ trait HandlesAppends
                 if ($model !== null && ! $model->hasGetMutator($attr) && ! $model->hasAttributeGetMutator($attr)) {
                     if ($canThrow) {
                         $invalid[] = $name;
+                    }
+
+                    continue;
+                }
+
+                $protectedAccessors ??= $this->protectedAccessorNames($path, $model);
+                $protected = $protectedAccessors[self::accessorKey($attr)] ?? null;
+
+                if ($protected === true || ($protected !== null && $protected !== $attr)) {
+                    if ($canThrow) {
+                        $invalid[] = $name;
+                        $disallowedFound = true;
                     }
 
                     continue;
@@ -321,6 +335,50 @@ trait HandlesAppends
         }
 
         return $valid;
+    }
+
+    /**
+     * Protected appends of one group, by accessor key: true for a disallowed
+     * name, the name itself for a hidden attribute (which may be requested
+     * exactly, and stays hidden).
+     *
+     * Eloquent resolves an appended name to its accessor without regard to
+     * letter case or to `_`, `-` and space separators, and serializes it under
+     * the name as written, so `secretToken` would read the accessor of a hidden
+     * `secret_token` past the model's hidden attributes and disallowedAppends(),
+     * which both compare names exactly.
+     *
+     * @param  string  $path  Include name ('' for the root)
+     * @return array<string, true|string>
+     */
+    private function protectedAccessorNames(string $path, ?Model $model): array
+    {
+        $names = [];
+
+        foreach ($model?->getHidden() ?? [] as $hidden) {
+            $names[self::accessorKey($hidden)] = $hidden;
+        }
+
+        $group = $this->normalizePublicPath($path);
+
+        foreach ($this->normalizePublicPaths($this->disallowedAppends) as $disallowed) {
+            $dot = strrpos($disallowed, '.');
+            $leaf = $dot === false ? $disallowed : substr($disallowed, $dot + 1);
+
+            if ($leaf !== '*' && ($dot === false ? '' : substr($disallowed, 0, $dot)) === $group) {
+                $names[self::accessorKey($leaf)] = true;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * The form in which Eloquent looks an accessor up: studly case, compared like a method name.
+     */
+    private static function accessorKey(string $name): string
+    {
+        return mb_strtolower(Str::studly($name));
     }
 
     /**
@@ -366,6 +424,21 @@ trait HandlesAppends
         if ($limit !== null && $count > $limit) {
             throw new MaxAppendsCountExceeded($count, $limit);
         }
+    }
+
+    /**
+     * The appends a request may use: those set with allowedAppends() and addAllowedAppends(),
+     * or the schema's, without the ones disallowedAppends() removes.
+     *
+     * Relation appends are dot paths (`posts.reading_time`); `*` and `posts.*` are wildcards.
+     *
+     * @return list<string>
+     *
+     * @throws \LogicException When called from the schema method that describes this list
+     */
+    public function getAllowedAppends(): array
+    {
+        return $this->readConfiguration(__FUNCTION__, fn (): array => array_values($this->getEffectiveAppends()));
     }
 
     /**

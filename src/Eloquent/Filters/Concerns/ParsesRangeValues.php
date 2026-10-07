@@ -16,6 +16,8 @@ trait ParsesRangeValues
      * Empty strings are treated as null (no value).
      *
      * @return array{0: mixed, 1: mixed}
+     *
+     * @api
      */
     protected function parseRangeValue(mixed $value, string $startKey, string $endKey): array
     {

@@ -116,6 +116,21 @@ trait HandlesFields
     }
 
     /**
+     * The fields a request may use: those set with allowedFields() and addAllowedFields(),
+     * or the schema's, without the ones disallowedFields() removes.
+     *
+     * Relation fields are dot paths (`posts.title`); `*` and `posts.*` are wildcards.
+     *
+     * @return list<string>
+     *
+     * @throws \LogicException When called from the schema method that describes this list
+     */
+    public function getAllowedFields(): array
+    {
+        return $this->readConfiguration(__FUNCTION__, fn (): array => array_values($this->getEffectiveFields()));
+    }
+
+    /**
      * Get effective fields (what client CAN request via ?fields).
      *
      * If allowedFields() was called explicitly, use those (even if empty).
@@ -255,11 +270,10 @@ trait HandlesFields
             $relationPath = $includeNameToPathMap[$requestedKey] ?? null;
             if ($relationPath === null) {
                 if (! $ignoreUnknown) {
-                    throw $this->relationFieldsNotAllowed(
+                    throw $this->fieldsetIncludeNotAllowed(
                         $requestedKey,
                         $this->prefixGroupFields($requestedKey, $normalizedRequestedFields),
-                        $allowedRelationFieldList,
-                        false
+                        $allowedRelationFieldList
                     );
                 }
 
@@ -602,6 +616,24 @@ trait HandlesFields
     private static function lowercase(string $name): string
     {
         return preg_match('/[\x80-\xff]/', $name) === 1 ? mb_strtolower($name) : strtolower($name);
+    }
+
+    /**
+     * A fieldset keyed by a name that is neither the resource key nor an include
+     * in use: its fields may well be allowed, so the error names the include.
+     *
+     * @param  array<string>  $fields
+     * @param  array<string>  $allowedFields  The allowed fields of every relation
+     */
+    private function fieldsetIncludeNotAllowed(string $relation, array $fields, array $allowedFields): InvalidFieldQuery
+    {
+        $joinedFields = implode(', ', $fields);
+
+        return new InvalidFieldQuery(
+            collect($fields),
+            collect($allowedFields),
+            "Requested field(s) `{$joinedFields}` are not allowed. `{$relation}` is not an allowed include."
+        );
     }
 
     /**

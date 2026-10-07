@@ -6,8 +6,9 @@
 
 | Method | Description |
 |--------|-------------|
-| `for($subject)` | Create from model class, query builder, or relation |
+| `for($subject)` | Create from model class, query builder, or relation; a second argument throws |
 | `forSchema($schema)` | Create from a ResourceSchema class |
+| `new EloquentQueryWizard($subject, $parameters, $config, $schema)` | Create from a query builder or relation with a `QueryParametersManager` of your own |
 
 ### Configuration Methods
 
@@ -60,6 +61,25 @@
 | `applyPostProcessingTo($results)` | Apply full post-processing (fields + appends) to results |
 | `getPassthroughFilters()` | Get passthrough filter values using the same validation/default/prepare pipeline as normal filter execution |
 
+### Reading Methods
+
+| Method | Description |
+|--------|-------------|
+| `getAllowedFilters()` | Allowed filters by public name (`array<array-key, FilterInterface>`, copies), without the disallowed ones |
+| `getAllowedSorts()` | Allowed sorts by public name (`array<array-key, SortInterface>`, copies) |
+| `getAllowedIncludes()` | Allowed includes by public name (`array<array-key, IncludeInterface>`, copies) |
+| `getAllowedFields()` | Allowed field names (`list<string>`), relation fields as dot paths |
+| `getAllowedAppends()` | Allowed append names (`list<string>`), relation appends as dot paths |
+| `getRequestedFilterNames()` | Filter names the request carries, as the build resolves them (not-allowed names included) |
+| `getResourceKey()` | Key of the root fieldset (`?fields[key]=`) |
+| `getSchema()` | The schema, or `null` |
+| `getConfig()` | `QueryWizardConfig` as of the current build |
+| `getParametersManager()` | The `QueryParametersManager` the wizard reads |
+
+These read the configuration without building and leave the wizard configurable. A name that is a number is an integer
+key. A schema method may read the lists it does not describe; reading its own list, directly or through another schema
+method, throws `LogicException`.
+
 Finders called through the wizard (`find()`, `findMany()`, `findOrFail()`, `findOr()`, `findSole()`, `sole()`,
 `firstWhere()`, `firstOr()`) build the query and post-process their results; the result of a `findOr()`/`firstOr()`
 fallback callback is returned untouched. Other builder methods are proxied after the build: a method that returns the
@@ -71,7 +91,7 @@ builder itself returns the wizard, anything else is returned as is.
 
 | Method | Description |
 |--------|-------------|
-| `for($model)` | Create from a Model instance |
+| `for($model)` | Create from a Model instance; a second argument throws |
 
 ### Configuration Methods
 
@@ -99,6 +119,8 @@ All configuration methods must be called before `process()`. After processing, c
 |--------|-------------|
 | `process()` | Apply includes, fields, appends and return the model; repeated calls are only safe when configuration and parameters are unchanged |
 | `getModel()` | Get the underlying model instance |
+| `getAllowedIncludes()`, `getAllowedFields()`, `getAllowedAppends()` | The allowed lists, as on `EloquentQueryWizard` |
+| `getResourceKey()`, `getSchema()`, `getConfig()`, `getParametersManager()` | As on `EloquentQueryWizard` |
 
 ## Parameter Semantics
 
