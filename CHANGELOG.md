@@ -8,8 +8,8 @@ All notable changes to this project are documented in this file. The format foll
 Version 3 is a rewrite: fluent `allowed*()` configuration, `EloquentFilter`/`EloquentSort`/`EloquentInclude` factories,
 resource schemas, `ModelQueryWizard::process()`, request limits. See [UPGRADE.md](UPGRADE.md) for migrating from v2.x
 and from `dev-master` snapshots. The entries below cover the changes made before the release; pre-releases v3.0.0-rc.1
-and v3.0.0-rc.2 were tagged on 2026-09-25 and v3.0.0-rc.3, v3.0.0-rc.4 and v3.0.0-rc.5 on 2026-09-30, and the changes
-since each of them are listed first (v3.0.0-rc.5 holds the changes listed since v3.0.0-rc.4).
+and v3.0.0-rc.2 were tagged on 2026-09-25, v3.0.0-rc.3, v3.0.0-rc.4 and v3.0.0-rc.5 on 2026-09-30 and v3.0.0-rc.6 on 2026-10-08, and the changes
+since each of them are listed first (v3.0.0-rc.6 holds the changes listed since v3.0.0-rc.5).
 
 ### Since v3.0.0-rc.5
 
